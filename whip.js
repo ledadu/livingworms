@@ -95,6 +95,7 @@ Vector.addDistance = function( vector, distance, angle ) {
 
 
 function Particle( props ) {
+  this.layerIndex = props.layerIndex;
   this.position = new Vector( props.x, props.y );
   this.previousPosition = new Vector( props.x, props.y );
   this.isPinned = props.isPinned;
@@ -156,6 +157,7 @@ function circle( ctx, x, y, radius , fillStyle) {
 // -------------------------- WhipLink -------------------------- //
 
 function WhipLink( props ) {
+  this.layerIndex    = props.layerIndex;	
   this.particleA     = props.particleA;
   this.particleB     = props.particleB;
   this.maxLength     = props.maxLength;
@@ -226,7 +228,7 @@ function line( ctx, a, b , strokeStyle) {
 // -------------------------- whip -------------------------- //
 
 function Whip( props ) {
-  
+  this.layerIndex      = props.layerIndex || 0;
   this.linkCount       = props.linkCount || 1;
   this.maxLinkLength   = props.maxLinkLength;
   this.minLinkLength   = props.minLinkLength || 0;
@@ -264,6 +266,7 @@ Whip.prototype.createLinks = function(startX,startY) {
 			i,
 			i === 0 ? new Particle( 
 			  {
+				layerIndex: this.layerIndex+i,
 				x: startX,
 				y: startY,
 				friction: this.friction,
@@ -283,9 +286,13 @@ Whip.prototype.createLink = function(i, particleA) {
 		time   = (new Date().getTime() - startingTime)  / globals.factorTime,
 	    color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
 			  
+	particleA.layerIndex = this.layerIndex;
+	
 	return new WhipLink({
+			  layerIndex: this.layerIndex,
 			  particleA: particleA,
 			  particleB: new Particle({
+				layerIndex: particleA.layerIndex,
 				x: particleA.position.x,
 				y: particleA.position.y,
 				size:this.lineShape.getEasing(this.width, i / this.linkCount ),
@@ -513,6 +520,7 @@ Whip.prototype.updateSubWhips = function(){
 		// create subwhip if not exist
 		if(_.isUndefined(that.subWhips[i])){
 			
+			subWhipEval.layerIndex = this.layerIndex + subWhipEval.attachNum;
 			
 			that.subWhips.push(
 				{
@@ -523,7 +531,9 @@ Whip.prototype.updateSubWhips = function(){
 
 		}
 
-		var subWhip = that.subWhips[i]
+		var subWhip = that.subWhips[i];
+		
+		
 
 		_.each(that.subWhipsDef, function(subDef,subDefName){
 
@@ -555,6 +565,8 @@ Whip.prototype.updateSubWhips = function(){
 
 			}
 			
+			this.links[attachNum].layerIndex = subWhip.layerIndex;
+			
 			subWhip.whip.links[0]['particleA'].position.x = that.links[attachNum][particle].position.x;
 			subWhip.whip.links[0]['particleA'].position.y = that.links[attachNum][particle].position.y;
 			subWhip.whip.links[0].angleFixed = that.links[attachNum].angle + subWhip.whip.angleStart;
@@ -581,6 +593,7 @@ Whip.prototype.updateSubWhips = function(){
 };
 
 Whip.prototype.render = function( ctx ) {
+	
   if(this.renderBody){
     var position = this.links[0].particleA.position,
         palette = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(0),
@@ -1389,11 +1402,11 @@ var linkPositionA = [];
 	linkPositionA[index] = whip.links[0].particleA.position;
  });
  
- 
+ //todo add targetposition in particle or whip..
 function moveHinge( event ) {
   whips.forEach(function(whip, index) {
-	linkPositionA[index].x = event.pageX - canvasOffsetLeft;
-	linkPositionA[index].y = event.pageY - canvasOffsetTop;
+	linkPositionA[index].x += (event.pageX - canvasOffsetLeft - linkPositionA[index].x) * 0.5;
+	linkPositionA[index].y += (event.pageY - canvasOffsetTop  - linkPositionA[index].y) * 0.5;
 	//linkPositionA[index].update();
   });
 
