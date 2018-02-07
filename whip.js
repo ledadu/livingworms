@@ -408,6 +408,11 @@ Whip.prototype.update = function() {
 		this.lineShape       = newEasing;
 	}
 
+	if (!_.isUndefined(this.target)) {
+		this.links[0].particleA.position.x += (this.target.x - this.links[0].particleA.position.x)*0.1;
+		this.links[0].particleA.position.y += (this.target.y - this.links[0].particleA.position.y)*0.1;
+	}
+	
 	this.updateLinks();
 
 	for ( var i=0, len = this.links.length; i < len; i++ ) {
@@ -1391,23 +1396,19 @@ function onTouchMove( event ) {
   event.preventDefault();
   moveHinge( event.changedTouches[0] );
 }
+
 /*
 function onMouseup() {
   canvas.removeEventListener( 'mousemove', moveHinge, false );
   canvas.removeEventListener( 'mouseup', onMouseup, false );
 }*/
 
-var linkPositionA = [];
- whips.forEach(function(whip, index) {
-	linkPositionA[index] = whip.links[0].particleA.position;
- });
- 
- //todo add targetposition in particle or whip..
 function moveHinge( event ) {
   whips.forEach(function(whip, index) {
-	linkPositionA[index].x += (event.pageX - canvasOffsetLeft - linkPositionA[index].x) * 0.5;
-	linkPositionA[index].y += (event.pageY - canvasOffsetTop  - linkPositionA[index].y) * 0.5;
-	//linkPositionA[index].update();
+	  whip.target = {
+		x : event.pageX - canvasOffsetLeft,
+		y : event.pageY - canvasOffsetTop
+	  };
   });
 
 }
