@@ -95,6 +95,7 @@ Vector.addDistance = function( vector, distance, angle ) {
 
 
 function Particle( props ) {
+  this.whipLink = props.whipLink;
   this.layerIndex = props.layerIndex;
   this.position = new Vector( props.x, props.y );
   this.previousPosition = new Vector( props.x, props.y );
@@ -134,12 +135,13 @@ function zoomCtx(position,size,zoom){
 }
 
 Particle.prototype.render = function( ctx ) {
-  // big circle
-  var newPosition = zoomCtx(this.position,2,1);
-  circle( ctx, newPosition.x, newPosition.y, newPosition.size/4 ,newPosition.color );
-  // dot
-  // ctx.fillStyle = 'hsla(0, 100%, 50%, 0.5)';
-  // circle( this.position.x, this.position.y, 5  );
+	if (this.whipLink.whip.renderParticles) {
+		var newPosition = zoomCtx(this.position,2,1);
+		circle( ctx, newPosition.x, newPosition.y, newPosition.size/4 ,newPosition.color );
+		// dot
+		// ctx.fillStyle = 'hsla(0, 100%, 50%, 0.5)';
+		// circle( this.position.x, this.position.y, 5  );
+  }
 };
 
 function circle( ctx, x, y, radius , fillStyle) {
@@ -157,6 +159,7 @@ function circle( ctx, x, y, radius , fillStyle) {
 // -------------------------- WhipLink -------------------------- //
 
 function WhipLink( props ) {
+  this.whip			 = props.whip;
   this.layerIndex    = props.layerIndex;	
   this.particleA     = props.particleA;
   this.particleB     = props.particleB;
@@ -169,10 +172,16 @@ function WhipLink( props ) {
 }
 
 WhipLink.prototype.update = function() {
-  // this.particleA.p
-  // this.particleA.update();
-  this.particleB.update();
-  this.constrainParticles();
+	
+	if (sprites.isNew){
+		sprites.add(this);
+		sprites.add(this.particleA);
+	}
+	
+	// this.particleA.p
+	// this.particleA.update();
+	this.particleB.update();
+	this.constrainParticles();
 };
 
 // constrain particles to size of SpringLever
@@ -208,9 +217,11 @@ WhipLink.prototype.updateParticleBWhithAngle = function(angle) {
 // --------------------------  -------------------------- //
 
 WhipLink.prototype.render = function( ctx ) {
-  ctx.lineWidth = this.particleB.size;
-  line( ctx, this.particleA.position, this.particleB.position ,this.particleA.color);
-  //circle( ctx, this.particleA.position.x,this.particleA.position.y, 4 ,'rgba(100%, 0%, 0%, 1)' );
+	if (this.whip.renderLinks) {
+		ctx.lineWidth = this.particleB.size;
+		line( ctx, this.particleA.position, this.particleB.position ,this.particleA.color);
+		//circle( ctx, this.particleA.position.x,this.particleA.position.y, 4 ,'rgba(100%, 0%, 0%, 1)' );
+	}
 
 };
 
@@ -255,8 +266,9 @@ function Whip( props ) {
 }
 
 Whip.prototype.createLinks = function(startX,startY) {
-	var palette = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(i/this.linkCount),
-	    color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
+	var that    = this,
+		palette = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(i/this.linkCount),
+	    color   = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
 		
 	this.links = [];
 	
@@ -266,7 +278,8 @@ Whip.prototype.createLinks = function(startX,startY) {
 			i,
 			i === 0 ? new Particle( 
 			  {
-				layerIndex: this.layerIndex+i,
+				whipLink: this,
+				layerIndex: this.layerIndex + this.linkCount + i,
 				x: startX,
 				y: startY,
 				friction: this.friction,
@@ -277,6 +290,7 @@ Whip.prototype.createLinks = function(startX,startY) {
 			) :
 			this.links[ i - 1 ].particleB
 		);
+
 	} 
 };
 
@@ -284,27 +298,33 @@ Whip.prototype.createLinks = function(startX,startY) {
 Whip.prototype.createLink = function(i, particleA) {
 	var palette = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(i/this.linkCount),
 		time   = (new Date().getTime() - startingTime)  / globals.factorTime,
-	    color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
-			  
-	particleA.layerIndex = this.layerIndex;
-	
-	return new WhipLink({
-			  layerIndex: this.layerIndex,
+	    color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')',
+		newWhipLink = new WhipLink({
+			  whip: this,
+			  layerIndex: this.layerIndex + i,
 			  particleA: particleA,
-			  particleB: new Particle({
-				layerIndex: particleA.layerIndex,
-				x: particleA.position.x,
-				y: particleA.position.y,
-				size:this.lineShape.getEasing(this.width, i / this.linkCount ),
-				color: color,
-				friction: this.friction
-			  }),
+			  particleB: null,
 			  maxLength: this.maxLinkLength,
 			  minLength: this.minLinkLength,
 			  deltaScale: this.deltaScale,
 			  angleRotation : (i <= this.linkCount) ? (catchedEval(this.angleRotation,{i:i, time:time}) * (this.linkCount-i)/this.linkCount ) : 0,
 			  angleFixed : null,
 	});
+	
+	particleA.layerIndex  = this.layerIndex + this.linkCount + i;
+	//Add whiplink
+	newWhipLink.particleA.whipLink = newWhipLink;
+	newWhipLink.particleB = new Particle({
+		whipLink: newWhipLink,
+		layerIndex: particleA.layerIndex + this.linkCount + i,
+		x: particleA.position.x,
+		y: particleA.position.y,
+		size:this.lineShape.getEasing(this.width, i / this.linkCount ),
+		color: color,
+		friction: this.friction
+	})
+	
+	return newWhipLink;
 }
 
 
@@ -408,6 +428,7 @@ Whip.prototype.update = function() {
 		this.lineShape       = newEasing;
 	}
 
+	//Follow target
 	if (!_.isUndefined(this.target)) {
 		this.links[0].particleA.position.x += (this.target.x - this.links[0].particleA.position.x)*0.1;
 		this.links[0].particleA.position.y += (this.target.y - this.links[0].particleA.position.y)*0.1;
@@ -450,7 +471,10 @@ Whip.prototype.update = function() {
   		this.subWhipsDef.renderParticles = this.subWhipsDef.renderParticles || false;
   		this.subWhipsDef.renderLinks     = this.subWhipsDef.renderLinks || false;
 	}*/
-
+	
+	if (sprites.isNew) {
+		sprites.add(this);				
+	}
 
 	this.updateSubWhipsDef(this);
 
@@ -527,18 +551,19 @@ Whip.prototype.updateSubWhips = function(){
 			
 			subWhipEval.layerIndex = this.layerIndex + subWhipEval.attachNum;
 			
+			var newSubWips = new Whip(subWhipEval);
+			
 			that.subWhips.push(
 				{
 					attachNum : subWhipEval.attachNum,
-					whip      : new Whip(subWhipEval)
+					whip      : newSubWips
 				}			
 			);
+			
 
 		}
 
 		var subWhip = that.subWhips[i];
-		
-		
 
 		_.each(that.subWhipsDef, function(subDef,subDefName){
 
@@ -615,7 +640,7 @@ Whip.prototype.render = function( ctx ) {
       circle( ctx, position.x, position.y , this.lineShape.getEasing(this.width, i / this.linkCount ), color); 
     }
   }
-
+/*
 	if(this.renderLinks){
 		this.links.forEach(function(link) {
 			link.render(ctx);
@@ -631,7 +656,7 @@ Whip.prototype.render = function( ctx ) {
 	this.subWhips.forEach(function(subWhip) {
 		subWhip.whip.render( ctx );
 	});
-	  
+	*/  
   
 };
 
@@ -735,6 +760,7 @@ var Palette = function(paletteName, lineShape){
 				s : 50 + 50 * that.lineShape.getEasing(1,iteration*6),
 				l : 50 + 10 * that.lineShape.getEasing(1,iteration*4),
 				transparency : 0.0835
+				//transparency : 1
 			};
 		},
 		test: function(iteration){
@@ -743,6 +769,7 @@ var Palette = function(paletteName, lineShape){
 				s : 30 + 50 * that.lineShape.getEasing(1,iteration*4),
 				l : 60 + 5 * that.lineShape.getEasing(1,iteration*4),
 				transparency : 0.535
+				//transparency : 1
 			};
 		},
 		orangeDark: function(iteration){	
@@ -751,6 +778,7 @@ var Palette = function(paletteName, lineShape){
 				s : 70 + 10 * that.lineShape.getEasing(1,iteration*6),
 				l : 10 + 20 * that.lineShape.getEasing(1,iteration*4),
 				transparency : 0.535
+				//transparency : 1
 			};
 		},
 		mega: function(iteration){	
@@ -759,6 +787,7 @@ var Palette = function(paletteName, lineShape){
 				s : 70 + 10 * that.lineShape.getEasing(1,iteration*6),
 				l : 50 + 20 * that.lineShape.getEasing(1,iteration*4),
 				transparency : 0.535
+				//transparency : 1
 			};
 		},
 	};
@@ -812,6 +841,7 @@ var renderForm = function() {
 		$.extend(whips[0], JSON.parse($('#LoadContent').val()));
 		console.log('load');
 		renderForm();
+		sprites.empty();
 	});
 	$wormEdit.append($loadButton);
 
@@ -969,6 +999,8 @@ var renderFieldset = function(className, objectToBind, definitions, values) {
 			if($target.attr('name') == 'haveSubwhips'){
 		    	setTimeout(renderForm,100);
 		    }
+			
+			sprites.empty();
       
 		});
 
@@ -1015,6 +1047,7 @@ $(document).ready(function() {
 	renderForm();
 
 	console.log(whips);
+	console.log(sprites);
 	
 
 
@@ -1034,7 +1067,18 @@ var globals = {
 };
 
 
-var whips = [];
+var whips   = [];
+var sprites = {
+		models : [],
+		isNew  : true,
+		add	   : function(model) {
+			sprites.models.push(model);
+		},
+		empty  : function(){
+			sprites.models = [];
+			sprites.isNew   = true;
+		}
+ 	}
 
 // 1rst bestiole
 
@@ -1328,6 +1372,12 @@ function update() {
 	whips.forEach(function(whip) {
 		whip.update();
 	});
+	if(sprites.isNew){
+		sprites.models.reverse();
+		sprites.models = _.sortBy(sprites.models, function(model){return -model.layerIndex;});
+		
+		sprites.isNew = false;
+	}
 }
 
 function render() {
@@ -1340,11 +1390,15 @@ function render() {
 
  //ctx.drawImage(img,0,0,img.width,img.height,0,0,w,h);
 
-
+/*
   whips.forEach(function(whip) {
 	whip.render( ctx );
   });
+  */
   
+  sprites.models.forEach(function(sprite) {
+	sprite.render( ctx );
+  });
   //ctx.restore();
 }
 
