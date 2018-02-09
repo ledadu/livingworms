@@ -172,12 +172,7 @@ function WhipLink( props ) {
 }
 
 WhipLink.prototype.update = function() {
-	
-	if (sprites.isNew){
-		sprites.add(this);
-		sprites.add(this.particleA);
-	}
-	
+
 	// this.particleA.p
 	// this.particleA.update();
 	this.particleB.update();
@@ -218,7 +213,7 @@ WhipLink.prototype.updateParticleBWhithAngle = function(angle) {
 
 WhipLink.prototype.render = function( ctx ) {
 	if (this.whip.renderLinks) {
-		ctx.lineWidth = this.particleB.size;
+		ctx.lineWidth = this.particleA.size;
 		line( ctx, this.particleA.position, this.particleB.position ,this.particleA.color);
 		//circle( ctx, this.particleA.position.x,this.particleA.position.y, 4 ,'rgba(100%, 0%, 0%, 1)' );
 	}
@@ -342,14 +337,15 @@ Whip.prototype.updateLinks = function() {
 			this.links[i].minLength      = this.minLinkLength;
 			this.links[i].deltaScale     = this.deltaScale;
 			this.links[i].angleRotation  = (i <= this.linkCount) ? (catchedEval(this.angleRotation,{i:i, time:time})* (this.linkCount-i)/this.linkCount ) : 0;
-      this.links[i].particleA.size = this.lineShape.getEasing(this.width, i / this.linkCount );
+			this.links[i].particleA.size = this.lineShape.getEasing(this.width, i / this.linkCount );
 			this.links[i].particleA.color = color;
 			this.links[i].particleA.friction = this.friction;
       
-      this.links[i].particleB.size = this.lineShape.getEasing(this.width, i / this.linkCount );
+			this.links[i].particleB.size = this.lineShape.getEasing(this.width, i / this.linkCount );
 			this.links[i].particleB.color = color;
 			this.links[i].particleB.friction = this.friction;
-		}else{
+		}
+		else{
 			this.links[i] = this.createLink(i, this.links[ i - 1 ].particleB);			
 		}
 	}
@@ -463,6 +459,11 @@ Whip.prototype.update = function() {
 				this.links[i].updateParticleBWhithAngle(this.links[i].angle + difAngle * globals.reactAngle + deltaPi);
 			}
 
+		}
+		
+		if (i < this.linkCount && sprites.isNew){
+			sprites.add(this.links[i]);
+			sprites.add(this.links[i].particleA);
 		}
 	}
 
@@ -582,7 +583,7 @@ Whip.prototype.updateSubWhips = function(){
 		
 		// link subwhip to parent
 		subWhip.whip.linkCount = subWhip.whip.linkCount || 1;
-
+		
 		if (subWhip.attachNum <= this.linkCount+1){
 
 			var particle = 'particleA'
@@ -595,11 +596,15 @@ Whip.prototype.updateSubWhips = function(){
 
 			}
 			
-			this.links[attachNum].layerIndex = subWhip.layerIndex;
+			if(!_.isUndefined(this.links[attachNum])) {
+				this.links[attachNum].layerIndex = subWhip.layerIndex;
+				
+				subWhip.whip.links[0]['particleA'].position.x = that.links[attachNum][particle].position.x;
+				subWhip.whip.links[0]['particleA'].position.y = that.links[attachNum][particle].position.y;
+				subWhip.whip.links[0].angleFixed = that.links[attachNum].angle + subWhip.whip.angleStart;
+			}
 			
-			subWhip.whip.links[0]['particleA'].position.x = that.links[attachNum][particle].position.x;
-			subWhip.whip.links[0]['particleA'].position.y = that.links[attachNum][particle].position.y;
-			subWhip.whip.links[0].angleFixed = that.links[attachNum].angle + subWhip.whip.angleStart;
+			
 			
 		}
 
