@@ -436,10 +436,10 @@ Whip.prototype.update = function() {
 		this.links[i].update();
 
 		if (i > 0){
-			var deltaAngle = testDeltaAngle = this.links[i-1].angle - this.links[i].angle,
+			var deltaAngle = testDeltaAngle = (this.links[i-1].angle - this.links[i].angle) % (Math.PI*2),
 				deltaPi = 0;
 
-			if (deltaAngle > Math.PI){
+			if (deltaAngle >= Math.PI){
 				testDeltaAngle = deltaAngle - Math.PI*2;
 				 deltaPi = -Math.PI*2;
 			}
