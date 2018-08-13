@@ -1,3 +1,6 @@
+
+
+
 // ----- utils ----- //
 
 function getAngle( a, b ) {
@@ -137,13 +140,22 @@ function zoomCtx(position,size,zoom){
 Particle.prototype.render = function( ctx ) {
 	if (this.whipLink.whip.renderParticles) {
 		var newPosition = zoomCtx(this.position,2,1);
-		circle( ctx, newPosition.x, newPosition.y, newPosition.size/4 ,newPosition.color );
+			//circle = new PIXI.Circle (newPosition.x, newPosition.y, newPosition.size/4);
+			
+
+		graphics.beginFill(0xffffff); // Red
+		graphics.drawCircle(newPosition.x, newPosition.y, newPosition.size/4); // drawCircle(x, y, radius)
+		graphics.endFill();
+			
+		//circle( ctx, newPosition.x, newPosition.y, newPosition.size/4 ,newPosition.color );
+		
 		// dot
 		// ctx.fillStyle = 'hsla(0, 100%, 50%, 0.5)';
 		// circle( this.position.x, this.position.y, 5  );
   }
 };
 
+/*
 function circle( ctx, x, y, radius , fillStyle) {
   fillStyle = fillStyle || '#000';
   if(radius <= 0){
@@ -155,6 +167,7 @@ function circle( ctx, x, y, radius , fillStyle) {
   ctx.fill();
   ctx.closePath();
 }
+*/
 
 // -------------------------- WhipLink -------------------------- //
 
@@ -213,8 +226,10 @@ WhipLink.prototype.updateParticleBWhithAngle = function(angle) {
 
 WhipLink.prototype.render = function( ctx ) {
 	if (this.whip.renderLinks) {
+		/*
 		ctx.lineWidth = this.particleA.size;
 		line( ctx, this.particleA.position, this.particleB.position ,this.particleA.color);
+		*/
 		//circle( ctx, this.particleA.position.x,this.particleA.position.y, 4 ,'rgba(100%, 0%, 0%, 1)' );
 	}
 
@@ -634,7 +649,11 @@ Whip.prototype.render = function( ctx ) {
         palette = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(0),
           color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
 
-    circle( ctx, position.x, position.y ,this.lineShape.getEasing(this.width, 0 ), color );
+	graphics.beginFill(0xffffff,0.5); // Red
+	graphics.drawCircle(position.x, position.y ,this.lineShape.getEasing(this.width, 0 )); // drawCircle(x, y, radius)
+	graphics.endFill();
+    //circle( ctx, position.x, position.y ,this.lineShape.getEasing(this.width, 0 ), color );
+	
     for ( var len = this.links.length, i=len-1; i >= 0; i-- ) {
       var link = this.links[i];
 
@@ -642,9 +661,13 @@ Whip.prototype.render = function( ctx ) {
       var palette = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(i/this.linkCount),
           color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
 
-      circle( ctx, position.x, position.y , this.lineShape.getEasing(this.width, i / this.linkCount ), color);
+	graphics.beginFill(0xffffff,0.5); // Red
+	graphics.drawCircle(position.x, position.y ,this.lineShape.getEasing(this.width, i / this.linkCount )); // drawCircle(x, y, radius)
+	graphics.endFill();
+      //circle( ctx, position.x, position.y , this.lineShape.getEasing(this.width, i / this.linkCount ), color);
     }
   }
+  
 /*
 	if(this.renderLinks){
 		this.links.forEach(function(link) {
@@ -1006,6 +1029,12 @@ var renderFieldset = function(className, objectToBind, definitions, values) {
 		    }
 
 			sprites.empty();
+			
+			update();
+			
+			sprites.models.forEach(function(sprite) {
+				sprite.render();
+			});
 
 		});
 
@@ -1016,16 +1045,39 @@ var renderFieldset = function(className, objectToBind, definitions, values) {
 
 
 
+var appOptions = {
+  width  : window.innerWidth - 20,
+  height : window.innerHeight - 20
+}
+
+var app          = new PIXI.Application(appOptions);
+
+var renderer = PIXI.autoDetectRenderer(appOptions.width, appOptions.height, { backgroundColor: 0x000000, antialias: false });
+
+var graphicStage = new PIXI.Container();
+var graphics = new PIXI.Graphics();
+
+var mouseposition = app.renderer.plugins.interaction.mouse.global;
+
+
 
 var canvas = null;
 var ctx = null;
 var w = 0;
 var h = 0;
-var img=new Image();
 var startingTime = new Date().getTime();
 var mainGui = {};
 
 $(document).ready(function() {
+	document.body.appendChild(app.view);
+	app.stage.addChild(graphics);
+	
+	
+	
+	/*
+	document.body.appendChild(renderer.view);
+	graphicStage.addChild(graphics);
+	/*
 	canvas = $('canvas').get(0);
 	w = canvas.width = window.innerWidth - 20;
 	h = canvas.height = window.innerHeight - 20;
@@ -1045,6 +1097,7 @@ $(document).ready(function() {
 		ctx.fillStyle = "rgba(0,0,0,1)";
 		ctx.fillRect(0,0,w,h);
     }
+	*/
     //img.src="http://static9.depositphotos.com/1001311/1123/i/950/depositphotos_11236001-The-brown-wood-texture-with-natural-patterns.jpg";
 
 	//mainGui = new dat.GUI();
@@ -1053,10 +1106,39 @@ $(document).ready(function() {
 
 	console.log(whips);
 	console.log(sprites);
+	
+
+	app.ticker.add(function() {
+		
+		var mouseposition = app.renderer.plugins.interaction.mouse.global;
+		
+		//console.log(canvasOffsetLeft);
+		
+		whips.forEach(function(whip, index) {
+			  whip.target = {
+				x : mouseposition.x - canvasOffsetLeft,
+				y : mouseposition.y - canvasOffsetTop
+			  };
+		});
+		
+		update();
+		
+		graphics.clear();
+		sprites.models.forEach(function(sprite) {
+			sprite.render();
+		});
+		
+					
+	
+  
+		renderer.render(graphicStage);
+	});
 
 
+	isAnimating = true;
 
-	start();
+	
+	//start();
 });
 
 
@@ -1410,8 +1492,14 @@ function render() {
 var isAnimating = false;
 
 function animate() {
+			var mouseposition = app.renderer.plugins.interaction.mouse.global;
+
   update();
-  render();
+  sprites.models.forEach(function(sprite) {
+		sprite.render();
+	});
+  renderer.render(graphicStage);
+  //render();
   if ( isAnimating ) {
     requestAnimationFrame( animate );
   }
@@ -1429,7 +1517,7 @@ function start() {
 
 // --------------------------  -------------------------- //
 
-var canvasOffsetLeft, canvasOffsetTop;
+var canvasOffsetLeft = 0, canvasOffsetTop = 0;
 
 
 function onMouseDown( event ) {
