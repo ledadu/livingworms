@@ -141,14 +141,14 @@ Particle.prototype.render = function( ctx ) {
 	if (this.whipLink.whip.renderParticles) {
 		var newPosition = zoomCtx(this.position,2,1);
 			//circle = new PIXI.Circle (newPosition.x, newPosition.y, newPosition.size/4);
-			
 
-		graphics.beginFill(0xffffff); // Red
+
+		graphics.beginFill(newPosition.color);
 		graphics.drawCircle(newPosition.x, newPosition.y, newPosition.size/4); // drawCircle(x, y, radius)
 		graphics.endFill();
-			
+
 		//circle( ctx, newPosition.x, newPosition.y, newPosition.size/4 ,newPosition.color );
-		
+
 		// dot
 		// ctx.fillStyle = 'hsla(0, 100%, 50%, 0.5)';
 		// circle( this.position.x, this.position.y, 5  );
@@ -278,7 +278,7 @@ function Whip( props ) {
 Whip.prototype.createLinks = function(startX,startY) {
 	var that    = this,
 		palette = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(i/this.linkCount),
-	    color   = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
+	    color   = colorToHex(palette);
 
 	this.links = [];
 
@@ -308,7 +308,8 @@ Whip.prototype.createLinks = function(startX,startY) {
 Whip.prototype.createLink = function(i, particleA) {
 	var palette = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(i/this.linkCount),
 		time   = (new Date().getTime() - startingTime)  / globals.factorTime,
-	    color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')',
+	    color   = colorToHex(palette),
+	    //color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')',
 		newWhipLink = new WhipLink({
 			  whip: this,
 			  layerIndex: this.layerIndex + i,
@@ -345,7 +346,8 @@ Whip.prototype.updateLinks = function() {
 	for ( var i=0; i <= this.linkCount; i++ ) {
 
       var palette = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(i/this.linkCount),
-	    color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
+	    //color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
+	    color   = colorToHex(palette);
 
 		if (!_.isUndefined(this.links[i])) {
 			this.links[i].maxLength      = this.maxLinkLength;
@@ -647,27 +649,29 @@ Whip.prototype.render = function( ctx ) {
   if(this.renderBody){
     var position = this.links[0].particleA.position,
         palette = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(0),
-          color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
+	    color   = colorToHex(palette);
+        //  color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
 
-	graphics.beginFill(0xffffff,0.5); // Red
+	graphics.beginFill(color,palette.transparency );
 	graphics.drawCircle(position.x, position.y ,this.lineShape.getEasing(this.width, 0 )); // drawCircle(x, y, radius)
 	graphics.endFill();
     //circle( ctx, position.x, position.y ,this.lineShape.getEasing(this.width, 0 ), color );
-	
+
     for ( var len = this.links.length, i=len-1; i >= 0; i-- ) {
       var link = this.links[i];
 
       position = link.particleB.position;
       var palette = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(i/this.linkCount),
-          color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
+	      color   = colorToHex(palette);
+         // color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
 
-	graphics.beginFill(0xffffff,0.5); // Red
+	graphics.beginFill(color,palette.transparency );
 	graphics.drawCircle(position.x, position.y ,this.lineShape.getEasing(this.width, i / this.linkCount )); // drawCircle(x, y, radius)
 	graphics.endFill();
       //circle( ctx, position.x, position.y , this.lineShape.getEasing(this.width, i / this.linkCount ), color);
     }
   }
-  
+
 /*
 	if(this.renderLinks){
 		this.links.forEach(function(link) {
@@ -783,59 +787,110 @@ var Palette = function(paletteName, lineShape){
 
 	this.palettes = {
 		bleuVertOrange: function(iteration ) {
-			return {
+            var _return = {
 				h : 90 * that.lineShape.getEasing(1,iteration)-20,
 				s : 50 + 50 * that.lineShape.getEasing(1,iteration*6),
 				l : 50 + 10 * that.lineShape.getEasing(1,iteration*4),
 				transparency : 0.0835
 				//transparency : 1
 			};
+            return _.extend(_return,that.hslToRgb(_return));
 		},
 		test: function(iteration){
-			return {
+            var _return = {
 				h : 90 * that.lineShape.getEasing(1,iteration)+80,
 				s : 30 + 50 * that.lineShape.getEasing(1,iteration*4),
 				l : 60 + 5 * that.lineShape.getEasing(1,iteration*4),
 				transparency : 0.535
 				//transparency : 1
 			};
+            return _.extend(_return,that.hslToRgb(_return));
 		},
 		orangeDark: function(iteration){
-			return {
+            var _return = {
 				h : 2 * that.lineShape.getEasing(1,iteration)+350,
 				s : 70 + 10 * that.lineShape.getEasing(1,iteration*6),
 				l : 10 + 20 * that.lineShape.getEasing(1,iteration*4),
 				transparency : 0.535
 				//transparency : 1
 			};
+            return _.extend(_return,that.hslToRgb(_return));
 		},
 		mega: function(iteration){
-			return {
+            var _return = {
 				h : 360 * that.lineShape.getEasing(1,iteration),
 				s : 70 + 10 * that.lineShape.getEasing(1,iteration*6),
 				l : 50 + 20 * that.lineShape.getEasing(1,iteration*4),
 				transparency : 0.535
 				//transparency : 1
 			};
+            return _.extend(_return,that.hslToRgb(_return));
 		},
 	};
 
 	this.paletteName = (_.isUndefined(paletteName) || _.isUndefined(this.palettes[paletteName]) ) ? 'bleuVertOrange' : paletteName;
 	this.lineShape   = lineShape || new Easing();
 
+    this.hslToRgb = function(color){
+
+        var r, g, b,
+            h = (color.h % 100) / 100,
+            s = (color.h % 100) / 100,
+            l = (color.h % 100) / 100;
+
+        if(s == 0){
+            r = g = b = l; // achromatic
+        }else{
+            var hue2rgb = function hue2rgb(p, q, t){
+                if(t < 0) t += 1;
+                if(t > 1) t -= 1;
+                if(t < 1/6) return p + (q - p) * 6 * t;
+                if(t < 1/2) return q;
+                if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                return p;
+            }
+
+            var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            var p = 2 * l - q;
+            r = hue2rgb(p, q, h + 1/3);
+            g = hue2rgb(p, q, h);
+            b = hue2rgb(p, q, h - 1/3);
+        }
+
+        return {
+            r : Math.round(r * 255),
+            g : Math.round(g * 255),
+            b : Math.round(b * 255)
+        }
+    }
+
 
 };
 
 Palette.prototype.getColor = function(iteration) { // iteration 0 to 1
 	return this.palettes[this.paletteName](iteration);
-}
+};
 
 Palette.prototype.setLineShape = function(lineShape) { // iteration 0 to 1
 	this.lineShape = lineShape || new Easing();
 	return this;
-}
+};
 
+var componentToHex = function(c) {
+    var hex = c.toString(16);
+    return hex.length == 1 ? "0" + hex : hex;
+};
 
+var colorToHex = function(color,inString = false) {
+
+    var str = componentToHex(color.r) + componentToHex(color.g) + componentToHex(color.b);
+
+    if (inString) {
+        return str;
+    }
+
+    return parseInt('0x' + str);
+};
 
 var renderForm = function() {
 
@@ -1029,9 +1084,9 @@ var renderFieldset = function(className, objectToBind, definitions, values) {
 		    }
 
 			sprites.empty();
-			
+
 			update();
-			
+
 			sprites.models.forEach(function(sprite) {
 				sprite.render();
 			});
@@ -1071,9 +1126,9 @@ var mainGui = {};
 $(document).ready(function() {
 	document.body.appendChild(app.view);
 	app.stage.addChild(graphics);
-	
-	
-	
+
+
+
 	/*
 	document.body.appendChild(renderer.view);
 	graphicStage.addChild(graphics);
@@ -1106,38 +1161,38 @@ $(document).ready(function() {
 
 	console.log(whips);
 	console.log(sprites);
-	
+
 
 	app.ticker.add(function() {
-		
+
 		var mouseposition = app.renderer.plugins.interaction.mouse.global;
-		
+
 		//console.log(canvasOffsetLeft);
-		
+
 		whips.forEach(function(whip, index) {
 			  whip.target = {
 				x : mouseposition.x - canvasOffsetLeft,
 				y : mouseposition.y - canvasOffsetTop
 			  };
 		});
-		
+
 		update();
-		
+
 		graphics.clear();
 		sprites.models.forEach(function(sprite) {
 			sprite.render();
 		});
-		
-					
-	
-  
+
+
+
+
 		renderer.render(graphicStage);
 	});
 
 
 	isAnimating = true;
 
-	
+
 	//start();
 });
 
