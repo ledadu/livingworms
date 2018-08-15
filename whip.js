@@ -143,7 +143,7 @@ Particle.prototype.render = function( ctx ) {
 			//circle = new PIXI.Circle (newPosition.x, newPosition.y, newPosition.size/4);
 
 
-		graphics.beginFill(newPosition.color);
+		graphics.beginFill(colorToHex(this.color), this.color.transparency);
 		graphics.drawCircle(newPosition.x, newPosition.y, newPosition.size/4); // drawCircle(x, y, radius)
 		graphics.endFill();
 
@@ -230,7 +230,10 @@ WhipLink.prototype.render = function( ctx ) {
 		ctx.lineWidth = this.particleA.size;
 		line( ctx, this.particleA.position, this.particleB.position ,this.particleA.color);
 		*/
-		//circle( ctx, this.particleA.position.x,this.particleA.position.y, 4 ,'rgba(100%, 0%, 0%, 1)' );
+		graphics.lineStyle(this.particleA.size, colorToHex(this.particleA.color), this.particleA.color.transparency);
+		graphics.moveTo(this.particleA.position.x, this.particleA.position.y);
+		graphics.lineTo(this.particleB.position.x, this.particleB.position.y);
+		
 	}
 
 };
@@ -278,7 +281,7 @@ function Whip( props ) {
 Whip.prototype.createLinks = function(startX,startY) {
 	var that    = this,
 		palette = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(i/this.linkCount),
-	    color   = colorToHex(palette);
+	    color   = palette;
 
 	this.links = [];
 
@@ -308,7 +311,7 @@ Whip.prototype.createLinks = function(startX,startY) {
 Whip.prototype.createLink = function(i, particleA) {
 	var palette = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(i/this.linkCount),
 		time   = (new Date().getTime() - startingTime)  / globals.factorTime,
-	    color   = colorToHex(palette),
+	    color   = palette,
 	    //color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')',
 		newWhipLink = new WhipLink({
 			  whip: this,
@@ -347,7 +350,7 @@ Whip.prototype.updateLinks = function() {
 
       var palette = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(i/this.linkCount),
 	    //color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
-	    color   = colorToHex(palette);
+	    color   = palette;
 
 		if (!_.isUndefined(this.links[i])) {
 			this.links[i].maxLength      = this.maxLinkLength;
@@ -647,12 +650,14 @@ Whip.prototype.updateSubWhips = function(){
 Whip.prototype.render = function( ctx ) {
 
   if(this.renderBody){
+	 
     var position = this.links[0].particleA.position,
         palette = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(0),
 	    color   = colorToHex(palette);
         //  color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
-
-	graphics.beginFill(color,palette.transparency );
+		
+	//graphics.lineStyle(0, color, palette.transparency );
+	graphics.beginFill(color, palette.transparency );
 	graphics.drawCircle(position.x, position.y ,this.lineShape.getEasing(this.width, 0 )); // drawCircle(x, y, radius)
 	graphics.endFill();
     //circle( ctx, position.x, position.y ,this.lineShape.getEasing(this.width, 0 ), color );
@@ -665,7 +670,8 @@ Whip.prototype.render = function( ctx ) {
 	      color   = colorToHex(palette);
          // color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
 
-	graphics.beginFill(color,palette.transparency );
+	//graphics.lineStyle(0, color, palette.transparency );
+	graphics.beginFill(color, palette.transparency );
 	graphics.drawCircle(position.x, position.y ,this.lineShape.getEasing(this.width, i / this.linkCount )); // drawCircle(x, y, radius)
 	graphics.endFill();
       //circle( ctx, position.x, position.y , this.lineShape.getEasing(this.width, i / this.linkCount ), color);
@@ -787,10 +793,11 @@ var Palette = function(paletteName, lineShape){
 
 	this.palettes = {
 		bleuVertOrange: function(iteration ) {
+			
             var _return = {
 				h : 90 * that.lineShape.getEasing(1,iteration)-20,
-				s : 50 + 50 * that.lineShape.getEasing(1,iteration*6),
-				l : 50 + 10 * that.lineShape.getEasing(1,iteration*4),
+				s : 50 + 25 * that.lineShape.getEasing(1,iteration*6),
+				l : 50,
 				transparency : 0.0835
 				//transparency : 1
 			};
@@ -799,8 +806,8 @@ var Palette = function(paletteName, lineShape){
 		test: function(iteration){
             var _return = {
 				h : 90 * that.lineShape.getEasing(1,iteration)+80,
-				s : 30 + 50 * that.lineShape.getEasing(1,iteration*4),
-				l : 60 + 5 * that.lineShape.getEasing(1,iteration*4),
+				s : 60,
+				l : 50,
 				transparency : 0.535
 				//transparency : 1
 			};
@@ -808,9 +815,9 @@ var Palette = function(paletteName, lineShape){
 		},
 		orangeDark: function(iteration){
             var _return = {
-				h : 2 * that.lineShape.getEasing(1,iteration)+350,
-				s : 70 + 10 * that.lineShape.getEasing(1,iteration*6),
-				l : 10 + 20 * that.lineShape.getEasing(1,iteration*4),
+				h : 20 * that.lineShape.getEasing(1,iteration)+350,
+				s : 65 + 5 * that.lineShape.getEasing(1,iteration*6),
+				l : 50 - 5 * that.lineShape.getEasing(1,iteration*8),
 				transparency : 0.535
 				//transparency : 1
 			};
@@ -819,8 +826,8 @@ var Palette = function(paletteName, lineShape){
 		mega: function(iteration){
             var _return = {
 				h : 360 * that.lineShape.getEasing(1,iteration),
-				s : 70 + 10 * that.lineShape.getEasing(1,iteration*6),
-				l : 50 + 20 * that.lineShape.getEasing(1,iteration*4),
+				s : 85 + 5 * that.lineShape.getEasing(1,iteration*6),
+				l : 65 + 10 * that.lineShape.getEasing(1,iteration*4),
 				transparency : 0.535
 				//transparency : 1
 			};
@@ -830,40 +837,61 @@ var Palette = function(paletteName, lineShape){
 
 	this.paletteName = (_.isUndefined(paletteName) || _.isUndefined(this.palettes[paletteName]) ) ? 'bleuVertOrange' : paletteName;
 	this.lineShape   = lineShape || new Easing();
+	
+	this.hslToRgb = function (color) {
 
-    this.hslToRgb = function(color){
+		var r, g, b, m, c, x,
+		    h = color.h,
+            s = color.s,
+            l = color.l;
 
-        var r, g, b,
-            h = (color.h % 100) / 100,
-            s = (color.h % 100) / 100,
-            l = (color.h % 100) / 100;
+		if (!isFinite(h)) h = 0
+		if (!isFinite(s)) s = 0
+		if (!isFinite(l)) l = 0
 
-        if(s == 0){
-            r = g = b = l; // achromatic
-        }else{
-            var hue2rgb = function hue2rgb(p, q, t){
-                if(t < 0) t += 1;
-                if(t > 1) t -= 1;
-                if(t < 1/6) return p + (q - p) * 6 * t;
-                if(t < 1/2) return q;
-                if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-                return p;
-            }
+		h /= 60
+		if (h < 0) h = 6 - (-h % 6)
+		h %= 6
 
-            var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-            var p = 2 * l - q;
-            r = hue2rgb(p, q, h + 1/3);
-            g = hue2rgb(p, q, h);
-            b = hue2rgb(p, q, h - 1/3);
-        }
+		s = Math.max(0, Math.min(1, s / 100))
+		l = Math.max(0, Math.min(1, l / 100))
 
-        return {
-            r : Math.round(r * 255),
-            g : Math.round(g * 255),
-            b : Math.round(b * 255)
-        }
-    }
+		c = (1 - Math.abs((2 * l) - 1)) * s
+		x = c * (1 - Math.abs((h % 2) - 1))
 
+		if (h < 1) {
+			r = c
+			g = x
+			b = 0
+		} else if (h < 2) {
+			r = x
+			g = c
+			b = 0
+		} else if (h < 3) {
+			r = 0
+			g = c
+			b = x
+		} else if (h < 4) {
+			r = 0
+			g = x
+			b = c
+		} else if (h < 5) {
+			r = x
+			g = 0
+			b = c
+		} else {
+			r = c
+			g = 0
+			b = x
+		}
+
+		m = l - c / 2
+		r = Math.round((r + m) * 255)
+		g = Math.round((g + m) * 255)
+		b = Math.round((b + m) * 255)
+
+		return { r: r, g: g, b: b }
+	}
 
 };
 
@@ -882,8 +910,14 @@ var componentToHex = function(c) {
 };
 
 var colorToHex = function(color,inString = false) {
-
-    var str = componentToHex(color.r) + componentToHex(color.g) + componentToHex(color.b);
+	
+	var str = '000000';
+	
+	if (_.isUndefined(color)) {
+		return str;
+	}
+	
+    str = componentToHex(color.r) + componentToHex(color.g) + componentToHex(color.b);
 
     if (inString) {
         return str;
@@ -1099,21 +1133,16 @@ var renderFieldset = function(className, objectToBind, definitions, values) {
 }
 
 
-
 var appOptions = {
-  width  : window.innerWidth - 20,
-  height : window.innerHeight - 20
+  width  	  : window.innerWidth - 20,
+  height 	  : window.innerHeight - 20,
+  forceCanvas : true
 }
 
 var app          = new PIXI.Application(appOptions);
 
-var renderer = PIXI.autoDetectRenderer(appOptions.width, appOptions.height, { backgroundColor: 0x000000, antialias: false });
-
 var graphicStage = new PIXI.Container();
 var graphics = new PIXI.Graphics();
-
-var mouseposition = app.renderer.plugins.interaction.mouse.global;
-
 
 
 var canvas = null;
@@ -1127,7 +1156,8 @@ $(document).ready(function() {
 	document.body.appendChild(app.view);
 	app.stage.addChild(graphics);
 
-
+	//stats FPS
+	javascript:(function(){var script=document.createElement('script');script.onload=function(){var stats=new Stats();document.body.appendChild(stats.dom);requestAnimationFrame(function loop(){stats.update();requestAnimationFrame(loop)});};script.src='http://rawgit.com/mrdoob/stats.js/master/build/stats.min.js';document.head.appendChild(script);})()
 
 	/*
 	document.body.appendChild(renderer.view);
@@ -1161,11 +1191,12 @@ $(document).ready(function() {
 
 	console.log(whips);
 	console.log(sprites);
-
+	
+	var mouseposition = app.renderer.plugins.interaction.mouse.global;
 
 	app.ticker.add(function() {
 
-		var mouseposition = app.renderer.plugins.interaction.mouse.global;
+		
 
 		//console.log(canvasOffsetLeft);
 
@@ -1186,7 +1217,7 @@ $(document).ready(function() {
 
 
 
-		renderer.render(graphicStage);
+		//renderer.render(graphicStage);
 	});
 
 
