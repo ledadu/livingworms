@@ -656,7 +656,7 @@ Whip.prototype.render = function( ctx ) {
 	    color   = colorToHex(palette);
         //  color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
 		
-	//graphics.lineStyle(0, color, palette.transparency );
+	graphics.lineStyle(1, color, palette.transparency );
 	graphics.beginFill(color, palette.transparency );
 	graphics.drawCircle(position.x, position.y ,this.lineShape.getEasing(this.width, 0 )); // drawCircle(x, y, radius)
 	graphics.endFill();
@@ -670,7 +670,7 @@ Whip.prototype.render = function( ctx ) {
 	      color   = colorToHex(palette);
          // color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
 
-	//graphics.lineStyle(0, color, palette.transparency );
+	graphics.lineStyle(1, color, palette.transparency );
 	graphics.beginFill(color, palette.transparency );
 	graphics.drawCircle(position.x, position.y ,this.lineShape.getEasing(this.width, i / this.linkCount )); // drawCircle(x, y, radius)
 	graphics.endFill();
