@@ -1031,6 +1031,9 @@ $(document).ready(function() {
 	h = canvas.height = window.innerHeight - 20;
 	ctx = canvas.getContext('2d');
 
+		//stats FPS
+	javascript:(function(){var script=document.createElement('script');script.onload=function(){var stats=new Stats();document.body.appendChild(stats.dom);requestAnimationFrame(function loop(){stats.update();requestAnimationFrame(loop)});};script.src='http://rawgit.com/mrdoob/stats.js/master/build/stats.min.js';document.head.appendChild(script);})()
+	
 	 canvas.addEventListener( 'mousedown', onMouseDown, false );
 	 canvas.addEventListener( 'mousemove', onMouseMove, false );
 
