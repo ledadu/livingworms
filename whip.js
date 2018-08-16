@@ -233,7 +233,7 @@ WhipLink.prototype.render = function( ctx ) {
 		graphics.lineStyle(this.particleA.size, colorToHex(this.particleA.color), this.particleA.color.transparency);
 		graphics.moveTo(this.particleA.position.x, this.particleA.position.y);
 		graphics.lineTo(this.particleB.position.x, this.particleB.position.y);
-		
+
 	}
 
 };
@@ -650,31 +650,58 @@ Whip.prototype.updateSubWhips = function(){
 Whip.prototype.render = function( ctx ) {
 
   if(this.renderBody){
-	 
-    var position = this.links[0].particleA.position,
-        palette = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(0),
-	    color   = colorToHex(palette);
-        //  color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
-		
-	graphics.lineStyle(1, color, palette.transparency );
-	graphics.beginFill(color, palette.transparency );
-	graphics.drawCircle(position.x, position.y ,this.lineShape.getEasing(this.width, 0 )); // drawCircle(x, y, radius)
-	graphics.endFill();
-    //circle( ctx, position.x, position.y ,this.lineShape.getEasing(this.width, 0 ), color );
+
+
 
     for ( var len = this.links.length, i=len-1; i >= 0; i-- ) {
-      var link = this.links[i];
+        var link = this.links[i];
 
-      position = link.particleB.position;
-      var palette = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(i/this.linkCount),
-	      color   = colorToHex(palette);
-         // color = 'hsla(' + palette.h + ', ' + palette.s + '%, ' + palette.l + '%, ' + palette.transparency + ')';
+        var position = link.particleB.position,
+            palette    = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(i/this.linkCount),
+	        color      = colorToHex(palette),
+            scale      =  this.lineShape.getEasing(this.width, i / this.linkCount) / faceTexture.width,
+            faceSprite = new PIXI.Sprite(faceTexture);
 
+        faceSprite.anchor.set(0.5);
+        faceSprite.x     = position.x;
+        faceSprite.y     = position.y;
+        faceSprite.tint  = color;
+        faceSprite.alpha  = palette.transparency;
+        faceSprite.scale = new PIXI.Point(scale,scale); //(width, width);
+
+        app.stage.addChild(faceSprite);
+
+/*
 	graphics.lineStyle(1, color, palette.transparency );
 	graphics.beginFill(color, palette.transparency );
 	graphics.drawCircle(position.x, position.y ,this.lineShape.getEasing(this.width, i / this.linkCount )); // drawCircle(x, y, radius)
 	graphics.endFill();
+*/
       //circle( ctx, position.x, position.y , this.lineShape.getEasing(this.width, i / this.linkCount ), color);
+
+    var position   = this.links[0].particleA.position,
+        palette    = new Palette(this.paletteName).setLineShape(this.lineShape).getColor(0),
+	    color      = colorToHex(palette),
+        scale      = this.lineShape.getEasing(this.width, 0 ) / faceTexture.width,
+        faceSprite = new PIXI.Sprite(faceTexture);
+
+        faceSprite.anchor.set(0.5);
+        faceSprite.x     = position.x;
+        faceSprite.y     = position.y;
+//        faceSprite.tint  = color;
+        faceSprite.alpha  = 1;
+        faceSprite.scale = new PIXI.Point(scale,scale); //(width, width);
+
+        app.stage.addChild(faceSprite);
+
+/*
+	graphics.lineStyle(1, color, palette.transparency );
+	graphics.beginFill(color, palette.transparency );
+	graphics.drawCircle(position.x, position.y ,this.lineShape.getEasing(this.width, 0 )); // drawCircle(x, y, radius)
+	graphics.endFill();
+*/
+    //circle( ctx, position.x, position.y ,this.lineShape.getEasing(this.width, 0 ), color );
+
     }
   }
 
@@ -793,10 +820,11 @@ var Palette = function(paletteName, lineShape){
 
 	this.palettes = {
 		bleuVertOrange: function(iteration ) {
-			
+
             var _return = {
 				h : 90 * that.lineShape.getEasing(1,iteration)-20,
-				s : 50 + 25 * that.lineShape.getEasing(1,iteration*6),
+				s : 50,
+				//s : 50 + 25 * that.lineShape.getEasing(1,iteration*6),
 				l : 50,
 				transparency : 0.0835
 				//transparency : 1
@@ -816,8 +844,10 @@ var Palette = function(paletteName, lineShape){
 		orangeDark: function(iteration){
             var _return = {
 				h : 20 * that.lineShape.getEasing(1,iteration)+350,
-				s : 65 + 5 * that.lineShape.getEasing(1,iteration*6),
-				l : 50 - 5 * that.lineShape.getEasing(1,iteration*8),
+				s : 65,
+				l : 50,
+				/*s : 65 + 5 * that.lineShape.getEasing(1,iteration*6),
+				l : 50 - 5 * that.lineShape.getEasing(1,iteration*8),*/
 				transparency : 0.535
 				//transparency : 1
 			};
@@ -826,8 +856,10 @@ var Palette = function(paletteName, lineShape){
 		mega: function(iteration){
             var _return = {
 				h : 360 * that.lineShape.getEasing(1,iteration),
-				s : 85 + 5 * that.lineShape.getEasing(1,iteration*6),
-				l : 65 + 10 * that.lineShape.getEasing(1,iteration*4),
+				s : 85,
+				l : 65,
+				/*s : 85 + 5 * that.lineShape.getEasing(1,iteration*6),
+				l : 65 + 10 * that.lineShape.getEasing(1,iteration*4),*/
 				transparency : 0.535
 				//transparency : 1
 			};
@@ -837,7 +869,7 @@ var Palette = function(paletteName, lineShape){
 
 	this.paletteName = (_.isUndefined(paletteName) || _.isUndefined(this.palettes[paletteName]) ) ? 'bleuVertOrange' : paletteName;
 	this.lineShape   = lineShape || new Easing();
-	
+
 	this.hslToRgb = function (color) {
 
 		var r, g, b, m, c, x,
@@ -910,13 +942,13 @@ var componentToHex = function(c) {
 };
 
 var colorToHex = function(color,inString = false) {
-	
+
 	var str = '000000';
-	
+
 	if (_.isUndefined(color)) {
 		return str;
 	}
-	
+
     str = componentToHex(color.r) + componentToHex(color.g) + componentToHex(color.b);
 
     if (inString) {
@@ -1144,6 +1176,7 @@ var app          = new PIXI.Application(appOptions);
 var graphicStage = new PIXI.Container();
 var graphics = new PIXI.Graphics();
 
+var faceTexture = PIXI.Texture.fromImage('https://i.imgur.com/MB6ieyP.png');
 
 var canvas = null;
 var ctx = null;
@@ -1191,12 +1224,12 @@ $(document).ready(function() {
 
 	console.log(whips);
 	console.log(sprites);
-	
+
 	var mouseposition = app.renderer.plugins.interaction.mouse.global;
 
 	app.ticker.add(function() {
 
-		
+
 
 		//console.log(canvasOffsetLeft);
 
@@ -1209,7 +1242,8 @@ $(document).ready(function() {
 
 		update();
 
-		graphics.clear();
+//		graphics.clear();
+        app.stage.removeChildren();
 		sprites.models.forEach(function(sprite) {
 			sprite.render();
 		});
