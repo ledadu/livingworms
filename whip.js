@@ -649,6 +649,65 @@ Whip.prototype.updateSubWhips = function(){
 
 Whip.prototype.render = function( ctx ) {
 
+    if(this.renderBody){
+
+        var position   = this.links[0].particleA.position,
+            scale      = this.width / faceTexture.width;
+/*
+        var strip   = new PIXI.mesh.Plane(texture, 2, this.links.length);
+        var snakeContainer = new PIXI.Container();
+
+        snakeContainer.x     	= position.x;
+        snakeContainer.y     	= position.y;
+
+
+        app.stage.addChild(snakeContainer);
+
+        snakeContainer.addChild(strip);
+*/
+
+        for ( var len = this.links.length, i=len-1; i >= 0; i-- ) {
+            var link      = this.links[i],
+                positionA = link.particleA.position,
+                positionB = link.particleB.position,
+                A = {
+                    x :  positionA.y,
+                    y : -positionA.x + positionA.y + positionB.y
+                },
+                B = {
+                    x :  positionB.y,
+                    y : -positionB.x + positionA.y + positionB.y
+                }
+
+                faceSprite = new PIXI.Sprite(faceTexture);
+
+                faceSprite.anchor.set(0.5);
+                faceSprite.x        = A.x;
+                faceSprite.y        = A.y;
+                faceSprite.scale 	= new PIXI.Point(scale,scale); //(width, width);
+                app.stage.addChild(faceSprite);
+
+
+                faceSprite = new PIXI.Sprite(faceTexture);
+
+                faceSprite.anchor.set(0.5);
+                faceSprite.x        = B.x;
+                faceSprite.y        = B.y;
+                faceSprite.scale 	= new PIXI.Point(scale,scale); //(width, width);
+                app.stage.addChild(faceSprite);
+
+
+         /*   for (let i = 0; i <= 1; i++) {
+
+            }*/
+
+
+        }
+
+
+    }
+
+return;
   if(this.renderBody){
 
 
