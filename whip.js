@@ -663,11 +663,12 @@ Whip.prototype.render = function( ctx ) {
             faceSprite = new PIXI.Sprite(faceTexture);
 
         faceSprite.anchor.set(0.5);
-        faceSprite.x     = position.x;
-        faceSprite.y     = position.y;
-        faceSprite.tint  = color;
-        faceSprite.alpha  = palette.transparency;
-        faceSprite.scale = new PIXI.Point(scale,scale); //(width, width);
+        faceSprite.x        = position.x;
+		faceSprite.y        = position.y;
+		faceSprite.rotation = link.angle;
+        faceSprite.tint  	= color;
+        faceSprite.alpha  	= palette.transparency;
+        faceSprite.scale 	= new PIXI.Point(scale,scale); //(width, width);
 
         app.stage.addChild(faceSprite);
 
@@ -686,11 +687,12 @@ Whip.prototype.render = function( ctx ) {
         faceSprite = new PIXI.Sprite(faceTexture);
 
         faceSprite.anchor.set(0.5);
-        faceSprite.x     = position.x;
-        faceSprite.y     = position.y;
-//        faceSprite.tint  = color;
-        faceSprite.alpha  = 1;
-        faceSprite.scale = new PIXI.Point(scale,scale); //(width, width);
+        faceSprite.x     	= position.x;
+        faceSprite.y     	= position.y;
+		faceSprite.rotation = this.links[0].angle;
+        faceSprite.tint  	= color;
+        faceSprite.alpha 	 = palette.transparency;
+        faceSprite.scale	 = new PIXI.Point(scale,scale); //(width, width);
 
         app.stage.addChild(faceSprite);
 
@@ -1176,7 +1178,9 @@ var app          = new PIXI.Application(appOptions);
 var graphicStage = new PIXI.Container();
 var graphics = new PIXI.Graphics();
 
-var faceTexture = PIXI.Texture.fromImage('https://i.imgur.com/MB6ieyP.png');
+//var faceTexture = PIXI.Texture.fromImage('https://i.imgur.com/MB6ieyP.png'); //Face lol
+//var faceTexture = PIXI.Texture.fromImage('https://i.imgur.com/QQ8Oiqw.png'); //Zombi
+var faceTexture = PIXI.Texture.fromImage('https://i.imgur.com/wUXBZOY.png'); //Rainbow
 
 var canvas = null;
 var ctx = null;
