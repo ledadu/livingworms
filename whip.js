@@ -652,7 +652,8 @@ Whip.prototype.render = function( ctx ) {
     if(this.renderBody){
 
         var position   = this.links[0].particleA.position,
-            scale      = this.width / faceTexture.width;
+            //scale      = this.width / faceTexture.width;
+            scale      = 20 / faceTexture.width;
 /*
         var strip   = new PIXI.mesh.Plane(texture, 2, this.links.length);
         var snakeContainer = new PIXI.Container();
@@ -671,13 +672,20 @@ Whip.prototype.render = function( ctx ) {
                 positionA = link.particleA.position,
                 positionB = link.particleB.position,
                 A = {
-                    x :  positionA.y,
-                    y : -positionA.x + positionA.y + positionB.y
+                    x :  (positionA.x+positionA.y+positionB.x-positionB.y)/2,
+                    y :  (-positionA.x+positionA.y+positionB.x+positionB.y)/2
                 },
                 B = {
-                    x :  positionB.y,
-                    y : -positionB.x + positionA.y + positionB.y
+                    x :  (positionA.x-positionA.y+positionB.x+positionB.y)/2,
+                    y :  (positionA.x+positionA.y-positionB.x+positionB.y)/2
                 }
+                
+                
+                //	graphics.lineStyle(link.particleA.size, colorToHex(link.particleA.color), link.particleA.color.transparency);
+		        //    graphics.moveTo(positionA.x, positionA.y);
+		         //   graphics.lineTo(positionB.x, positionB.y);
+				
+                
 
                 faceSprite = new PIXI.Sprite(faceTexture);
 
@@ -696,7 +704,6 @@ Whip.prototype.render = function( ctx ) {
                 faceSprite.scale 	= new PIXI.Point(scale,scale); //(width, width);
                 app.stage.addChild(faceSprite);
 
-
          /*   for (let i = 0; i <= 1; i++) {
 
             }*/
@@ -706,12 +713,11 @@ Whip.prototype.render = function( ctx ) {
 
 
     }
+};
 
-return;
+
+Whip.prototype.renderO = function( ctx ) {
   if(this.renderBody){
-
-
-
     for ( var len = this.links.length, i=len-1; i >= 0; i-- ) {
         var link = this.links[i];
 
@@ -744,7 +750,7 @@ return;
 	    color      = colorToHex(palette),
         scale      = this.lineShape.getEasing(this.width, 0 ) / faceTexture.width,
         faceSprite = new PIXI.Sprite(faceTexture);
-
+        
         faceSprite.anchor.set(0.5);
         faceSprite.x     	= position.x;
         faceSprite.y     	= position.y;
@@ -1255,6 +1261,20 @@ $(document).ready(function() {
 	//stats FPS
 	javascript:(function(){var script=document.createElement('script');script.onload=function(){var stats=new Stats();document.body.appendChild(stats.dom);requestAnimationFrame(function loop(){stats.update();requestAnimationFrame(loop)});};script.src='http://rawgit.com/mrdoob/stats.js/master/build/stats.min.js';document.head.appendChild(script);})()
 
+//mobile console
+
+/*
+mobileConsole.options({
+	showOnError: true,
+	proxyConsole: false,
+	isCollapsed: true,
+	catchErrors: true
+});
+*/
+
+mobileConsole.show();
+
+
 	/*
 	document.body.appendChild(renderer.view);
 	graphicStage.addChild(graphics);
@@ -1288,19 +1308,26 @@ $(document).ready(function() {
 	console.log(whips);
 	console.log(sprites);
 
-	var mouseposition = app.renderer.plugins.interaction.mouse.global;
+	var mouseposition = {x:0, y:0};//app.renderer.plugins.interaction.mouse.global;
+	console.log('yaaaaaa');
+	app.stage.interactive = true;
+    app.stage.on('pointerdown', function(e){
+		console.log('lalala');
+	});
+	
+	app.stage.on('pointermove', function(e){
+		mouseposition = e.data.global;
+	});
 
 	app.ticker.add(function() {
-
-
-
-		//console.log(canvasOffsetLeft);
 
 		whips.forEach(function(whip, index) {
 			  whip.target = {
 				x : mouseposition.x - canvasOffsetLeft,
 				y : mouseposition.y - canvasOffsetTop
 			  };
+			
+			
 		});
 
 		update();
@@ -1675,7 +1702,7 @@ function render() {
 var isAnimating = false;
 
 function animate() {
-			var mouseposition = app.renderer.plugins.interaction.mouse.global;
+			//var mouseposition = app.renderer.plugins.interaction.mouse.global;
 
   update();
   sprites.models.forEach(function(sprite) {
