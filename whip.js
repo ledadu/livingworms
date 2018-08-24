@@ -655,7 +655,7 @@ Whip.prototype.render = function( ctx ) {
             //scale      = this.width / faceTexture.width;
             scale      = 20 / faceTexture.width;
 
-        var strip   = new PIXI.mesh.Plane(faceTexture, 2, this.links.length/2);
+        var strip   = new PIXI.mesh.Plane(faceTexture, 2, this.links.length);
         var snakeContainer = new PIXI.Container();
 
         snakeContainer.x     	= position.x;
@@ -682,10 +682,10 @@ Whip.prototype.render = function( ctx ) {
                 }
                
                 if ( strip && strip.vertices ) { 
-                	strip.vertices[i*2] = positionA.x-snakeContainer.x;
-                	strip.vertices[i*2+1] = positionA.y-snakeContainer.y;
-                	strip.vertices[i*2+2] = positionB.x-snakeContainer.x;
-                	strip.vertices[i*2+3] = positionB.y-snakeContainer.y;
+                	strip.vertices[i*4] = A.x-snakeContainer.x;
+                	strip.vertices[i*4+1] = A.y-snakeContainer.y;
+                	strip.vertices[i*4+2] = B.x-snakeContainer.x;
+                	strip.vertices[i*4+3] = B.y-snakeContainer.y;
                 }
                 
                 //	graphics.lineStyle(link.particleA.size, colorToHex(link.particleA.color), link.particleA.color.transparency);
