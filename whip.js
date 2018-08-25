@@ -7,12 +7,19 @@ function getAngle( a, b ) {
   return Math.atan2( b.y - a.y, b.x - a.x );
 }
 
-
+function Point(options){
+		this.x = !_.isUndefined(options.x) ? options.x : 0;
+		this.y = !_.isUndefined(options.y) ? options.y : 0;
+		return this;
+}
 // -------------------------- vector -------------------------- //
 
-function Vector( x, y ) {
-  this.x = x || 0;
-  this.y = y || 0;
+function Vector(options) {
+	this.x = !_.isUndefined(options.x) ? options.x : 0;
+	this.y = !_.isUndefined(options.y) ? options.y : 0;
+	this.a = !_.isUndefined(options.a) ? options.a : new Point();
+	this.b = !_.isUndefined(options.b) ? options.b : new Point();
+  return this;
 }
 
 Vector.prototype.set = function( v ) {
@@ -65,15 +72,15 @@ Vector.prototype.block = function( size ) {
 // return new vectors
 
 Vector.subtract = function( a, b ) {
-  return new Vector( a.x - b.x, a.y - b.y );
+  return new Vector( {x: a.x - b.x, y: a.y - b.y} );
 };
 
 Vector.add = function( a, b ) {
-  return new Vector( a.x + b.x, a.y + b.y );
+  return new Vector( {x: a.x + b.x, y: a.y + b.y} );
 };
 
 Vector.copy = function( v ) {
-  return new Vector( v.x, v.y );
+  return new Vector({x: v.x, y: v.y} );
 };
 
 Vector.isSame = function( a, b ) {
@@ -89,7 +96,7 @@ Vector.getDistance = function( a, b ) {
 Vector.addDistance = function( vector, distance, angle ) {
   var x = vector.x + Math.cos( angle ) * distance;
   var y = vector.y + Math.sin( angle ) * distance;
-  return new Vector( x, y );
+  return new Vector({ x:x, y:y });
 };
 
 // --------------------------  -------------------------- //
@@ -100,8 +107,8 @@ Vector.addDistance = function( vector, distance, angle ) {
 function Particle( props ) {
   this.whipLink = props.whipLink;
   this.layerIndex = props.layerIndex;
-  this.position = new Vector( props.x, props.y );
-  this.previousPosition = new Vector( props.x, props.y );
+  this.position = new Vector( {x: props.x, y: props.y} );
+  this.previousPosition = new Vector( {x: props.x, y: props.y });
   this.isPinned = props.isPinned;
   this.friction = props.friction;
   this.size = props.size;
@@ -646,6 +653,7 @@ Whip.prototype.updateSubWhips = function(){
 	}*/
 
 };
+		
 
 Whip.prototype.render = function( ctx ) {
 
@@ -1359,7 +1367,7 @@ mobileConsole.show();
 });
 
 
-var gravity    = new Vector( 0, 0/*.8*/ );
+var gravity    = new Vector( {x: 0, y: 0/*.8*/} );
 var deltaScale = {
 	normal : 0.85,
 	speed  : 0.6,
