@@ -10,16 +10,14 @@ function getAngle( a, b ) {
 function Point(options){
 		this.x = !_.isUndefined(options.x) ? options.x : 0;
 		this.y = !_.isUndefined(options.y) ? options.y : 0;
-		return this;
 }
 // -------------------------- vector -------------------------- //
 
 function Vector(options) {
 	this.x = !_.isUndefined(options.x) ? options.x : 0;
 	this.y = !_.isUndefined(options.y) ? options.y : 0;
-	this.a = !_.isUndefined(options.a) ? options.a : new Point();
-	this.b = !_.isUndefined(options.b) ? options.b : new Point();
-  return this;
+	this.a = !_.isUndefined(options.a) ? options.a : new Point({x:0, y:0});
+	this.b = !_.isUndefined(options.b) ? options.b : new Point({x:0, y:0});
 }
 
 Vector.prototype.set = function( v ) {
