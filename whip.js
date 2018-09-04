@@ -7,95 +7,188 @@ function getAngle( a, b ) {
   return Math.atan2( b.y - a.y, b.x - a.x );
 }
 
+// -------------------------- point -------------------------- //
+
 function Point(options){
 		this.x = !_.isUndefined(options.x) ? options.x : 0;
 		this.y = !_.isUndefined(options.y) ? options.y : 0;
 }
+
+Point.prototype.add = function( v ) {
+  this.x += v.x;
+  this.y += v.y;
+  return this;
+};
+
+Point.prototype.subtract = function( v ) {
+  this.x -= v.x;
+  this.y -= v.y;
+  return this;
+};
+
+Point.add = function( a, b ) {
+  return new Point( {x: a.x + b.x, y: a.y + b.y} );
+};
+
+Point.prototype.scale = function( s )  {
+  this.x *= s;
+  this.y *= s;
+  return this;
+};
+
+Point.prototype.copy = function() {
+  return new Point({x: this.x, y: this.y} );
+};
+
+Point.getDistance = function( a, b ) {
+  var dx = a.x - b.x;
+  var dy = a.y - b.y;
+  return Math.sqrt( dx * dx + dy * dy );
+};
+
+Point.addDistance = function( point, distance, angle ) {
+  var x = point.x + Math.cos( angle ) * distance;
+  var y = point.y + Math.sin( angle ) * distance;
+  return new Point({ x:x, y:y });
+};
+
 // -------------------------- vector -------------------------- //
 
 function Vector(options) {
-	this.x = !_.isUndefined(options.x) ? options.x : 0;
-	this.y = !_.isUndefined(options.y) ? options.y : 0;
-	this.a = !_.isUndefined(options.a) ? options.a : new Point({x:0, y:0});
-	this.b = !_.isUndefined(options.b) ? options.b : new Point({x:0, y:0});
+	//vector attributes
+	this.x  = !_.isUndefined(options.x) ? options.x : null;
+	this.y  = !_.isUndefined(options.y) ? options.y : null;
+	this.a  = !_.isUndefined(options.a) ? options.a : null;
+	this.b  = !_.isUndefined(options.b) ? options.b : null;
+	
+	if (_.isNull(this.x)) {
+		this.x = this.b.x - this.a.x;
+	}
+	
+	if (_.isNull(this.y)) {
+		this.y = this.b.y - this.a.y;
+	}
+	
+	//Unit vector attributes
+	this.fu = null;
+	this.xu = null;
+	this.yu = null;
+	this.au = null;
+	this.bu = null;
+	
 }
 
-Vector.prototype.set = function( v ) {
-  this.x = v.x;
-  this.y = v.y;
-};
 
-Vector.prototype.add = function( v ) {
-  this.x += v.x;
-  this.y += v.y;
-};
-
-Vector.prototype.subtract = function( v ) {
-  this.x -= v.x;
-  this.y -= v.y;
-};
-
-Vector.prototype.scale = function( s )  {
-  this.x *= s;
-  this.y *= s;
-};
-
-Vector.prototype.multiply = function( v ) {
-  this.x *= v.x;
-  this.y *= v.y;
-};
-
-// custom getter whaaaaaaat
-Object.defineProperty( Vector.prototype, 'magnitude', {
-  get: function() {
+Vector.prototype.getLength = function() {
     return Math.sqrt( this.x * this.x  + this.y * this.y );
-  }
-});
+};
 
 Vector.prototype.equals = function ( v ) {
   return this.x == v.x && this.y == v.y;
 };
 
-Vector.prototype.zero = function() {
-  this.x = 0;
-  this.y = 0;
-};
 
 Vector.prototype.block = function( size ) {
   this.x = Math.floor( this.x / size );
   this.y = Math.floor( this.y / size );
 };
 
+Vector.prototype.orthoRotate = function( options ) {
+	var ax = (this.a.x  + this.a.y + this.b.x - this.b.y)/2,
+		ay = (-this.a.x + this.a.y + this.b.x + this.b.y)/2,
+		bx = (this.a.x  - this.a.y + this.b.x + this.b.y)/2,
+		by = (this.a.x  + this.a.y - this.b.x + this.b.y)/2;
+	
+	this.a.x = ax;
+	this.a.y = ay;
+	this.b.x = bx;
+	this.b.y = by;
+	
+	return this;
+}
+
+Vector.prototype.makeUnitVector = function( options ) {
+
+	if (_.isNull(this.xu)) {
+
+		var length = this.getLength(),
+			offset = new Point({x:0, y:0});
+		
+		this.xu = (this.b.x - this.a.x) / length;
+		this.yu = (this.b.y - this.a.y) / length;
+		
+		//Calculate offset center
+		offset.x = (this.b.x - this.a.x)/2 - this.xu/2;
+		offset.y = (this.b.y - this.a.y)/2 - this.yu/2;
+		
+		this.au = new Point({x: this.a.x + offset.x, y: this.a.y + offset.y});
+		this.bu = new Point({x: this.b.x - offset.x, y: this.b.y - offset.y});
+		
+	}
+	
+	return this;
+
+}
+
+
+
+Vector.prototype.scaleFromUnit = function( options ) {
+	
+	this.makeUnitVector();
+
+	var offset = new Point({x:0, y:0});
+	
+	this.x = this.b.x - this.a.x;
+	this.y = this.b.y - this.a.y;
+	
+	//Calculate offset center
+	offset.x = options.f * this.xu/2;
+	offset.y = options.f * this.yu/2;
+
+	var a = new Point({x: this.a.x - offset.x, y: this.a.y - offset.y});
+	var b = new Point({x: this.b.x + offset.x, y: this.b.y + offset.y});
+	
+	this.a = a;
+	this.b = b;
+	
+//todo store a.x ... better...
+	this.x = this.b.x - this.a.x;
+	this.y = this.b.y - this.a.y;
+	
+	return this;
+
+}
+
+Vector.prototype.scale = function( options ) {
+	
+	var offset = new Point({x:0, y:0});
+	
+	//WOOWWW !! :
+	this.x = this.b.x - this.a.x;
+	this.y = this.b.y - this.a.y;
+	
+	//Calculate offset center
+	offset.x = options.f * this.x /2;
+	offset.y = options.f * this.y /2;
+
+	var a = new Point({x: this.a.x - offset.x, y: this.a.y - offset.y});
+	var b = new Point({x: this.b.x + offset.x, y: this.b.y + offset.y});
+	
+	this.a = a;
+	this.b = b;
+	
+//todo store a.x ... better...
+	this.x = this.b.x - this.a.x;
+	this.y = this.b.y - this.a.y;
+	
+	return this;
+
+}
+
 // ----- class functions ----- //
 // return new vectors
 
-Vector.subtract = function( a, b ) {
-  return new Vector( {x: a.x - b.x, y: a.y - b.y} );
-};
 
-Vector.add = function( a, b ) {
-  return new Vector( {x: a.x + b.x, y: a.y + b.y} );
-};
-
-Vector.copy = function( v ) {
-  return new Vector({x: v.x, y: v.y} );
-};
-
-Vector.isSame = function( a, b ) {
-  return a.x == b.x && a.y == b.y;
-};
-
-Vector.getDistance = function( a, b ) {
-  var dx = a.x - b.x;
-  var dy = a.y - b.y;
-  return Math.sqrt( dx * dx + dy * dy );
-};
-
-Vector.addDistance = function( vector, distance, angle ) {
-  var x = vector.x + Math.cos( angle ) * distance;
-  var y = vector.y + Math.sin( angle ) * distance;
-  return new Vector({ x:x, y:y });
-};
 
 // --------------------------  -------------------------- //
 
@@ -105,8 +198,8 @@ Vector.addDistance = function( vector, distance, angle ) {
 function Particle( props ) {
   this.whipLink = props.whipLink;
   this.layerIndex = props.layerIndex;
-  this.position = new Vector( {x: props.x, y: props.y} );
-  this.previousPosition = new Vector( {x: props.x, y: props.y });
+  this.position = new Point( {x: props.x, y: props.y} );
+  this.previousPosition = new Point( {x: props.x, y: props.y });
   this.isPinned = props.isPinned;
   this.friction = props.friction;
   this.size = props.size;
@@ -123,10 +216,10 @@ Particle.prototype.integrate = function() {
     // this.previousPosition.set( this.position );
     return;
   }
-  var velocity = Vector.subtract( this.position, this.previousPosition );
+  var velocity = this.position.copy().subtract(this.previousPosition );
   // friction
   velocity.scale( this.friction );
-  this.previousPosition = Vector.copy( this.position );
+  this.previousPosition = this.position.copy();
   this.position.add( velocity );
   this.position.add( gravity );
 };
@@ -201,7 +294,7 @@ WhipLink.prototype.update = function() {
 WhipLink.prototype.constrainParticles = function() {
   var positionA = this.particleA.position;
   var positionB = this.particleB.position;
-  var distance = Vector.getDistance( positionA, positionB );
+  var distance = Point.getDistance( positionA, positionB );
   this.angle = this.angleFixed || (this.angleRotation + getAngle( positionA, positionB ));
   if (  this.minLength <= distance && distance <= this.maxLength ) {
     return;
@@ -217,8 +310,8 @@ WhipLink.prototype.updateParticleBWhithAngle = function(angle) {
 	this.angle = angle;
 	var positionA = this.particleA.position;
 	var positionB = this.particleB.position;
-	var newPosition = Vector.addDistance( positionA, this.maxLength, this.angle );
-	var delta = Vector.subtract( newPosition, positionB );
+	var newPosition = Point.addDistance( positionA, this.maxLength, this.angle );
+	var delta = newPosition.copy().subtract(positionB);
 	delta.scale( this.deltaScale )
 	this.particleB.position.add( delta );
 	this.particleB.previousPosition.add( delta );
@@ -658,8 +751,8 @@ Whip.prototype.render = function( ctx ) {
     if(this.renderBody){
 
         var position   = this.links[0].particleA.position,
-            //scale      = this.width / faceTexture.width;
-            scale      = 20 / faceTexture.width;
+            scale      = this.width / faceTexture.width;
+            //scale      = 2 / faceTexture.width;
 
         var strip   = new PIXI.mesh.Plane(faceTexture, 2, this.links.length);
         var snakeContainer = new PIXI.Container();
@@ -670,41 +763,36 @@ Whip.prototype.render = function( ctx ) {
 
         app.stage.addChild(snakeContainer);
 
-        snakeContainer.addChild(strip);
+        
 
 
  //       for ( var len = this.links.length, i=len-1; i >= 0; i-- ) {
  	       for ( var len = this.links.length, i=0; i <len; i++) {
             var link      = this.links[i],
-                positionA = link.particleA.position,
-                positionB = link.particleB.position,
-                A = {
-                    x :  (positionA.x+positionA.y+positionB.x-positionB.y)/2,
-                    y :  (-positionA.x+positionA.y+positionB.x+positionB.y)/2
-                },
-                B = {
-                    x :  (positionA.x-positionA.y+positionB.x+positionB.y)/2,
-                    y :  (positionA.x+positionA.y-positionB.x+positionB.y)/2
-                }
+                vector = new Vector({a: link.particleA.position.copy(), b: link.particleB.position.copy()});
+				
+				vector.orthoRotate({from: 'center'});
+				vector.scaleFromUnit({f:scale});
                
                 if ( strip && strip.vertices ) { 
-                	strip.vertices[i*4] = A.x-snakeContainer.x;
-                	strip.vertices[i*4+1] = A.y-snakeContainer.y;
-                	strip.vertices[i*4+2] = B.x-snakeContainer.x;
-                	strip.vertices[i*4+3] = B.y-snakeContainer.y;
+                	strip.vertices[i*4]   = vector.a.x - snakeContainer.x;
+                	strip.vertices[i*4+1] = vector.a.y - snakeContainer.y;
+                	strip.vertices[i*4+2] = vector.b.x - snakeContainer.x;
+                	strip.vertices[i*4+3] = vector.b.y - snakeContainer.y;
                 }
+				snakeContainer.addChild(strip);
                 
                 //	graphics.lineStyle(link.particleA.size, colorToHex(link.particleA.color), link.particleA.color.transparency);
 		        //    graphics.moveTo(positionA.x, positionA.y);
 		         //   graphics.lineTo(positionB.x, positionB.y);
 				
                 
-
+/*
                 faceSprite = new PIXI.Sprite(faceTexture);
 
                 faceSprite.anchor.set(0.5);
-                faceSprite.x        = A.x;
-                faceSprite.y        = A.y;
+                faceSprite.x        = vector.a.x;
+                faceSprite.y        = vector.a.y;
                 faceSprite.scale 	= new PIXI.Point(scale,scale); //(width, width);
                 app.stage.addChild(faceSprite);
 
@@ -712,11 +800,11 @@ Whip.prototype.render = function( ctx ) {
                 faceSprite = new PIXI.Sprite(faceTexture);
 
                 faceSprite.anchor.set(0.5);
-                faceSprite.x        = B.x;
-                faceSprite.y        = B.y;
+                faceSprite.x        = vector.b.x;
+                faceSprite.y        = vector.b.y;
                 faceSprite.scale 	= new PIXI.Point(scale,scale); //(width, width);
                 app.stage.addChild(faceSprite);
-
+*/
          /*   for (let i = 0; i <= 1; i++) {
 
             }*/
@@ -1285,7 +1373,7 @@ mobileConsole.options({
 });
 */
 
-mobileConsole.show();
+//mobileConsole.show();
 
 
 	/*
