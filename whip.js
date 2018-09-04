@@ -60,22 +60,22 @@ function Vector(options) {
 	this.y  = !_.isUndefined(options.y) ? options.y : null;
 	this.a  = !_.isUndefined(options.a) ? options.a : null;
 	this.b  = !_.isUndefined(options.b) ? options.b : null;
-	
+
 	if (_.isNull(this.x)) {
 		this.x = this.b.x - this.a.x;
 	}
-	
+
 	if (_.isNull(this.y)) {
 		this.y = this.b.y - this.a.y;
 	}
-	
+
 	//Unit vector attributes
 	this.fu = null;
 	this.xu = null;
 	this.yu = null;
 	this.au = null;
 	this.bu = null;
-	
+
 }
 
 
@@ -98,12 +98,12 @@ Vector.prototype.orthoRotate = function( options ) {
 		ay = (-this.a.x + this.a.y + this.b.x + this.b.y)/2,
 		bx = (this.a.x  - this.a.y + this.b.x + this.b.y)/2,
 		by = (this.a.x  + this.a.y - this.b.x + this.b.y)/2;
-	
+
 	this.a.x = ax;
 	this.a.y = ay;
 	this.b.x = bx;
 	this.b.y = by;
-	
+
 	return this;
 }
 
@@ -113,19 +113,19 @@ Vector.prototype.makeUnitVector = function( options ) {
 
 		var length = this.getLength(),
 			offset = new Point({x:0, y:0});
-		
+
 		this.xu = (this.b.x - this.a.x) / length;
 		this.yu = (this.b.y - this.a.y) / length;
-		
+
 		//Calculate offset center
 		offset.x = (this.b.x - this.a.x)/2 - this.xu/2;
 		offset.y = (this.b.y - this.a.y)/2 - this.yu/2;
-		
+
 		this.au = new Point({x: this.a.x + offset.x, y: this.a.y + offset.y});
 		this.bu = new Point({x: this.b.x - offset.x, y: this.b.y - offset.y});
-		
+
 	}
-	
+
 	return this;
 
 }
@@ -133,54 +133,56 @@ Vector.prototype.makeUnitVector = function( options ) {
 
 
 Vector.prototype.scaleFromUnit = function( options ) {
-	
+
+//return this.scale(options);
+
 	this.makeUnitVector();
 
 	var offset = new Point({x:0, y:0});
-	
+
 	this.x = this.b.x - this.a.x;
 	this.y = this.b.y - this.a.y;
-	
+
 	//Calculate offset center
 	offset.x = options.f * this.xu/2;
 	offset.y = options.f * this.yu/2;
 
 	var a = new Point({x: this.a.x - offset.x, y: this.a.y - offset.y});
 	var b = new Point({x: this.b.x + offset.x, y: this.b.y + offset.y});
-	
+
 	this.a = a;
 	this.b = b;
-	
+
 //todo store a.x ... better...
 	this.x = this.b.x - this.a.x;
 	this.y = this.b.y - this.a.y;
-	
+
 	return this;
 
 }
 
 Vector.prototype.scale = function( options ) {
-	
+
 	var offset = new Point({x:0, y:0});
-	
+
 	//WOOWWW !! :
 	this.x = this.b.x - this.a.x;
 	this.y = this.b.y - this.a.y;
-	
+
 	//Calculate offset center
 	offset.x = options.f * this.x /2;
 	offset.y = options.f * this.y /2;
 
 	var a = new Point({x: this.a.x - offset.x, y: this.a.y - offset.y});
 	var b = new Point({x: this.b.x + offset.x, y: this.b.y + offset.y});
-	
+
 	this.a = a;
 	this.b = b;
-	
+
 //todo store a.x ... better...
 	this.x = this.b.x - this.a.x;
 	this.y = this.b.y - this.a.y;
-	
+
 	return this;
 
 }
@@ -744,17 +746,17 @@ Whip.prototype.updateSubWhips = function(){
 	}*/
 
 };
-		
+
 
 Whip.prototype.render = function( ctx ) {
 
     if(this.renderBody){
 
         var position   = this.links[0].particleA.position,
-            scale      = this.width / faceTexture.width;
+            scale      = this.width;// / faceTexture.width;
             //scale      = 2 / faceTexture.width;
 
-        var strip   = new PIXI.mesh.Plane(faceTexture, 2, this.links.length);
+        var strip   = new PIXI.mesh.Plane(tentacleTexture, 2, this.links.length);
         var snakeContainer = new PIXI.Container();
 
         snakeContainer.x     	= position.x;
@@ -763,30 +765,30 @@ Whip.prototype.render = function( ctx ) {
 
         app.stage.addChild(snakeContainer);
 
-        
+
 
 
  //       for ( var len = this.links.length, i=len-1; i >= 0; i-- ) {
  	       for ( var len = this.links.length, i=0; i <len; i++) {
             var link      = this.links[i],
                 vector = new Vector({a: link.particleA.position.copy(), b: link.particleB.position.copy()});
-				
+
 				vector.orthoRotate({from: 'center'});
 				vector.scaleFromUnit({f:scale});
-               
-                if ( strip && strip.vertices ) { 
+
+                if ( strip && strip.vertices ) {
                 	strip.vertices[i*4]   = vector.a.x - snakeContainer.x;
                 	strip.vertices[i*4+1] = vector.a.y - snakeContainer.y;
                 	strip.vertices[i*4+2] = vector.b.x - snakeContainer.x;
                 	strip.vertices[i*4+3] = vector.b.y - snakeContainer.y;
                 }
 				snakeContainer.addChild(strip);
-                
+
                 //	graphics.lineStyle(link.particleA.size, colorToHex(link.particleA.color), link.particleA.color.transparency);
 		        //    graphics.moveTo(positionA.x, positionA.y);
 		         //   graphics.lineTo(positionB.x, positionB.y);
-				
-                
+
+
 /*
                 faceSprite = new PIXI.Sprite(faceTexture);
 
@@ -851,7 +853,7 @@ Whip.prototype.renderO = function( ctx ) {
 	    color      = colorToHex(palette),
         scale      = this.lineShape.getEasing(this.width, 0 ) / faceTexture.width,
         faceSprite = new PIXI.Sprite(faceTexture);
-        
+
         faceSprite.anchor.set(0.5);
         faceSprite.x     	= position.x;
         faceSprite.y     	= position.y;
@@ -1346,7 +1348,10 @@ var graphics = new PIXI.Graphics();
 
 //var faceTexture = PIXI.Texture.fromImage('https://i.imgur.com/MB6ieyP.png'); //Face lol
 //var faceTexture = PIXI.Texture.fromImage('https://i.imgur.com/QQ8Oiqw.png'); //Zombi
-var faceTexture = PIXI.Texture.fromImage('https://i.imgur.com/wUXBZOY.png'); //Rainbow
+var faceTexture     = PIXI.Texture.fromImage('https://i.imgur.com/wUXBZOY.png'); //Rainbow
+var tentacleTexture = PIXI.Texture.fromImage('https://s3-us-west-2.amazonaws.com/s.cdpn.io/39255/tentacle.png'); //tentacle
+var tentacleTexture = PIXI.Texture.fromImage('https://i.imgur.com/ADjfftN.png'); //dragon
+tentacleTexture.rotate=2;
 
 var canvas = null;
 var ctx = null;
@@ -1415,7 +1420,7 @@ mobileConsole.options({
     app.stage.on('pointerdown', function(e){
 		console.log('lalala');
 	});
-	
+
 	app.stage.on('pointermove', function(e){
 		mouseposition = e.data.global;
 	});
@@ -1427,8 +1432,8 @@ mobileConsole.options({
 				x : mouseposition.x - canvasOffsetLeft,
 				y : mouseposition.y - canvasOffsetTop
 			  };
-			
-			
+
+
 		});
 
 		update();
