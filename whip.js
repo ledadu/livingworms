@@ -47,8 +47,8 @@ Point.getDistance = function( a, b ) {
 };
 
 Point.addDistance = function( point, distance, angle ) {
-  var x = point.x + Math.cos( angle ) * distance;
-  var y = point.y + Math.sin( angle ) * distance;
+  var x = point.x + Math.cos( angle ) * distance || 0;
+  var y = point.y + Math.sin( angle ) * distance || 0;
   return new Point({ x:x, y:y });
 };
 
@@ -113,10 +113,11 @@ Vector.prototype.makeUnitVector = function( options ) {
 
 		var length = this.getLength(),
 			offset = new Point({x:0, y:0});
+			console.log(length);
 
 		this.xu = (this.b.x - this.a.x) / length;
 		this.yu = (this.b.y - this.a.y) / length;
-
+		
 		//Calculate offset center
 		offset.x = (this.b.x - this.a.x)/2 - this.xu/2;
 		offset.y = (this.b.y - this.a.y)/2 - this.yu/2;
@@ -147,8 +148,8 @@ Vector.prototype.scaleFromUnit = function( options ) {
 	offset.x = options.f * this.xu/2;
 	offset.y = options.f * this.yu/2;
 
-	var a = new Point({x: this.a.x - offset.x, y: this.a.y - offset.y});
-	var b = new Point({x: this.b.x + offset.x, y: this.b.y + offset.y});
+	var a = new Point({x: this.au.x - offset.x, y: this.au.y - offset.y});
+	var b = new Point({x: this.bu.x + offset.x, y: this.bu.y + offset.y});
 
 	this.a = a;
 	this.b = b;
@@ -313,7 +314,7 @@ WhipLink.prototype.updateParticleBWhithAngle = function(angle) {
 	var positionA = this.particleA.position;
 	var positionB = this.particleB.position;
 	var newPosition = Point.addDistance( positionA, this.maxLength, this.angle );
-	var delta = newPosition.copy().subtract(positionB);
+	var delta = newPosition.copy().subtract(positionB) || 0;
 	delta.scale( this.deltaScale )
 	this.particleB.position.add( delta );
 	this.particleB.previousPosition.add( delta );
@@ -373,6 +374,8 @@ function Whip( props ) {
   this.subWhipsDef	   = props.subWhipsDef || {};
   this.subWhips		   = props.subWhips || [];
   this.haveSubwhips    = props.haveSubwhips || false;
+  this.mygraph 		   = new PIXI.Graphics();
+  
 
   this.createLinks(props.x, props.y);
 
@@ -424,7 +427,7 @@ Whip.prototype.createLink = function(i, particleA) {
 			  angleRotation : (i <= this.linkCount) ? (catchedEval(this.angleRotation,{i:i, time:time}) * (this.linkCount-i)/this.linkCount ) : 0,
 			  angleFixed : null,
 	});
-
+	
 	particleA.layerIndex  = this.layerIndex + this.linkCount + i;
 	//Add whiplink
 	newWhipLink.particleA.whipLink = newWhipLink;
@@ -436,7 +439,7 @@ Whip.prototype.createLink = function(i, particleA) {
 		size:this.lineShape.getEasing(this.width, i / this.linkCount ),
 		color: color,
 		friction: this.friction
-	})
+	});
 
 	return newWhipLink;
 }
@@ -747,73 +750,140 @@ Whip.prototype.updateSubWhips = function(){
 
 };
 
+Whip.prototype.spriteDeform = function(options) {
+	const nbHorizontalControlPoints = this.controlPoints.length/2;
+    // Create sections
+	this.sections = [];
+	for(i=0; i< nbHorizontalControlPoints-1; i++)
+    this.sections.push([
+        this.controlPoints[0+i*2],
+        this.controlPoints[2+i*2],
+        this.controlPoints[3+i*2],
+        this.controlPoints[1+i*2],
+    ]);
+		
+    // Cut the texture of the sections
+    let subTextures = [];
+    for (let i=0 ; i < nbHorizontalControlPoints-1; i++){
+      subTextures.push(new PIXI.Texture(this.texture, new PIXI.Rectangle(
+        i * this.texture.baseTexture.width / (nbHorizontalControlPoints-1),
+        0,
+        this.texture.baseTexture.width / (nbHorizontalControlPoints-1),
+        this.texture.baseTexture.height
+      )));
+    }
+		
+	if (subTextures.length > 1) {
+		this.cuttedSprites =  _.times(nbHorizontalControlPoints, (i) => new PIXI.projection.Sprite2s(subTextures[i]));
+	}
+	
+	return this;
+}
+
+Whip.prototype.updateSprite = function( ctx ) {
+	
+	if (_.isUndefined(this.container) ) {return;}
+	
+	this.mygraph.clear();
+	
+	var position   = this.links[0].particleA.position,
+		scale      = this.width;
+	//console.log(this.links[1].particleA.position);
+           
+        this.container.x     	= position.x;
+        this.container.y     	= position.y;
+		
+	//console.log(this.controlPoints);
+	// Update controls points
+	//console.log(this.links.length,this.links[0]);
+		 for ( var len = this.links.length, i=len-1; i >= 0; i-- ) {
+			var link      = this.links[i],
+                vector = new Vector({a: link.particleA.position.copy(), b: link.particleB.position.copy()});
+				vector.orthoRotate({from: 'center'});
+				vector.scaleFromUnit({f:scale});
+					
+
+				
+				this.controlPoints[((len-1)-i)*2].x = vector.a.x - this.container.x;
+				this.controlPoints[((len-1)-i)*2].y = vector.a.y - this.container.y;
+				
+				this.controlPoints[((len-1)-i)*2+1].x = vector.b.x - this.container.x;
+				this.controlPoints[((len-1)-i)*2+1].y = vector.b.y - this.container.y;
+				
+				
+				//debug
+				
+				
+				
+				this.mygraph.lineStyle(1, 0xffffff);
+				this.mygraph.moveTo( link.particleA.position.x,  link.particleA.position.y);
+				this.mygraph.lineTo( link.particleB.position.x,  link.particleB.position.y);
+				
+		        this.mygraph.moveTo(vector.a.x, vector.a.y);
+		        this.mygraph.lineTo(vector.b.x, vector.b.y);
+				
+				
+				/*
+				let text = new PIXI.Text('a',{fontFamily : 'Arial', fontSize: 10, fill : 0xff1010, align : 'center', anchor:0.5});
+				text.x = vector.a.x - this.container.x;
+				text.y = vector.a.y - this.container.y;
+				//this.container.addChild(text);
+				*/
+				
+		}
+		
+		const nbHorizontalControlPoints = this.controlPoints.length/2;
+	
+}
+
 
 Whip.prototype.render = function( ctx ) {
 
-    if(this.renderBody){
 
+    if(this.renderBody){
+		var that = this;
         var position   = this.links[0].particleA.position,
             scale      = this.width;// / faceTexture.width;
             //scale      = 2 / faceTexture.width;
+		this.container 	   = new PIXI.Container();	
+		//this.container.removeChildren();
+		
+       //  var strip   = new PIXI.mesh.Plane(tentacleTexture, 2, 2/*this.links.length*/);
 
-        var strip   = new PIXI.mesh.Plane(tentacleTexture, 2, this.links.length);
-        var snakeContainer = new PIXI.Container();
-
-        snakeContainer.x     	= position.x;
-        snakeContainer.y     	= position.y;
-
-
-        app.stage.addChild(snakeContainer);
+        this.container.x     	= position.x;
+        this.container.y     	= position.y;
 
 
-
-
- //       for ( var len = this.links.length, i=len-1; i >= 0; i-- ) {
- 	       for ( var len = this.links.length, i=0; i <len; i++) {
-            var link      = this.links[i],
+        app.stage.addChild(this.container);
+		app.stage.addChild(this.mygraph);
+		
+		// Create controls points
+		this.controlPoints = [];
+		 for ( var len = this.links.length, i=len-1; i >= 0; i-- ) {
+			var link      = this.links[i],
                 vector = new Vector({a: link.particleA.position.copy(), b: link.particleB.position.copy()});
-
 				vector.orthoRotate({from: 'center'});
 				vector.scaleFromUnit({f:scale});
+				
+				this.controlPoints.push({
+					x: vector.a.x - this.container.x,
+					y: vector.a.y - this.container.y
+				});
+				this.controlPoints.push({
+					x: vector.b.x - this.container.x,
+					y: vector.b.y - this.container.y
+				});
 
-                if ( strip && strip.vertices ) {
-                	strip.vertices[i*4]   = vector.a.x - snakeContainer.x;
-                	strip.vertices[i*4+1] = vector.a.y - snakeContainer.y;
-                	strip.vertices[i*4+2] = vector.b.x - snakeContainer.x;
-                	strip.vertices[i*4+3] = vector.b.y - snakeContainer.y;
-                }
-				snakeContainer.addChild(strip);
-
-                //	graphics.lineStyle(link.particleA.size, colorToHex(link.particleA.color), link.particleA.color.transparency);
-		        //    graphics.moveTo(positionA.x, positionA.y);
-		         //   graphics.lineTo(positionB.x, positionB.y);
-
-
-/*
-                faceSprite = new PIXI.Sprite(faceTexture);
-
-                faceSprite.anchor.set(0.5);
-                faceSprite.x        = vector.a.x;
-                faceSprite.y        = vector.a.y;
-                faceSprite.scale 	= new PIXI.Point(scale,scale); //(width, width);
-                app.stage.addChild(faceSprite);
-
-
-                faceSprite = new PIXI.Sprite(faceTexture);
-
-                faceSprite.anchor.set(0.5);
-                faceSprite.x        = vector.b.x;
-                faceSprite.y        = vector.b.y;
-                faceSprite.scale 	= new PIXI.Point(scale,scale); //(width, width);
-                app.stage.addChild(faceSprite);
-*/
-         /*   for (let i = 0; i <= 1; i++) {
-
-            }*/
-
-
-        }
-
+		}
+		console.log('render', this.controlPoints);
+		this.texture = tentacleTexture;
+		this.spriteDeform();
+		
+		//Add sprites to snakeContainer
+		_.each(this.cuttedSprites, (cuttedSprite) => {
+			that.container.addChild(cuttedSprite);
+			//app.stage.addChild(cuttedSprite);
+		 });
 
     }
 };
@@ -1323,7 +1393,10 @@ var renderFieldset = function(className, objectToBind, definitions, values) {
 
 			update();
 
+			app.stage.removeChildren();
+			
 			sprites.models.forEach(function(sprite) {
+
 				sprite.render();
 			});
 
@@ -1338,7 +1411,7 @@ var renderFieldset = function(className, objectToBind, definitions, values) {
 var appOptions = {
   width  	  : window.innerWidth - 20,
   height 	  : window.innerHeight - 20,
-  forceCanvas : true
+  //forceCanvas : true
 }
 
 var app          = new PIXI.Application(appOptions);
@@ -1349,9 +1422,17 @@ var graphics = new PIXI.Graphics();
 //var faceTexture = PIXI.Texture.fromImage('https://i.imgur.com/MB6ieyP.png'); //Face lol
 //var faceTexture = PIXI.Texture.fromImage('https://i.imgur.com/QQ8Oiqw.png'); //Zombi
 var faceTexture     = PIXI.Texture.fromImage('https://i.imgur.com/wUXBZOY.png'); //Rainbow
-var tentacleTexture = PIXI.Texture.fromImage('https://s3-us-west-2.amazonaws.com/s.cdpn.io/39255/tentacle.png'); //tentacle
-var tentacleTexture = PIXI.Texture.fromImage('https://i.imgur.com/ADjfftN.png'); //dragon
-tentacleTexture.rotate=2;
+
+//var tentacleTexture = PIXI.Texture.fromImage('https://i.imgur.com/MB6ieyP.png');
+//var tentacleTexture = PIXI.Texture.fromImage('https://s3-us-west-2.amazonaws.com/s.cdpn.io/39255/tentacle.png'); //tentacle
+//var tentacleTexture = PIXI.Texture.fromImage('https://i.imgur.com/ADjfftN.png'); //dragon
+//var tentacleTexture     = PIXI.Texture.fromImage('https://i.imgur.com/wUXBZOY.png'); //Rainbow
+//tentacleTexture.rotate=2;
+var tentacleTexture = null;
+
+const image = 'https://i.imgur.com/wUXBZOY.png'; 
+const loader = PIXI.loader;
+loader.add('tentacle', image);
 
 var canvas = null;
 var ctx = null;
@@ -1360,7 +1441,10 @@ var h = 0;
 var startingTime = new Date().getTime();
 var mainGui = {};
 
-$(document).ready(function() {
+loader.load((loader, resources) => {
+  //Create the sprite from the loaded image texture
+    tentacleTexture = resources.tentacle.texture; 
+
 	document.body.appendChild(app.view);
 	app.stage.addChild(graphics);
 
@@ -1439,10 +1523,37 @@ mobileConsole.options({
 		update();
 
 //		graphics.clear();
-        app.stage.removeChildren();
+        //app.stage.removeChildren();
+		
+		/*
+		const mustAddSprites = false;//cuttedSprites.length === 0;
+		if (mustAddSprites) {
+			cuttedSprites = [];
+			sprites.models.forEach(function(sprite) {
+				sprite.render();
+			});
+		
+		}
+		*/
+		
 		sprites.models.forEach(function(sprite) {
-			sprite.render();
+			
+			if (sprite.updateSprite) { sprite.updateSprite();}
+			// Adapt cuted sprites to trapezoid
+			//console.log(sprite.cuttedSprite);
+			//console.log('sections', sprite.sections);
+			_.each(sprite.cuttedSprites, (cuttedSprite, i) => {
+				
+				if (_.isUndefined(sprite.sections[i])) {return;}
+				cuttedSprite.proj.mapBilinearSprite(cuttedSprite, sprite.sections[i]);
+			});
 		});
+		
+		//console.log(cuttedSprites);
+		
+		
+		
+		
 
 
 
@@ -1471,6 +1582,9 @@ var globals = {
 
 
 var whips   = [];
+var cuttedSprites = [];
+var sections = [];
+
 var sprites = {
 		models : [],
 		isNew  : true,
@@ -1750,8 +1864,12 @@ whips.push(
 
 */
 
+whips.push(
+	new Whip({"haveSubwhips":true,"subWhipsDef":{"nbsubs":"1","linkCount":"4","attachNum":"0","angleStart":"0","angleMax":"Math.PI * 2","angleRotation":0,"minLinkLength":"0","maxLinkLength":"100","width":"100","friction":0.85,"factorTime":"globals.factorTime","deltaScale":0.85,"lineShapeDef":{"name":"bloby","nbPeriod":"1"},"paletteName":"test","renderLinks":true,"renderBody":true,"renderParticles":false,"haveSubwhips":false,"subWhipsDef":{}}}
+));
 //bestiole preset
 var nbsubs = 0;
+/*
 whips.push(
 	new Whip({
 		x: 100,
@@ -1769,7 +1887,7 @@ whips.push(
 		//renderLinks:true,
         renderBody:false,
 	})
-);
+);*/
 
 function update() {
 	whips.forEach(function(whip) {
@@ -1798,7 +1916,9 @@ function render() {
 	whip.render( ctx );
   });
   */
-
+  
+  app.stage.removeChildren();
+  
   sprites.models.forEach(function(sprite) {
 	sprite.render( ctx );
   });
