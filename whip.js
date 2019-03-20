@@ -1,4 +1,6 @@
-
+const beasts ={
+		'simple avec pattes qui tournent': '{"haveSubwhips":true,"subWhipsDef":{"nbsubs":"1","linkCount":"100","attachNum":"0","angleStart":"0","angleMax":"Math.PI * 2","angleRotation":0,"minLinkLength":"0","maxLinkLength":"20","width":"300","friction":0.85,"factorTime":"globals.factorTime","deltaScale":0.85,"lineShapeDef":{"name":"virgule","nbPeriod":"1"},"paletteName":"test","renderLinks":true,"renderBody":true,"renderParticles":false,"haveSubwhips":true,"subWhipsDef":{"nbsubs":"40","linkCount":"40","attachNum":"1*i+13","angleStart":"Math.Pi / 2","angleMax":"0.001","angleRotation":0,"minLinkLength":"0","maxLinkLength":"10","width":"30","friction":"0.95","factorTime":"globals.factorTime","deltaScale":"0.7","lineShapeDef":{"name":"virgule","nbPeriod":"1"},"paletteName":"test","renderLinks":false,"renderBody":true,"renderParticles":false,"haveSubwhips":false,"subWhipsDef":{}}}}',
+}
 
 
 // ----- utils ----- //
@@ -113,7 +115,6 @@ Vector.prototype.makeUnitVector = function( options ) {
 
 		var length = this.getLength(),
 			offset = new Point({x:0, y:0});
-			console.log(length);
 
 		this.xu = (this.b.x - this.a.x) / length;
 		this.yu = (this.b.y - this.a.y) / length;
@@ -375,6 +376,7 @@ function Whip( props ) {
   this.subWhips		   = props.subWhips || [];
   this.haveSubwhips    = props.haveSubwhips || false;
   this.mygraph 		   = new PIXI.Graphics();
+  this.textureName     = props.textureName || false;
   
 
   this.createLinks(props.x, props.y);
@@ -627,6 +629,7 @@ Whip.prototype.updateSubWhipsDef = function(subDef){
 				deltaScale		: deltaScale.normal,
 				lineShapeDef	: {name:'virgule', nbPeriod:'1'},
 				paletteName 	: 'test',
+				textureName	 	: 'dragon',
 				renderLinks     : false,
 	            renderBody      : true,
 	            renderParticles : false,
@@ -652,7 +655,7 @@ Whip.prototype.updateSubWhips = function(){
 		var subWhipEval = {};
 
 		_.each(that.subWhipsDef, function(subDef,subDefName){
-			if(subDefName =='lineShapeDef' || subDefName === 'paletteName'){
+			if(subDefName =='lineShapeDef' || subDefName === 'paletteName' || subDefName === 'textureName'){
 				//console.log(subDef);
 				subWhipEval[subDefName] =  _.clone(subDef);
 			}else{
@@ -696,6 +699,8 @@ Whip.prototype.updateSubWhips = function(){
 			}
 			if(subDefName ==='lineShapeDef'){
 				subWhip.whip[subDefName] = {'name':subDef.name,'nbPeriod':eval(subDef.nbPeriod)};
+			}else if(subDefName ==='textureName'){
+				subWhip.whip[subDefName] = subDef;
 			}else if(subDefName ==='paletteName'){
 				subWhip.whip[subDefName] = subDef;
 			}else{
@@ -764,14 +769,16 @@ Whip.prototype.spriteDeform = function(options) {
 		
     // Cut the texture of the sections
     let subTextures = [];
-    for (let i=0 ; i < nbHorizontalControlPoints-1; i++){
-      subTextures.push(new PIXI.Texture(this.texture, new PIXI.Rectangle(
-        i * this.texture.baseTexture.width / (nbHorizontalControlPoints-1),
-        0,
-        this.texture.baseTexture.width / (nbHorizontalControlPoints-1),
-        this.texture.baseTexture.height
-      )));
-    }
+	if (this.texture) {
+		for (let i=0 ; i < nbHorizontalControlPoints-1; i++){
+		  subTextures.push(new PIXI.Texture(this.texture, new PIXI.Rectangle(
+			i * this.texture.baseTexture.width / (nbHorizontalControlPoints-1),
+			0,
+			this.texture.baseTexture.width / (nbHorizontalControlPoints-1),
+			this.texture.baseTexture.height
+		  )));
+		}
+	}
 		
 	if (subTextures.length > 1) {
 		this.cuttedSprites =  _.times(nbHorizontalControlPoints, (i) => new PIXI.projection.Sprite2s(subTextures[i]));
@@ -812,16 +819,17 @@ Whip.prototype.updateSprite = function( ctx ) {
 				
 				
 				//debug
-				
-				
-				
+				/*
 				this.mygraph.lineStyle(1, 0xffffff);
+				if (i==0) {
+					this.mygraph.lineStyle(1, 0xff0000);
+				}
 				this.mygraph.moveTo( link.particleA.position.x,  link.particleA.position.y);
 				this.mygraph.lineTo( link.particleB.position.x,  link.particleB.position.y);
 				
 		        this.mygraph.moveTo(vector.a.x, vector.a.y);
 		        this.mygraph.lineTo(vector.b.x, vector.b.y);
-				
+				*/
 				
 				/*
 				let text = new PIXI.Text('a',{fontFamily : 'Arial', fontSize: 10, fill : 0xff1010, align : 'center', anchor:0.5});
@@ -875,8 +883,10 @@ Whip.prototype.render = function( ctx ) {
 				});
 
 		}
-		console.log('render', this.controlPoints);
-		this.texture = tentacleTexture;
+
+		if (this.textureName) {
+			this.texture = loadedResource[this.textureName].texture;
+		}
 		this.spriteDeform();
 		
 		//Add sprites to snakeContainer
@@ -1266,6 +1276,19 @@ var renderFieldset = function(className, objectToBind, definitions, values) {
 					$selector.append($option);
 				});
             	$fieldset.append($selector);
+				
+			// texture
+            } else if(def.class === 'texture') {
+					$selector = $('<select name="' + defName + '" data-class="' + def.class + '"></select>');
+				_.each(_.keys(textures), function(key){
+					var $option = $('<option></option>');
+					$option.attr('value', key).html(key);
+					if (values[defName] === key ) {
+						$option.prop('selected','selected');
+					}
+					$selector.append($option);
+				});
+            	$fieldset.append($selector);
 
            	// easingName
 			} else if(def.class === 'easingName') {
@@ -1323,6 +1346,7 @@ var renderFieldset = function(className, objectToBind, definitions, values) {
 		        				minLinkLength	: {class:'float'},
 		        				maxLinkLength	: {class:'float'},
 								paletteName 	: {class:'paletteName'},
+								textureName		: {class:'texture'},
 								lineShapeDef	: {class:'easingOptions'},
 								friction		: {class:'float'},
 								deltaScale		: {class:'float'},
@@ -1338,6 +1362,7 @@ var renderFieldset = function(className, objectToBind, definitions, values) {
 								nbsubs			: values[defName].nbsubs,
 								attachNum		: values[defName].attachNum,
 								paletteName 	: values[defName].paletteName,
+								textureName     : values[defName].textureName,
 								angleRotation	: values[defName].angleRotation,
 								angleStart      : values[defName].angleStart,
 								angleMax        : values[defName].angleMax,
@@ -1427,12 +1452,25 @@ var faceTexture     = PIXI.Texture.fromImage('https://i.imgur.com/wUXBZOY.png');
 //var tentacleTexture = PIXI.Texture.fromImage('https://s3-us-west-2.amazonaws.com/s.cdpn.io/39255/tentacle.png'); //tentacle
 //var tentacleTexture = PIXI.Texture.fromImage('https://i.imgur.com/ADjfftN.png'); //dragon
 //var tentacleTexture     = PIXI.Texture.fromImage('https://i.imgur.com/wUXBZOY.png'); //Rainbow
+//var tentacleTexture     = PIXI.Texture.fromImage('https://i.imgur.com/HZ39SVh.jpg'); //planes
 //tentacleTexture.rotate=2;
-var tentacleTexture = null;
+var loadedResource = [];
 
-const image = 'https://i.imgur.com/wUXBZOY.png'; 
+//const image = 'https://s3-us-west-2.amazonaws.com/s.cdpn.io/39255/tentacle.png'; //tentacle
+
+const textures = {
+	dragon:	'https://i.imgur.com/ADjfftN.png',
+//const image = 'https://i.imgur.com/QQ8Oiqw.png'; //zombie
+//const image = 'https://i.imgur.com/wUXBZOY.png';  //rainbow
+//const image = 'https://i.imgur.com/HZ39SVh.jpg';  //Planes
+	flower: 'https://i.imgur.com/2KtIO.gif?noredirect',
+//const image = 'https://i.imgur.com/iNJvEBh.jpg';  //bob
+
+};
+
 const loader = PIXI.loader;
-loader.add('tentacle', image);
+// Load textures
+_.each(textures, (path, id) => loader.add(id, path));
 
 var canvas = null;
 var ctx = null;
@@ -1441,11 +1479,16 @@ var h = 0;
 var startingTime = new Date().getTime();
 var mainGui = {};
 
-loader.load((loader, resources) => {
-  //Create the sprite from the loaded image texture
-    tentacleTexture = resources.tentacle.texture; 
 
+loader.load((loader, resources) => {
+	// Store Resources
+    
+	_.each(resources, (resource,id) => { loadedResource[id] = resource; }); 
+	
+	//Add render space
 	document.body.appendChild(app.view);
+	
+	//Add graphics layer
 	app.stage.addChild(graphics);
 
 	//stats FPS
@@ -1864,12 +1907,14 @@ whips.push(
 
 */
 
+/*
 whips.push(
 	new Whip({"haveSubwhips":true,"subWhipsDef":{"nbsubs":"1","linkCount":"4","attachNum":"0","angleStart":"0","angleMax":"Math.PI * 2","angleRotation":0,"minLinkLength":"0","maxLinkLength":"100","width":"100","friction":0.85,"factorTime":"globals.factorTime","deltaScale":0.85,"lineShapeDef":{"name":"bloby","nbPeriod":"1"},"paletteName":"test","renderLinks":true,"renderBody":true,"renderParticles":false,"haveSubwhips":false,"subWhipsDef":{}}}
 ));
+*/
 //bestiole preset
 var nbsubs = 0;
-/*
+
 whips.push(
 	new Whip({
 		x: 100,
@@ -1887,7 +1932,7 @@ whips.push(
 		//renderLinks:true,
         renderBody:false,
 	})
-);*/
+);
 
 function update() {
 	whips.forEach(function(whip) {
