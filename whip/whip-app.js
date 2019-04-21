@@ -14,6 +14,18 @@ const beasts ={
 }
 
 
+const elements = {
+	models : [],
+	isNew  : true,
+	add	   : function(model) {
+		elements.models.push(model);
+	},
+	empty  : function(){
+		elements.models = [];
+		elements.isNew   = true;
+	}
+};
+
 
 var componentToHex = function(c) {
     var hex = c.toString(16);
@@ -36,6 +48,8 @@ var colorToHex = function(color,inString = false) {
 
     return parseInt('0x' + str);
 };
+
+
 
 var renderForm = function() {
 
@@ -69,7 +83,7 @@ var renderForm = function() {
 		$.extend(whips[0], JSON.parse($('#LoadContent').val()));
 		console.log('load');
 		renderForm();
-		// sprites.empty();
+		elements.empty();
 	});
 	$wormEdit.append($loadButton);
 
@@ -243,22 +257,19 @@ var renderFieldset = function(className, objectToBind, definitions, values) {
 			if($target.attr('name') == 'haveSubwhips'){
 		    	setTimeout(renderForm,100);
 		    }
-			
-			whips.forEach(function(whip) {
-				whip.sprites.empty();
-			});
 
+			elements.empty();
+			
 			update();
 
 			app.stage.removeChildren();
 			
-			whips.forEach(function(whip) {
-				whip.sprites.models.forEach(function(element) {
-					element.stage = app.stage;
-					element.loadedResource = loadedResource;
-					element.render();
-				});
+			elements.models.forEach(function(element) {
+				element.stage = app.stage;
+				element.loadedResource = loadedResource;
+				element.render();
 			});
+		
 		});
 
 
@@ -394,21 +405,23 @@ mobileConsole.options({
 				y : mouseposition.y - canvasOffsetTop
 			  };
 			//console.log(whip.sprites);
-			whip.sprites.models.forEach(function(sprite) {
-				
-				if (sprite.updateGraphic) { sprite.updateGraphic();}
-				// Adapt cuted sprites to trapezoid
-				//console.log(sprite.cuttedSprite);
-				//console.log('sections', sprite.sections);
-				_.each(sprite.cuttedSprites, (cuttedSprite, i) => {
-					
-					if (_.isUndefined(sprite.sections[i])) {return;}
-					cuttedSprite.proj.mapBilinearSprite(cuttedSprite, sprite.sections[i]);
-				});
-			});
+
 
 		});
-
+		
+		elements.models.forEach(function(sprite) {
+			
+			if (sprite.updateGraphic) { sprite.updateGraphic();}
+			// Adapt cuted sprites to trapezoid
+			//console.log(sprite.cuttedSprite);
+			//console.log('sections', sprite.sections);
+			_.each(sprite.cuttedSprites, (cuttedSprite, i) => {
+				
+				if (_.isUndefined(sprite.sections[i])) {return;}
+				cuttedSprite.proj.mapBilinearSprite(cuttedSprite, sprite.sections[i]);
+			});
+		});
+		
 		update();
 
 	});
@@ -721,14 +734,14 @@ whips.push(
 
 function update() {
 	whips.forEach(function(whip) {
-		whip.update();
-		if(whip.sprites.isNew){
-			whip.sprites.models.reverse();
-			whip.sprites.models = _.sortBy(whip.sprites.models, function(model){return -model.layerIndex;});
-
-			whip.sprites.isNew = false;
-		}
+		whip.update(elements);
 	});
+	if(elements.isNew){
+		elements.models.reverse();
+		elements.models = _.sortBy(elements.models, function(model){return -model.layerIndex;});
+
+		elements.isNew = false;
+	}
 
 }
 

@@ -38,17 +38,6 @@ function catchedEval(code, variables){
 }
 
 
-const sprites = {
-	models : [],
-	isNew  : true,
-	add	   : function(model) {
-		sprites.models.push(model);
-	},
-	empty  : function(){
-		sprites.models = [];
-		sprites.isNew   = true;
-	}
-};
 
 
 const Whip = function( props ) {
@@ -76,8 +65,6 @@ const Whip = function( props ) {
   this.mygraph 		   = new PIXI.Graphics();
   this.textureName     = props.textureName || false;
   this.loadedResource  = props.loadedResource;
-  
-  this.sprites		   = sprites;
   
 
   this.createLinks(props.x, props.y);
@@ -235,7 +222,7 @@ Whip.prototype.getAngleFromLinks = function(links1, links2) {
 	var a = links1.particleA.position.x
 }
 
-Whip.prototype.update = function() {
+Whip.prototype.update = function(elements) {
 	var that = this,
 		time   = (new Date().getTime() - startingTime)  / globals.factorTime;
 
@@ -288,9 +275,9 @@ Whip.prototype.update = function() {
 
 		}
 		
-		if (i < this.linkCount && this.sprites.isNew){
-			this.sprites.add(this.links[i]);
-			this.sprites.add(this.links[i].particleA);
+		if (i < this.linkCount && elements.isNew){
+			elements.add(this.links[i]);
+			elements.add(this.links[i].particleA);
 		}
 		
 	}
@@ -301,13 +288,13 @@ Whip.prototype.update = function() {
   		this.subWhipsDef.renderLinks     = this.subWhipsDef.renderLinks || false;
 	}*/
 	
-	if (this.sprites.isNew) {
-		this.sprites.add(this);
+	if (elements.isNew) {
+		elements.add(this);
 	}
 	
 	this.updateSubWhipsDef(this);
 
-	this.updateSubWhips();
+	this.updateSubWhips(elements);
 
 };
 
@@ -347,7 +334,7 @@ Whip.prototype.updateSubWhipsDef = function(subDef){
 
 };
 
-Whip.prototype.updateSubWhips = function(){
+Whip.prototype.updateSubWhips = function(elements){
 	var that = this,
 		nbsubs = this.subWhipsDef.nbsubs || this.subWhips.length,	//default if not set
 		time   = (new Date().getTime() - startingTime)  / globals.factorTime;
@@ -439,7 +426,7 @@ Whip.prototype.updateSubWhips = function(){
 
 		}
 
-		subWhip.whip.update();
+		subWhip.whip.update(elements);
 
 
 	}
