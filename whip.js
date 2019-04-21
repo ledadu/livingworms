@@ -804,10 +804,11 @@ Whip.prototype.updateSprite = function( ctx ) {
 	// Update controls points
 	//console.log(this.links.length,this.links[0]);
 		 for ( var len = this.links.length, i=len-1; i >= 0; i-- ) {
-			var link      = this.links[i],
+			var link        = this.links[i],
+				easingRatio = this.lineShape.getEasing(1, i / this.linkCount ),
                 vector = new Vector({a: link.particleA.position.copy(), b: link.particleB.position.copy()});
 				vector.orthoRotate({from: 'center'});
-				vector.scaleFromUnit({f:scale});
+				vector.scaleFromUnit({f:scale * easingRatio});
 					
 
 				
@@ -1461,9 +1462,10 @@ var loadedResource = [];
 const textures = {
 	dragon:	'https://i.imgur.com/ADjfftN.png',
 //const image = 'https://i.imgur.com/QQ8Oiqw.png'; //zombie
-//const image = 'https://i.imgur.com/wUXBZOY.png';  //rainbow
+	rainbow: 'https://i.imgur.com/wUXBZOY.png',  //rainbow
 //const image = 'https://i.imgur.com/HZ39SVh.jpg';  //Planes
 	flower: 'https://i.imgur.com/2KtIO.gif?noredirect',
+	millipede: 'http://www.stickpng.com/assets/images/5b3f4a762932ea028798795d.png',
 //const image = 'https://i.imgur.com/iNJvEBh.jpg';  //bob
 
 };
