@@ -1,4 +1,5 @@
 <html>
+
 <script src="underscore-min.js" type="text/javascript"></script>
 <script src="jquery-2.1.4.min.js" type="text/javascript"></script>
 <script src="dat.gui.min.js" type="text/javascript"></script>
@@ -7,100 +8,24 @@
 <script src="whip/whip-app.js" type="module"></script>
 <script src="js-mobile-console-mobile-console.min.js" type="text/javascript"></script>
 <link rel="stylesheet" href="js-mobile-console-mobile-console.min.css">
-
+<link rel="stylesheet" href="whip/wormEdit.css">
 
 <style>
 	body {
 	  margin: 0;
 	  padding: 0;
 	}
-	body .menuEdit{
-		z-index: 1;
-		position: absolute;
-		top: 10px;
-		right: 30px;
-		bottom:30px;
-		overflow-y: auto;
-		background-color: #111;
-		color: #eee;
-		font: 11px "Lucida Grande",sans-serif; 
-		padding: 10px;
-		border-radius: 5px;
-	}
-
-	body #wormEdit li{
-		border-bottom: 1px solid #2C2C2C;
-	}
-
-	body #wormEdit label{
-		border-top: solid 1px #171717;
-		width:40%;
-		display: inline-block;
-		line-height: 16px;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-	
-	body #wormEdit fieldset{
-		border-color:#333;
-		border-style: solid;
-		width: 90%
-	}
-	
-	body #wormEdit fieldset[data-class=lineShapeDef]{
-		border-color: darkgreen;
-    }
-	
-	body #wormEdit fieldset[data-class=subWhipsDef]{
-		border-color: darkorange;
-    }
-	
-	
+			
 	body canvas{
 		z-index:0;
-	}
-
-	input, select{
-	 text-indent: 4px; 
-		border-top: solid 1px #eee;
-		width: 60%;
-		height: 16px;
-		color: #2FA1D6;
-		background: #303030 none repeat scroll 0% 0%;
-		outline: medium none;
-		border: 0px none;
-		padding: 0px;
-		margin: 0px;
-		float: right;
-	}
-	
-	select[data-class=easingName]{
-		background: #568435;
-		color: #eee;
-	}
-	
-	select[data-class=paletteName]{
-		background: #843558;
-		color: #eee;
-	}
-	
-	input[name=linkCount], input[name=width]{
-		background: #355884;
-		color: #eee;
-	}
-	
-	input[name=angleRotation], input[name=angleStart],input[name=angleMax]{
-		background: #358458;
-		color: #eee;
-	}
-	
-	
-	
+	}	
 </style>
+
 <body>
 	<div class="menuEdit">	
 		<div id="wormEdit">
 		</div>
 	</div>
 </body>
+
 </html>

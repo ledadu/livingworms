@@ -386,7 +386,7 @@ mobileConsole.options({
 
 	console.log(whips);
 
-	var mouseposition = {x:0, y:0};//app.renderer.plugins.interaction.mouse.global;
+	var mouseposition = {x: canvasOffsetLeft / 2, y: canvasOffsetTop / 2};//app.renderer.plugins.interaction.mouse.global;
 	console.log('yaaaaaa');
 	app.stage.interactive = true;
     app.stage.on('pointerdown', function(e){
@@ -398,16 +398,17 @@ mobileConsole.options({
 	});
 
 	app.ticker.add(function() {
+		if (app.renderer.plugins.interaction.mouse.buttons === 1) {
+			whips.forEach(function(whip, index) {
+				  whip.target = {
+					x : mouseposition.x - canvasOffsetLeft,
+					y : mouseposition.y - canvasOffsetTop
+				  };
+				//console.log(whip.sprites);
 
-		whips.forEach(function(whip, index) {
-			  whip.target = {
-				x : mouseposition.x - canvasOffsetLeft,
-				y : mouseposition.y - canvasOffsetTop
-			  };
-			//console.log(whip.sprites);
 
-
-		});
+			});
+		}
 		
 		elements.models.forEach(function(sprite) {
 			
@@ -728,6 +729,14 @@ whips.push(
 		//paletteName: 'orangeDark',
 		// renderParticles:true,
 		//renderLinks:true,
+		/*haveSubwhips:true,
+		subWhipsDef:{
+			linkCount: 100,
+			width: 200,
+			maxLinkLength: 20,
+			friction: 0,
+			angleMax: 'Math.PI/7',
+		},*/
         renderBody:false,
 	})
 );
