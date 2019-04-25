@@ -27,30 +27,6 @@ const elements = {
 };
 
 
-var componentToHex = function(c) {
-    var hex = c.toString(16);
-    return hex.length == 1 ? "0" + hex : hex;
-};
-
-var colorToHex = function(color,inString = false) {
-
-	var str = '000000';
-
-	if (_.isUndefined(color)) {
-		return str;
-	}
-
-    str = componentToHex(color.r) + componentToHex(color.g) + componentToHex(color.b);
-
-    if (inString) {
-        return str;
-    }
-
-    return parseInt('0x' + str);
-};
-
-
-
 var renderForm = function() {
 
 	console.log('--- renderForm ---');
@@ -325,6 +301,15 @@ var h = 0;
 
 var mainGui = {};
 
+
+// Listen for window resize events
+window.addEventListener('resize', resize);
+
+// Resize function window
+function resize() {
+	// Resize the renderer
+	app.renderer.resize(window.innerWidth, window.innerHeight);
+}
 
 loader.load((loader, resources) => {
 	// Store Resources

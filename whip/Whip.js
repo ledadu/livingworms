@@ -14,7 +14,7 @@ const deltaScale = {
 
 import { Vector } from './Vector.js';
 import { Easing } from './Easing.js';
-import { Palette } from './Palette.js';
+import { Palette, colorToHex } from './Palette.js';
 
 import { Particle } from './Particle.js';
 import { WhipLink } from './WhipLink.js';
@@ -61,7 +61,8 @@ const Whip = function( props ) {
   this.paletteName     = _.isUndefined(props.paletteName) ? 'bleuVertOrange' : props.paletteName;
   this.subWhipsDef	   = props.subWhipsDef || {};
   this.subWhips		   = props.subWhips || [];
-  this.haveSubwhips    = props.haveSubwhips || false;
+  this.haveSubwhips    = props.haveSubwhips || false;  // boolean
+  this.hookPeriod      = props.hookPeriod || 0;
   this.mygraph 		   = new PIXI.Graphics();
   this.textureName     = props.textureName || false;
   this.loadedResource  = props.loadedResource;
@@ -237,12 +238,14 @@ Whip.prototype.update = function(elements) {
 		this.lineShape       = newEasing;
 	}
 
-	//Follow target
+	//Follow target woow  0 comment!!!
 	if (!_.isUndefined(this.target)) {
 		this.links[0].particleA.position.x += (this.target.x - this.links[0].particleA.position.x)*0.1;
 		this.links[0].particleA.position.y += (this.target.y - this.links[0].particleA.position.y)*0.1;
 	}
 
+	// TO BE CALL when changing definition or isNew<<<
+	// and just keep modification with time !
 	this.updateLinks();
 
 	for ( var i=0, len = this.links.length; i < len; i++ ) {
@@ -261,9 +264,10 @@ Whip.prototype.update = function(elements) {
 				testDeltaAngle = deltaAngle + Math.PI*2;
 				deltaPi = Math.PI*2;
 			}
-
+			// REFACTO + comment !!!
 			var difAngle = 0,
 				angleMax = catchedEval(this.angleMax,{i:i, time:time}) * ((len-i)/len);
+				
 			if( testDeltaAngle > angleMax && testDeltaAngle > 0 ){
 				difAngle = testDeltaAngle - angleMax ;
 				this.links[i].updateParticleBWhithAngle(this.links[i].angle + difAngle * globals.reactAngle + deltaPi);
@@ -290,6 +294,17 @@ Whip.prototype.update = function(elements) {
 	
 	if (elements.isNew) {
 		elements.add(this);
+	}
+	
+	if (this.colorFilter) {
+		const { matrix } = this.colorFilter;
+
+		matrix[1] = Math.sin(time) * 3;
+		matrix[2] = Math.cos(time);
+		matrix[3] = Math.cos(time) * 1.5;
+		matrix[4] = Math.sin(time / 3) * 2;
+		matrix[5] = Math.sin(time / 2);
+		matrix[6] = Math.sin(time / 4);
 	}
 	
 	this.updateSubWhipsDef(this);
@@ -324,6 +339,7 @@ Whip.prototype.updateSubWhipsDef = function(subDef){
 				renderBody      : true,
 				renderParticles : false,
 				haveSubwhips    : false,
+				hookPeriod      : 0,
 				subWhipsDef     : {},
 	        };
 	    }else{
@@ -531,6 +547,18 @@ Whip.prototype.updateGraphic = function( ctx ) {
 }
 
 
+const setMatrixColorTransform = function(matrix, color) {	
+    matrix[0] = color.r / 256;
+    //matrix[4] = color.rA || 0;
+    matrix[6] = color.g / 256;
+    //matrix[9] = color.gA || 0;
+    matrix[12] = color.b / 256;
+    //matrix[14] = color.bA || 0;
+	
+    return matrix;
+};
+
+
 Whip.prototype.render = function( ctx ) {
 
 
@@ -539,7 +567,8 @@ Whip.prototype.render = function( ctx ) {
         var position   = this.links[0].particleA.position,
             scale      = this.width;// / faceTexture.width;
             //scale      = 2 / faceTexture.width;
-		this.container 	   = new PIXI.Container();	
+		this.container 	 = new PIXI.Container();	
+		
 		//this.container.removeChildren();
 		
        //  var strip   = new PIXI.mesh.Plane(tentacleTexture, 2, 2/*this.links.length*/);
@@ -574,15 +603,27 @@ Whip.prototype.render = function( ctx ) {
 			this.texture = this.loadedResource[this.textureName].texture;
 		}
 		this.spriteDeform();
+
+		const blurFiler = new PIXI.filters.BlurFilter(1, 3);
+		
+		//PIXI.filters.GlowFilter(15, 2, 1, 0xFF0000, 0.5);
 		
 		//Add sprites to snakeContainer
-		_.each(this.cuttedSprites, (cuttedSprite) => {
+		_.each(this.cuttedSprites, (cuttedSprite, i) => {
+			const colorFilter = new PIXI.filters.ColorMatrixFilter(),
+				{ matrix } 	  = colorFilter,
+				color         = this.links[i].particleA.color;
+				
+			colorFilter.matrix  = setMatrixColorTransform(matrix, color);
+			
+			cuttedSprite.filters = [colorFilter];
+			
 			that.container.addChild(cuttedSprite);
-			//app.stage.addChild(cuttedSprite);
 		 });
 
     }
 };
+
 
 
 Whip.prototype.renderO = function( ctx ) {

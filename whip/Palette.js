@@ -123,4 +123,28 @@ Palette.prototype.setLineShape = function(lineShape) { // iteration 0 to 1
 	return this;
 };
 
-export {Palette};
+
+
+
+var colorToHex = function(color,inString = false) {
+
+	var componentToHex = function(c) {
+		var hex = c.toString(16);
+		return hex.length == 1 ? "0" + hex : hex;
+	},
+	str = '000000';
+
+	if (_.isUndefined(color)) {
+		return str;
+	}
+
+    str = componentToHex(color.r) + componentToHex(color.g) + componentToHex(color.b);
+
+    if (inString) {
+        return str;
+    }
+
+    return parseInt('0x' + str);
+};
+
+export {Palette, colorToHex};
