@@ -924,6 +924,96 @@ function randomPalette() {
   return { hue: Math.round(rand(0, 360)), harmony: h[Math.floor(Math.random() * h.length)], sat: Math.round(rand(55, 85)), light: Math.round(rand(45, 65)) };
 }
 
+// ----- water: bodies push the water and each other ----- //
+// Every moving node leaves a wake (nearby nodes are dragged along with its
+// speed) and pushes away what it touches. Nodes are sorted in a grid so only
+// neighbours are compared.
+
+function Flow(cell) {
+  this.cell = cell || 32;
+  this.cells = new Map();
+  this.pool = [];
+  this.used = 0;
+}
+
+Flow.prototype.clear = function () {
+  this.cells.clear();
+  this.used = 0;
+};
+
+Flow.prototype.key = function (cx, cy) { return cx * 73856093 ^ cy * 19349663; };
+
+Flow.prototype.add = function (cr) {
+  var list = cr.list, c = this.cell;
+  for (var si = 0; si < list.length; si++) {
+    var s = list[si];
+    if (s.creatureCut) continue;
+    var step = s.n > 12 ? 2 : 1;
+    for (var i = 0; i <= s.n; i += step) {
+      var e = this.pool[this.used] || (this.pool[this.used] = {});
+      this.used++;
+      e.x = s.x[i]; e.y = s.y[i];
+      e.vx = s.x[i] - s.ox[i]; e.vy = s.y[i] - s.oy[i];
+      e.r = s.rad[i] * (1 + s.pulse) + (step > 1 ? s.len * 0.5 : 0);
+      e.owner = cr;
+      var k = this.key(Math.floor(e.x / c), Math.floor(e.y / c)), b = this.cells.get(k);
+      if (!b) { b = []; this.cells.set(k, b); }
+      b.push(e);
+    }
+  }
+};
+
+// o.push: contact strength, o.wake: how much the water drags along,
+// o.body: how much contacts on the trunk move the whole creature.
+// The wake is a weighted average of the neighbours' speeds (never a sum,
+// or a school crossing kelp would add up dozens of pushes), and the contact
+// correction is capped: nothing can gain energy from the water.
+Flow.prototype.apply = function (cr, o) {
+  var list = cr.list, c = this.cell, push = o.push, wake = o.wake, body = o.body || 0;
+  var reachW = o.reach || 14;
+  for (var si = 0; si < list.length; si++) {
+    var s = list[si];
+    if (s.creatureCut) continue;
+    for (var i = 1; i <= s.n; i++) {
+      var x = s.x[i], y = s.y[i], r = s.rad[i];
+      var cx = Math.floor(x / c), cy = Math.floor(y / c);
+      var W = 0, wvx = 0, wvy = 0, px = 0, py = 0;
+      for (var gx = cx - 1; gx <= cx + 1; gx++) {
+        for (var gy = cy - 1; gy <= cy + 1; gy++) {
+          var b = this.cells.get(this.key(gx, gy));
+          if (!b) continue;
+          for (var j = 0; j < b.length; j++) {
+            var e = b[j];
+            if (e.owner === cr) continue;
+            var dx = x - e.x, dy = y - e.y, d2 = dx * dx + dy * dy, reach = e.r + r + reachW;
+            if (d2 > reach * reach) continue;
+            var d = Math.sqrt(d2) || 0.001, f = 1 - d / reach;
+            W += f; wvx += e.vx * f; wvy += e.vy * f;
+            var over = e.r + r - d;
+            if (over > 0) { px += dx / d * over; py += dy / d * over; }
+          }
+        }
+      }
+      if (!W) continue;
+      var vx = x - s.ox[i], vy = y - s.oy[i], k = wake * Math.min(1, W);
+      var mx = (wvx / W - vx) * k, my = (wvy / W - vy) * k;
+      var pm = Math.hypot(px, py), cap = r + 2;
+      if (pm > cap) { px *= cap / pm; py *= cap / pm; }
+      mx += px * push; my += py * push;
+      if (body && s.depth === 0 && pm) { cr.vx += px * body; cr.vy += py * body; }
+      s.x[i] = x + mx; s.y[i] = y + my;
+    }
+  }
+};
+
+// let a freshly built creature settle in its rest pose before it is shown
+function settle(cr, steps) {
+  for (var t = 0; t < (steps || 420); t++) cr.update(t * STEP, 0, 0, 1);
+  cr.list.forEach(function (s) {
+    for (var i = 0; i <= s.n; i++) { s.ox[i] = s.x[i]; s.oy[i] = s.y[i]; }
+  });
+}
+
 global.HydraEngine = {
   TAU: TAU, STEP: STEP,
   clamp: clamp, lerp: lerp, rand: rand, clone: clone, wrapAngle: wrapAngle,
@@ -932,7 +1022,8 @@ global.HydraEngine = {
   Seg: Seg, Creature: Creature, swimFactor: swimFactor,
   draw: draw, drawSeg: drawSeg, eachGlow: eachGlow, drawSkeleton: drawSkeleton, pick: pick,
   stats: stats, snapshot: snapshot, mutate: mutate, randomPalette: randomPalette,
-  geneFromSeg: geneFromSeg, nodeDepth: nodeDepth, nodeTitle: nodeTitle
+  geneFromSeg: geneFromSeg, nodeDepth: nodeDepth, nodeTitle: nodeTitle,
+  Flow: Flow, settle: settle
 };
 
 })(window);

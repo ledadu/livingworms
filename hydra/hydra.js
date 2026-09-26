@@ -649,6 +649,8 @@ function playerControl(p, t) {
   p.update(t, dvx, dvy, acc, 24);
 }
 
+var flow = new E.Flow(32);
+
 function tick() {
   var t = (state.t += STEP), p = state.player, i, j;
   var playing = state.mode === 'play' || state.mode === 'graft';
@@ -665,6 +667,13 @@ function tick() {
   }
 
   for (i = 0; i < state.enemies.length; i++) aiControl(state.enemies[i], t, playing);
+
+  // water: bodies push and drag each other
+  flow.clear();
+  if (p && p.alive) flow.add(p);
+  for (i = 0; i < state.enemies.length; i++) flow.add(state.enemies[i]);
+  for (i = 0; i < state.enemies.length; i++) flow.apply(state.enemies[i], { push: 0.35, wake: 0.02, body: 0.01 });
+  if (p && p.alive) flow.apply(p, { push: 0.3, wake: 0.015, body: 0.008 });
 
   if (playing && p && p.alive) {
     for (i = 0; i < state.enemies.length; i++) {

@@ -101,16 +101,16 @@ function plantSpec(kind, R, b) {
   var abyss = b.id === 'abysses' || b.id === 'sources' || b.id === 'meduses';
   if (kind === 'kelp') {
     return E.spec({ name: 'Kelp', palette: { hue: r(62, 100), harmony: 'analog', sat: r(40, 60), light: r(28, 40) }, eyes: { on: false },
-      body: { name: 'Stipe', links: ri(28, 42), len: 12, width: 1.3, shape: 'constant', style: 'ribbon', flex: 0.08, spring: 0.1, drag: 0.78, gravity: -0.07,
-        color: { slot: 0, grad: 12 }, motion: { type: 'wave', amp: 0.025, freq: r(0.08, 0.14) },
-        attach: [{ node: { name: 'Fronde', links: 4, len: 6, width: 3.4, shape: 'leaf', style: 'ribbon', flex: 0.2, spring: 0.2, curl: 0.6, gravity: -0.03, drag: 0.78, color: { slot: 1, alpha: 0.92, grad: 10 } },
+      body: { name: 'Stipe', links: ri(28, 42), len: 12, width: 1.3, shape: 'constant', style: 'ribbon', flex: 0.4, spring: 0.04, drag: 0.7, gravity: -0.07,
+        color: { slot: 0, grad: 12 },
+        attach: [{ node: { name: 'Fronde', links: 4, len: 6, width: 3.4, shape: 'leaf', style: 'ribbon', flex: 0.35, spring: 0.12, curl: 0.6, gravity: -0.03, drag: 0.7, color: { slot: 1, alpha: 0.92, grad: 10 } },
           pattern: 'series', at: 0.12, to: 1, count: ri(9, 14), angle: 0.8, alternate: true, jitter: 0.6, edge: 0.5 }] } });
   }
   if (kind === 'grass') {
     return E.spec({ name: 'Herbier', palette: { hue: r(120, 175), harmony: 'analog', sat: r(35, 60), light: r(30, 45) }, eyes: { on: false },
       body: { name: 'Souche', links: 1, len: 1, width: 0.5, shape: 'constant', style: 'ribbon', flex: 0.1, spring: 0.5, color: { slot: 0 },
-        attach: [{ node: { name: 'Brin', links: 7, len: 5, width: 1.1, shape: 'linear', style: 'ribbon', flex: 0.2, spring: 0.15, gravity: -0.04, drag: 0.78,
-          color: { slot: 1, grad: 12 }, motion: { type: 'wave', amp: 0.04, freq: 0.15 } }, pattern: 'fan', at: 1, count: ri(4, 8), spread: 0.9, angle: 0, jitter: 0.7, phaseStep: 0.8 }] } });
+        attach: [{ node: { name: 'Brin', links: 7, len: 5, width: 1.1, shape: 'linear', style: 'ribbon', flex: 0.45, spring: 0.06, gravity: -0.04, drag: 0.7,
+          color: { slot: 1, grad: 12 } }, pattern: 'fan', at: 1, count: ri(4, 8), spread: 0.9, angle: 0, jitter: 0.7, phaseStep: 0.8 }] } });
   }
   if (kind === 'coral') {
     var glow = abyss ? 'tip' : 'none';
@@ -124,20 +124,20 @@ function plantSpec(kind, R, b) {
   if (kind === 'fan') {
     return E.spec({ name: 'Gorgone', palette: { hue: r(270, 390) % 360, harmony: 'analog', sat: r(55, 80), light: r(42, 55) }, eyes: { on: false },
       body: { name: 'Pied', links: 2, len: 6, width: 1.5, shape: 'constant', style: 'ribbon', flex: 0.02, spring: 0.9, color: { slot: 0 },
-        attach: [{ node: { name: 'Rayon', links: 7, len: 7, width: 0.6, shape: 'linear', style: 'line', flex: 0.05, spring: 0.7, curl: 0.3, color: { slot: 0 }, motion: { type: 'wave', amp: 0.04, freq: 0.3 } },
+        attach: [{ node: { name: 'Rayon', links: 7, len: 7, width: 0.6, shape: 'linear', style: 'line', flex: 0.05, spring: 0.7, curl: 0.3, color: { slot: 0 } },
           pattern: 'fan', at: 1, count: ri(6, 9), spread: 1.6, angle: 0, web: 0.85, jitter: 0.4 }] } });
   }
   if (kind === 'seapen') {
     return E.spec({ name: 'Plume de mer', palette: { hue: r(260, 320), harmony: 'split', sat: 60, light: 38 }, eyes: { on: false },
-      body: { name: 'Tige', links: 8, len: 7, width: 1.4, shape: 'constant', style: 'ribbon', flex: 0.1, spring: 0.3, gravity: -0.03, color: { slot: 0 },
-        attach: [{ node: { name: 'Pinnule', links: 3, len: 4, width: 1.6, shape: 'leaf', style: 'ribbon', flex: 0.2, spring: 0.2, curl: 0.5, color: { slot: 1, glow: 'tip' }, motion: { type: 'wave', amp: 0.05, freq: 0.25 } },
+      body: { name: 'Tige', links: 8, len: 7, width: 1.4, shape: 'constant', style: 'ribbon', flex: 0.35, spring: 0.1, drag: 0.7, gravity: -0.03, color: { slot: 0 },
+        attach: [{ node: { name: 'Pinnule', links: 3, len: 4, width: 1.6, shape: 'leaf', style: 'ribbon', flex: 0.2, spring: 0.2, curl: 0.5, color: { slot: 1, glow: 'tip' } },
           pattern: 'series', at: 0.3, to: 1, count: 8, angle: 1.1, alternate: true, hueStep: 10, phaseStep: 0.4 }] } });
   }
   if (kind === 'tubes') {
     return E.spec({ name: 'Vers tubicoles', palette: { hue: r(350, 370) % 360, harmony: 'mono', sat: 80, light: 48 }, eyes: { on: false },
       body: { name: 'Souche', links: 1, len: 1, width: 0.5, shape: 'constant', style: 'ribbon', flex: 0.1, spring: 0.5, color: { slot: 3, light: 30 },
         attach: [{ node: { name: 'Tube', links: 5, len: 6, width: 1.8, shape: 'constant', style: 'plates', flex: 0.05, spring: 0.7, color: { slot: 3, light: 35, grad: -10 },
-          attach: [{ node: { name: 'Panache', links: 3, len: 3, width: 0.5, shape: 'linear', style: 'line', flex: 0.3, spring: 0.2, color: { slot: 0 }, motion: { type: 'wave', amp: 0.2, freq: 0.6 } },
+          attach: [{ node: { name: 'Panache', links: 3, len: 3, width: 0.5, shape: 'linear', style: 'line', flex: 0.3, spring: 0.2, color: { slot: 0 } },
             pattern: 'fan', at: 1, count: 6, spread: 1.6, angle: 0 }] },
           pattern: 'fan', at: 1, count: ri(3, 6), spread: 0.7, angle: 0, jitter: 0.5 }] } });
   }
@@ -186,8 +186,11 @@ function makeChunk(i) {
         ch.vents.push({ x: x, y: y, h: 60 + R() * 90, w: 14 + R() * 10, t: 0 });
       } else {
         var sp = plantSpec(kind, R, b);
-        var tilt = (R() - 0.5) * 0.5;
+        // buoyant plants stand straight up (their rest pose); rigid ones may lean
+        var tilt = kind === 'coral' || kind === 'fan' || kind === 'tubes' ? (R() - 0.5) * 0.5 : 0;
         var p = new E.Creature(sp, x, y + 4, { dir: -Math.PI / 2 + tilt, anchor: -Math.PI / 2 + tilt, phase: R() * TAU });
+        if (kind === 'anemone') p.list.forEach(function (sg) { sg.def.motion.amp *= 0.3; });
+        E.settle(p);
         ch.plants.push(p);
       }
     }
@@ -376,6 +379,8 @@ function discover(c) {
 
 // ----- simulation ----- //
 
+var flow = new E.Flow(32);
+
 function inActive(b) {
   var v = G.view, m = 350;
   return !(b[2] < v[0] - m || b[0] > v[2] + m || b[3] < v[1] - m || b[1] > v[3] + m);
@@ -390,9 +395,11 @@ function tick() {
   clampFloor(p);
 
   var fauna = allFauna();
-  for (i = 0; i < fauna.length; i++) if (inActive(fauna[i].box)) aiStep(fauna[i], t);
+  var active = [];
+  for (i = 0; i < fauna.length; i++) if (inActive(fauna[i].box)) { aiStep(fauna[i], t); active.push(fauna[i]); }
+  var plants = [];
   eachChunk(function (ch) {
-    ch.plants.forEach(function (pl) { if (inActive(pl.box)) pl.update(t, 0, 0, 1); });
+    ch.plants.forEach(function (pl) { if (inActive(pl.box)) { pl.update(t, 0, 0, 1); plants.push(pl); } });
     ch.vents.forEach(function (v) {
       v.t -= STEP;
       if (v.t <= 0 && inActive([v.x - 20, v.y - v.h, v.x + 20, v.y]) && ex.bubbles.length < 160) {
@@ -401,6 +408,14 @@ function tick() {
       }
     });
   });
+  // water: swimmers push the algae and each other
+  flow.clear();
+  flow.add(p);
+  for (i = 0; i < active.length; i++) flow.add(active[i]);
+  for (i = 0; i < plants.length; i++) flow.apply(plants[i], { push: 0.25, wake: 0.04, reach: 18 });
+  for (i = 0; i < active.length; i++) flow.apply(active[i], { push: 0.35, wake: 0.02, body: 0.01 });
+  flow.apply(p, { push: 0.3, wake: 0.015, body: 0.008 });
+
   for (i = ex.bubbles.length - 1; i >= 0; i--) {
     var bb = ex.bubbles[i];
     bb.x += bb.vx + Math.sin(t * 3 + i) * 0.15; bb.y += bb.vy; bb.life -= STEP;
