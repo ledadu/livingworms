@@ -101,16 +101,16 @@ function plantSpec(kind, R, b) {
   var abyss = b.id === 'abysses' || b.id === 'sources' || b.id === 'meduses';
   if (kind === 'kelp') {
     return E.spec({ name: 'Kelp', palette: { hue: r(62, 100), harmony: 'analog', sat: r(40, 60), light: r(28, 40) }, eyes: { on: false },
-      body: { name: 'Stipe', links: ri(28, 42), len: 12, width: 1.3, shape: 'constant', style: 'ribbon', flex: 0.2, spring: 0.02, drag: 0.88, gravity: -0.07,
-        color: { slot: 0, grad: 12 }, motion: { type: 'wave', amp: 0.1, freq: r(0.15, 0.3) },
-        attach: [{ node: { name: 'Fronde', links: 4, len: 6, width: 3.4, shape: 'leaf', style: 'ribbon', flex: 0.3, spring: 0.08, curl: 0.6, gravity: -0.03, drag: 0.88, color: { slot: 1, alpha: 0.92, grad: 10 } },
+      body: { name: 'Stipe', links: ri(28, 42), len: 12, width: 1.3, shape: 'constant', style: 'ribbon', flex: 0.08, spring: 0.1, drag: 0.78, gravity: -0.07,
+        color: { slot: 0, grad: 12 }, motion: { type: 'wave', amp: 0.025, freq: r(0.08, 0.14) },
+        attach: [{ node: { name: 'Fronde', links: 4, len: 6, width: 3.4, shape: 'leaf', style: 'ribbon', flex: 0.2, spring: 0.2, curl: 0.6, gravity: -0.03, drag: 0.78, color: { slot: 1, alpha: 0.92, grad: 10 } },
           pattern: 'series', at: 0.12, to: 1, count: ri(9, 14), angle: 0.8, alternate: true, jitter: 0.6, edge: 0.5 }] } });
   }
   if (kind === 'grass') {
     return E.spec({ name: 'Herbier', palette: { hue: r(120, 175), harmony: 'analog', sat: r(35, 60), light: r(30, 45) }, eyes: { on: false },
       body: { name: 'Souche', links: 1, len: 1, width: 0.5, shape: 'constant', style: 'ribbon', flex: 0.1, spring: 0.5, color: { slot: 0 },
-        attach: [{ node: { name: 'Brin', links: 7, len: 5, width: 1.1, shape: 'linear', style: 'ribbon', flex: 0.35, spring: 0.06, gravity: -0.04, drag: 0.85,
-          color: { slot: 1, grad: 12 }, motion: { type: 'wave', amp: 0.12, freq: 0.35 } }, pattern: 'fan', at: 1, count: ri(4, 8), spread: 0.9, angle: 0, jitter: 0.7, phaseStep: 0.8 }] } });
+        attach: [{ node: { name: 'Brin', links: 7, len: 5, width: 1.1, shape: 'linear', style: 'ribbon', flex: 0.2, spring: 0.15, gravity: -0.04, drag: 0.78,
+          color: { slot: 1, grad: 12 }, motion: { type: 'wave', amp: 0.04, freq: 0.15 } }, pattern: 'fan', at: 1, count: ri(4, 8), spread: 0.9, angle: 0, jitter: 0.7, phaseStep: 0.8 }] } });
   }
   if (kind === 'coral') {
     var glow = abyss ? 'tip' : 'none';
@@ -130,7 +130,7 @@ function plantSpec(kind, R, b) {
   if (kind === 'seapen') {
     return E.spec({ name: 'Plume de mer', palette: { hue: r(260, 320), harmony: 'split', sat: 60, light: 38 }, eyes: { on: false },
       body: { name: 'Tige', links: 8, len: 7, width: 1.4, shape: 'constant', style: 'ribbon', flex: 0.1, spring: 0.3, gravity: -0.03, color: { slot: 0 },
-        attach: [{ node: { name: 'Pinnule', links: 3, len: 4, width: 1.6, shape: 'leaf', style: 'ribbon', flex: 0.2, spring: 0.2, curl: 0.5, color: { slot: 1, glow: 'tip' }, motion: { type: 'wave', amp: 0.15, freq: 0.5 } },
+        attach: [{ node: { name: 'Pinnule', links: 3, len: 4, width: 1.6, shape: 'leaf', style: 'ribbon', flex: 0.2, spring: 0.2, curl: 0.5, color: { slot: 1, glow: 'tip' }, motion: { type: 'wave', amp: 0.05, freq: 0.25 } },
           pattern: 'series', at: 0.3, to: 1, count: 8, angle: 1.1, alternate: true, hueStep: 10, phaseStep: 0.4 }] } });
   }
   if (kind === 'tubes') {
