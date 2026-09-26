@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a3a55">
+  <title>La Lignée 3D</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,400&display=swap">
+</head>
+<body>
+  <canvas id="sea"></canvas>
+  <button id="gear" aria-label="Réglages de la caméra">⚙</button>
+  <div id="panel" hidden>
+    <h2>Caméra</h2>
+    <label for="angle"><span class="row"><span>Angle</span><span id="angleVal"></span></span>
+      <input id="angle" type="range" min="30" max="90" step="1"></label>
+    <div class="presets">
+      <button data-angle="90">Zénith 90°</button>
+      <button data-angle="72">Plongée 72°</button>
+      <button data-angle="50">Oblique 50°</button>
+    </div>
+    <label for="dist"><span class="row"><span>Distance</span><span id="distVal"></span></span>
+      <input id="dist" type="range" min="80" max="740" step="5"></label>
+    <div class="fps" id="fps">…</div>
+  </div>
+  <div id="hint">Guide la larve avec le doigt · pince pour zoomer · ⚙ pour l'angle</div>
+  <script type="module" src="./src/proto3d/main.ts"></script>
+</body>
+</html>
