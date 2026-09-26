@@ -46,13 +46,8 @@ var MAX_TREE_DEPTH = 4;   // levels, root included
 var MAX_GENES = 4;
 var BODY_SLOTS = [0.15, 0.3, 0.45, 0.6, 0.75, 0.9];
 
-// species met at each depth level: [id, first level, weight]
-var ENEMIES = [
-  ['larve', 0, 4], ['crevette', 0, 3], ['anguille', 0, 2.5],
-  ['meduse', 1, 3], ['nudibranche', 1, 2], ['plumeau', 1, 1.2],
-  ['serpentCilie', 2, 1.5], ['calmar', 2, 2.5],
-  ['baudroie', 3, 2], ['hydre', 4, 1.5]
-];
+// species met at each depth level: [id, first level, weight] (from the bestiary)
+var ENEMIES = Object.keys(E.INFO).map(function (id) { return [id, E.INFO[id][2], E.INFO[id][3]]; });
 
 function playerSpec() {
   try {
@@ -282,6 +277,8 @@ function ring(x, y, hue, size) {
 
 var toastEl = $('toasts');
 function toast(text, kind) {
+  var prev = toastEl.lastElementChild;
+  if (prev && prev.textContent === text && !prev.classList.contains('out')) return;
   var el = document.createElement('div');
   el.className = 'toast' + (kind ? ' ' + kind : '');
   el.textContent = text;
@@ -882,7 +879,7 @@ function render() {
   // darkness: the deeper, the smaller the light around you
   var dark = clamp((m - 40) / 380, 0, 0.94);
   var lights = p && p.alive ? p.stats.light : 0;
-  var vision = Math.max(150, 430 - m * 0.3) + lights * 110 + (p && p.alive ? Math.min(4, p.stats.sense) * 15 : 0);
+  var vision = Math.max(150, 430 - m * 0.3) + Math.min(3, lights) * 110 + (p && p.alive ? Math.min(4, p.stats.sense) * 15 : 0);
   if (dark > 0.01) {
     var pcx = p && p.alive ? (p.root.x[0] - cam.x) * zoom + W / 2 : W / 2,
         pcy = p && p.alive ? (p.root.y[0] - cam.y) * zoom + H / 2 : H / 2;

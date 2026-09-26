@@ -51,18 +51,25 @@ var SHAPES = {
   },
   frill:         function (w, t) { return w * (0.62 + 0.38 * Math.sin(t * Math.PI * 7)) * (1 - 0.5 * t); },
   club:          function (w, t) { return w * (0.3 + 0.8 * Math.exp(-Math.pow((t - 0.86) / 0.1, 2))); },
-  bulb:          function (w, t) { return w * (0.22 + 0.9 * Math.exp(-Math.pow((1 - t) / 0.16, 2))); }
+  bulb:          function (w, t) { return w * (0.22 + 0.9 * Math.exp(-Math.pow((1 - t) / 0.16, 2))); },
+  gourd:         function (w, t) {
+    return w * Math.max(0.12, 0.7 * Math.exp(-Math.pow(t / 0.09, 2)) + 0.9 * Math.exp(-Math.pow((t - 0.32) / 0.15, 2)) + 0.25 * (1 - t));
+  }
 };
 
 var NAMES = {
   shape: {
     constant: 'Constant', linear: 'Pointe', worm: 'Ver', virgule: 'Virgule', sansue: 'Sangsue',
     sansueBigHead: 'Grosse tête', bloby: 'Blob', spindle: 'Fuseau', tadpole: 'Têtard', leaf: 'Feuille',
-    bell: 'Cloche', carapace: 'Carapace', frill: 'Volant', club: 'Massue', bulb: 'Bulbe'
+    bell: 'Cloche', carapace: 'Carapace', frill: 'Volant', club: 'Massue', bulb: 'Bulbe', gourd: 'Gourde'
   },
   style: { ribbon: 'Ruban', plates: 'Plaques', line: 'Trait', disc: 'Perles', eye: 'Œil' },
-  motion: { none: 'Aucun', wave: 'Battement', row: 'Rame', pulse: 'Pulsation', undulate: 'Ondulation', curl: 'Enroulement' },
-  pattern: { single: 'Seul', pair: 'Paire', fan: 'Éventail', series: 'Série' },
+  motion: {
+    none: 'Aucun', wave: 'Battement', row: 'Rame', flutter: 'Frémissement', pulse: 'Pulsation',
+    breathe: 'Respiration', undulate: 'Ondulation', curl: 'Enroulement'
+  },
+  pattern: { single: 'Seul', pair: 'Paire', fan: 'Éventail', series: 'Série', ring: 'Anneau' },
+  motif: { none: 'Uni', bands: 'Bandes', spots: 'Taches', stripe: 'Ligne', ocelli: 'Ocelles', edge: 'Liseré' },
   harmony: { analog: 'Analogue', complement: 'Complément', triad: 'Triade', split: 'Divisée', mono: 'Mono' },
   swim: { steady: 'Régulière', pulse: 'Par pulsations', dart: 'Par à-coups' },
   ai: { hunter: 'Chasseur', prey: 'Proie', drifter: 'Dériveur' },
@@ -89,19 +96,23 @@ var ROLE_HELP = {
 
 var NODE_DEFAULTS = {
   name: 'Partie', role: 'deco', links: 8, len: 6, width: 3, shape: 'worm', style: 'ribbon',
-  flex: 0.5, spring: 0.1, curl: 0, drag: 0.84, gravity: 0
+  flex: 0.5, spring: 0.1, curl: 0, curlBias: 0, drag: 0.84, gravity: 0, lenTo: 1
 };
-var COLOR_DEFAULTS = { slot: 0, shift: 0, light: 0, grad: 0, alpha: 1, fade: 0, glow: 'none', add: false };
+var COLOR_DEFAULTS = {
+  slot: 0, shift: 0, light: 0, grad: 0, alpha: 1, fade: 0, glow: 'none', add: false,
+  pattern: 'none', pslot: 3, plight: 0, pdensity: 6, pscale: 1
+};
 var MOTION_DEFAULTS = { type: 'none', amp: 0.3, freq: 1, wave: 1 };
 var ATT_DEFAULTS = {
   pattern: 'single', at: 0.5, to: 0.9, count: 4, angle: 1.2, angleTo: null, spread: 0.8,
-  edge: 0, scale: 1, scaleTo: 1, phaseStep: 0.5, mirror: true, front: false
+  edge: 0, scale: 1, scaleTo: 1, phaseStep: 0.5, mirror: true, front: false,
+  alternate: false, jitter: 0, web: 0, hueStep: 0
 };
 var SPEC_DEFAULTS = {
   palette: { hue: 180, harmony: 'analog', sat: 70, light: 55 },
   swim: { mode: 'steady', speed: 2, freq: 1 },
   ai: 'hunter',
-  eyes: { on: true, size: 1 }
+  eyes: { on: true, size: 1, spread: 0.55, fwd: 0.35 }
 };
 
 function node(o) {
@@ -125,7 +136,7 @@ function att(o) {
 
 function spec(o) {
   o = o || {};
-  var s = { v: 2, name: o.name || 'Espèce' };
+  var s = { v: 2, name: o.name || 'Espèce', size: o.size || 1 };
   s.palette = assign({}, SPEC_DEFAULTS.palette, o.palette);
   s.swim = assign({}, SPEC_DEFAULTS.swim, o.swim);
   s.ai = o.ai || SPEC_DEFAULTS.ai;
@@ -167,39 +178,64 @@ function hsla(h, s, l, a) {
 
 // ----- patterns → copies ----- //
 
+// stable pseudo-random value in [0, 1) for copy k
+function hash(k, salt) {
+  var v = Math.sin(k * 127.1 + salt * 311.7) * 43758.5453;
+  return v - Math.floor(v);
+}
+
 function expand(a, n) {
   var out = [], c = Math.max(1, a.count), k, f;
-  var angleTo = a.angleTo === null ? a.angle : a.angleTo;
-  function push(t, angle, scale, phase, side, edge) {
-    out.push({ at: clamp(Math.round(t * n), 0, n), angle: angle, scale: scale, phase: phase, side: side, edge: edge });
+  var angleTo = a.angleTo === null ? a.angle : a.angleTo, j = a.jitter || 0;
+  function push(t, angle, scale, phase, side, edge, k) {
+    if (j) {
+      // natural variation, identical on both sides of a mirror
+      angle += side * (hash(k, 1) - 0.5) * 0.7 * j;
+      scale *= 1 + (hash(k, 2) - 0.5) * 0.5 * j;
+      phase += hash(k, 3) * TAU * j;
+    }
+    out.push({
+      at: clamp(Math.round(t * n), 0, n), angle: angle, scale: scale, phase: phase, side: side, edge: edge,
+      k: k, hue: k * (a.hueStep || 0), radial: a.pattern === 'ring'
+    });
   }
   if (a.pattern === 'pair') {
-    push(a.at, a.angle, a.scale, 0, 1, a.edge);
-    push(a.at, -a.angle, a.scale, 0, -1, -a.edge);
+    push(a.at, a.angle, a.scale, 0, 1, a.edge, 0);
+    push(a.at, -a.angle, a.scale, 0, -1, -a.edge, 0);
   } else if (a.pattern === 'fan') {
     for (k = 0; k < c; k++) {
       f = c === 1 ? 0.5 : k / (c - 1);
       var sc = lerp(a.scale, a.scaleTo, Math.abs(f - 0.5) * 2);
       var an = a.angle + a.spread * (f - 0.5), ed = a.edge * (f - 0.5) * 2;
-      push(a.at, an, sc, k * a.phaseStep, 1, ed);
-      if (a.mirror && Math.abs(Math.sin(a.angle)) > 0.05) push(a.at, -an, sc, k * a.phaseStep, -1, -ed);
+      push(a.at, an, sc, k * a.phaseStep, 1, ed, k);
+      if (a.mirror && Math.abs(Math.sin(a.angle)) > 0.05) push(a.at, -an, sc, k * a.phaseStep, -1, -ed, k);
+    }
+  } else if (a.pattern === 'ring') {
+    for (k = 0; k < c; k++) {
+      var ra = k * TAU / c;
+      push(a.at, a.angle + ra, lerp(a.scale, a.scaleTo, (1 - Math.cos(ra)) / 2), k * a.phaseStep, 1, a.edge, k);
     }
   } else if (a.pattern === 'series') {
     for (k = 0; k < c; k++) {
       f = c === 1 ? 0 : k / (c - 1);
       var t = lerp(a.at, a.to, f), s = lerp(a.scale, a.scaleTo, f), g = lerp(a.angle, angleTo, f);
-      push(t, g, s, k * a.phaseStep, 1, a.edge);
-      if (a.mirror) push(t, -g, s, k * a.phaseStep, -1, -a.edge);
+      if (a.alternate) {
+        var sd = k % 2 ? -1 : 1;
+        push(t, sd * g, s, k * a.phaseStep, sd, sd * a.edge, k);
+      } else {
+        push(t, g, s, k * a.phaseStep, 1, a.edge, k);
+        if (a.mirror) push(t, -g, s, k * a.phaseStep, -1, -a.edge, k);
+      }
     }
   } else {
-    push(a.at, a.angle, a.scale, 0, 1, a.edge);
+    push(a.at, a.angle, a.scale, 0, 1, a.edge, 0);
   }
   return out;
 }
 
 // ----- Seg: one live whip ----- //
 
-var ROOT_SLOT = { at: 0, angle: 0, scale: 1, phase: 0, side: 1, edge: 0 };
+var ROOT_SLOT = { at: 0, angle: 0, scale: 1, phase: 0, side: 1, edge: 0, k: 0, hue: 0, radial: false };
 
 function Seg(def, a, parent, slot, flip, scale, x, y, dir, creature) {
   var n = Math.max(1, def.links), i;
@@ -214,6 +250,10 @@ function Seg(def, a, parent, slot, flip, scale, x, y, dir, creature) {
   this.rel = slot.angle * pf;
   this.edge = slot.edge * pf;
   this.phase = slot.phase;
+  this.k = slot.k;
+  this.side = slot.side;
+  this.hueOff = slot.hue || 0;
+  this.radial = slot.radial;
   this.flip = flip;
   this.scale = scale;
   this.len = def.len * scale;
@@ -228,7 +268,16 @@ function Seg(def, a, parent, slot, flip, scale, x, y, dir, creature) {
   this.oy = new Float32Array(n + 1);
   this.ang = new Float32Array(n + 1);
   this.rad = new Float32Array(n + 1);
+  this.lens = new Float32Array(n + 1);
   this.box = [x, y, x, y];
+  // link length can shrink or grow toward the tip (spiral shells, tapering tails)
+  var lt = def.lenTo === undefined ? 1 : def.lenTo;
+  for (i = 1; i <= n; i++) this.lens[i] = this.len * lerp(1, lt, n > 1 ? (i - 1) / (n - 1) : 0);
+  this.pulseU = def.motion.type === 'breathe';
+  // rest curvature per link: -1 = gathered at the base, +1 = gathered at the tip
+  this.bends = new Float32Array(n + 1);
+  var cb = def.curlBias || 0;
+  for (i = 2; i <= n; i++) this.bends[i] = this.bend * (1 + cb * (n > 2 ? (i - 2) / (n - 2) * 2 - 1 : 0));
 
   var shape = SHAPES[def.shape] || SHAPES.worm, w = def.width * scale;
   this.maxRad = 0;
@@ -241,10 +290,10 @@ function Seg(def, a, parent, slot, flip, scale, x, y, dir, creature) {
   this.x[0] = this.ox[0] = x;
   this.y[0] = this.oy[0] = y;
   for (i = 1; i <= n; i++) {
-    if (i > 1) an += this.bend;
+    if (i > 1) an += this.bends[i];
     this.ang[i] = an;
-    this.x[i] = this.ox[i] = this.x[i - 1] + Math.cos(an) * this.len;
-    this.y[i] = this.oy[i] = this.y[i - 1] + Math.sin(an) * this.len;
+    this.x[i] = this.ox[i] = this.x[i - 1] + Math.cos(an) * this.lens[i];
+    this.y[i] = this.oy[i] = this.y[i - 1] + Math.sin(an) * this.lens[i];
   }
   this.ang[0] = this.ang[1];
   this.paint(creature.pal);
@@ -266,17 +315,23 @@ Seg.prototype.instantiate = function (a) {
 };
 
 Seg.prototype.paint = function (pal) {
-  var c = this.def.color, sl = pal[c.slot] || pal[0], n = this.n;
-  var h = ((sl.h + c.shift) % 360 + 360) % 360;
+  var c = this.def.color, sl = pal[c.slot] || pal[0], n = this.n, i;
+  var h = ((sl.h + c.shift + this.hueOff) % 360 + 360) % 360;
+  var ps = pal[c.pslot] || pal[3], ph = ((ps.h + c.shift + this.hueOff) % 360 + 360) % 360;
   this.hue = h;
   this.cols = [];
-  for (var i = 0; i <= n; i++) {
-    var t = i / n;
-    this.cols[i] = hsla(h, sl.s, clamp(sl.l + c.light + c.grad * t, 3, 97), clamp(c.alpha * (1 - c.fade * t), 0, 1));
+  // bands are baked in the colours for styles drawn link by link
+  var bake = c.pattern === 'bands' && this.def.style !== 'ribbon', nb = Math.max(1, Math.round(c.pdensity));
+  for (i = 0; i <= n; i++) {
+    var t = i / n, al = clamp(c.alpha * (1 - c.fade * t), 0, 1);
+    if (bake && Math.floor(t * nb * 2 - 0.001) % 2 === 1) this.cols[i] = hsla(ph, ps.s, clamp(ps.l + c.plight, 3, 97), al);
+    else this.cols[i] = hsla(h, sl.s, clamp(sl.l + c.light + c.grad * t, 3, 97), al);
   }
   var lm = clamp(sl.l + c.light + c.grad * 0.5, 3, 97);
   this.edgeCol = hsla(h, sl.s, Math.max(2, lm - 24), clamp(c.alpha * 0.8, 0, 1));
   this.shineCol = hsla(h, Math.max(0, sl.s - 30), Math.min(97, lm + 30), clamp(c.alpha * 0.28, 0, 1));
+  this.patCol = hsla(ph, ps.s, clamp(ps.l + c.plight, 3, 97), clamp(c.alpha, 0, 1));
+  this.webCol = hsla(h, sl.s, Math.min(95, lm + 8), clamp(c.alpha * 0.42, 0, 1));
 };
 
 function rowCurve(w) {
@@ -292,25 +347,32 @@ Seg.prototype.update = function (time) {
       ang = this.ang, rad = this.rad, i;
   var w = TAU * m.freq * time + this.phase, fixed = null;
 
-  this.pulse = m.type === 'pulse' ? m.amp * (0.5 + 0.5 * Math.sin(w)) : 0;
+  this.pulse = m.type === 'pulse' || m.type === 'breathe' ? m.amp * (0.5 + 0.5 * Math.sin(w)) : 0;
 
   if (this.parent) {
     var p = this.parent, k = this.at, pa = p.ang[k], px = p.x[k], py = p.y[k];
+    fixed = pa + this.rel;
     if (this.edge) {
-      var pr = p.rad[k] * (1 + p.pulse * k / p.n) * this.edge;
-      px -= Math.sin(pa) * pr;
-      py += Math.cos(pa) * pr;
+      var pr = p.rad[k] * (1 + p.pulse * (p.pulseU ? 1 : k / p.n)) * this.edge;
+      if (this.radial) {
+        // ring: pushed outward along its own direction (starfish arms on the disc rim)
+        px += Math.cos(fixed) * pr;
+        py += Math.sin(fixed) * pr;
+      } else {
+        px -= Math.sin(pa) * pr;
+        py += Math.cos(pa) * pr;
+      }
     }
     ox[0] = x[0]; oy[0] = y[0];
     x[0] = px; y[0] = py;
-    fixed = pa + this.rel;
     if (m.type === 'wave') fixed += m.amp * Math.sin(w) * this.flip;
     else if (m.type === 'row') fixed += m.amp * rowCurve(w) * this.flip;
+    else if (m.type === 'flutter') fixed += m.amp * (0.6 * Math.sin(w) + 0.4 * Math.sin(w * 2.7 + 1.3)) * this.flip;
   }
 
   var drag = d.drag, grav = d.gravity + (this.sink || 0), amax = this.amax, keep = 1 - d.spring,
-      len = this.len, bend = this.bend, soak = 0.2 + 0.4 * d.flex;
-  if (m.type === 'curl') bend += m.amp * (0.5 + 0.5 * Math.sin(w)) * this.flip / n * 2;
+      lens = this.lens, bends = this.bends, soak = 0.2 + 0.4 * d.flex, extra = 0;
+  if (m.type === 'curl') extra = m.amp * (0.5 + 0.5 * Math.sin(w)) * this.flip / n * 2;
   var und = m.type === 'undulate' ? m.amp * 0.5 : 0, wk = TAU * m.wave / n;
   var minx = x[0] - rad[0], maxx = x[0] + rad[0], miny = y[0] - rad[0], maxy = y[0] + rad[0];
 
@@ -325,14 +387,14 @@ Seg.prototype.update = function (time) {
       if (fixed !== null) a = fixed;
     } else {
       // shape memory: pulled toward the rest bend, never further than amax from it
-      var tgt = und ? bend + und * Math.sin(w - i * wk) : bend;
+      var tgt = bends[i] + extra + (und ? und * Math.sin(w - i * wk) : 0);
       var dd = wrapAngle(a - ang[i - 1]) - tgt;
       if (dd > amax) dd = amax;
       else if (dd < -amax) dd = -amax;
       a = ang[i - 1] + tgt + dd * keep;
     }
     ang[i] = a;
-    var nx2 = x[i - 1] + Math.cos(a) * len, ny2 = y[i - 1] + Math.sin(a) * len;
+    var nx2 = x[i - 1] + Math.cos(a) * lens[i], ny2 = y[i - 1] + Math.sin(a) * lens[i];
     // like deltaScale in whip.js: part of the correction is not turned into speed,
     // otherwise long soft chains fold into zig-zags
     ox[i] += (nx2 - px2) * soak;
@@ -372,7 +434,7 @@ function Creature(sp, x, y, o) {
   this.list = [];
   this.box = [x, y, x, y];
   var slot = assign({}, ROOT_SLOT, { phase: this.phase });
-  this.root = new Seg(sp.body, null, null, slot, 1, o.scale || 1, x, y, o.dir === undefined ? Math.PI / 2 : o.dir, this);
+  this.root = new Seg(sp.body, null, null, slot, 1, (o.scale || 1) * (sp.size || 1), x, y, o.dir === undefined ? Math.PI / 2 : o.dir, this);
   this.refresh();
 }
 
@@ -431,7 +493,7 @@ function hull(s, k, off) {
   var n = s.n, x = s.x, y = s.y, ang = s.ang, rad = s.rad, pl = s.pulse;
   for (var i = 0; i <= n; i++) {
     var a = i === 0 ? ang[1] : i === n ? ang[n] : ang[i] + wrapAngle(ang[i + 1] - ang[i]) * 0.5;
-    var nx = -Math.sin(a), ny = Math.cos(a), r0 = rad[i] * (1 + pl * i / n), r = r0 * k;
+    var nx = -Math.sin(a), ny = Math.cos(a), r0 = rad[i] * (1 + pl * (s.pulseU ? 1 : i / n)), r = r0 * k;
     var cx = x[i] + nx * r0 * off, cy = y[i] + ny * r0 * off;
     C.x[i] = cx; C.y[i] = cy; C.r[i] = r; C.a[i] = a;
     L.x[i] = cx + nx * r; L.y[i] = cy + ny * r;
@@ -473,6 +535,7 @@ function drawRibbon(ctx, s, flash) {
     ctx.lineWidth = Math.max(0.3, s.maxRad * 0.07);
     ctx.strokeStyle = s.edgeCol;
     ctx.stroke();
+    if (!flash) drawMotif(ctx, s, flat);
     ribbonPath(ctx, s, 0.36, 0.34, flat);
     ctx.fillStyle = s.shineCol;
     ctx.fill();
@@ -484,13 +547,14 @@ function drawPlates(ctx, s, flash) {
   ctx.lineWidth = Math.max(0.3, s.maxRad * 0.08);
   ctx.strokeStyle = s.edgeCol;
   for (var i = n; i >= 1; i--) {
-    var r = Math.max(rad[i - 1], rad[i]) * (1 + pl * i / n);
+    var r = Math.max(rad[i - 1], rad[i]) * (1 + pl * (s.pulseU ? 1 : i / n));
     ctx.beginPath();
-    ctx.ellipse((x[i - 1] + x[i]) / 2, (y[i - 1] + y[i]) / 2, s.len * 0.62 + r * 0.2, r, s.ang[i], 0, TAU);
+    ctx.ellipse((x[i - 1] + x[i]) / 2, (y[i - 1] + y[i]) / 2, s.lens[i] * 0.62 + r * 0.2, r, s.ang[i], 0, TAU);
     ctx.fillStyle = flash ? '#ffffff' : s.cols[i];
     ctx.fill();
     ctx.stroke();
   }
+  if (!flash && s.def.color.pattern !== 'bands') drawMotif(ctx, s, false);
   if (s.maxRad > 1.5) {
     ribbonPath(ctx, s, 0.3, 0.38, false);
     ctx.fillStyle = s.shineCol;
@@ -539,8 +603,113 @@ function drawDiscs(ctx, s, flash) {
   for (var i = s.n; i >= 0; i--) {
     ctx.fillStyle = flash ? '#ffffff' : s.cols[i];
     ctx.beginPath();
-    ctx.arc(s.x[i], s.y[i], s.rad[i] * (1 + s.pulse * i / s.n), 0, TAU);
+    ctx.arc(s.x[i], s.y[i], s.rad[i] * (1 + s.pulse * (s.pulseU ? 1 : i / s.n)), 0, TAU);
     ctx.fill();
+  }
+}
+
+// point of an outline at a fractional node index
+function hx(side, u) { var i = Math.floor(u), f = u - i; return f ? side.x[i] + (side.x[i + 1] - side.x[i]) * f : side.x[i]; }
+function hy(side, u) { var i = Math.floor(u), f = u - i; return f ? side.y[i] + (side.y[i + 1] - side.y[i]) * f : side.y[i]; }
+
+// body patterns drawn over a ribbon or plates
+function drawMotif(ctx, s, flat) {
+  var c = s.def.color, p = c.pattern, n = s.n, i, q;
+  if (!p || p === 'none' || s.maxRad < 1) return;
+  hull(s, 1, 0);
+  ctx.fillStyle = s.patCol;
+  if (p === 'bands') {
+    // band q covers t in [(2q+1)/2nb, (2q+2)/2nb], cut along the outline
+    var nb = Math.max(1, Math.round(c.pdensity));
+    ctx.beginPath();
+    for (q = 0; q < nb; q++) {
+      var u0 = (2 * q + 1) / (2 * nb) * n, u1 = (2 * q + 2) / (2 * nb) * n, u;
+      ctx.moveTo(hx(L, u0), hy(L, u0));
+      for (u = Math.floor(u0) + 1; u < u1; u++) ctx.lineTo(L.x[u], L.y[u]);
+      ctx.lineTo(hx(L, u1), hy(L, u1));
+      ctx.lineTo(hx(R, u1), hy(R, u1));
+      for (u = Math.ceil(u1) - 1; u > u0; u--) ctx.lineTo(R.x[u], R.y[u]);
+      ctx.lineTo(hx(R, u0), hy(R, u0));
+      ctx.closePath();
+    }
+    ctx.fill();
+  } else if (p === 'spots') {
+    ctx.beginPath();
+    for (i = 0; i <= n; i++) {
+      for (q = 0; q < 3; q++) {
+        var id = i * 3 + q;
+        if (hash(id, 7) * 12 > c.pdensity) continue;
+        var u = (hash(id, 9) * 2 - 1) * 0.62, r = C.r[i] * (0.13 + 0.14 * hash(id, 11)) * c.pscale;
+        if (r < 0.2) continue;
+        var cx = C.x[i] + (L.x[i] - C.x[i]) * u, cy = C.y[i] + (L.y[i] - C.y[i]) * u;
+        ctx.moveTo(cx + r, cy);
+        ctx.arc(cx, cy, r, 0, TAU);
+      }
+    }
+    ctx.fill();
+  } else if (p === 'stripe') {
+    ribbonPath(ctx, s, 0.2 * c.pscale, 0, flat);
+    ctx.fill();
+  } else if (p === 'ocelli') {
+    var no = Math.max(1, Math.round(c.pdensity / 2));
+    for (q = 0; q < no; q++) {
+      i = clamp(Math.round((q + 0.5) / no * n), 1, Math.max(1, n - 1));
+      var rr = C.r[i] * 0.3 * c.pscale;
+      for (var sd = -1; sd <= 1; sd += 2) {
+        var ex = C.x[i] + (L.x[i] - C.x[i]) * 0.5 * sd, ey = C.y[i] + (L.y[i] - C.y[i]) * 0.5 * sd;
+        ctx.fillStyle = s.edgeCol;
+        ctx.beginPath(); ctx.arc(ex, ey, rr, 0, TAU); ctx.fill();
+        ctx.fillStyle = s.patCol;
+        ctx.beginPath(); ctx.arc(ex, ey, rr * 0.68, 0, TAU); ctx.fill();
+        ctx.fillStyle = s.edgeCol;
+        ctx.beginPath(); ctx.arc(ex, ey, rr * 0.26, 0, TAU); ctx.fill();
+      }
+    }
+  } else if (p === 'edge') {
+    ribbonPath(ctx, s, 1, 0, flat);
+    ctx.lineWidth = s.maxRad * 0.2 * c.pscale;
+    ctx.strokeStyle = s.patCol;
+    ctx.stroke();
+  }
+}
+
+// membrane between two neighbour copies (fins with rays, webbed arms)
+function webPair(ctx, A, B, f) {
+  var ma = Math.max(1, Math.round(A.n * f)), mb = Math.max(1, Math.round(B.n * f)), i;
+  ctx.beginPath();
+  ctx.moveTo(A.x[0], A.y[0]);
+  for (i = 1; i <= ma; i++) ctx.lineTo(A.x[i], A.y[i]);
+  // scalloped trailing edge, pulled toward the base
+  var mx = (A.x[ma] + B.x[mb]) / 2, my = (A.y[ma] + B.y[mb]) / 2;
+  var bx = (A.x[0] + B.x[0]) / 2, by = (A.y[0] + B.y[0]) / 2;
+  ctx.quadraticCurveTo(mx + (bx - mx) * 0.3, my + (by - my) * 0.3, B.x[mb], B.y[mb]);
+  for (i = mb - 1; i >= 0; i--) ctx.lineTo(B.x[i], B.y[i]);
+  ctx.closePath();
+  ctx.fillStyle = A.webCol;
+  ctx.fill();
+}
+
+function drawWebs(ctx, s, front, o) {
+  var atts = s.def.attach, ch = s.children;
+  for (var ai = 0; ai < atts.length; ai++) {
+    var a = atts[ai];
+    if (!(a.web > 0) || !!a.front !== front || (o.lit && !a.node.color.add)) continue;
+    var pos = [], neg = [], i;
+    for (i = 0; i < ch.length; i++) {
+      if (ch[i].att !== a) continue;
+      (ch[i].side < 0 ? neg : pos).push(ch[i]);
+    }
+    ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
+    ctx.globalCompositeOperation = a.node.color.add ? 'lighter' : 'source-over';
+    [pos, neg].forEach(function (g) {
+      g.sort(function (p, q) { return p.k - q.k; });
+      var ring = a.pattern === 'ring' && g.length > 2;
+      for (var j = 0; j < g.length - (ring ? 0 : 1); j++) {
+        var A = g[j], B = g[(j + 1) % g.length];
+        // a torn membrane stays torn
+        if (B.k - A.k === 1 || (ring && A.k === a.count - 1 && B.k === 0)) webPair(ctx, A, B, a.web);
+      }
+    });
   }
 }
 
@@ -563,6 +732,8 @@ function inView(b, v) {
 
 function drawSelf(ctx, s, o) {
   var d = s.def, flash = s.flash > 0;
+  // "lit" pass: only what makes its own light (translucent additive parts, glowing parts)
+  if (o.lit && !(d.color.add || d.color.glow !== 'none')) return;
   ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
   ctx.globalCompositeOperation = d.color.add ? 'lighter' : 'source-over';
   switch (d.style) {
@@ -578,8 +749,10 @@ function drawSelf(ctx, s, o) {
 function drawSeg(ctx, s, o) {
   o = o || {};
   var ch = s.children, i;
+  drawWebs(ctx, s, false, o);
   for (i = 0; i < ch.length; i++) if (!ch[i].att.front) drawSeg(ctx, ch[i], o);
   if (inView(s.box, o.view)) drawSelf(ctx, s, o);
+  drawWebs(ctx, s, true, o);
   for (i = 0; i < ch.length; i++) if (ch[i].att.front) drawSeg(ctx, ch[i], o);
   if (!s.parent) {
     ctx.globalAlpha = 1;
@@ -592,9 +765,10 @@ function drawEyes(ctx, cr, bright) {
   if (!e.on) return;
   var r = cr.root, h = cr.heading(), rad = r.rad[0] * (1 + r.pulse * 0);
   var fx = Math.cos(h), fy = Math.sin(h), px = -fy, py = fx, er = Math.max(0.8, rad * 0.27 * e.size);
+  var sp = e.spread === undefined ? 0.55 : e.spread, fw = e.fwd === undefined ? 0.35 : e.fwd;
   for (var sd = -1; sd <= 1; sd += 2) {
-    var ex = r.x[0] + fx * rad * 0.35 + px * rad * 0.55 * sd,
-        ey = r.y[0] + fy * rad * 0.35 + py * rad * 0.55 * sd;
+    var ex = r.x[0] + fx * rad * fw + px * rad * sp * sd,
+        ey = r.y[0] + fy * rad * fw + py * rad * sp * sd;
     ctx.fillStyle = bright ? '#eafffb' : 'rgba(255,244,228,0.9)';
     ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU); ctx.fill();
     ctx.fillStyle = '#02060c';
@@ -605,6 +779,7 @@ function drawEyes(ctx, cr, bright) {
 function draw(ctx, cr, o) {
   o = o || {};
   drawSeg(ctx, cr.root, o);
+  if (o.lit) return;
   ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
   drawEyes(ctx, cr, o.bright);
   ctx.globalAlpha = 1;
@@ -742,256 +917,11 @@ function randomPalette() {
   return { hue: Math.round(rand(0, 360)), harmony: h[Math.floor(Math.random() * h.length)], sat: Math.round(rand(55, 85)), light: Math.round(rand(45, 65)) };
 }
 
-// ----- library of parts ----- //
-
-var PARTS = {
-  tentacule: {
-    desc: 'Fouet souple qui claque',
-    node: { name: 'Tentacule', role: 'whip', links: 12, len: 5.5, width: 2.4, shape: 'virgule', style: 'ribbon', flex: 0.75, spring: 0.02, drag: 0.88, color: { slot: 1 } },
-    att: { pattern: 'pair', at: 0.4, angle: 1.2, edge: 0.6 }
-  },
-  filament: {
-    desc: 'Long fil translucide qui pique',
-    node: { name: 'Filament', role: 'sting', links: 20, len: 5, width: 0.55, shape: 'linear', style: 'line', flex: 0.4, spring: 0.04, drag: 0.8, color: { slot: 1, alpha: 0.75, fade: 0.7, light: 10, add: true } },
-    att: { pattern: 'fan', at: 1, count: 8, spread: 1.4, edge: 0.95, scaleTo: 0.7, angle: 0, phaseStep: 0.4 }
-  },
-  brasOral: {
-    desc: 'Ruban plissé qui ondule',
-    node: { name: 'Bras oral', role: 'deco', links: 12, len: 4.5, width: 3, shape: 'frill', style: 'ribbon', flex: 0.35, spring: 0.08, drag: 0.8, color: { slot: 2, alpha: 0.8, light: 6 }, motion: { type: 'curl', amp: 0.8, freq: 0.5 } },
-    att: { pattern: 'fan', at: 1, count: 4, spread: 0.45, edge: 0.35, angle: 0, phaseStep: 1.2, front: true }
-  },
-  antenne: {
-    desc: 'Longue antenne arquée',
-    node: { name: 'Antenne', role: 'sense', links: 22, len: 5, width: 0.5, shape: 'linear', style: 'line', flex: 0.1, spring: 0.25, curl: -1.3, drag: 0.82, color: { slot: 2, light: 8 } },
-    att: { pattern: 'pair', at: 0, angle: 2.8, edge: 0.5 }
-  },
-  patte: {
-    desc: 'Pattes articulées qui marchent en rythme',
-    node: { name: 'Patte', role: 'deco', links: 3, len: 5, width: 0.9, shape: 'linear', style: 'line', flex: 0.25, spring: 0.35, curl: 0.9, color: { slot: 1, light: -4 }, motion: { type: 'row', amp: 0.35, freq: 1.4 } },
-    att: { pattern: 'series', at: 0.12, to: 0.42, count: 5, angle: 1.9, angleTo: 1.4, edge: 0.8, scaleTo: 0.8, phaseStep: 0.9, mirror: true }
-  },
-  pleopode: {
-    desc: 'Petites palettes qui rament',
-    node: { name: 'Pléopode', role: 'fin', links: 3, len: 3.5, width: 1.6, shape: 'leaf', style: 'ribbon', flex: 0.4, spring: 0.3, curl: 0.3, color: { slot: 3, alpha: 0.9 }, motion: { type: 'row', amp: 0.55, freq: 2.2 } },
-    att: { pattern: 'series', at: 0.5, to: 0.82, count: 5, angle: 1.7, edge: 0.7, scaleTo: 0.7, phaseStep: 0.8, mirror: true }
-  },
-  nageoire: {
-    desc: 'Aile qui bat et donne de la vitesse',
-    node: { name: 'Nageoire', role: 'fin', links: 5, len: 4.5, width: 4.5, shape: 'leaf', style: 'ribbon', flex: 0.5, spring: 0.2, curl: 0.4, color: { slot: 1, alpha: 0.85 }, motion: { type: 'wave', amp: 0.5, freq: 1.3 } },
-    att: { pattern: 'pair', at: 0.12, angle: 1.4, edge: 0.8 }
-  },
-  eventail: {
-    desc: 'Queue en éventail de plaques',
-    node: { name: 'Uropode', role: 'fin', links: 3, len: 4, width: 2.6, shape: 'leaf', style: 'plates', flex: 0.15, spring: 0.4, color: { slot: 0, light: 4 } },
-    att: { pattern: 'fan', at: 1, count: 5, spread: 1.2, angle: 0, scaleTo: 0.85 }
-  },
-  oeil: {
-    desc: 'Œil au bout d\'un pédoncule',
-    node: { name: 'Œil', role: 'deco', links: 2, len: 3, width: 1.8, shape: 'constant', style: 'eye', flex: 0.1, spring: 0.5, color: { slot: 2 } },
-    att: { pattern: 'pair', at: 0.03, angle: 2.3, edge: 0.7, front: true }
-  },
-  dard: {
-    desc: 'Pointe rigide qui pique',
-    node: { name: 'Dard', role: 'sting', links: 6, len: 2.6, width: 2.2, shape: 'linear', style: 'ribbon', flex: 0.08, spring: 0.5, color: { slot: 3, light: 12, glow: 'tip' } },
-    att: { pattern: 'single', at: 1, angle: 0 }
-  },
-  pince: {
-    desc: 'Deux crochets qui mordent',
-    node: { name: 'Pince', role: 'jaw', links: 4, len: 3.5, width: 2.4, shape: 'virgule', style: 'plates', flex: 0.2, spring: 0.4, curl: -1.2, color: { slot: 0, light: -6 } },
-    att: { pattern: 'pair', at: 0, angle: 2.9, edge: 0.4, front: true }
-  },
-  cils: {
-    desc: 'Rangée de cils qui battent en vague',
-    node: { name: 'Cil', role: 'cilia', links: 3, len: 3, width: 0.6, shape: 'linear', style: 'line', flex: 0.4, spring: 0.2, color: { slot: 2, alpha: 0.8 }, motion: { type: 'row', amp: 0.6, freq: 2.5 } },
-    att: { pattern: 'series', at: 0.1, to: 0.95, count: 12, angle: 1.57, edge: 0.9, phaseStep: 0.5, mirror: true }
-  },
-  lanterne: {
-    desc: 'Leurre lumineux qui éclaire',
-    node: { name: 'Lanterne', role: 'light', links: 9, len: 4, width: 3, shape: 'bulb', style: 'ribbon', flex: 0.3, spring: 0.2, curl: -1.3, color: { slot: 1, light: 14, glow: 'tip' } },
-    att: { pattern: 'single', at: 0, angle: 2.8 }
-  },
-  radiole: {
-    desc: 'Plume de filtreur garnie de barbules',
-    node: {
-      name: 'Radiole', role: 'deco', links: 10, len: 4, width: 0.9, shape: 'linear', style: 'line', flex: 0.3, spring: 0.15, curl: 0.3, color: { slot: 1 }, motion: { type: 'wave', amp: 0.12, freq: 0.6 },
-      attach: [{ node: { name: 'Barbule', links: 2, len: 2.5, width: 0.35, shape: 'linear', style: 'line', flex: 0.3, spring: 0.3, color: { slot: 2, alpha: 0.85 } }, pattern: 'series', at: 0.15, to: 1, count: 5, angle: 1.1, scaleTo: 0.6, mirror: true }]
-    },
-    att: { pattern: 'fan', at: 0, angle: Math.PI, count: 6, spread: 1.8, edge: 0.5, phaseStep: 0.4 }
-  },
-  cerates: {
-    desc: 'Papilles venimeuses des nudibranches',
-    node: { name: 'Cérate', role: 'sting', links: 4, len: 3, width: 1.8, shape: 'worm', style: 'ribbon', flex: 0.35, spring: 0.25, color: { slot: 1, grad: 22, glow: 'tip' }, motion: { type: 'wave', amp: 0.15, freq: 0.8 } },
-    att: { pattern: 'series', at: 0.18, to: 0.9, count: 8, angle: 1.3, angleTo: 0.7, edge: 0.8, scaleTo: 0.6, phaseStep: 0.6, mirror: true }
-  },
-  massue: {
-    desc: 'Long bras de calmar terminé en massue',
-    node: { name: 'Massue', role: 'whip', links: 16, len: 5, width: 2.4, shape: 'club', style: 'ribbon', flex: 0.6, spring: 0.04, drag: 0.88, color: { slot: 0, light: 4 } },
-    att: { pattern: 'pair', at: 1, angle: 0.25, edge: 0.4 }
-  },
-  bras: {
-    desc: 'Bras charnus qui s\'enroulent',
-    node: { name: 'Bras', role: 'whip', links: 10, len: 4.5, width: 2.6, shape: 'virgule', style: 'ribbon', flex: 0.55, spring: 0.06, color: { slot: 0 }, motion: { type: 'curl', amp: 1.2, freq: 0.4 } },
-    att: { pattern: 'fan', at: 1, count: 8, spread: 0.9, edge: 0.7, angle: 0, phaseStep: 0.7, scaleTo: 0.85 }
-  },
-  rostre: {
-    desc: 'Épine frontale rigide',
-    node: { name: 'Rostre', role: 'sting', links: 4, len: 3, width: 1.1, shape: 'linear', style: 'ribbon', flex: 0.05, spring: 0.6, color: { slot: 0, light: 8 } },
-    att: { pattern: 'single', at: 0, angle: Math.PI }
-  }
-};
-
-function part(id, nodeOver, attOver) {
-  var p = PARTS[id], n = clone(p.node);
-  if (nodeOver) {
-    var col = nodeOver.color, mot = nodeOver.motion;
-    assign(n, nodeOver);
-    n.color = assign({}, p.node.color, col);
-    n.motion = assign({}, p.node.motion, mot);
-  }
-  return att(assign({}, p.att, attOver, { node: n }));
-}
-
-// ----- species ----- //
-
-var SPECIES = {
-  anguille: function () {
-    return spec({
-      name: 'Anguille fouetteuse', palette: { hue: 172, harmony: 'analog', sat: 75, light: 55 },
-      swim: { mode: 'steady', speed: 2.2 }, ai: 'hunter', eyes: { on: true, size: 1 },
-      body: {
-        name: 'Corps', links: 16, len: 7, width: 6, shape: 'worm', style: 'ribbon', flex: 0.35, spring: 0.06, drag: 0.8,
-        color: { slot: 0, grad: -12 }, motion: { type: 'undulate', amp: 0.1, freq: 1.2, wave: 1 },
-        attach: [part('nageoire', { width: 3.5, links: 4 }, { at: 0.08 }), part('tentacule', null, { at: 0.38 })]
-      }
-    });
-  },
-  meduse: function () {
-    return spec({
-      name: 'Méduse lune', palette: { hue: 290, harmony: 'analog', sat: 70, light: 66 },
-      swim: { mode: 'pulse', speed: 1.4, freq: 0.7 }, ai: 'drifter', eyes: { on: false },
-      body: {
-        name: 'Ombrelle', links: 4, len: 4, width: 13, shape: 'bell', style: 'ribbon', flex: 0.06, spring: 0.6, drag: 0.8,
-        color: { slot: 0, alpha: 0.42, light: -8, add: true, glow: 'body' }, motion: { type: 'pulse', amp: 0.22, freq: 0.7 },
-        attach: [part('filament', null, { count: 12, spread: 1.2 }), part('brasOral')]
-      }
-    });
-  },
-  crevette: function () {
-    return spec({
-      name: 'Crevette corail', palette: { hue: 12, harmony: 'analog', sat: 80, light: 60 },
-      swim: { mode: 'dart', speed: 2 }, ai: 'prey', eyes: { on: false },
-      body: {
-        name: 'Carapace', links: 11, len: 6, width: 6.5, shape: 'carapace', style: 'plates', flex: 0.14, spring: 0.3, drag: 0.8,
-        color: { slot: 0, grad: -8 },
-        attach: [
-          part('rostre'),
-          part('antenne', null, { angle: 2.75 }),
-          part('antenne', { name: 'Antennule', links: 9, curl: 1, width: 0.45, color: { slot: 3, light: 6 } }, { at: 0.02, angle: 2.3 }),
-          part('oeil', null, { at: 0.06, angle: 2.2, edge: 0.75 }),
-          part('patte'),
-          part('pleopode'),
-          part('eventail')
-        ]
-      }
-    });
-  },
-  calmar: function () {
-    return spec({
-      name: 'Calmar', palette: { hue: 350, harmony: 'split', sat: 62, light: 58 },
-      swim: { mode: 'pulse', speed: 2.4, freq: 0.9 }, ai: 'hunter', eyes: { on: false },
-      body: {
-        name: 'Manteau', links: 9, len: 7, width: 7, shape: 'spindle', style: 'ribbon', flex: 0.1, spring: 0.4, drag: 0.8,
-        color: { slot: 0, grad: 10 }, motion: { type: 'pulse', amp: 0.1, freq: 0.9 },
-        attach: [
-          part('nageoire', { name: 'Nageoire', shape: 'leaf', links: 4, width: 5, style: 'ribbon', color: { slot: 0, alpha: 0.75, light: 8 }, motion: { type: 'wave', amp: 0.3, freq: 1.4 } }, { at: 0.05, angle: 2.3, edge: 0.6 }),
-          part('oeil', { links: 1, len: 1.5, width: 2.3, color: { slot: 2 } }, { at: 0.85, angle: 1.57, edge: 0.95 }),
-          part('bras'),
-          part('massue')
-        ]
-      }
-    });
-  },
-  baudroie: function () {
-    return spec({
-      name: 'Baudroie', palette: { hue: 222, harmony: 'complement', sat: 45, light: 36 },
-      swim: { mode: 'steady', speed: 1.6 }, ai: 'hunter', eyes: { on: true, size: 0.75 },
-      body: {
-        name: 'Corps', links: 9, len: 6, width: 11, shape: 'tadpole', style: 'ribbon', flex: 0.2, spring: 0.2, drag: 0.8,
-        color: { slot: 0, grad: -10 }, motion: { type: 'undulate', amp: 0.1, freq: 1 },
-        attach: [
-          part('lanterne'),
-          part('nageoire', { width: 3.4, links: 4 }, { at: 0.35, angle: 1.5 }),
-          part('eventail', { style: 'ribbon', width: 3.5, links: 4, color: { slot: 0, alpha: 0.8 } }, { count: 3, spread: 0.7 })
-        ]
-      }
-    });
-  },
-  nudibranche: function () {
-    return spec({
-      name: 'Nudibranche', palette: { hue: 265, harmony: 'triad', sat: 80, light: 60 },
-      swim: { mode: 'steady', speed: 1 }, ai: 'prey', eyes: { on: false },
-      body: {
-        name: 'Pied', links: 12, len: 5.5, width: 6, shape: 'spindle', style: 'ribbon', flex: 0.3, spring: 0.1, drag: 0.82,
-        color: { slot: 0, grad: 12 }, motion: { type: 'undulate', amp: 0.06, freq: 0.8 },
-        attach: [
-          part('antenne', { name: 'Rhinophore', links: 4, len: 3, width: 1.4, style: 'ribbon', curl: -0.4, color: { slot: 2, light: 10 } }, { at: 0.02, angle: 2.7 }),
-          part('cerates')
-        ]
-      }
-    });
-  },
-  plumeau: function () {
-    return spec({
-      name: 'Ver plumeau', palette: { hue: 38, harmony: 'triad', sat: 75, light: 60 },
-      swim: { mode: 'steady', speed: 1 }, ai: 'drifter', eyes: { on: false },
-      body: {
-        name: 'Tube', links: 14, len: 5, width: 3.2, shape: 'worm', style: 'plates', flex: 0.35, spring: 0.12, drag: 0.82,
-        color: { slot: 0, grad: -15 }, motion: { type: 'undulate', amp: 0.08, freq: 0.9 },
-        attach: [part('radiole')]
-      }
-    });
-  },
-  larve: function () {
-    return spec({
-      name: 'Larve', palette: { hue: 330, harmony: 'analog', sat: 70, light: 58 },
-      swim: { mode: 'steady', speed: 1.8 }, ai: 'prey', eyes: { on: true, size: 1.1 },
-      body: {
-        name: 'Corps', links: 10, len: 5.5, width: 4.5, shape: 'worm', style: 'disc', flex: 0.4, spring: 0.06, drag: 0.8,
-        color: { slot: 0, grad: -14 }, motion: { type: 'undulate', amp: 0.12, freq: 1.5 }
-      }
-    });
-  },
-  serpentCilie: function () {
-    return spec({
-      name: 'Serpent cilié', palette: { hue: 150, harmony: 'complement', sat: 65, light: 52 },
-      swim: { mode: 'steady', speed: 1.7 }, ai: 'prey', eyes: { on: true, size: 0.9 },
-      body: {
-        name: 'Corps', links: 22, len: 6, width: 5.5, shape: 'sansueBigHead', style: 'ribbon', flex: 0.35, spring: 0.05, drag: 0.8,
-        color: { slot: 0, grad: -10 }, motion: { type: 'undulate', amp: 0.1, freq: 1 },
-        attach: [part('cils', null, { count: 16, at: 0.06 })]
-      }
-    });
-  },
-  hydre: function () {
-    var tent = part('tentacule', { links: 14, width: 2.8 }, { pattern: 'series', at: 0.2, to: 0.7, count: 3, angle: 1.25, angleTo: 0.8, edge: 0.7, scaleTo: 0.8, phaseStep: 0.8 });
-    tent.node.attach.push(part('dard'));
-    return spec({
-      name: 'Hydre', palette: { hue: 120, harmony: 'split', sat: 55, light: 42 },
-      swim: { mode: 'steady', speed: 1.6 }, ai: 'hunter', eyes: { on: true, size: 0.8 },
-      body: {
-        name: 'Corps', links: 12, len: 8, width: 9, shape: 'sansue', style: 'plates', flex: 0.3, spring: 0.08, drag: 0.8,
-        color: { slot: 0, grad: -12 }, motion: { type: 'undulate', amp: 0.08, freq: 0.8 },
-        attach: [part('pince', { width: 3.2 }), tent, part('cerates', { name: 'Épine', color: { slot: 3, glow: 'tip' } }, { at: 0.75, to: 0.95, count: 4 })]
-      }
-    });
-  }
-};
-
 global.HydraEngine = {
   TAU: TAU, STEP: STEP,
   clamp: clamp, lerp: lerp, rand: rand, clone: clone, wrapAngle: wrapAngle,
-  SHAPES: SHAPES, NAMES: NAMES, ROLE_HELP: ROLE_HELP, HARMONIES: HARMONIES, PARTS: PARTS, SPECIES: SPECIES,
-  node: node, att: att, spec: spec, part: part, walkNodes: walkNodes, palette: palette, expand: expand,
+  SHAPES: SHAPES, NAMES: NAMES, ROLE_HELP: ROLE_HELP, HARMONIES: HARMONIES,
+  node: node, att: att, spec: spec, walkNodes: walkNodes, palette: palette, expand: expand, hash: hash, assign: assign,
   Seg: Seg, Creature: Creature, swimFactor: swimFactor,
   draw: draw, drawSeg: drawSeg, eachGlow: eachGlow, drawSkeleton: drawSkeleton, pick: pick,
   stats: stats, snapshot: snapshot, mutate: mutate, randomPalette: randomPalette,

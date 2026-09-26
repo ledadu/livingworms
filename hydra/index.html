@@ -526,6 +526,11 @@
   .pick-card canvas { width: 100%; height: 84px; display: block; }
   .pick-card b { font-size: 13px; font-weight: 600; }
   .pick-card small { font-size: 11px; line-height: 1.35; color: var(--dim); }
+  .pick-card .btn-row { gap: 6px; }
+  .pick-card .btn-row .ghost { font-size: 11px; padding: 5px 9px; }
+  #atTabModels .chips { margin-bottom: 12px; }
+  #atTabModels > .btn-row { margin-bottom: 6px; }
+  .ghost[aria-pressed="true"] { border-color: var(--amber); color: var(--amber); }
   .lib-list { display: grid; gap: 6px; margin-bottom: 14px; }
   .lib-row { display: grid; grid-template-columns: 64px 1fr auto auto; gap: 8px; align-items: center; }
   .lib-row canvas { width: 64px; height: 40px; }
@@ -679,9 +684,10 @@
       <span id="atFlash" hidden></span>
       <div class="stage-tools">
         <button type="button" data-mode="swim" aria-pressed="true">Circuit</button>
-        <button type="button" data-mode="follow" aria-pressed="false">Guider du doigt</button>
+        <button type="button" data-mode="follow" aria-pressed="false">Guider</button>
         <button type="button" data-mode="pose" aria-pressed="false">Pose</button>
         <span class="sep"></span>
+        <button id="atNight" type="button" aria-pressed="false">Nuit</button>
         <button id="atSkel" type="button" aria-pressed="false">Squelette</button>
       </div>
     </div>
@@ -696,6 +702,10 @@
         <div class="tree-actions">
           <button id="atAdd" class="ghost" type="button">+ Ajouter une partie</button>
           <button id="atDup" class="ghost" type="button">Dupliquer</button>
+          <button id="atCopy" class="ghost" type="button">Copier</button>
+          <button id="atCut" class="ghost" type="button">Couper</button>
+          <button id="atPaste" class="ghost" type="button" disabled>Coller</button>
+          <button id="atKeep" class="ghost" type="button">Garder</button>
           <button id="atDel" class="ghost danger" type="button">Supprimer</button>
         </div>
         <div id="atProps"></div>
@@ -713,6 +723,7 @@
 </section>
 
 <script src="engine.js"></script>
+<script src="bestiary.js"></script>
 <script src="editor.js"></script>
 <script src="hydra.js"></script>
 <!--artifact:body-end-->

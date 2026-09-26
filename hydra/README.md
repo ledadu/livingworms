@@ -28,18 +28,26 @@ chaque partie est un fouet (`engine.js`) et porte des **accroches** :
 | **Seul** | une partie unique (rostre, lanterne, dard au bout d'un membre) |
 | **Paire** | copie miroir gauche/droite (antennes, nageoires, yeux) |
 | **Éventail** | plusieurs copies autour d'un même nœud, réparties sur la largeur du parent (filaments de méduse, bras de calmar, queue de crevette) |
-| **Série** | copies réparties le long du parent, avec dégradé de taille, d'angle et de rythme (pattes, pléopodes, cils, cérates) |
+| **Série** | copies réparties le long du parent, avec dégradé de taille, d'angle et de rythme (pattes, pléopodes, cils, cérates) ; option **alterner** gauche/droite (algues, dragon de mer feuillu) |
+| **Anneau** | copies réparties sur 360° autour d'un nœud (étoile de mer, oursin, anémone, ophiure) |
+
+Sur un éventail, une série ou un anneau : **membrane** tendue entre copies voisines (nageoires à rayons, bras palmés, collerette de seiche), **variation naturelle** (chaque copie diffère un peu, toujours de la même façon) et **arc-en-ciel** (décalage de teinte d'une copie à l'autre, cténophore).
 
 Les positions sont en **fraction du parent** (0 % = tête, 100 % = bout) : une structure reste propre quand on change le nombre de maillons.
 
 Chaque partie a :
 - **Forme** : rendu (ruban lissé, plaques de carapace, trait, perles, œil), profil de largeur (easings de `whip.js` normalisés + cloche, fuseau, carapace, volant, massue, bulbe…), maillons, longueur, largeur.
-- **Souplesse** : souplesse (angle max entre maillons), **mémoire de forme** et **courbure de repos** (une antenne reste arquée, une patte garde son genou), glisse dans l'eau, poids.
-- **Mouvement** : battement, rame (coup rapide / retour lent), pulsation (ombrelle), ondulation (vague le long du corps), enroulement. Le « décalage de rythme » d'une série crée une vague métachronale.
-- **Couleur** : une des 4 teintes de la **palette harmonieuse** de l'espèce (analogue, complément, triade…), nuance, dégradé, opacité, fondu, lueur, lumière additive.
+- **Forme** (suite) : maillons qui raccourcissent vers le bout (spirale logarithmique du nautile).
+- **Souplesse** : souplesse (angle max entre maillons), **mémoire de forme**, **courbure de repos** et sa **répartition** (pliée à la base ou enroulée au bout, queue d'hippocampe), glisse dans l'eau, poids.
+- **Mouvement** : battement, rame (coup rapide / retour lent), frémissement, pulsation (ombrelle), respiration, ondulation (vague le long du corps), enroulement. Le « décalage de rythme » d'une série crée une vague métachronale.
+- **Couleur** : une des 4 teintes de la **palette harmonieuse** de l'espèce (analogue, complément, triade…), nuance, dégradé, opacité, fondu, lueur, lumière additive, et **motif** : bandes, taches, ligne, ocelles, liseré.
 - **Rôle en jeu** : fouet, dard, pince, nageoire, cils, lanterne, antenne, décor.
 
-L'aquarium permet de voir l'espèce nager (circuit, guidée au doigt, ou en pose de repos), d'afficher le squelette et de **toucher une partie pour la sélectionner**. Modèles fournis : anguille, méduse, crevette, calmar, baudroie, nudibranche, ver plumeau, larve, serpent cilié, hydre. « Jouer » lance une partie avec ton espèce ; les espèces s'exportent / s'importent en JSON.
+L'aquarium permet de voir l'espèce nager (circuit, guidée au doigt, ou en pose de repos), de passer en **Nuit** pour juger la bioluminescence, d'afficher le squelette et de **toucher une partie pour la sélectionner**.
+
+Outils : copier / couper / coller une partie (même le tronc entier, qui devient un membre ailleurs), **Mes parties** (bibliothèque de parties réutilisables), **créature au hasard** (un corps + une partie de tête + des parties latérales + une queue, palette harmonieuse), **croisement** de deux espèces, variations, annuler / rétablir, export / import JSON. « Jouer » lance une partie avec ton espèce.
+
+**Bestiaire** (`bestiary.js`, 43 espèces rangées par famille) — poissons : anguille, poisson-clown, carpe koï, hippocampe, combattant, rascasse volante, raie manta, requin-baleine, dragon de mer feuillu, grand gosier, baudroie · méduses & cie : méduse lune, méduse ortie, méduse-boîte, anémone, cténophore, galère portugaise, siphonophore · crustacés : crevette, krill, copépode, crabe, homard bleu, crevette-mante · mollusques : calmar, poulpe, seiche, nautile, ange de mer, nudibranche · vers : larve, ver plumeau, ver de feu, ver plat, serpent cilié · échinodermes : étoile de mer, ophiure, oursin · autres : axolotl, tortue de mer, tardigrade · chimères : hydre, dragon abyssal. En jeu, chaque espèce apparaît à partir d'une certaine profondeur.
 
 En jeu, une greffe s'ajoute à la **définition** de la partie : toutes ses copies symétriques la reçoivent.
 

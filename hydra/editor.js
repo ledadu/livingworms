@@ -357,7 +357,7 @@ function slotColor(k) {
 
 var PATTERNS = objOpts(E.NAMES.pattern);
 function objOpts(o) { return Object.keys(o).map(function (k) { return [k, o[k]]; }); }
-function isRow(att) { return att && (att.pattern === 'fan' || att.pattern === 'series'); }
+function isRow(att) { return att && (att.pattern === 'fan' || att.pattern === 'series' || att.pattern === 'ring'); }
 
 function partSections() {
   var sel = ed.sel, a = sel.att, n = sel.node, isRoot = !a;
@@ -369,17 +369,23 @@ function partSections() {
         hint: '0 % = tête du parent · 100 % = bout' },
       a.pattern === 'series' && { p: 'att.to', label: 'Arrivée', min: 0, max: 100, step: 1, pct: true, snaps: [0, 25, 50, 75, 100] },
       isRow(a) && { p: 'att.count', label: 'Nombre', min: 1, max: 24, step: 1, int: true, tree: true },
-      { p: 'att.angle', label: a.pattern === 'series' ? 'Angle au départ' : a.pattern === 'fan' ? 'Direction' : 'Angle', min: -180, max: 180, step: 1, deg: true,
+      { p: 'att.angle', label: a.pattern === 'series' ? 'Angle au départ' : a.pattern === 'fan' ? 'Direction' : a.pattern === 'ring' ? 'Rotation de l\'anneau' : 'Angle', min: -180, max: 180, step: 1, deg: true,
         snaps: [-180, -135, -90, -45, 0, 45, 90, 135, 180], hint: '0° = vers l\'arrière · 90° = sur le côté · 180° = vers l\'avant' },
       a.pattern === 'series' && { p: 'att.angleTo', fallback: 'att.angle', label: 'Angle à l\'arrivée', min: -180, max: 180, step: 1, deg: true, snaps: [-180, -135, -90, -45, 0, 45, 90, 135, 180] },
       a.pattern === 'fan' && { p: 'att.spread', label: 'Ouverture', min: 0, max: 360, step: 1, deg: true, snaps: [0, 45, 90, 180, 270, 360] },
       { p: 'att.edge', label: 'Vers le bord', min: -100, max: 100, step: 1, pct: true, snaps: [-100, -50, 0, 50, 100],
         hint: a.pattern === 'fan' ? 'Répartit les copies sur la largeur du parent' : 'Déplace l\'accroche de l\'axe vers le bord du parent' },
       { p: 'att.scale', label: 'Taille', min: 20, max: 250, step: 1, pct: true, snaps: [50, 100, 150, 200] },
-      isRow(a) && { p: 'att.scaleTo', label: a.pattern === 'fan' ? 'Taille aux extrémités' : 'Taille à l\'arrivée', min: 20, max: 250, step: 1, pct: true, snaps: [50, 100, 150] },
+      isRow(a) && { p: 'att.scaleTo', label: a.pattern === 'fan' ? 'Taille aux extrémités' : a.pattern === 'ring' ? 'Taille à l\'opposé' : 'Taille à l\'arrivée', min: 20, max: 250, step: 1, pct: true, snaps: [50, 100, 150] },
       isRow(a) && { p: 'att.phaseStep', label: 'Décalage de rythme', min: 0, max: 3.14, step: 0.02,
         hint: 'Décale le mouvement d\'une copie à la suivante : une vague parcourt la rangée' },
-      isRow(a) && { p: 'att.mirror', t: 'toggle', label: 'Miroir des deux côtés', tree: true },
+      isRow(a) && { p: 'att.web', label: 'Membrane', min: 0, max: 100, step: 1, pct: true, snaps: [0, 50, 100],
+        hint: 'Tend une peau entre les copies voisines, jusqu\'à cette fraction de leur longueur (nageoires à rayons, bras palmés)' },
+      isRow(a) && { p: 'att.jitter', label: 'Variation naturelle', min: 0, max: 100, step: 1, pct: true,
+        hint: 'Chaque copie diffère un peu en angle, taille et rythme, toujours de la même façon' },
+      isRow(a) && { p: 'att.hueStep', label: 'Arc-en-ciel', min: -60, max: 60, step: 1, unit: '°', snaps: [0], hint: 'Décale la teinte d\'une copie à la suivante' },
+      a.pattern === 'series' && { p: 'att.alternate', t: 'toggle', label: 'Alterner gauche / droite', tree: true },
+      (a.pattern === 'fan' || (a.pattern === 'series' && !a.alternate)) && { p: 'att.mirror', t: 'toggle', label: 'Miroir des deux côtés', tree: true },
       { p: 'att.front', t: 'toggle', label: 'Dessiné devant son parent' }
     ] });
   }
@@ -389,12 +395,16 @@ function partSections() {
     { p: 'node.shape', t: 'chips', label: 'Profil', opts: objOpts(E.NAMES.shape), icons: shapeIcon },
     { p: 'node.links', label: 'Maillons', min: 1, max: 40, step: 1, int: true },
     { p: 'node.len', label: 'Longueur d\'un maillon', min: 0.5, max: 16, step: 0.1 },
+    { p: 'node.lenTo', label: 'Maillons au bout', min: 10, max: 250, step: 1, pct: true, snaps: [25, 50, 100, 150, 200],
+      hint: 'Des maillons qui raccourcissent + une courbure = une spirale de coquille' },
     { p: 'node.width', label: n.style === 'eye' ? 'Taille de l\'œil' : 'Largeur', min: 0.2, max: 30, step: 0.1 }
   ] });
   sections.push({ id: 'phys', title: 'Souplesse', fields: [
     { p: 'node.flex', label: 'Souplesse', min: 0, max: 100, step: 1, pct: true, hint: '0 % = rigide comme une carapace · 100 % = fouet' },
     { p: 'node.spring', label: 'Mémoire de forme', min: 0, max: 100, step: 1, pct: true, hint: 'Force qui ramène la partie à sa pose de repos' },
-    { p: 'node.curl', label: 'Courbure de repos', min: -360, max: 360, step: 1, deg: true, snaps: [-180, -90, 0, 90, 180] },
+    { p: 'node.curl', label: 'Courbure de repos', min: -720, max: 720, step: 1, deg: true, snaps: [-360, -180, -90, 0, 90, 180, 360] },
+    { p: 'node.curlBias', label: 'Répartition de la courbure', min: -100, max: 100, step: 1, pct: true, snaps: [-100, 0, 100],
+      hint: '−100 % = pliée à la base · +100 % = enroulée au bout (queue d\'hippocampe)' },
     { p: 'node.drag', label: 'Glisse dans l\'eau', min: 60, max: 97, step: 1, pct: true, hint: 'Bas = eau épaisse, les parties suivent sagement' },
     { p: 'node.gravity', label: 'Poids', min: -0.15, max: 0.15, step: 0.005, snaps: [0], hint: 'Négatif = flotte vers le haut' }
   ] });
@@ -414,7 +424,13 @@ function partSections() {
     { p: 'node.color.alpha', label: 'Opacité', min: 5, max: 100, step: 1, pct: true },
     { p: 'node.color.fade', label: 'Fondu vers le bout', min: 0, max: 100, step: 1, pct: true },
     { p: 'node.color.glow', t: 'chips', label: 'Lueur', opts: objOpts(E.NAMES.glow) },
-    { p: 'node.color.add', t: 'toggle', label: 'Lumière additive (effet translucide)' }
+    { p: 'node.color.add', t: 'toggle', label: 'Lumière additive (effet translucide)' },
+    { p: 'node.color.pattern', t: 'chips', label: 'Motif', opts: objOpts(E.NAMES.motif) },
+    n.color.pattern !== 'none' && { p: 'node.color.pslot', t: 'chips', label: 'Couleur du motif', opts: [[0, 'Principale'], [1, 'Deuxième'], [2, 'Troisième'], [3, 'Accent']],
+      icons: function (k) { return swatch(slotColor(k)); } },
+    n.color.pattern !== 'none' && { p: 'node.color.plight', label: 'Luminosité du motif', min: -50, max: 50, step: 1, snaps: [0] },
+    ['bands', 'spots', 'ocelli'].indexOf(n.color.pattern) >= 0 && { p: 'node.color.pdensity', label: MOTIF_COUNT[n.color.pattern], min: 1, max: 16, step: 1, int: true },
+    ['spots', 'stripe', 'ocelli', 'edge'].indexOf(n.color.pattern) >= 0 && { p: 'node.color.pscale', label: 'Taille du motif', min: 20, max: 300, step: 1, pct: true, snaps: [100] }
   ] });
   var roles = objOpts(E.NAMES.role).filter(function (r) { return isRoot ? r[0] === 'body' : r[0] !== 'body'; });
   if (!isRoot) {
@@ -425,8 +441,12 @@ function partSections() {
   return sections;
 }
 
+var MOTIF_COUNT = { bands: 'Nombre de bandes', spots: 'Densité des taches', ocelli: 'Nombre d\'ocelles' };
+
 var MOTION_HELP = {
   none: 'La partie ne bouge que par la physique.',
+  flutter: 'Bat nerveusement, sur un rythme irrégulier.',
+  breathe: 'Gonfle et dégonfle en entier, comme une respiration.',
   wave: 'Bat de gauche à droite depuis sa base, comme une nageoire.',
   row: 'Coup rapide puis retour lent, comme une rame ou une patte.',
   pulse: 'Gonfle et se contracte, comme une ombrelle de méduse.',
@@ -470,6 +490,8 @@ function renderProps() {
   box.insertBefore(head, box.firstChild);
   $('atDup').disabled = !sel.att;
   $('atDel').disabled = !sel.att;
+  $('atCut').disabled = !sel.att;
+  $('atPaste').disabled = !ed.clip;
 }
 
 // ----- tree ----- //
@@ -508,8 +530,83 @@ function renderTree() {
 
 // ----- structure actions ----- //
 
+function attachHere(a) {
+  ed.sel.node.attach.push(a);
+  rebuild(true);
+  commit();
+  selectNode(a.node);
+}
+
+function partsLibrary() {
+  try { return JSON.parse(store('hydra.parts') || '[]'); } catch (e) { return []; }
+}
+
+function clipOfSelection() {
+  var sel = ed.sel;
+  // the trunk itself can be copied: it becomes a limb somewhere else
+  return sel.att ? E.clone(sel.att) : E.clone(E.att({ node: sel.node, pattern: 'single', at: 0.5, angle: 1.2 }));
+}
+
+$('atCopy').addEventListener('click', function () {
+  ed.clip = clipOfSelection();
+  $('atPaste').disabled = false;
+  flash('Copié : ' + ed.sel.node.name);
+});
+$('atCut').addEventListener('click', function () {
+  if (!ed.sel.att) return;
+  ed.clip = clipOfSelection();
+  var parent = ed.sel.parent, i = parent.attach.indexOf(ed.sel.att);
+  if (i >= 0) parent.attach.splice(i, 1);
+  rebuild(true);
+  commit();
+  selectNode(parent);
+  flash('Coupé : touche une partie puis « Coller »');
+});
+$('atPaste').addEventListener('click', function () {
+  if (!ed.clip) return;
+  attachHere(E.att(E.clone(ed.clip)));
+});
+$('atKeep').addEventListener('click', function () {
+  var lib = partsLibrary(), c = clipOfSelection();
+  lib.unshift({ name: ed.sel.node.name, att: c });
+  store('hydra.parts', JSON.stringify(lib.slice(0, 40)));
+  flash('Ajoutée à « Mes parties »');
+});
+
 $('atAdd').addEventListener('click', function () {
   openSheet('Ajouter une partie sur « ' + ed.sel.node.name + ' »', function (body) {
+    var mine = partsLibrary();
+    if (mine.length) {
+      var h = document.createElement('h3');
+      h.className = 'tab-title';
+      h.textContent = 'Mes parties';
+      body.appendChild(h);
+      var mg = document.createElement('div');
+      mg.className = 'card-grid';
+      mine.forEach(function (it, i) {
+        var b = document.createElement('div');
+        b.className = 'pick-card';
+        b.innerHTML = '<canvas></canvas><b></b><div class="btn-row"><button type="button" class="ghost">Ajouter</button><button type="button" class="ghost danger">Retirer</button></div>';
+        b.querySelector('b').textContent = it.name;
+        var btns = b.querySelectorAll('button');
+        btns[0].addEventListener('click', function () { closeSheet(); attachHere(E.att(E.clone(it.att))); });
+        btns[1].addEventListener('click', function () {
+          var l = partsLibrary();
+          l.splice(i, 1);
+          store('hydra.parts', JSON.stringify(l));
+          b.remove();
+        });
+        mg.appendChild(b);
+        requestAnimationFrame(function () {
+          E.snapshot(E.spec({ palette: ed.spec.palette, eyes: { on: false }, body: E.clone(it.att.node) }), b.querySelector('canvas'), { max: 5 });
+        });
+      });
+      body.appendChild(mg);
+      var h2 = document.createElement('h3');
+      h2.className = 'tab-title';
+      h2.textContent = 'Bibliothèque';
+      body.appendChild(h2);
+    }
     var grid = document.createElement('div');
     grid.className = 'card-grid';
     Object.keys(E.PARTS).forEach(function (id) {
@@ -521,12 +618,8 @@ $('atAdd').addEventListener('click', function () {
       b.querySelector('b').textContent = p.node.name;
       b.querySelector('small').textContent = p.desc;
       b.addEventListener('click', function () {
-        var a = E.part(id);
-        ed.sel.node.attach.push(a);
-        rebuild(true);
-        commit();
         closeSheet();
-        selectNode(a.node);
+        attachHere(E.part(id));
       });
       grid.appendChild(b);
       requestAnimationFrame(function () {
@@ -577,6 +670,10 @@ function renderSpecies() {
       { p: 'spec.palette.sat', label: 'Saturation', min: 0, max: 100, step: 1, unit: ' %', after: paletteChanged },
       { p: 'spec.palette.light', label: 'Luminosité', min: 15, max: 85, step: 1, unit: ' %', after: paletteChanged }
     ] },
+    { id: 'size', title: 'Taille', fields: [
+      { p: 'spec.size', label: 'Taille de l\'espèce', min: 30, max: 250, step: 1, pct: true, snaps: [50, 100, 150, 200],
+        hint: 'Agrandit ou réduit toute la créature, en gardant ses proportions' }
+    ] },
     { id: 'swim', title: 'Nage', fields: [
       { p: 'spec.swim.mode', t: 'chips', opts: objOpts(E.NAMES.swim) },
       { p: 'spec.swim.speed', label: 'Vitesse', min: 0.5, max: 4, step: 0.1 },
@@ -588,7 +685,9 @@ function renderSpecies() {
     ] },
     { id: 'eyes', title: 'Yeux sur la tête', fields: [
       { p: 'spec.eyes.on', t: 'toggle', label: 'Afficher deux yeux sur la tête du tronc' },
-      ed.spec.eyes.on && { p: 'spec.eyes.size', label: 'Taille', min: 0.4, max: 2.2, step: 0.05 }
+      ed.spec.eyes.on && { p: 'spec.eyes.size', label: 'Taille', min: 0.4, max: 2.2, step: 0.05 },
+      ed.spec.eyes.on && { p: 'spec.eyes.spread', label: 'Écartement', min: 0, max: 1.2, step: 0.01 },
+      ed.spec.eyes.on && { p: 'spec.eyes.fwd', label: 'Vers l\'avant', min: -0.6, max: 1, step: 0.01 }
     ] },
     { id: 'vary', title: 'Variations', render: function (body) {
       var row = document.createElement('div');
@@ -653,27 +752,101 @@ function loadSpec(sp) {
   renderSpecies();
 }
 
+var modelCanvases = {};
+
+// portraits are drawn when their card scrolls into view
+var lazy = 'IntersectionObserver' in window ? new IntersectionObserver(function (entries) {
+  entries.forEach(function (en) {
+    if (!en.isIntersecting || !en.target._draw) return;
+    en.target._draw();
+    en.target._draw = null;
+    lazy.unobserve(en.target);
+  });
+}, { rootMargin: '200px' }) : null;
+
+function lazyDraw(cv, fn) {
+  if (lazy) { cv._draw = fn; lazy.observe(cv); } else requestAnimationFrame(fn);
+}
+
 function renderModels() {
   var box = $('atTabModels');
   box.innerHTML = '';
+
+  var h0 = document.createElement('h3');
+  h0.className = 'tab-title';
+  h0.textContent = 'Inventer';
+  box.appendChild(h0);
+  var inv = document.createElement('div');
+  inv.className = 'btn-row';
+  var rnd = document.createElement('button');
+  rnd.type = 'button';
+  rnd.className = 'cta sm';
+  rnd.textContent = 'Créature au hasard';
+  rnd.addEventListener('click', function () { loadSpec(E.randomSpecies()); switchTab('parts'); });
+  var crossBtn = document.createElement('button');
+  crossBtn.type = 'button';
+  crossBtn.className = 'ghost';
+  crossBtn.setAttribute('aria-pressed', String(!!ed.crossing));
+  crossBtn.textContent = ed.crossing ? 'Croisement : choisis un modèle' : 'Croiser « ' + ed.spec.name + ' » avec…';
+  crossBtn.addEventListener('click', function () { ed.crossing = !ed.crossing; renderModels(); });
+  inv.appendChild(rnd);
+  inv.appendChild(crossBtn);
+  box.appendChild(inv);
+  if (ed.crossing) {
+    var ch = document.createElement('p');
+    ch.className = 'hint';
+    ch.textContent = 'Touche un modèle : son corps est gardé de « ' + ed.spec.name + ' », les membres sont mélangés.';
+    box.appendChild(ch);
+  }
+
   var h = document.createElement('h3');
   h.className = 'tab-title';
-  h.textContent = 'Partir d\'un modèle';
+  h.textContent = 'Bestiaire · ' + Object.keys(E.SPECIES).length + ' espèces';
   box.appendChild(h);
+
+  var cat = ed.modelCat || 'all';
+  var chips = document.createElement('div');
+  chips.className = 'chips';
+  [['all', 'Toutes']].concat(E.CATS).forEach(function (c) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.setAttribute('aria-pressed', String(c[0] === cat));
+    b.textContent = c[1];
+    b.addEventListener('click', function () { ed.modelCat = c[0]; renderModels(); });
+    chips.appendChild(b);
+  });
+  box.appendChild(chips);
+
   var grid = document.createElement('div');
-  grid.className = 'card-grid';
+  grid.className = 'card-grid models';
   Object.keys(E.SPECIES).forEach(function (id) {
-    var sp = E.SPECIES[id]();
+    var info = E.INFO[id] || ['autres', ''];
+    if (cat !== 'all' && info[0] !== cat) return;
     var b = document.createElement('button');
     b.type = 'button';
     b.className = 'pick-card';
-    b.innerHTML = '<canvas></canvas><b></b><small></small>';
-    b.querySelector('b').textContent = sp.name;
-    var st = E.stats(sp);
-    b.querySelector('small').textContent = st.chains + ' chaînes · ' + st.depth + ' niveaux';
-    b.addEventListener('click', function () { loadSpec(sp); switchTab('parts'); });
+    b.innerHTML = '<b></b><small></small>';
+    var cv = modelCanvases[id];
+    if (!cv) {
+      cv = modelCanvases[id] = document.createElement('canvas');
+      lazyDraw(cv, function () { E.snapshot(E.SPECIES[id](), cv); });
+    }
+    b.insertBefore(cv, b.firstChild);
+    var sp0 = E.SPECIES[id]();
+    b.querySelector('b').textContent = sp0.name;
+    b.querySelector('small').textContent = info[1];
+    b.addEventListener('click', function () {
+      var sp = E.SPECIES[id]();
+      if (ed.crossing) {
+        ed.crossing = false;
+        loadSpec(E.cross(ed.spec, sp));
+      } else {
+        loadSpec(sp);
+      }
+      switchTab('parts');
+    });
     grid.appendChild(b);
-    requestAnimationFrame(function () { E.snapshot(sp, b.querySelector('canvas')); });
   });
   box.appendChild(grid);
 
@@ -845,6 +1018,10 @@ window.addEventListener('resize', function () { if (ed.open) resizeStage(); });
     });
   });
 });
+$('atNight').addEventListener('click', function () {
+  ed.night = !ed.night;
+  $('atNight').setAttribute('aria-pressed', String(ed.night));
+});
 $('atSkel').addEventListener('click', function () {
   ed.skeleton = !ed.skeleton;
   $('atSkel').setAttribute('aria-pressed', String(ed.skeleton));
@@ -950,8 +1127,8 @@ function drawStage() {
   c.globalCompositeOperation = 'source-over';
   c.globalAlpha = 1;
   var g = c.createRadialGradient(SW / 2, SH * 0.45, 10, SW / 2, SH / 2, Math.max(SW, SH) * 0.75);
-  g.addColorStop(0, '#0e2d38');
-  g.addColorStop(1, '#03080e');
+  g.addColorStop(0, ed.night ? '#050c16' : '#0e2d38');
+  g.addColorStop(1, ed.night ? '#000104' : '#03080e');
   c.fillStyle = g;
   c.fillRect(0, 0, SW, SH);
 
@@ -966,10 +1143,19 @@ function drawStage() {
 
   c.setTransform(sdpr * z, 0, 0, sdpr * z, sdpr * (SW / 2 - cam.x * z), sdpr * (SH / 2 - cam.y * z));
   E.draw(c, cr, {});
+  if (ed.night) {
+    // abyss: the body fades into the dark, only its own light remains
+    c.setTransform(sdpr, 0, 0, sdpr, 0, 0);
+    c.fillStyle = 'rgba(0,2,6,0.72)';
+    c.fillRect(0, 0, SW, SH);
+    c.setTransform(sdpr * z, 0, 0, sdpr * z, sdpr * (SW / 2 - cam.x * z), sdpr * (SH / 2 - cam.y * z));
+    E.draw(c, cr, { lit: true });
+  }
   c.globalCompositeOperation = 'lighter';
+  var gk = ed.night ? 1.6 : 0.8;
   E.eachGlow(cr.list, function (x, y, size, hue, a) {
-    c.globalAlpha = a * 0.8;
-    c.drawImage(glowSprite(hue), x - size / 2, y - size / 2, size, size);
+    c.globalAlpha = Math.min(1, a * gk);
+    c.drawImage(glowSprite(hue), x - size * gk / 2, y - size * gk / 2, size * gk, size * gk);
   });
   c.globalAlpha = 1;
   c.globalCompositeOperation = 'source-over';
