@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#02060c">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<!--artifact:start-->
+<title>Hydra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=Chakra+Petch:wght@400;600&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --abyss: #02060c;
+    --ink: #d9fff6;
+    --dim: #7fa9a6;
+    --biolum: #5ef2d6;
+    --coral: #ff5a7a;
+    --amber: #ffc857;
+    --panel: rgba(3, 18, 26, 0.74);
+    --line: rgba(94, 242, 214, 0.22);
+    --display: 'Syne', 'Trebuchet MS', sans-serif;
+    --ui: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
+  }
+  html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: var(--abyss);
+    color: var(--ink);
+    font-family: var(--ui);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    overscroll-behavior: none;
+  }
+  [hidden] { display: none !important; }
+  #c {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+  }
+  button { font: inherit; color: inherit; touch-action: manipulation; cursor: pointer; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--biolum); outline-offset: 2px; }
+
+  /* ---------- HUD ---------- */
+  #hud {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 10px) calc(env(safe-area-inset-right, 0px) + 14px) 0 calc(env(safe-area-inset-left, 0px) + 14px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    pointer-events: none;
+  }
+  #hud > * { pointer-events: auto; }
+  .gauge { display: grid; gap: 3px; min-width: 128px; pointer-events: none; }
+  .label, .meta {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  .depth {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 30px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 18px rgba(94, 242, 214, 0.45);
+  }
+  .depth::before { content: '−'; color: var(--biolum); }
+  .depth small { font-size: 14px; font-weight: 600; color: var(--dim); }
+  .hp {
+    height: 5px;
+    width: 128px;
+    border-radius: 3px;
+    background: rgba(94, 242, 214, 0.12);
+    overflow: hidden;
+  }
+  .hp i {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--biolum), #9ff7ff);
+    transform-origin: left center;
+    transition: transform 0.15s linear;
+  }
+  .hp i.low { background: var(--coral); }
+  .meta { letter-spacing: 0.08em; font-variant-numeric: tabular-nums; }
+  .meta b { color: var(--ink); font-weight: 600; }
+
+  .btns { display: flex; gap: 8px; order: 3; }
+  .round {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    display: grid;
+    place-items: center;
+    padding: 0;
+  }
+  .round svg { width: 18px; height: 18px; }
+  .round.off { color: var(--dim); }
+  .round.off .wave { display: none; }
+  .round:not(.off) .mute { display: none; }
+
+  #tray {
+    display: flex;
+    gap: 6px;
+    order: 4;
+    width: 100%;
+    justify-content: center;
+  }
+  @media (min-aspect-ratio: 4/3) {
+    #tray { order: 2; width: auto; }
+  }
+  .gene {
+    width: 76px;
+    height: 70px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 200, 87, 0.45);
+    background: rgba(40, 26, 4, 0.55);
+    display: grid;
+    grid-template-rows: 1fr auto auto;
+    padding: 4px 4px 5px;
+    gap: 1px;
+    text-align: center;
+    box-shadow: 0 0 16px rgba(255, 200, 87, 0.12) inset;
+  }
+  .gene canvas { width: 100%; height: 100%; min-height: 0; display: block; }
+  .gname {
+    font-size: 9px;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .glevel { font-size: 8px; color: var(--amber); letter-spacing: 0.05em; }
+  .gene.active {
+    border-color: var(--amber);
+    box-shadow: 0 0 18px rgba(255, 200, 87, 0.55);
+  }
+  .tray-hint {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255, 200, 87, 0.7);
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px dashed rgba(255, 200, 87, 0.3);
+    background: rgba(3, 18, 26, 0.45);
+  }
+
+  #graftBar {
+    position: fixed;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
+    transform: translateX(-50%);
+    width: min(92vw, 440px);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 10px 10px 16px;
+    border-radius: 14px;
+    background: var(--panel);
+    border: 1px solid rgba(255, 200, 87, 0.5);
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  #graftBar span { flex: 1; }
+  #graftBar b { color: var(--amber); font-weight: 600; }
+  .ghost {
+    border: 1px solid var(--line);
+    background: transparent;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  #toasts {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 190px);
+    display: grid;
+    justify-items: center;
+    gap: 6px;
+    pointer-events: none;
+    padding: 0 16px;
+  }
+  .toast {
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    animation: rise 0.25s ease-out;
+    transition: opacity 0.5s, transform 0.5s;
+    text-align: center;
+    width: max-content;
+    max-width: min(90vw, 420px);
+    box-sizing: border-box;
+  }
+  .toast.gene { border-color: rgba(255, 200, 87, 0.6); color: #ffe2a0; }
+  .toast.bad { border-color: rgba(255, 90, 122, 0.6); color: #ffb3c1; }
+  .toast.out { opacity: 0; transform: translateY(-8px); }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+
+  /* ---------- screens ---------- */
+  .screen {
+    position: fixed;
+    inset: 0;
+    overflow-y: auto;
+    display: grid;
+    place-items: center;
+    padding: calc(env(safe-area-inset-top, 0px) + 20px) 16px calc(env(safe-area-inset-bottom, 0px) + 20px);
+    box-sizing: border-box;
+    background: radial-gradient(ellipse at 50% 40%, rgba(2, 6, 12, 0.25), rgba(2, 6, 12, 0.82));
+  }
+  .card {
+    width: min(100%, 420px);
+    display: grid;
+    gap: 18px;
+  }
+  .brand {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(56px, 19vw, 96px);
+    line-height: 0.9;
+    letter-spacing: 0.04em;
+    margin: 0;
+    color: var(--ink);
+    text-shadow: 0 0 28px rgba(94, 242, 214, 0.55), 0 0 2px #fff;
+  }
+  .brand + p {
+    margin: -8px 0 0;
+    font-size: 12px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--biolum);
+  }
+  .lede { margin: 0; font-size: 15px; line-height: 1.5; color: #b9e3dc; max-width: 36ch; }
+  .controls { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .controls li {
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    gap: 10px;
+    align-items: baseline;
+    font-size: 13px;
+    line-height: 1.4;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+  }
+  .controls li b {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--biolum);
+    font-weight: 600;
+  }
+  .controls li:nth-child(2) b { color: var(--coral); }
+  .controls li:nth-child(4) b { color: var(--amber); }
+  .cta {
+    justify-self: start;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 20px;
+    letter-spacing: 0.08em;
+    padding: 14px 34px;
+    border-radius: 999px;
+    border: 0;
+    color: var(--abyss);
+    background: var(--biolum);
+    box-shadow: 0 0 30px rgba(94, 242, 214, 0.5);
+  }
+  .cta:active { transform: scale(0.97); }
+  .small { font-size: 11px; color: var(--dim); letter-spacing: 0.06em; margin: 0; }
+  h2 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 34px;
+    line-height: 1.05;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h2 em { font-style: normal; color: var(--biolum); }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin: 0;
+  }
+  .stats div { border-top: 1px solid var(--line); padding-top: 6px; }
+  .stats dt { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+  .stats dd { margin: 2px 0 0; font-family: var(--display); font-weight: 800; font-size: 26px; font-variant-numeric: tabular-nums; }
+  .record { color: var(--amber); font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; margin: 0; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .opt { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+  .opt input { width: 20px; height: 20px; accent-color: #5ef2d6; }
+  @media (prefers-reduced-motion: reduce) {
+    .toast { animation: none; transition: none; }
+  }
+</style>
+<!--artifact:head-end-->
+</head>
+<body>
+<!--artifact:body-start-->
+<canvas id="c" aria-label="Aire de jeu"></canvas>
+
+<div id="hud" hidden>
+  <div class="gauge">
+    <div class="label">Profondeur</div>
+    <div class="depth"><span id="depth">0</span><small> m</small></div>
+    <div class="hp"><i id="hpbar"></i></div>
+    <div class="meta"><b id="kills">0</b> proies · arbre <b id="tree">1</b> niv. · record <b id="best">0</b> m</div>
+  </div>
+  <div id="tray" aria-label="Gènes absorbés"></div>
+  <div class="btns">
+    <button id="btnSound" class="round" type="button" aria-label="Son" aria-pressed="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 9v6h4l5 4V5L8 9H4z"/>
+        <path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7"/>
+        <path class="mute" d="M17 9l5 6M22 9l-5 6"/>
+      </svg>
+    </button>
+    <button id="btnPause" class="round" type="button" aria-label="Pause">
+      <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+    </button>
+  </div>
+</div>
+
+<div id="graftBar" hidden>
+  <span><b>Greffe</b> : touche un point d'ancrage doré. Le bout d'un membre accepte aussi une branche.</span>
+  <button id="graftCancel" class="ghost" type="button">Annuler</button>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+
+<section id="title" class="screen">
+  <div class="card">
+    <h1 class="brand">HYDRA</h1>
+    <p>La lignée des abysses</p>
+    <p class="lede">Ton corps est un arbre de fouets. Tranche les membres des autres créatures, dévore-les et greffe leurs gènes sur toi. Chaque branche peut en porter une autre.</p>
+    <ul class="controls">
+      <li><b>Pouce gauche</b><span>Glisse pour nager.</span></li>
+      <li><b>Pouce droit</b><span>Touche pour foncer. Glisse pour choisir la direction.</span></li>
+      <li><b>Fouetter</b><span>Change brusquement de direction : le bout des tentacules claque et tranche.</span></li>
+      <li><b>Greffer</b><span>Touche un gène en haut, puis un point d'ancrage doré sur ton corps.</span></li>
+    </ul>
+    <button id="btnStart" class="cta" type="button">Plonger</button>
+    <p class="small">Record : −<span id="titleBest">0</span> m · plus bas, plus sombre, plus dangereux</p>
+  </div>
+</section>
+
+<section id="pause" class="screen" hidden>
+  <div class="card">
+    <h2>Pause</h2>
+    <label class="opt"><input id="optSound" type="checkbox"> Son</label>
+    <label class="opt"><input id="optGlow" type="checkbox"> Lueur (désactive-la si le jeu rame)</label>
+    <div class="row">
+      <button id="btnResume" class="cta" type="button">Reprendre</button>
+      <button id="btnQuit" class="ghost" type="button">Menu</button>
+    </div>
+  </div>
+</section>
+
+<section id="over" class="screen" hidden>
+  <div class="card">
+    <h2>La lignée s'éteint à <em>−<span id="overDepth">0</span> m</em></h2>
+    <p id="overRecord" class="record" hidden>Nouveau record</p>
+    <dl class="stats">
+      <div><dt>Créatures vaincues</dt><dd id="statKills">0</dd></div>
+      <div><dt>Morceaux dévorés</dt><dd id="statEaten">0</dd></div>
+      <div><dt>Greffes</dt><dd id="statGrafts">0</dd></div>
+      <div><dt>Arbre le plus haut</dt><dd id="statTree">1</dd></div>
+    </dl>
+    <button id="btnRetry" class="cta" type="button">Replonger</button>
+  </div>
+</section>
+
+<script src="hydra.js"></script>
+<!--artifact:body-end-->
+<script>
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  }
+</script>
+</body>
+</html>
