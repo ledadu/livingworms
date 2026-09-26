@@ -6,6 +6,8 @@ import * as THREE from 'three';
 import { TAU, clamp, lerp, rng } from '../engine';
 import { causticTile } from '../game/bake';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { moodAt, type HSL, type Mood } from '../game/palette';
+import { toonRamp } from './mesh';
 
 // ----- 2D value noise ----- //
 
@@ -23,8 +25,15 @@ export function noise2(x: number, y: number, s = 1): number {
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
-export const BOUNDS = { x0: -900, x1: 4300, z0: -1000, z1: 520 };
-export const DROP_X = 2400;
+export const BOUNDS = { x0: -900, x1: 5600, z0: -1000, z1: 520 };
+/** where the Récif begins (the 2D version's chapters, scaled to this world) */
+export const REEF_X = 2600;
+export const DROP_X = 1e9;
+
+/** the 2D chapter palettes, blended along x */
+export function mood3(x: number): Mood { return moodAt((x * 7000) / REEF_X); }
+export function col3(c: HSL, dl = 0): THREE.Color { return new THREE.Color().setHSL(c.h / 360, c.s / 100, clamp(c.l + dl, 0, 100) / 100); }
+export function reefT(x: number): number { return smooth(clamp((x - REEF_X + 300) / 600, 0, 1)); }
 
 /** the rise of the reef wall behind the swimming plane (0 in front) */
 function backWall(x: number, z: number): number {
@@ -32,13 +41,13 @@ function backWall(x: number, z: number): number {
   return t * (150 + noise2(x / 180, 7, 61) * 170 + (noise2(x / 45, z / 45, 62) - 0.5) * 30);
 }
 
-/** height of the sea floor (y up, surface at 0); the swimmer's plane is z = 0 */
+/** height of the sea floor (y up, surface at 0); the swimming plane is z = 0 */
 export function floorAt(x: number, z: number): number {
-  const drop = smooth(clamp((x - DROP_X) / 520, 0, 1));
+  const rt = reefT(x);
   const lagoon = -250 + (noise2(x / 260, z / 260, 3) - 0.5) * 60 + (noise2(x / 70, z / 70, 4) - 0.5) * 10;
-  const deep = -820 + (noise2(x / 300, z / 300, 5) - 0.5) * 120;
-  const edge = Math.max(0, -x - 600) * 0.6;
-  return Math.min(-6, lerp(lagoon, deep, drop) + backWall(x, z) * (1 - drop * 0.5) + edge);
+  const reef = -180 + (noise2(x / 200, z / 200, 5) - 0.5) * 70 + (noise2(x / 50, z / 50, 6) - 0.5) * 14;
+  const edge = Math.max(0, -x - 600) * 0.6 + Math.max(0, x - BOUNDS.x1 + 400) * 0.6;
+  return Math.min(-6, lerp(lagoon, reef, rt) + backWall(x, z) + edge);
 }
 
 // ----- palette ----- //
@@ -62,6 +71,7 @@ export const shared = {
 };
 
 export function withCaustics<T extends THREE.Material>(m: T, strength = 1): T {
+  m.customProgramCacheKey = () => 'caustics' + strength;
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = shared.time;
     sh.uniforms.uCaustic = shared.caustic;
@@ -89,22 +99,24 @@ export function makeTerrain(): THREE.Mesh {
   geo.translate(BOUNDS.x0 + W / 2, 0, BOUNDS.z0 + D / 2);
   const pos = geo.attributes.position as THREE.BufferAttribute, n = pos.count;
   const col = new Float32Array(n * 3), c = new THREE.Color();
+  let cm = mood3(0), cmx = 0;
   for (let i = 0; i < n; i++) {
     const x = pos.getX(i), z = pos.getZ(i), y = floorAt(x, z);
     pos.setY(i, y);
-    // ripples, crossed by patches of darker sand and rock
+    if (Math.abs(x - cmx) > 40) { cm = mood3(x); cmx = x; }
+    // ripples, crossed by patches of darker sand; the wall behind is rock
     const warp = noise2(x / 90, z / 90, 9) * 6;
     const rip = 0.5 + 0.5 * Math.sin((x * 0.55 + z * 0.2) / 3.2 + warp);
     const patch = noise2(x / 140, z / 140, 11);
-    c.copy(WATER.sand).lerp(WATER.sandDark, 0.25 + rip * 0.25 + patch * 0.3);
-    const rocky = Math.max(smooth(clamp((x - DROP_X + 60) / 300, 0, 1)), smooth(clamp((-z - 260) / 200, 0, 1)) * 0.9);
-    c.lerp(WATER.rock, rocky * 0.8);
-    if (patch > 0.68 && rocky < 0.3) c.lerp(WATER.moss, (patch - 0.68) * 2);
+    c.copy(col3(cm.sand, 4)).lerp(col3(cm.sand, -14), 0.2 + rip * 0.3 + patch * 0.3);
+    const wall = smooth(clamp((-z - 260) / 200, 0, 1));
+    c.lerp(col3(cm.rock, (noise2(x / 30, z / 30, 12) - 0.5) * 16), wall * 0.9);
+    if (patch > 0.7 && wall < 0.3) c.lerp(col3(cm.accents[0], -8), (patch - 0.7) * 1.5);
     col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
   }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   geo.computeVertexNormals();
-  const mat = withCaustics(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), 1);
+  const mat = withCaustics(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonRamp(), side: THREE.DoubleSide }), 1);
   return new THREE.Mesh(geo, mat);
 }
 
@@ -118,8 +130,9 @@ export function makeRocks(): { mesh: THREE.Mesh; rocks: Rock[] } {
   for (let k = 0; k < 150; k++) {
     const x = BOUNDS.x0 + 200 + R() * (BOUNDS.x1 - BOUNDS.x0 - 400), z = -800 + R() * 1000;
     if (Math.abs(x) < 200 && Math.abs(z) < 120) continue;
-    const big = x > DROP_X - 100 ? 1.8 : 1;
-    const r = (10 + R() * 26) * big * (R() < 0.12 ? 2.2 : 1);
+    const reef = reefT(x), m = mood3(x);
+    const r = (10 + R() * 26) * (1 + reef * 0.9) * (R() < 0.12 + reef * 0.2 ? 2.2 : 1);
+    const top = col3(m.accents[Math.floor(R() * m.accents.length)], reef > 0.5 ? 0 : -10);
     const g0 = new THREE.IcosahedronGeometry(r, 4);
     g0.deleteAttribute('normal'); g0.deleteAttribute('uv');
     const g = mergeVertices(g0);
@@ -130,8 +143,8 @@ export function makeRocks(): { mesh: THREE.Mesh; rocks: Rock[] } {
       const d = 1 + (noise2(vx / 9 + seed, vz / 9 + vy / 9, 21) - 0.5) * 0.5 + (noise2(vx / 3 + seed, vy / 3, 22) - 0.5) * 0.12;
       p.setXYZ(i, vx * d, vy * d * 0.62, vz * d);
       const up = vy / r;
-      c.copy(WATER.rock).multiplyScalar(0.75 + noise2(vx / 4 + seed, vz / 4, 23) * 0.5);
-      if (up > 0.35 && x < DROP_X) c.lerp(WATER.moss, (up - 0.35) * 1.4);
+      c.copy(col3(m.rock, (noise2(vx / 4 + seed, vz / 4, 23) - 0.5) * 18));
+      if (up > 0.4) c.lerp(top, Math.min(1, (up - 0.4) * 2.2));
       col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
     }
     g.setAttribute('color', new THREE.BufferAttribute(col, 3));
@@ -142,7 +155,12 @@ export function makeRocks(): { mesh: THREE.Mesh; rocks: Rock[] } {
     rocks.push({ x, z, r, top: y + r * 0.82, cy: y + r * 0.2 });
   }
   const merged = mergeGeometries(geos);
-  const mesh = new THREE.Mesh(merged, withCaustics(new THREE.MeshLambertMaterial({ vertexColors: true }), 0.8));
+  const mesh = new THREE.Mesh(merged, withCaustics(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonRamp() }), 0.8));
+  // ink outline, like the 2D drawing
+  const inkM = new THREE.MeshBasicMaterial({ color: 0x1a1612, side: THREE.BackSide });
+  inkM.customProgramCacheKey = () => 'rock-ink';
+  inkM.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += normalize(normal) * 0.9;'); };
+  mesh.add(new THREE.Mesh(merged, inkM));
   return { mesh, rocks };
 }
 
@@ -174,10 +192,10 @@ function mergeGeometries(list: THREE.BufferGeometry[]): THREE.BufferGeometry {
 export function makeMeadow(rocks: Rock[]): THREE.Mesh {
   const R = rng(5), SEG = 4;
   const pos: number[] = [], root: number[] = [], tt: number[] = [], col: number[] = [], idx: number[] = [];
-  const c = new THREE.Color(), base = new THREE.Color('#5f8a2c'), tip = new THREE.Color('#b9c95a');
+  const c = new THREE.Color(), nm = mood3(0), base = col3(nm.blades[1], -6), tip = col3(nm.blades[2], 12);
   let v = 0, blades = 0;
   for (let tries = 0; tries < 80000 && blades < 12000; tries++) {
-    const x = -700 + R() * (DROP_X + 500), z = -500 + R() * 800;
+    const x = -700 + R() * (REEF_X + 200), z = -500 + R() * 800;
     const m = noise2(x / 230, z / 230, 31);
     if (m < 0.5 || R() > (m - 0.5) * 3) continue;
     if (rocks.some((r) => Math.hypot(r.x - x, r.z - z) < r.r * 0.9)) continue;
@@ -209,7 +227,8 @@ export function makeMeadow(rocks: Rock[]): THREE.Mesh {
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   geo.setIndex(idx);
   geo.computeVertexNormals();
-  const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  const mat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonRamp(), side: THREE.DoubleSide });
+  mat.customProgramCacheKey = () => 'meadow';
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = shared.time;
     sh.uniforms.uPlayer = shared.player;
@@ -371,7 +390,7 @@ export function makeSargassum(): THREE.Mesh {
 
 export function makeRays(): THREE.Group {
   const g = new THREE.Group(), R = rng(13);
-  for (let k = 0; k < 34; k++) {
+  for (let k = 0; k < 50; k++) {
     const len = 700, w = 18 + R() * 40;
     const geo = new THREE.PlaneGeometry(w, len, 4, 6);
     const col = new Float32Array(geo.attributes.position.count * 4);
@@ -384,7 +403,7 @@ export function makeRays(): THREE.Group {
     geo.translate(0, -len / 2, 0);
     const mat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
     const m = new THREE.Mesh(geo, mat);
-    m.position.set(-600 + R() * 3600, 0, -700 + R() * 700);
+    m.position.set(-600 + R() * 6000, 0, -700 + R() * 700);
     m.rotation.set(0.12, (R() - 0.5) * 0.6, 0.3);
     m.userData.phase = R() * TAU;
     g.add(m);
@@ -413,10 +432,10 @@ export function makeSurface(): THREE.Mesh {
   geo.translate((BOUNDS.x0 + BOUNDS.x1) / 2, 0, (BOUNDS.z0 + BOUNDS.z1) / 2);
   const mat = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide,
-    uniforms: { uTime: shared.time, uShallow: { value: WATER.shallow }, uSky: { value: WATER.sky } },
+    uniforms: { uTime: shared.time, uShallow: { value: WATER.shallow.clone() }, uSky: { value: WATER.sky.clone() }, uFog: { value: new THREE.Color() } },
     vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position,1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
     fragmentShader: `
-      uniform float uTime; uniform vec3 uShallow; uniform vec3 uSky; varying vec3 vW;
+      uniform float uTime; uniform vec3 uShallow; uniform vec3 uSky; uniform vec3 uFog; varying vec3 vW;
       vec2 wav(vec2 p, float t){
         return vec2(sin(p.x*0.045 + t*1.3) + sin(p.y*0.061 - t*1.1)*0.6 + sin((p.x+p.y)*0.13 + t*2.1)*0.25,
                     cos(p.y*0.05 + t*1.2) + cos(p.x*0.07 - t*0.9)*0.6 + cos((p.x-p.y)*0.11 + t*1.8)*0.25);
@@ -442,6 +461,9 @@ export function makeSurface(): THREE.Mesh {
           float lines = pow(abs(sin(q.x + sin(q.y * 1.3 + uTime * 0.8))), 12.0) + pow(abs(sin(q.y * 1.1 - uTime * 0.6 + sin(q.x))), 12.0);
           vec3 base = mix(uShallow * 1.05, uSky, 0.3 + win * 0.6);
           vec3 c = base + uSky * lines * 0.35;
+          // far away the surface melts into the water
+          float fd = length(cameraPosition - vW) * 0.0022;
+          c = mix(c, uFog, 1.0 - exp(-fd * fd));
           gl_FragColor = vec4(c, 0.92);
         }
       }`

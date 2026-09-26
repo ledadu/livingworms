@@ -5,7 +5,7 @@
 // so that the stroke reads from above.
 
 import * as THREE from 'three';
-import { Creature, TAU, hash, type Seg } from '../engine';
+import { Creature, TAU, hash, isMirrored, type Seg } from '../engine';
 
 type RGBA = [number, number, number, number];
 
@@ -49,9 +49,34 @@ interface LayerBuf {
   nor: Float32Array;
 }
 
-const sphere = new THREE.SphereGeometry(1, 12, 8);
-const white = new THREE.MeshStandardMaterial({ color: 0xfff6ea, roughness: 0.3 });
-const black = new THREE.MeshStandardMaterial({ color: 0x03060c, roughness: 0.15 });
+const sphere = new THREE.SphereGeometry(1, 14, 10);
+const white = new THREE.MeshBasicMaterial({ color: 0xfbf6ec });
+const black = new THREE.MeshBasicMaterial({ color: 0x05080f });
+const eyeRim = new THREE.MeshBasicMaterial({ color: 0x0a0e18, side: THREE.BackSide });
+
+/** ink: a slightly inflated copy drawn inside out, in a dark tone of each part's colour */
+export const ink = { width: { value: 0.7 } };
+function inkMaterial(): THREE.MeshBasicMaterial {
+  const m = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide });
+  m.customProgramCacheKey = () => 'ink';
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uInk = ink.width;
+    sh.vertexShader = 'uniform float uInk;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      vec4 inkMv = modelViewMatrix * vec4(position, 1.0);
+      transformed += normalize(normal) * uInk * clamp(-inkMv.z / 300.0, 0.4, 3.0);`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb *= 0.22;');
+  };
+  return m;
+}
+const inkMat = inkMaterial();
+
+export interface MeshOptions {
+  /** swims in a vertical plane facing the camera (true), or lies flat on the floor */
+  vertical?: boolean;
+  /** rings per link: 3 for creatures, less for plants */
+  sub?: number;
+  outline?: boolean;
+}
 
 function classify(s: Seg): { M: number; thick: number; minR: number; flap: number } {
   const d = s.def, role = d.role;
@@ -69,6 +94,8 @@ function classify(s: Seg): { M: number; thick: number; minR: number; flap: numbe
 
 export class CreatureMesh {
   cr: Creature;
+  /** place and turn the creature with this one */
+  root = new THREE.Group();
   group = new THREE.Group();
   /** height of the creature's plane */
   y = 0;
@@ -80,8 +107,10 @@ export class CreatureMesh {
    * vertical: the creature swims in a vertical plane facing the camera (engine y
    * points down); otherwise it lies flat (floor crawlers), engine y along +z.
    */
-  constructor(cr: Creature, mats: THREE.Material[], vertical = true) {
+  constructor(cr: Creature, mats: THREE.Material[], o: MeshOptions = {}) {
     this.cr = cr;
+    const vertical = o.vertical !== false, outline = o.outline !== false;
+    this.root.add(this.group);
     if (vertical) this.group.rotation.x = Math.PI / 2;
     const parts: Part[][] = [[], [], []];
     for (const s of cr.list) {
@@ -89,7 +118,7 @@ export class CreatureMesh {
       const cols = s.cols.map(parseHsla);
       const alpha = cols[0][3];
       const layer: Layer = d.color.add ? 2 : alpha < 0.97 || d.color.fade > 0 ? 1 : 0;
-      const sub = d.style === 'line' ? (s.n > 12 ? 1 : 2) : s.n > 20 ? 2 : 3, S = s.n * sub;
+      const sub = o.sub ? Math.min(o.sub, d.style === 'line' ? 1 : 3) : d.style === 'line' ? (s.n > 12 ? 1 : 2) : s.n > 20 ? 2 : 3, S = s.n * sub;
       const nv = (S + 1) * c.M + 2;
       const col = new Float32Array(nv * 4);
       const pat = parseHsla(s.patCol), edge = parseHsla(s.edgeCol);
@@ -107,7 +136,7 @@ export class CreatureMesh {
           else if (p === 'edge' && Math.abs(sd) > 0.85) rgba = pat;
           else if ((p === 'spots' || p === 'ocelli') && up > 0 && hash(i * 31 + j, s.k + 7) < 0.18) rgba = pat;
           // undersides are darker, like countershading
-          const dim = up < -0.3 ? 0.6 : 1;
+          const dim = !vertical && up < -0.3 ? 0.6 : 1;
           const k = (i * c.M + j) * 4;
           col[k] = rgba[0] * dim; col[k + 1] = rgba[1] * dim; col[k + 2] = rgba[2] * dim; col[k + 3] = rgba[3];
           if (d.style === 'plates' && Math.floor(i / sub) % 2 && up > 0) { col[k] *= 0.8; col[k + 1] *= 0.8; col[k + 2] *= 0.8; }
@@ -116,7 +145,12 @@ export class CreatureMesh {
       }
       // caps
       for (const [vi, ci] of [[nv - 2, 0], [nv - 1, s.n]]) col.set(cols[ci], vi * 4);
-      const lift = s.parent ? (s.att?.front ? 0.4 : -0.4) * Math.min(3, s.depth) : 0;
+      // in profile the far copy of a pair sits behind the body, the near one in front
+      const pr = s.parent ? s.parent.maxRad : 0;
+      const lift = !s.parent ? 0
+        : cr.profile && s.far ? -(pr * 0.55 + 0.6)
+          : cr.profile && s.att && isMirrored(s.att) ? pr * 0.45 + 0.4
+            : (s.att?.front ? 0.4 : -0.4) * Math.min(3, s.depth);
       parts[layer].push({ s, layer, ...c, sub, lift, v0: 0, cols: col });
       if (d.style === 'eye') {
         const w = new THREE.Mesh(sphere, white), p = new THREE.Mesh(sphere, black);
@@ -158,13 +192,18 @@ export class CreatureMesh {
       mesh.frustumCulled = false;
       mesh.renderOrder = L;
       this.group.add(mesh);
+      if (outline && L === 0) {
+        const o2 = new THREE.Mesh(geo, inkMat);
+        o2.frustumCulled = false;
+        this.group.add(o2);
+      }
       this.layers.push({ parts: list, nv, geo, mesh, pos, nor });
     }
     if (cr.spec.eyes.on) {
-      for (let k = 0; k < 2; k++) {
-        const w = new THREE.Mesh(sphere, white), p = new THREE.Mesh(sphere, black);
-        this.group.add(w, p);
-        this.eyes.push(w, p);
+      for (let k = 0; k < (cr.profile ? 1 : 2); k++) {
+        const w = new THREE.Mesh(sphere, white), p = new THREE.Mesh(sphere, black), rim = new THREE.Mesh(sphere, eyeRim);
+        this.group.add(w, p, rim);
+        this.eyes.push(w, p, rim);
       }
     }
   }
@@ -228,31 +267,54 @@ export class CreatureMesh {
       e.p.scale.setScalar(r * 0.55);
     }
     if (this.eyes.length) {
-      const e = this.cr.spec.eyes, r = this.cr.root, h = this.cr.heading(), rad = r.rad[0];
-      const fx = Math.cos(h), fz = Math.sin(h), px = -fz, pz = fx, er = Math.max(0.8, rad * 0.27 * e.size);
-      for (let sd = 0; sd < 2; sd++) {
-        const sg = sd ? 1 : -1;
-        const ex = r.x[0] + fx * rad * e.fwd + px * rad * e.spread * sg;
-        const ez = r.y[0] + fz * rad * e.fwd + pz * rad * e.spread * sg;
-        const ey = Y + rad * 0.45;
-        this.eyes[sd * 2].position.set(ex, ey, ez);
-        this.eyes[sd * 2].scale.setScalar(er);
-        this.eyes[sd * 2 + 1].position.set(ex + fx * er * 0.35, ey + er * 0.55, ez + fz * er * 0.35);
-        this.eyes[sd * 2 + 1].scale.setScalar(er * 0.55);
+      const e = this.cr.spec.eyes, cr = this.cr, r = cr.root, h = cr.heading(), rad = r.rad[0];
+      const fx = Math.cos(h), fz = Math.sin(h);
+      if (cr.profile) {
+        // one eye on the near side, a little toward the back, looking ahead
+        const side = cr.facing >= 0 ? 1 : -1, bx = -side * Math.sin(h), bz = side * Math.cos(h);
+        const er = Math.max(1, rad * 0.36 * e.size);
+        const ex = r.x[0] + fx * rad * (e.fwd + 0.1) + bx * rad * 0.22, ez = r.y[0] + fz * rad * (e.fwd + 0.1) + bz * rad * 0.22;
+        const ey = Y + rad * 0.5;
+        this.eyes[0].position.set(ex, ey, ez); this.eyes[0].scale.set(er, er * 0.6, er);
+        this.eyes[1].position.set(ex + fx * er * 0.32, ey + er * 0.45, ez + fz * er * 0.32); this.eyes[1].scale.setScalar(er * 0.55);
+        this.eyes[2].position.set(ex, ey, ez); this.eyes[2].scale.set(er * 1.18, er * 0.7, er * 1.18);
+      } else {
+        const px = -fz, pz = fx, er = Math.max(0.8, rad * 0.27 * e.size);
+        for (let sd = 0; sd < 2; sd++) {
+          const sg = sd ? 1 : -1;
+          const ex = r.x[0] + fx * rad * e.fwd + px * rad * e.spread * sg;
+          const ez = r.y[0] + fz * rad * e.fwd + pz * rad * e.spread * sg;
+          const ey = Y + rad * 0.45;
+          this.eyes[sd * 3].position.set(ex, ey, ez);
+          this.eyes[sd * 3].scale.setScalar(er);
+          this.eyes[sd * 3 + 1].position.set(ex + fx * er * 0.35, ey + er * 0.55, ez + fz * er * 0.35);
+          this.eyes[sd * 3 + 1].scale.setScalar(er * 0.55);
+          this.eyes[sd * 3 + 2].position.set(ex, ey, ez);
+          this.eyes[sd * 3 + 2].scale.setScalar(er * 1.18);
+        }
       }
     }
   }
 
   dispose(): void {
     for (const L of this.layers) L.geo.dispose();
-    this.group.removeFromParent();
+    this.root.removeFromParent();
   }
+}
+
+/** a three-step light ramp: flat, drawn-looking shading */
+export function toonRamp(): THREE.Texture {
+  const t = new THREE.DataTexture(new Uint8Array([90, 90, 90, 255, 175, 175, 175, 255, 255, 255, 255, 255]), 3, 1, THREE.RGBAFormat);
+  t.minFilter = t.magFilter = THREE.NearestFilter;
+  t.needsUpdate = true;
+  return t;
 }
 
 /** the three shared materials: opaque, translucent, additive */
 export function creatureMaterials(): THREE.Material[] {
-  const opaque = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.05 });
-  const trans = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+  const ramp = toonRamp();
+  const opaque = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: ramp });
+  const trans = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: ramp, transparent: true, depthWrite: false, side: THREE.DoubleSide });
   const add = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
   return [opaque, trans, add];
 }
