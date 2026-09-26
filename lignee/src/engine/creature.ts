@@ -12,18 +12,6 @@ function rowCurve(w: number): number {
   return -1 + 2 * u * u * (3 - 2 * u);
 }
 
-/** attachments that come as mirrored copies on both sides of the parent */
-function isMirrored(a: AttDef): boolean {
-  return a.pattern === 'pair' || ((a.pattern === 'fan' || a.pattern === 'series') && a.mirror && !a.alternate);
-}
-
-/** in profile: 1 = both copies under the belly, -1 = both on the back, 0 = one each side */
-function lateralOf(d: NodeDef): number {
-  if (d.style === 'eye') return -1;
-  if (d.role === 'sense' || d.role === 'whip' || d.role === 'sting' || d.role === 'light' || d.role === 'cilia') return 0;
-  return 1;
-}
-
 export class Seg {
   def: NodeDef;
   att: AttDef | null;
@@ -54,8 +42,6 @@ export class Seg {
   box: Box;
   maxRad = 0;
   hue = 0;
-  /** profile view: the copy on the far side of the body (drawn behind, darker) */
-  far = false;
   cols: string[] = [];
   edgeCol = ''; shineCol = ''; patCol = ''; webCol = '';
   children: Seg[] = [];
@@ -63,20 +49,6 @@ export class Seg {
   constructor(def: NodeDef, a: AttDef | null, parent: Seg | null, slot: Slot, flip: number, scale: number,
     x: number, y: number, dir: number, creature: Creature) {
     const n = Math.max(1, def.links);
-    // profile view: mirrored copies are folded onto one side of the body
-    // (legs and fins under the belly, eye stalks on the back), the far one
-    // slightly behind and darker
-    if (creature.profile && parent && a && isMirrored(a)) {
-      const L = lateralOf(def), farSide = slot.side < 0;
-      if (L !== 0) {
-        if (slot.side !== L) { slot = { ...slot, angle: -slot.angle, edge: -slot.edge, side: L }; flip = -flip; }
-        if (farSide) {
-          this.far = true;
-          scale *= 0.9;
-          slot = { ...slot, at: Math.min(parent.n, slot.at + 1) };
-        }
-      }
-    }
     this.def = def;
     this.att = a;
     this.parent = parent;
@@ -142,8 +114,7 @@ export class Seg {
   }
 
   paint(pal: PaletteSlot[]): void {
-    const c = this.def.color, sl0 = pal[c.slot] || pal[0], n = this.n;
-    const sl = this.far ? { h: sl0.h, s: sl0.s * 0.85, l: Math.max(4, sl0.l - 14) } : sl0;
+    const c = this.def.color, sl = pal[c.slot] || pal[0], n = this.n;
     const h = (((sl.h + c.shift + this.hueOff) % 360) + 360) % 360;
     const ps = pal[c.pslot] || pal[3], ph = (((ps.h + c.shift + this.hueOff) % 360) + 360) % 360;
     this.hue = h;
@@ -166,7 +137,6 @@ export class Seg {
     const d = this.def, m = d.motion, n = this.n, x = this.x, y = this.y, ox = this.ox, oy = this.oy;
     const ang = this.ang, rad = this.rad;
     const w = TAU * m.freq * time + this.phase;
-    const F = this.creature.facing, flipF = this.flip * F;
     let fixed: number | null = null;
 
     this.pulse = m.type === 'pulse' || m.type === 'breathe' ? m.amp * (0.5 + 0.5 * Math.sin(w)) : 0;
@@ -174,9 +144,9 @@ export class Seg {
     if (this.parent) {
       const p = this.parent, k = this.at, pa = p.ang[k];
       let px = p.x[k], py = p.y[k];
-      fixed = pa + this.rel * F;
+      fixed = pa + this.rel;
       if (this.edge) {
-        const pr = p.rad[k] * (1 + p.pulse * (p.pulseU ? 1 : k / p.n)) * this.edge * F;
+        const pr = p.rad[k] * (1 + p.pulse * (p.pulseU ? 1 : k / p.n)) * this.edge;
         if (this.radial) {
           // ring: pushed outward along its own direction (starfish arms on the disc rim)
           px += Math.cos(fixed) * pr;
@@ -193,14 +163,14 @@ export class Seg {
       fixed = this.anchor;
     }
     if (fixed !== null) {
-      if (m.type === 'wave') fixed += m.amp * Math.sin(w) * flipF;
-      else if (m.type === 'row') fixed += m.amp * rowCurve(w) * flipF;
-      else if (m.type === 'flutter') fixed += m.amp * (0.6 * Math.sin(w) + 0.4 * Math.sin(w * 2.7 + 1.3)) * flipF;
+      if (m.type === 'wave') fixed += m.amp * Math.sin(w) * this.flip;
+      else if (m.type === 'row') fixed += m.amp * rowCurve(w) * this.flip;
+      else if (m.type === 'flutter') fixed += m.amp * (0.6 * Math.sin(w) + 0.4 * Math.sin(w * 2.7 + 1.3)) * this.flip;
     }
 
     const drag = d.drag, grav = d.gravity + this.sink, amax = this.amax, keep = 1 - d.spring;
     const lens = this.lens, bends = this.bends, soak = 0.2 + 0.4 * d.flex;
-    const extra = m.type === 'curl' ? ((m.amp * (0.5 + 0.5 * Math.sin(w)) * flipF) / n) * 2 : 0;
+    const extra = m.type === 'curl' ? ((m.amp * (0.5 + 0.5 * Math.sin(w)) * this.flip) / n) * 2 : 0;
     const und = m.type === 'undulate' ? m.amp * 0.5 : 0, wk = (TAU * m.wave) / n;
     let minx = x[0] - rad[0], maxx = x[0] + rad[0], miny = y[0] - rad[0], maxy = y[0] + rad[0];
 
@@ -215,7 +185,7 @@ export class Seg {
         if (fixed !== null) a = fixed;
       } else {
         // shape memory: pulled toward the rest bend, never further than amax from it
-        const tgt = bends[i] * F + extra + (und ? und * Math.sin(w - i * wk) : 0);
+        const tgt = bends[i] + extra + (und ? und * Math.sin(w - i * wk) : 0);
         let dd = wrapAngle(a - ang[i - 1]) - tgt;
         if (dd > amax) dd = amax;
         else if (dd < -amax) dd = -amax;
@@ -248,11 +218,7 @@ export class Seg {
   }
 }
 
-export interface CreatureOptions {
-  dir?: number; phase?: number; scale?: number; anchor?: number;
-  /** seen from the side: one eye, limbs folded under the belly, turns around */
-  profile?: boolean;
-}
+export interface CreatureOptions { dir?: number; phase?: number; scale?: number; anchor?: number; }
 
 export class Creature {
   spec: Spec;
@@ -265,19 +231,9 @@ export class Creature {
   root: Seg;
   dartT = 0;
   dartWait = 1;
-  profile: boolean;
-  /** which way the belly faces, eased between -1 and 1 while turning around */
-  facing = 1;
-  private facingTarget = 1;
 
   constructor(sp: Spec, x: number, y: number, o: CreatureOptions = {}) {
     this.spec = sp;
-    this.profile = !!o.profile;
-    if (this.profile) {
-      // start with the belly down
-      const pa = (o.dir === undefined ? Math.PI / 2 : o.dir);
-      this.facing = this.facingTarget = Math.cos(pa) >= 0 ? 1 : -1;
-    }
     this.pal = palette(sp.palette);
     this.phase = o.phase === undefined ? rand(0, TAU) : o.phase;
     this.box = [x, y, x, y];
@@ -299,12 +255,6 @@ export class Creature {
     r.ox[0] = r.x[0]; r.oy[0] = r.y[0];
     r.x[0] += this.vx; r.y[0] += this.vy;
     if (minY !== undefined && r.y[0] < minY) { r.y[0] = minY; if (this.vy < 0) this.vy *= -0.3; }
-    if (this.profile) {
-      // the belly stays down: turn around when the body points the other way
-      const c = Math.cos(r.ang[1]);
-      if (c > 0.3) this.facingTarget = 1; else if (c < -0.3) this.facingTarget = -1;
-      this.facing += (this.facingTarget - this.facing) * 0.12;
-    }
     r.update(time);
     const b = this.box, l = this.list;
     b[0] = b[1] = Infinity; b[2] = b[3] = -Infinity;

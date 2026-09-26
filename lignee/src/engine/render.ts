@@ -13,11 +13,7 @@ export interface DrawOptions {
   bright?: boolean;
   /** only what makes its own light (translucent additive parts, glowing parts) */
   lit?: boolean;
-  /** cartoon look: a darker, thicker outline */
-  ink?: boolean;
 }
-
-let ink = false;
 
 // scratch outline buffers, shared by every draw call
 const L = { x: new Float32Array(64), y: new Float32Array(64) };
@@ -64,18 +60,10 @@ function drawRibbon(ctx: Ctx, s: Seg): void {
     ctx.fillStyle = s.cols[0];
   }
   ctx.fill();
-  if (ink && !s.def.color.add) {
-    ctx.lineWidth = Math.max(minWidth(ctx) * 1.3, Math.min(1.6, 0.35 + s.maxRad * 0.13));
-    ctx.lineJoin = 'round';
+  if (s.maxRad > 1.2) {
+    ctx.lineWidth = Math.max(0.3, s.maxRad * 0.07);
     ctx.strokeStyle = s.edgeCol;
     ctx.stroke();
-  }
-  if (s.maxRad > 1.2) {
-    if (!ink) {
-      ctx.lineWidth = Math.max(0.3, s.maxRad * 0.07);
-      ctx.strokeStyle = s.edgeCol;
-      ctx.stroke();
-    }
     drawMotif(ctx, s, flat);
     ribbonPath(ctx, s, 0.36, 0.34, flat);
     ctx.fillStyle = s.shineCol;
@@ -85,7 +73,7 @@ function drawRibbon(ctx: Ctx, s: Seg): void {
 
 function drawPlates(ctx: Ctx, s: Seg): void {
   const n = s.n, x = s.x, y = s.y, rad = s.rad, pl = s.pulse;
-  ctx.lineWidth = ink ? Math.max(minWidth(ctx) * 1.3, Math.min(1.5, 0.3 + s.maxRad * 0.12)) : Math.max(0.3, s.maxRad * 0.08);
+  ctx.lineWidth = Math.max(0.3, s.maxRad * 0.08);
   ctx.strokeStyle = s.edgeCol;
   for (let i = n; i >= 1; i--) {
     const r = Math.max(rad[i - 1], rad[i]) * (1 + pl * (s.pulseU ? 1 : i / n));
@@ -281,11 +269,8 @@ function drawSelf(ctx: Ctx, s: Seg, o: DrawOptions): void {
 /** parts attached "behind" are drawn before their parent, the others after */
 export function drawSeg(ctx: Ctx, s: Seg, o: DrawOptions = {}): void {
   const ch = s.children;
-  if (!s.parent) ink = !!o.ink;
   drawWebs(ctx, s, false, o);
-  // far copies (profile view) first, so the near ones and the body cover them
-  for (const c of ch) if (c.far && !c.att?.front) drawSeg(ctx, c, o);
-  for (const c of ch) if (!c.far && !c.att?.front) drawSeg(ctx, c, o);
+  for (const c of ch) if (!c.att?.front) drawSeg(ctx, c, o);
   if (inView(s.box, o.view)) drawSelf(ctx, s, o);
   drawWebs(ctx, s, true, o);
   for (const c of ch) if (c.att?.front) drawSeg(ctx, c, o);
@@ -299,24 +284,6 @@ function drawEyes(ctx: Ctx, cr: Creature, bright?: boolean): void {
   const e = cr.spec.eyes;
   if (!e.on) return;
   const r = cr.root, h = cr.heading(), rad = r.rad[0];
-  if (cr.profile) {
-    // one eye, a little toward the back, looking ahead
-    const fx = Math.cos(h), fy = Math.sin(h), side = cr.facing >= 0 ? 1 : -1;
-    // the back is opposite the belly: belly normal = side * (-sin pa, cos pa), pa = h - PI
-    const bx = -side * Math.sin(h), by = side * Math.cos(h);
-    const er = Math.max(1, rad * 0.36 * e.size);
-    const ex = r.x[0] + fx * rad * (e.fwd + 0.1) + bx * rad * 0.22, ey = r.y[0] + fy * rad * (e.fwd + 0.1) + by * rad * 0.22;
-    ctx.fillStyle = bright ? '#f4fffd' : '#fbf6ec';
-    ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU); ctx.fill();
-    ctx.lineWidth = Math.max(minWidth(ctx), er * 0.16);
-    ctx.strokeStyle = 'rgba(10,14,24,0.55)';
-    ctx.stroke();
-    ctx.fillStyle = '#05080f';
-    ctx.beginPath(); ctx.arc(ex + fx * er * 0.32, ey + fy * er * 0.32, er * 0.56, 0, TAU); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.95)';
-    ctx.beginPath(); ctx.arc(ex + fx * er * 0.12 - er * 0.18, ey + fy * er * 0.12 - er * 0.22, er * 0.2, 0, TAU); ctx.fill();
-    return;
-  }
   const fx = Math.cos(h), fy = Math.sin(h), px = -fy, py = fx, er = Math.max(0.8, rad * 0.27 * e.size);
   for (let sd = -1; sd <= 1; sd += 2) {
     const ex = r.x[0] + fx * rad * e.fwd + px * rad * e.spread * sd;
