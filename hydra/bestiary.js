@@ -1143,9 +1143,9 @@ var FUSIONS = [
 
 var NUM_KEYS = ['links', 'len', 'width', 'flex', 'spring', 'curl', 'curlBias', 'drag', 'lenTo', 'gravity'];
 
-function blendName(a, b, share) {
-  var wa = a.split(' ')[0], wb = b.split(' ')[0];
-  var cutA = Math.max(2, Math.round(wa.length * (1 - share * 0.6) * 0.6)), cutB = Math.round(wb.length * 0.5);
+function blendName(a, b, share, R) {
+  var wa = a.split(' ')[0], wb = b.split(' ')[0], j = R ? Math.floor(R() * 3) - 1 : 0;
+  var cutA = Math.max(2, Math.round(wa.length * (1 - share * 0.6) * 0.6) + j), cutB = E.clamp(Math.round(wb.length * 0.5) - j, 1, wb.length - 1);
   var n = wa.slice(0, cutA) + wb.slice(cutB);
   return n.charAt(0).toUpperCase() + n.slice(1).toLowerCase();
 }
@@ -1205,7 +1205,7 @@ function fuse(a, b, o) {
       light: Math.round(E.lerp(A.palette.light, B.palette.light, sh))
     };
   }
-  out.name = blendName(A.name, B.name, sh);
+  out.name = blendName(A.name, B.name, sh, R);
   out.gen = null;
   out = spec(out);
   var guard = 0;
