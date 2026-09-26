@@ -391,7 +391,17 @@ function tick() {
   manageChunks();
 
   var p = ex.player;
-  G.playerControl(p, t);
+  if (touch.follow) {
+    // like "Guider" in the workshop: the animal swims toward the finger
+    var w = G.screenToWorld(touch.follow.x, touch.follow.y);
+    var dx = w.x - p.root.x[0], dy = w.y - p.root.y[0], d = Math.hypot(dx, dy) || 1;
+    var sp = 3 * (1 + Math.min(0.8, 0.06 * p.stats.fin)) * Math.min(1, d / 90);
+    p.update(t, dx / d * sp, dy / d * sp, 0.09, 24);
+  } else if (touch.active) {
+    p.update(t, 0, 0, 0.05, 24);
+  } else {
+    G.playerControl(p, t);
+  }
   clampFloor(p);
 
   var fauna = allFauna();
@@ -636,7 +646,7 @@ function render() {
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
 
-  if (G.state.mode === 'explore') G.drawTouchControls();
+  if (G.state.mode === 'explore') drawGuide();
 }
 
 // ----- HUD ----- //
@@ -662,9 +672,72 @@ function renderCard() {
   E.snapshot(c.spec, card.querySelector('canvas'), { pad: 4 });
 }
 
+// ----- touch: one finger guides, a quick tap selects, two fingers zoom ----- //
+
+var touch = { pts: {}, follow: null, pinch: null, active: false };
+
+function pointer(type, e) {
+  var pts = touch.pts, ids;
+  if (e.pointerType === 'mouse') {
+    if (type === 'down') pts.m = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now() };
+    else if (type === 'move') G.input.mouse = { x: e.clientX, y: e.clientY };
+    else if (pts.m) {
+      if (Math.hypot(e.clientX - pts.m.sx, e.clientY - pts.m.sy) < 8) tap(e);
+      delete pts.m;
+    }
+    return;
+  }
+  if (type === 'down') {
+    pts[e.pointerId] = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now() };
+    touch.active = true;
+  } else if (type === 'move') {
+    if (!pts[e.pointerId]) return;
+    pts[e.pointerId].x = e.clientX;
+    pts[e.pointerId].y = e.clientY;
+  } else {
+    var pt = pts[e.pointerId];
+    if (pt && !touch.pinch && Math.hypot(pt.x - pt.sx, pt.y - pt.sy) < 12 && performance.now() - pt.t < 300) tap(e);
+    delete pts[e.pointerId];
+  }
+  ids = Object.keys(pts);
+  if (ids.length >= 2) {
+    var a = pts[ids[0]], b = pts[ids[1]], dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+    if (!touch.pinch) touch.pinch = { d: dist, z: G.zoomMul };
+    ex.zoom = G.setZoomMul(touch.pinch.z * dist / touch.pinch.d);
+    touch.follow = null;
+  } else if (ids.length === 1) {
+    var one = pts[ids[0]];
+    // after a pinch, the remaining finger must move before it guides again
+    if (touch.pinch) { touch.pinch = null; one.sx = one.x; one.sy = one.y; one.held = true; }
+    if (!one.held || Math.hypot(one.x - one.sx, one.y - one.sy) > 12) { one.held = false; touch.follow = one; }
+  } else {
+    touch.follow = null;
+    touch.pinch = null;
+    touch.active = false;
+  }
+}
+
+function wheel(dy) {
+  ex.zoom = G.setZoomMul(G.zoomMul * Math.exp(-dy * 0.0015));
+}
+
+function drawGuide() {
+  var f = touch.follow;
+  if (!f) return;
+  var ctx = G.ctx;
+  ctx.setTransform(G.dpr, 0, 0, G.dpr, 0, 0);
+  ctx.strokeStyle = 'rgba(94,242,214,0.55)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(f.x, f.y, 26, 0, TAU);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(94,242,214,0.25)';
+  ctx.beginPath();
+  ctx.arc(f.x, f.y, 8, 0, TAU);
+  ctx.fill();
+}
+
 function tap(e) {
-  // right half (or mouse): tapping an animal selects it instead of dashing
-  if (e.pointerType !== 'mouse' && e.clientX < G.W * 0.5) return false;
   var w = G.screenToWorld(e.clientX, e.clientY), tol = 18 / G.zoom, best = null, bd = Infinity;
   allFauna().forEach(function (c) {
     var b = c.box;
@@ -686,6 +759,7 @@ function tap(e) {
 
 function setExMode(m) {
   G.setMode(m);
+  touch.pts = {}; touch.follow = null; touch.pinch = null; touch.active = false;
   $('exMenu').hidden = m !== 'explore-menu';
   $('exCarnet').hidden = m !== 'explore-carnet';
   if (m === 'explore') updateHud();
@@ -776,6 +850,7 @@ function buildWorld(sp) {
 
 function start() {
   G.immersive();
+  ex.zoom = G.setZoomMul(ex.zoom || 1);
   loadCarnet();
   ex.seed = parseInt(G.store('hydra.seed') || '0', 10) || newSeed();
   G.store('hydra.seed', String(ex.seed));
@@ -784,7 +859,7 @@ function start() {
   $('exCount').textContent = ex.carnetList.length;
   renderCard();
   setExMode('explore');
-  G.toast('Touche un animal pour le voir, approche-toi pour devenir lui');
+  G.toast('Garde le doigt posé : ton animal le suit. Pince pour zoomer, touche un animal pour le voir.');
 }
 
 function frame(dt) {
@@ -825,6 +900,6 @@ $('exQuit').addEventListener('click', function () {
   G.toTitle();
 });
 
-window.HydraExplore = { start: start, frame: frame, tap: tap, menu: menu, get state() { return ex; }, floorY: floorY, BIOMES: BIOMES };
+window.HydraExplore = { start: start, frame: frame, tap: tap, pointer: pointer, wheel: wheel, menu: menu, get state() { return ex; }, floorY: floorY, BIOMES: BIOMES };
 
 })();

@@ -117,7 +117,7 @@ var canvas = document.getElementById('c'),
 
 var hasFilter = typeof bctx.filter === 'string';
 
-var W = 0, H = 0, dpr = 1, zoom = 1;
+var W = 0, H = 0, dpr = 1, zoom = 1, baseZoom = 1, zoomMul = 1;
 var quality = { level: 2, glow: store('hydra.glow') !== '0' };
 var touchUI = matchMedia('(pointer: coarse)').matches;
 
@@ -129,7 +129,8 @@ function resize() {
   canvas.height = Math.round(H * dpr);
   bloom.width = Math.max(1, Math.round(W / 5));
   bloom.height = Math.max(1, Math.round(H / 5));
-  zoom = clamp(Math.min(W, H) / 440, 0.6, 2.2);
+  baseZoom = clamp(Math.min(W, H) / 440, 0.6, 2.2);
+  zoom = baseZoom * zoomMul;
 }
 window.addEventListener('resize', resize);
 resize();
@@ -498,6 +499,7 @@ function requestDash(dx, dy) {
 
 canvas.addEventListener('pointerdown', function (e) {
   e.preventDefault();
+  if (state.mode === 'explore' && window.HydraExplore) { ensureAudio(); HydraExplore.pointer('down', e); return; }
   ensureAudio();
   if (state.mode === 'graft') {
     var w = screenToWorld(e.clientX, e.clientY), bestPt = null, bestD = 38 / zoom;
@@ -508,7 +510,6 @@ canvas.addEventListener('pointerdown', function (e) {
     if (bestPt) graftAt(bestPt);
     return;
   }
-  if (state.mode === 'explore' && window.HydraExplore && HydraExplore.tap(e)) return;
   if (state.mode !== 'play' && state.mode !== 'explore') return;
   try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
   if (e.pointerType === 'mouse') {
@@ -525,6 +526,7 @@ canvas.addEventListener('pointerdown', function (e) {
 }, { passive: false });
 
 canvas.addEventListener('pointermove', function (e) {
+  if (state.mode === 'explore' && window.HydraExplore) { HydraExplore.pointer('move', e); return; }
   if (e.pointerType === 'mouse') {
     input.mouse = { x: e.clientX, y: e.clientY };
     return;
@@ -544,6 +546,7 @@ canvas.addEventListener('pointermove', function (e) {
 });
 
 function endPointer(e) {
+  if (state.mode === 'explore' && window.HydraExplore) HydraExplore.pointer('up', e);
   if (input.joy && e.pointerId === input.joy.id) input.joy = null;
   if (input.swipe && e.pointerId === input.swipe.id) input.swipe = null;
 }
@@ -551,6 +554,18 @@ canvas.addEventListener('pointerup', endPointer);
 canvas.addEventListener('pointercancel', endPointer);
 canvas.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse') input.mouse = null; });
 canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+canvas.addEventListener('wheel', function (e) {
+  if (state.mode !== 'explore' || !window.HydraExplore) return;
+  e.preventDefault();
+  HydraExplore.wheel(e.deltaY);
+}, { passive: false });
+
+// extra zoom on top of the screen-fitted one (pinch in the exploration mode)
+function setZoomMul(k) {
+  zoomMul = clamp(k, 0.45, 2.6);
+  zoom = baseZoom * zoomMul;
+  return zoomMul;
+}
 
 window.addEventListener('keydown', function (e) {
   input.keys[e.key.toLowerCase()] = true;
@@ -1107,6 +1122,7 @@ function immersive() {
 }
 
 function startGame() {
+  setZoomMul(1);
   ensureAudio();
   if (actx && actx.state === 'suspended') actx.resume();
   try {
@@ -1233,8 +1249,9 @@ window.HydraGame = {
   playerControl: playerControl, playerSpec: playerSpec, screenToWorld: screenToWorld,
   drawWater: drawWater, drawRaysAndSnow: drawRaysAndSnow, worldTransform: worldTransform, drawSurface: drawSurface,
   bloomPass: bloomPass, drawDarkness: drawDarkness, drawTouchControls: drawTouchControls,
+  setZoomMul: setZoomMul, get zoomMul() { return zoomMul; },
   toast: toast, sfx: sfx, vibrate: vibrate, ring: ring, sparks: sparks, setMode: setMode, immersive: immersive,
-  refreshTitle: function () { refreshTitle(); }, toTitle: function () { newGame(true); setMode('title'); refreshTitle(); }
+  refreshTitle: function () { refreshTitle(); }, toTitle: function () { setZoomMul(1); newGame(true); setMode('title'); refreshTitle(); }
 };
 
 if (/[?&]debug\b/.test(location.search)) window.__hydra = { state: state, spawnEnemy: spawnEnemy, attachPoints: attachPoints, makeCreature: makeCreature };
