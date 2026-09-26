@@ -400,7 +400,7 @@ function eat(d) {
   if (d.gene) {
     if (state.genes.length < MAX_GENES) {
       state.genes.push(d.gene);
-      toast('Gène absorbé : ' + E.nodeTitle(d.gene) + ' · niv. ' + E.nodeDepth(d.gene), 'gene');
+      toast('Gène absorbé : ' + E.nodeTitle(d.gene) + ' · niv. ' + E.nodeDepth(d.gene), 'good');
       renderTray();
     } else {
       heal += 12;
@@ -459,7 +459,7 @@ function graftAt(pt) {
   sparks(pt.x, pt.y, 50, 18, 3);
   sfx('graft');
   vibrate([10, 30, 10]);
-  toast('Greffe réussie · arbre de ' + (p.stats.depth + 1) + ' niveaux', 'gene');
+  toast('Greffe réussie · arbre de ' + (p.stats.depth + 1) + ' niveaux', 'good');
   setMode('play');
   renderTray();
 }
@@ -508,7 +508,8 @@ canvas.addEventListener('pointerdown', function (e) {
     if (bestPt) graftAt(bestPt);
     return;
   }
-  if (state.mode !== 'play') return;
+  if (state.mode === 'explore' && window.HydraExplore && HydraExplore.tap(e)) return;
+  if (state.mode !== 'play' && state.mode !== 'explore') return;
   try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
   if (e.pointerType === 'mouse') {
     input.mouse = { x: e.clientX, y: e.clientY };
@@ -553,7 +554,8 @@ canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
 window.addEventListener('keydown', function (e) {
   input.keys[e.key.toLowerCase()] = true;
-  if (e.key === ' ' && state.mode === 'play') { requestDash(); e.preventDefault(); }
+  if (e.key === ' ' && (state.mode === 'play' || state.mode === 'explore')) { requestDash(); e.preventDefault(); }
+  if (e.key === 'Escape' && state.mode.indexOf('explore') === 0 && window.HydraExplore) { HydraExplore.menu(); return; }
   if (e.key === 'Escape') {
     if (state.mode === 'graft') cancelGraft();
     else if (state.mode === 'play') setMode('pause');
@@ -628,7 +630,7 @@ function playerControl(p, t) {
         ky = (input.keys.s || input.keys.arrowdown ? 1 : 0) - (input.keys.w || input.keys.arrowup ? 1 : 0),
         km = Math.hypot(kx, ky) || 1;
     dvx = kx / km * sp; dvy = ky / km * sp;
-  } else if (input.mouse && state.mode === 'play') {
+  } else if (input.mouse && (state.mode === 'play' || state.mode === 'explore')) {
     // like whip.js: the head follows the mouse
     var target = screenToWorld(input.mouse.x, input.mouse.y),
         mx = target.x - p.root.x[0], my = target.y - p.root.y[0], mm = Math.hypot(mx, my);
@@ -766,29 +768,32 @@ function inView(b) {
 }
 
 function lerp(a, b, t) { return a + (b - a) * t; }
+function lerpHue(a, b, t) { var d = ((b - a) % 360 + 540) % 360 - 180; return (a + d * t + 360) % 360; }
 
-function render() {
-  var cam = state.cam, p = state.player;
-  var m = depthM(cam.y), f = clamp(m / 520, 0, 1);
+// ----- shared layers (also used by the exploration mode) ----- //
 
+// water column: teal near the surface, ink at depth; tint = { h, s } of a biome
+function drawWater(m, f, tint) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
-
-  // water column: teal near the surface, ink at depth
+  var h1 = lerp(192, 228, f), h2 = lerp(200, 230, f), sa = lerp(62, 55, f);
+  if (tint) { h1 = lerpHue(tint.h, h1, f * 0.7); h2 = lerpHue(tint.h, h2, f * 0.7); sa = lerp(tint.s, sa, f); }
   var g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, 'hsl(' + lerp(192, 228, f).toFixed(0) + ',' + lerp(62, 55, f).toFixed(0) + '%,' + lerp(20, 3.2, f).toFixed(1) + '%)');
-  g.addColorStop(1, 'hsl(' + lerp(200, 230, f).toFixed(0) + ',' + lerp(60, 60, f).toFixed(0) + '%,' + lerp(10, 1.6, f).toFixed(1) + '%)');
+  g.addColorStop(0, 'hsl(' + h1.toFixed(0) + ',' + sa.toFixed(0) + '%,' + lerp(20, 3.2, f).toFixed(1) + '%)');
+  g.addColorStop(1, 'hsl(' + h2.toFixed(0) + ',' + sa.toFixed(0) + '%,' + lerp(10, 1.6, f).toFixed(1) + '%)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
+}
 
-  // light shafts close to the surface
+function drawRaysAndSnow(cam, m, t) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (m < 110) {
     var ra = (1 - m / 110) * 0.09;
     ctx.globalCompositeOperation = 'lighter';
     for (var k = 0; k < 5; k++) {
-      var sx = ((k * 0.23 + 0.1 - cam.x * 0.0004 + Math.sin(state.t * 0.2 + k) * 0.03) % 1 + 1) % 1 * W * 1.4 - W * 0.2;
-      ctx.fillStyle = 'rgba(170,240,255,' + (ra * (0.6 + 0.4 * Math.sin(state.t * 0.7 + k * 2))).toFixed(3) + ')';
+      var sx = ((k * 0.23 + 0.1 - cam.x * 0.0004 + Math.sin(t * 0.2 + k) * 0.03) % 1 + 1) % 1 * W * 1.4 - W * 0.2;
+      ctx.fillStyle = 'rgba(170,240,255,' + (ra * (0.6 + 0.4 * Math.sin(t * 0.7 + k * 2))).toFixed(3) + ')';
       ctx.beginPath();
       ctx.moveTo(sx, -10);
       ctx.lineTo(sx + 50, -10);
@@ -798,35 +803,97 @@ function render() {
     }
     ctx.globalCompositeOperation = 'source-over';
   }
-
-  // marine snow (parallax)
   ctx.fillStyle = 'rgba(200,235,240,0.28)';
   for (var si2 = 0; si2 < snow.length; si2++) {
     var sn = snow[si2];
     var sxp = ((sn.x * W - cam.x * zoom * sn.z * 0.5) % W + W) % W;
-    var syp = ((sn.y * H - cam.y * zoom * sn.z * 0.5 - state.t * 6 * sn.z) % H + H) % H;
+    var syp = ((sn.y * H - cam.y * zoom * sn.z * 0.5 - t * 6 * sn.z) % H + H) % H;
     ctx.fillRect(sxp, syp, sn.r * sn.z * 1.4, sn.r * sn.z * 1.4);
   }
+}
 
-  // world
+// camera transform for world drawing; also sets the culling view
+function worldTransform(cam) {
   var shx = (Math.random() - 0.5) * cam.shake, shy = (Math.random() - 0.5) * cam.shake;
   var ox = W / 2 - (cam.x + shx) * zoom, oy = H / 2 - (cam.y + shy) * zoom;
   ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, dpr * ox, dpr * oy);
   view[0] = cam.x - W / 2 / zoom - 20; view[2] = cam.x + W / 2 / zoom + 20;
   view[1] = cam.y - H / 2 / zoom - 20; view[3] = cam.y + H / 2 / zoom + 20;
+  return [ox, oy];
+}
 
-  if (view[1] < 0) {
-    ctx.fillStyle = 'hsl(198,38%,24%)';
-    ctx.fillRect(view[0], view[1], view[2] - view[0], -view[1]);
-    ctx.strokeStyle = 'rgba(190,245,255,0.55)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (var sxw = Math.floor(view[0] / 20) * 20; sxw <= view[2]; sxw += 20) {
-      var syw = Math.sin(sxw * 0.03 + state.t * 1.5) * 3;
-      if (sxw === Math.floor(view[0] / 20) * 20) ctx.moveTo(sxw, syw); else ctx.lineTo(sxw, syw);
-    }
-    ctx.stroke();
+function drawSurface(t) {
+  if (view[1] >= 0) return;
+  ctx.fillStyle = 'hsl(198,38%,24%)';
+  ctx.fillRect(view[0], view[1], view[2] - view[0], -view[1]);
+  ctx.strokeStyle = 'rgba(190,245,255,0.55)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (var sxw = Math.floor(view[0] / 20) * 20; sxw <= view[2]; sxw += 20) {
+    var syw = Math.sin(sxw * 0.03 + t * 1.5) * 3;
+    if (sxw === Math.floor(view[0] / 20) * 20) ctx.moveTo(sxw, syw); else ctx.lineTo(sxw, syw);
   }
+  ctx.stroke();
+}
+
+// bloom: downscaled + blurred copy added on top
+function bloomPass(f) {
+  if (!quality.glow || quality.level <= 0) return;
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
+  bctx.globalCompositeOperation = 'copy';
+  if (hasFilter) bctx.filter = 'blur(2px)';
+  bctx.drawImage(canvas, 0, 0, bloom.width, bloom.height);
+  if (hasFilter) bctx.filter = 'none';
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = 0.25 + 0.4 * f;
+  ctx.drawImage(bloom, 0, 0, canvas.width, canvas.height);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+// darkness around a screen point: the deeper, the smaller the light
+function drawDarkness(pcx, pcy, vision, dark) {
+  if (dark <= 0.01) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  var dg = ctx.createRadialGradient(pcx, pcy, vision * zoom * 0.3, pcx, pcy, vision * zoom);
+  dg.addColorStop(0, 'rgba(1,3,8,0)');
+  dg.addColorStop(1, 'rgba(1,3,8,' + dark.toFixed(3) + ')');
+  ctx.fillStyle = dg;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawTouchControls() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (!touchUI) return;
+  var bottom = H - 120;
+  ctx.lineWidth = 2;
+  if (input.joy) {
+    var j = input.joy, jx = j.x - j.ox, jy = j.y - j.oy, jm = Math.hypot(jx, jy), k2 = jm > 60 ? 60 / jm : 1;
+    ctx.strokeStyle = 'rgba(94,242,214,0.35)';
+    ctx.beginPath(); ctx.arc(j.ox, j.oy, 60, 0, TAU); ctx.stroke();
+    ctx.fillStyle = 'rgba(94,242,214,0.35)';
+    ctx.beginPath(); ctx.arc(j.ox + jx * k2, j.oy + jy * k2, 22, 0, TAU); ctx.fill();
+  } else {
+    ctx.strokeStyle = 'rgba(94,242,214,0.16)';
+    ctx.beginPath(); ctx.arc(90, bottom, 46, 0, TAU); ctx.stroke();
+  }
+  var ready = 1 - Math.max(0, state.dash.cd) / 0.7;
+  ctx.strokeStyle = 'rgba(255,90,122,0.18)';
+  ctx.beginPath(); ctx.arc(W - 90, bottom, 34, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = ready >= 1 ? 'rgba(255,90,122,0.7)' : 'rgba(255,90,122,0.4)';
+  ctx.beginPath(); ctx.arc(W - 90, bottom, 34, -Math.PI / 2, -Math.PI / 2 + TAU * ready); ctx.stroke();
+}
+
+function render() {
+  var cam = state.cam, p = state.player;
+  var m = depthM(cam.y), f = clamp(m / 520, 0, 1);
+
+  drawWater(m, f);
+
+  drawRaysAndSnow(cam, m, state.t);
+  var off = worldTransform(cam), ox = off[0], oy = off[1];
+  drawSurface(state.t);
 
   var i, o = { view: view };
   for (i = 0; i < state.debris.length; i++) {
@@ -861,35 +928,14 @@ function render() {
   }
   ctx.globalCompositeOperation = 'source-over';
 
-  // bloom: downscaled + blurred copy added on top
-  if (quality.glow && quality.level > 0) {
-    bctx.setTransform(1, 0, 0, 1, 0, 0);
-    bctx.globalCompositeOperation = 'copy';
-    if (hasFilter) bctx.filter = 'blur(2px)';
-    bctx.drawImage(canvas, 0, 0, bloom.width, bloom.height);
-    if (hasFilter) bctx.filter = 'none';
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.25 + 0.4 * f;
-    ctx.drawImage(bloom, 0, 0, canvas.width, canvas.height);
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'source-over';
-  }
+  bloomPass(f);
 
   // darkness: the deeper, the smaller the light around you
   var dark = clamp((m - 40) / 380, 0, 0.94);
   var lights = p && p.alive ? p.stats.light : 0;
   var vision = Math.max(150, 430 - m * 0.3) + Math.min(3, lights) * 110 + (p && p.alive ? Math.min(4, p.stats.sense) * 15 : 0);
-  if (dark > 0.01) {
-    var pcx = p && p.alive ? (p.root.x[0] - cam.x) * zoom + W / 2 : W / 2,
-        pcy = p && p.alive ? (p.root.y[0] - cam.y) * zoom + H / 2 : H / 2;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    var dg = ctx.createRadialGradient(pcx, pcy, vision * zoom * 0.3, pcx, pcy, vision * zoom);
-    dg.addColorStop(0, 'rgba(1,3,8,0)');
-    dg.addColorStop(1, 'rgba(1,3,8,' + dark.toFixed(3) + ')');
-    ctx.fillStyle = dg;
-    ctx.fillRect(0, 0, W, H);
-  }
+  drawDarkness(p && p.alive ? (p.root.x[0] - cam.x) * zoom + W / 2 : W / 2,
+    p && p.alive ? (p.root.y[0] - cam.y) * zoom + H / 2 : H / 2, vision, dark);
 
   // bioluminescence shows through the dark
   ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, dpr * ox, dpr * oy);
@@ -940,27 +986,7 @@ function render() {
   }
   ctx.globalCompositeOperation = 'source-over';
 
-  // touch controls
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  if (state.mode === 'play' && touchUI) {
-    var bottom = H - 120;
-    ctx.lineWidth = 2;
-    if (input.joy) {
-      var j = input.joy, jx = j.x - j.ox, jy = j.y - j.oy, jm = Math.hypot(jx, jy), k2 = jm > 60 ? 60 / jm : 1;
-      ctx.strokeStyle = 'rgba(94,242,214,0.35)';
-      ctx.beginPath(); ctx.arc(j.ox, j.oy, 60, 0, TAU); ctx.stroke();
-      ctx.fillStyle = 'rgba(94,242,214,0.35)';
-      ctx.beginPath(); ctx.arc(j.ox + jx * k2, j.oy + jy * k2, 22, 0, TAU); ctx.fill();
-    } else {
-      ctx.strokeStyle = 'rgba(94,242,214,0.16)';
-      ctx.beginPath(); ctx.arc(90, bottom, 46, 0, TAU); ctx.stroke();
-    }
-    var ready = 1 - Math.max(0, state.dash.cd) / 0.7;
-    ctx.strokeStyle = 'rgba(255,90,122,0.18)';
-    ctx.beginPath(); ctx.arc(W - 90, bottom, 34, 0, TAU); ctx.stroke();
-    ctx.strokeStyle = ready >= 1 ? 'rgba(255,90,122,0.7)' : 'rgba(255,90,122,0.4)';
-    ctx.beginPath(); ctx.arc(W - 90, bottom, 34, -Math.PI / 2, -Math.PI / 2 + TAU * ready); ctx.stroke();
-  }
+  if (state.mode === 'play') drawTouchControls();
 }
 
 // ----- HUD ----- //
@@ -1037,9 +1063,10 @@ function setMode(mode) {
   screens.title.hidden = mode !== 'title';
   screens.pause.hidden = mode !== 'pause';
   screens.over.hidden = mode !== 'over';
-  $('hud').hidden = mode === 'title' || mode === 'over' || mode === 'atelier';
+  $('hud').hidden = !(mode === 'play' || mode === 'graft' || mode === 'pause');
+  $('exHud').hidden = mode !== 'explore';
   $('graftBar').hidden = mode !== 'graft';
-  if (mode !== 'play') { input.joy = null; input.swipe = null; }
+  if (mode !== 'play' && mode !== 'explore') { input.joy = null; input.swipe = null; }
 }
 
 function gameOver() {
@@ -1056,6 +1083,20 @@ function gameOver() {
 }
 
 var wakeLock = null;
+function immersive() {
+  ensureAudio();
+  if (actx && actx.state === 'suspended') actx.resume();
+  try {
+    var el = document.documentElement;
+    if (touchUI && el.requestFullscreen && !document.fullscreenElement) {
+      el.requestFullscreen({ navigationUI: 'hide' }).catch(function () {});
+    }
+  } catch (e) { /* optional */ }
+  try {
+    if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (l) { wakeLock = l; }).catch(function () {});
+  } catch (e) { /* optional */ }
+}
+
 function startGame() {
   ensureAudio();
   if (actx && actx.state === 'suspended') actx.resume();
@@ -1105,6 +1146,7 @@ HydraAtelier.onClose = function () {
   }
 };
 $('btnAtelier').addEventListener('click', openAtelier);
+$('btnExplore').addEventListener('click', function () { HydraExplore.start(); });
 $('btnAtelier2').addEventListener('click', openAtelier);
 
 function syncToggles() {
@@ -1128,6 +1170,7 @@ $('optGlow').addEventListener('change', function (e) {
 syncToggles();
 
 document.addEventListener('visibilitychange', function () {
+  if (document.hidden && state.mode === 'explore' && window.HydraExplore) HydraExplore.menu();
   if (document.hidden && (state.mode === 'play' || state.mode === 'graft')) {
     state.pendingGene = -1;
     renderTray();
@@ -1156,6 +1199,11 @@ function frame(now) {
     frames = slowFrames = 0;
   }
 
+  if (state.mode.indexOf('explore') === 0) {
+    HydraExplore.frame(dt);
+    return;
+  }
+
   if (state.mode !== 'pause' && state.mode !== 'over') {
     acc += dt * (state.mode === 'graft' ? 0.12 : 1);
     var steps = 0;
@@ -1165,6 +1213,20 @@ function frame(now) {
   render();
   if ((hudTimer += dt) > 0.1) { hudTimer = 0; updateHud(); }
 }
+
+// what the exploration mode (explore.js) borrows from the game
+window.HydraGame = {
+  state: state, input: input, view: view, snow: snow, quality: quality,
+  get W() { return W; }, get H() { return H; }, get zoom() { return zoom; }, get dpr() { return dpr; },
+  get ctx() { return ctx; }, get touchUI() { return touchUI; },
+  STEP: STEP, depthM: depthM, clamp: clamp, lerp: lerp, rand: rand, store: store, $: $,
+  glowSprite: glowSprite, inView: inView, makeCreature: makeCreature, refreshCreature: refreshCreature,
+  playerControl: playerControl, playerSpec: playerSpec, screenToWorld: screenToWorld,
+  drawWater: drawWater, drawRaysAndSnow: drawRaysAndSnow, worldTransform: worldTransform, drawSurface: drawSurface,
+  bloomPass: bloomPass, drawDarkness: drawDarkness, drawTouchControls: drawTouchControls,
+  toast: toast, sfx: sfx, vibrate: vibrate, ring: ring, sparks: sparks, setMode: setMode, immersive: immersive,
+  refreshTitle: function () { refreshTitle(); }, toTitle: function () { newGame(true); setMode('title'); refreshTitle(); }
+};
 
 if (/[?&]debug\b/.test(location.search)) window.__hydra = { state: state, spawnEnemy: spawnEnemy, attachPoints: attachPoints, makeCreature: makeCreature };
 

@@ -18,6 +18,17 @@ accrochés aux nœuds, easings pour la forme du corps).
 - **Greffe** : toucher un gène puis un point d'ancrage doré, sur le corps (paire symétrique) ou au bout d'un membre (profondeur max 4 niveaux).
 - Plus on descend, plus il fait sombre et plus les arbres ennemis sont profonds. Les **lanternes** élargissent la vision, les **nageoires** accélèrent, les **cils** régénèrent, les **pinces** augmentent la portée de la bouche, les **dards** font mal au moindre contact.
 
+## Balade (mode exploration)
+
+Bouton **Balade** sur l'écran titre, sans combat. Le monde est généré à partir d'une **graine** (`explore.js`) : une bande infinie découpée en tronçons, un fond marin en relief et six biomes qui s'enchaînent du peu profond vers l'abîme — lagon d'anémones, récif corallien, forêt de kelp, sources hydrothermales, jardin de méduses, plaine abyssale.
+
+- **Décor vivant** fait avec le moteur de fouets, ancré au fond : kelp et herbiers qui se dressent par flottabilité et ondulent, coraux ramifiés, gorgones palmées, plumes de mer lumineuses, vers tubicoles, cheminées qui fument des bulles.
+- **Faune** : bancs qui nagent ensemble, espèces de fond, curieux qui viennent voir, craintifs qui s'écartent. Les espèces du bestiaire se mêlent à des **espèces endémiques générées pour chaque monde**.
+- **Devenir un autre animal** : approche-toi (bouton « Devenir … ») ou touche-le (fiche avec Devenir / Atelier). L'ancien corps reste dans le monde.
+- **Carnet** : chaque nouvelle espèce croisée y est notée (✦ = endémique) ; on peut la faire apparaître pour la devenir, l'ouvrir dans l'atelier ou la garder dans « Mes espèces ».
+- **Atelier en un geste** : le crayon ouvre l'atelier sur ton animal ; « Nager » te remet dans le monde avec ta nouvelle version.
+- Menu : nouveau monde (nouvelle graine).
+
 ## Atelier des espèces (éditeur)
 
 Bouton **Atelier des espèces** sur l'écran titre. Une espèce est un arbre de parties ;
@@ -44,6 +55,12 @@ Chaque partie a :
 - **Rôle en jeu** : fouet, dard, pince, nageoire, cils, lanterne, antenne, décor.
 
 L'aquarium permet de voir l'espèce nager (circuit, guidée au doigt, ou en pose de repos), de passer en **Nuit** pour juger la bioluminescence, d'afficher le squelette et de **toucher une partie pour la sélectionner**.
+
+Onglet **Inventer** :
+- **Générateur** à graine : famille (poisson, méduse, crustacé, céphalopode, ver, radiaire, chimère), ambiance (récif, abysses, pastel, mono, sauvage), complexité (nombre de parties, parties imbriquées), bioluminescence. Même graine + mêmes réglages = même créature.
+- **Variations** : nuances, mutants, mutants extrêmes, palettes.
+- **Fusion** avec une espèce B (bestiaire, mes espèces ou carnet) : mélange des corps, corps de A, corps de B, chimère (tous les membres), greffe (B devient une paire de membres de A) ; part de B et palette réglables.
+- Chaque action propose une **portée de 4 candidats** à choisir.
 
 Outils : copier / couper / coller une partie (même le tronc entier, qui devient un membre ailleurs), **Mes parties** (bibliothèque de parties réutilisables), **créature au hasard** (un corps + une partie de tête + des parties latérales + une queue, palette harmonieuse), **croisement** de deux espèces, variations, annuler / rétablir, export / import JSON. « Jouer » lance une partie avec ton espèce.
 

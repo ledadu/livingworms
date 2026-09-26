@@ -688,35 +688,7 @@ function renderSpecies() {
       ed.spec.eyes.on && { p: 'spec.eyes.size', label: 'Taille', min: 0.4, max: 2.2, step: 0.05 },
       ed.spec.eyes.on && { p: 'spec.eyes.spread', label: 'Écartement', min: 0, max: 1.2, step: 0.01 },
       ed.spec.eyes.on && { p: 'spec.eyes.fwd', label: 'Vers l\'avant', min: -0.6, max: 1, step: 0.01 }
-    ] },
-    { id: 'vary', title: 'Variations', render: function (body) {
-      var row = document.createElement('div');
-      row.className = 'btn-row';
-      [['Nuancer', 0.4], ['Muter', 1], ['Palette au hasard', -1]].forEach(function (b) {
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'ghost';
-        btn.textContent = b[0];
-        btn.addEventListener('click', function () {
-          if (b[1] < 0) ed.spec.palette = E.randomPalette();
-          else {
-            var path = pathOf(ed.sel.node);
-            ed.spec = E.mutate(ed.spec, b[1]);
-            ed.sel = { node: nodeAt(path) || ed.spec.body };
-          }
-          rebuild(true);
-          commit();
-          selectNode(ed.sel.node);
-          renderSpecies();
-        });
-        row.appendChild(btn);
-      });
-      body.appendChild(row);
-      var h = document.createElement('small');
-      h.className = 'hint';
-      h.textContent = 'Les variations gardent la structure : seules les tailles, courbures, angles et couleurs changent un peu.';
-      body.appendChild(h);
-    } }
+    ] }
   ];
   renderSections(box, sections.map(function (s) {
     if (s.fields) s.fields = s.fields.filter(Boolean);
@@ -772,33 +744,6 @@ function renderModels() {
   var box = $('atTabModels');
   box.innerHTML = '';
 
-  var h0 = document.createElement('h3');
-  h0.className = 'tab-title';
-  h0.textContent = 'Inventer';
-  box.appendChild(h0);
-  var inv = document.createElement('div');
-  inv.className = 'btn-row';
-  var rnd = document.createElement('button');
-  rnd.type = 'button';
-  rnd.className = 'cta sm';
-  rnd.textContent = 'Créature au hasard';
-  rnd.addEventListener('click', function () { loadSpec(E.randomSpecies()); switchTab('parts'); });
-  var crossBtn = document.createElement('button');
-  crossBtn.type = 'button';
-  crossBtn.className = 'ghost';
-  crossBtn.setAttribute('aria-pressed', String(!!ed.crossing));
-  crossBtn.textContent = ed.crossing ? 'Croisement : choisis un modèle' : 'Croiser « ' + ed.spec.name + ' » avec…';
-  crossBtn.addEventListener('click', function () { ed.crossing = !ed.crossing; renderModels(); });
-  inv.appendChild(rnd);
-  inv.appendChild(crossBtn);
-  box.appendChild(inv);
-  if (ed.crossing) {
-    var ch = document.createElement('p');
-    ch.className = 'hint';
-    ch.textContent = 'Touche un modèle : son corps est gardé de « ' + ed.spec.name + ' », les membres sont mélangés.';
-    box.appendChild(ch);
-  }
-
   var h = document.createElement('h3');
   h.className = 'tab-title';
   h.textContent = 'Bestiaire · ' + Object.keys(E.SPECIES).length + ' espèces';
@@ -838,12 +783,7 @@ function renderModels() {
     b.querySelector('small').textContent = info[1];
     b.addEventListener('click', function () {
       var sp = E.SPECIES[id]();
-      if (ed.crossing) {
-        ed.crossing = false;
-        loadSpec(E.cross(ed.spec, sp));
-      } else {
-        loadSpec(sp);
-      }
+      loadSpec(sp);
       switchTab('parts');
     });
     grid.appendChild(b);
@@ -951,6 +891,227 @@ function importSheet() {
   });
 }
 
+// ----- invent tab: generator, variations, fusion ----- //
+// every action proposes a litter of 4 candidates; tap one to take it
+
+var inv = { family: 'any', mood: 'any', complexity: 0.5, glow: 0.3, partner: 'SPECIES:meduse', mode: 'mix', share: 0.5, palette: 'mix', litter: [], litterTitle: '' };
+
+function carnetList() {
+  try { return JSON.parse(store('hydra.carnet') || '[]'); } catch (e) { return []; }
+}
+
+function partnerSpec(key) {
+  var i = key.indexOf(':'), kind = key.slice(0, i), id = key.slice(i + 1);
+  if (kind === 'SPECIES' && E.SPECIES[id]) return E.SPECIES[id]();
+  var list = kind === 'LIB' ? library() : kind === 'CARNET' ? carnetList().map(function (x) { return x.spec; }) : [];
+  var sp = list[parseInt(id, 10)];
+  return sp ? E.spec(E.clone(sp)) : E.SPECIES.meduse();
+}
+
+function chipGroup(label, opts, cur, onPick) {
+  var row = document.createElement('div');
+  row.className = 'f-row chips-row';
+  var lab = document.createElement('span');
+  lab.className = 'f-label';
+  lab.textContent = label;
+  row.appendChild(lab);
+  var g = document.createElement('div');
+  g.className = 'chips';
+  opts.forEach(function (o) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.textContent = o[1];
+    b.setAttribute('aria-pressed', String(o[0] === cur));
+    b.addEventListener('click', function () { onPick(o[0]); renderInvent(); });
+    g.appendChild(b);
+  });
+  row.appendChild(g);
+  return row;
+}
+
+function slider(label, value, fmtFn, onInput) {
+  var row = document.createElement('div');
+  row.className = 'f-row';
+  var id = 'at-f' + (uid++);
+  row.innerHTML = '<label></label><output></output><input type="range" min="0" max="100" step="1">';
+  row.querySelector('label').textContent = label;
+  row.querySelector('label').htmlFor = id;
+  var input = row.querySelector('input'), out = row.querySelector('output');
+  input.id = id;
+  input.value = Math.round(value * 100);
+  out.textContent = fmtFn(value);
+  input.addEventListener('input', function () {
+    var v = input.value / 100;
+    out.textContent = fmtFn(v);
+    onInput(v);
+  });
+  return row;
+}
+
+function button(label, cls, fn) {
+  var b = document.createElement('button');
+  b.type = 'button';
+  b.className = cls;
+  b.textContent = label;
+  b.addEventListener('click', fn);
+  return b;
+}
+
+function pct(v) { return Math.round(v * 100) + ' %'; }
+
+function setLitter(title, list) {
+  inv.litter = list;
+  inv.litterTitle = title;
+  renderInvent();
+  var el = document.getElementById('atLitter');
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+}
+
+function renderLitter(box) {
+  if (!inv.litter.length) return;
+  var wrap = document.createElement('div');
+  wrap.id = 'atLitter';
+  wrap.className = 'litter';
+  var h = document.createElement('h3');
+  h.className = 'tab-title';
+  h.textContent = inv.litterTitle;
+  wrap.appendChild(h);
+  var grid = document.createElement('div');
+  grid.className = 'card-grid';
+  inv.litter.forEach(function (sp) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pick-card';
+    b.innerHTML = '<canvas></canvas><b></b><small></small>';
+    b.querySelector('b').textContent = sp.name;
+    var st = E.stats(sp);
+    b.querySelector('small').textContent = (sp.gen ? 'graine ' + sp.gen.seed + ' · ' : '') + st.chains + ' chaînes';
+    b.addEventListener('click', function () { loadSpec(sp); switchTab('parts'); });
+    grid.appendChild(b);
+    requestAnimationFrame(function () { E.snapshot(sp, b.querySelector('canvas')); });
+  });
+  wrap.appendChild(grid);
+  var hint = document.createElement('p');
+  hint.className = 'hint';
+  hint.textContent = 'Touche une créature pour la prendre. Annuler (↶) ramène la précédente.';
+  wrap.appendChild(hint);
+  box.appendChild(wrap);
+}
+
+function section(box, id, title, fill) {
+  var d = document.createElement('details');
+  d.className = 'sec';
+  d.open = ed.sections[id] !== undefined ? ed.sections[id] : true;
+  d.addEventListener('toggle', function () { ed.sections[id] = d.open; });
+  var sum = document.createElement('summary');
+  sum.textContent = title;
+  d.appendChild(sum);
+  var body = document.createElement('div');
+  body.className = 'sec-body';
+  fill(body);
+  d.appendChild(body);
+  box.appendChild(d);
+}
+
+function renderInvent() {
+  var box = $('atTabInvent');
+  box.innerHTML = '';
+
+  section(box, 'gen', 'Générateur', function (body) {
+    body.appendChild(chipGroup('Famille', E.FAMILIES, inv.family, function (v) { inv.family = v; }));
+    body.appendChild(chipGroup('Ambiance', E.MOODS, inv.mood, function (v) { inv.mood = v; }));
+    body.appendChild(slider('Complexité', inv.complexity, pct, function (v) { inv.complexity = v; }));
+    body.appendChild(slider('Bioluminescence', inv.glow, pct, function (v) { inv.glow = v; }));
+    var row = document.createElement('div');
+    row.className = 'btn-row';
+    row.appendChild(button('Générer 4 créatures', 'cta sm', function () {
+      var base = Math.floor(Math.random() * 0xFFFFFF), list = [];
+      for (var k = 0; k < 4; k++) list.push(E.generate({ seed: base + k * 7919, archetype: inv.family, mood: inv.mood, complexity: inv.complexity, glow: inv.glow }));
+      setLitter('Portée générée', list);
+    }));
+    if (ed.spec.gen) {
+      row.appendChild(button('Régénérer « ' + ed.spec.name + ' »', 'ghost', function () {
+        var g = ed.spec.gen;
+        setLitter('Même graine, nouveaux réglages', [E.generate({ seed: g.seed, archetype: g.archetype, mood: g.mood, complexity: inv.complexity, glow: inv.glow })]);
+      }));
+    }
+    body.appendChild(row);
+    var h = document.createElement('small');
+    h.className = 'hint';
+    h.textContent = 'Une même graine avec les mêmes réglages redonne toujours la même créature.';
+    body.appendChild(h);
+  });
+
+  section(box, 'vary', 'Variations de « ' + ed.spec.name + ' »', function (body) {
+    var row = document.createElement('div');
+    row.className = 'btn-row';
+    [['4 nuances', 0.35], ['4 mutants', 1], ['4 mutants extrêmes', 2]].forEach(function (b) {
+      row.appendChild(button(b[0], 'ghost', function () {
+        var list = [];
+        for (var k = 0; k < 4; k++) { var m = E.mutate(ed.spec, b[1]); m.gen = null; list.push(m); }
+        setLitter(b[0], list);
+      }));
+    });
+    row.appendChild(button('Palette au hasard', 'ghost', function () {
+      var list = [];
+      for (var k = 0; k < 4; k++) { var c = E.spec(E.clone(ed.spec)); c.palette = E.randomPalette(); list.push(c); }
+      setLitter('4 palettes', list);
+    }));
+    body.appendChild(row);
+    var h = document.createElement('small');
+    h.className = 'hint';
+    h.textContent = 'Les variations gardent la structure : tailles, courbures, angles, nombres et couleurs changent.';
+    body.appendChild(h);
+  });
+
+  section(box, 'fuse', 'Fusion', function (body) {
+    var row = document.createElement('div');
+    row.className = 'f-row';
+    var id = 'at-f' + (uid++);
+    row.innerHTML = '<label>Avec l\'espèce B</label><select></select>';
+    row.querySelector('label').htmlFor = id;
+    var sel = row.querySelector('select');
+    sel.id = id;
+    function group(label, items) {
+      if (!items.length) return;
+      var g = document.createElement('optgroup');
+      g.label = label;
+      items.forEach(function (it) {
+        var o = document.createElement('option');
+        o.value = it[0];
+        o.textContent = it[1];
+        g.appendChild(o);
+      });
+      sel.appendChild(g);
+    }
+    group('Bestiaire', Object.keys(E.SPECIES).map(function (k) { return ['SPECIES:' + k, E.SPECIES[k]().name]; }));
+    group('Mes espèces', library().map(function (s, i) { return ['LIB:' + i, s.name]; }));
+    group('Carnet de balade', carnetList().map(function (it, i) { return ['CARNET:' + i, it.name]; }));
+    sel.value = inv.partner;
+    sel.addEventListener('change', function () { inv.partner = sel.value; });
+    body.appendChild(row);
+    body.appendChild(chipGroup('Mode', E.FUSIONS.map(function (f) { return [f[0], f[1]]; }), inv.mode, function (v) { inv.mode = v; }));
+    var help = document.createElement('small');
+    help.className = 'hint';
+    help.textContent = E.FUSIONS.filter(function (f) { return f[0] === inv.mode; })[0][2];
+    body.appendChild(help);
+    body.appendChild(slider(inv.mode === 'graft' ? 'Position de la greffe' : 'Part de B', inv.share, pct, function (v) { inv.share = v; }));
+    body.appendChild(chipGroup('Palette', [['a', 'De A'], ['mix', 'Mélange'], ['b', 'De B']], inv.palette, function (v) { inv.palette = v; }));
+    var b = button('Fusionner (4 portées)', 'cta sm', function () {
+      var partner = partnerSpec(inv.partner), list = [];
+      for (var k = 0; k < 4; k++) list.push(E.fuse(ed.spec, partner, { mode: inv.mode, share: inv.share, palette: inv.palette }));
+      setLitter('« ' + ed.spec.name + ' » × « ' + partner.name + ' »', list);
+    });
+    var r2 = document.createElement('div');
+    r2.className = 'btn-row';
+    r2.appendChild(b);
+    body.appendChild(r2);
+  });
+
+  renderLitter(box);
+}
+
 // ----- sheet ----- //
 
 function openSheet(title, fill) {
@@ -983,6 +1144,8 @@ function switchTab(tab) {
   $('atTabParts').hidden = tab !== 'parts';
   $('atTabSpecies').hidden = tab !== 'species';
   $('atTabModels').hidden = tab !== 'models';
+  $('atTabInvent').hidden = tab !== 'invent';
+  if (tab === 'invent') renderInvent();
   if (tab === 'species') renderSpecies();
   if (tab === 'models') renderModels();
   if (tab === 'parts') { renderTree(); renderProps(); }
@@ -1172,8 +1335,11 @@ function drawStage() {
 
 // ----- open / close ----- //
 
-function open(sp) {
+function open(sp, ctx) {
+  ed.ctx = ctx || null;
+  $('atPlay').textContent = (ctx && ctx.playLabel) || 'Jouer';
   var saved = store('hydra.atelier');
+  ed.spec = null;
   if (sp) ed.spec = E.spec(E.clone(sp));
   else if (saved) {
     try { ed.spec = E.spec(JSON.parse(saved)); } catch (e) { ed.spec = null; }
@@ -1200,15 +1366,18 @@ function close() {
   ed.open = false;
   $('atelier').hidden = true;
   closeSheet();
-  if (ed.onClose) ed.onClose();
+  var c = ed.ctx;
+  if (c && c.onClose) c.onClose();
+  else if (ed.onClose) ed.onClose();
 }
 
 $('atBack').addEventListener('click', close);
 $('atPlay').addEventListener('click', function () {
   commit();
-  var sp = E.clone(ed.spec);
+  var sp = E.clone(ed.spec), c = ed.ctx;
   close();
-  if (ed.onPlay) ed.onPlay(sp);
+  if (c && c.onPlay) c.onPlay(sp);
+  else if (ed.onPlay) ed.onPlay(sp);
 });
 
 window.HydraAtelier = {

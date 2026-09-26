@@ -1,6 +1,6 @@
 // Offline cache so the game runs from the Android home screen without network.
-var CACHE = 'hydra-v3';
-var FILES = ['./', './index.html', './engine.js', './bestiary.js', './editor.js', './hydra.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
+var CACHE = 'hydra-v4';
+var FILES = ['./', './index.html', './engine.js', './bestiary.js', './editor.js', './hydra.js', './explore.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }));

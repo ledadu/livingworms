@@ -142,6 +142,7 @@ function spec(o) {
   s.ai = o.ai || SPEC_DEFAULTS.ai;
   s.eyes = assign({}, SPEC_DEFAULTS.eyes, o.eyes);
   s.body = node(assign({ role: 'body' }, o.body));
+  if (o.gen) s.gen = assign({}, o.gen);
   return s;
 }
 
@@ -365,6 +366,11 @@ Seg.prototype.update = function (time) {
     }
     ox[0] = x[0]; oy[0] = y[0];
     x[0] = px; y[0] = py;
+  } else if (this.anchor !== undefined) {
+    // rooted in the sea floor (kelp, coral): the base keeps its direction
+    fixed = this.anchor;
+  }
+  if (fixed !== null) {
     if (m.type === 'wave') fixed += m.amp * Math.sin(w) * this.flip;
     else if (m.type === 'row') fixed += m.amp * rowCurve(w) * this.flip;
     else if (m.type === 'flutter') fixed += m.amp * (0.6 * Math.sin(w) + 0.4 * Math.sin(w * 2.7 + 1.3)) * this.flip;
@@ -435,6 +441,7 @@ function Creature(sp, x, y, o) {
   this.box = [x, y, x, y];
   var slot = assign({}, ROOT_SLOT, { phase: this.phase });
   this.root = new Seg(sp.body, null, null, slot, 1, (o.scale || 1) * (sp.size || 1), x, y, o.dir === undefined ? Math.PI / 2 : o.dir, this);
+  if (o.anchor !== undefined) this.root.anchor = o.anchor;
   this.refresh();
 }
 
