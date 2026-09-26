@@ -1,5 +1,6 @@
-// 3D prototype: the lagoon of the Nurserie seen from above, the larva and a
-// few animals as 3D whips, a camera that plunges toward the creature.
+// 3D prototype: the creatures swim in a vertical plane (z = 0) like in Hydra,
+// the world around it is 3D: sea floor, reef wall behind, kelp in front and
+// behind, the surface above. The camera faces the plane, slightly from above.
 
 import * as THREE from 'three';
 import { Creature, Flow, STEP, TAU, clamp, eachGlow, rand, rng, swimFactor, type Spec } from '../engine';
@@ -9,15 +10,15 @@ import { Input } from '../game/input';
 import { CreatureMesh, creatureMaterials } from './mesh';
 import {
   BOUNDS, Kelp, WATER, causticTexture, floorAt, glowTexture, makeMeadow, makePlankton, makeRays, makeRocks,
-  makeSargassum, makeSurface, makeTerrain, noise2, planeAt, shared, type Rock
+  makeSargassum, makeSurface, makeTerrain, noise2, shared, type Rock
 } from './world';
 import './style.css';
 
 // ----- settings (kept between visits) ----- //
 
-const settings = { angle: 72, dist: 260 };
-try { Object.assign(settings, JSON.parse(localStorage.getItem('lignee3d') || '{}')); } catch { /* private mode */ }
-const save = () => { try { localStorage.setItem('lignee3d', JSON.stringify(settings)); } catch { /* ignore */ } };
+const settings = { angle: 15, dist: 300 };
+try { Object.assign(settings, JSON.parse(localStorage.getItem('lignee3d-side') || '{}')); } catch { /* private mode */ }
+const save = () => { try { localStorage.setItem('lignee3d-side', JSON.stringify(settings)); } catch { /* ignore */ } };
 
 // ----- renderer ----- //
 
@@ -27,7 +28,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 let quality = 1;
-const camera = new THREE.PerspectiveCamera(45, 1, 2, 4000);
+const camera = new THREE.PerspectiveCamera(45, 1, 2, 5000);
 function resize(): void {
   renderer.setPixelRatio(Math.min(1.75, window.devicePixelRatio || 1) * quality);
   renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -69,11 +70,11 @@ const kelpMat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.
 const kelps: Kelp[] = [];
 {
   const R = rng(41);
-  for (let k = 0; k < 400 && kelps.length < 70; k++) {
-    const x = -600 + R() * 2000, z = -900 + R() * 1800;
-    // kelp grows in patches on the rocks' side of the lagoon
-    if (noise2(x / 300, z / 300, 51) < 0.58 || Math.hypot(x, z) < 140) continue;
-    const kp = new Kelp(x, z, -floorAt(x, z) - 4 + R() * 6, R, kelpMat);
+  for (let k = 0; k < 900 && kelps.length < 90; k++) {
+    const x = -600 + R() * 2900, z = -520 + R() * 640;
+    // kelp grows in patches; some stand right in the swimming plane
+    if (noise2(x / 320, z / 200, 51) < 0.55 || (Math.abs(x) < 220 && Math.abs(z) < 60)) continue;
+    const kp = new Kelp(x, z, (-floorAt(x, z) - 4) * (0.55 + R() * 0.45), R, kelpMat);
     kelps.push(kp);
     scene.add(kp.mesh);
   }
@@ -82,32 +83,38 @@ const kelps: Kelp[] = [];
 // ----- creatures ----- //
 
 const mats = creatureMaterials();
-interface Actor { cr: Creature; mesh: CreatureMesh; kind: 'player' | 'swim' | 'floor' | 'sib'; hx: number; hz: number; tx: number; tz: number; next: number; }
+interface Actor {
+  cr: Creature; mesh: CreatureMesh; kind: 'player' | 'swim' | 'floor' | 'sib';
+  /** depth of its own vertical plane (swimmers), or where it lies (floor) */
+  z: number; hx: number; hy: number; tx: number; ty: number; next: number;
+}
 const actors: Actor[] = [];
 
-function addActor(sp: Spec, x: number, z: number, kind: Actor['kind'], scale = 1): Actor {
-  const cr = new Creature(sp, x, z, { dir: rand(0, TAU), scale });
+/** x, y are engine coordinates: y grows downward from the surface */
+function addActor(sp: Spec, x: number, y: number, kind: Actor['kind'], scale = 1, z = 0): Actor {
+  const cr = new Creature(sp, x, y, { dir: rand(0, TAU), scale });
   for (let i = 0; i < 60; i++) cr.update(i * STEP, 0, 0, 0.1);
-  const mesh = new CreatureMesh(cr, mats);
-  mesh.y = kind === 'floor' ? floorAt(x, z) + 3 : planeAt(x, z) + (kind === 'swim' ? 8 : 0);
+  const mesh = new CreatureMesh(cr, mats, kind !== 'floor');
+  if (kind === 'floor') mesh.y = floorAt(x, y) + 2;
+  else mesh.group.position.z = z;
   scene.add(mesh.group);
-  const a: Actor = { cr, mesh, kind, hx: x, hz: z, tx: x, tz: z, next: 0 };
+  const a: Actor = { cr, mesh, kind, z, hx: x, hy: y, tx: x, ty: y, next: 0 };
   actors.push(a);
   return a;
 }
 
-const player = addActor(firstAncestor(), 0, 0, 'player', 1);
-player.mesh.y = planeAt(0, 0);
+const player = addActor(firstAncestor(), 0, 70, 'player', 1);
 {
   const R = rng(3);
-  for (let i = 0; i < 6; i++) addActor(firstAncestor(), rand(-160, 160), rand(-160, 160), 'sib', 0.45 + R() * 0.15);
-  const swim = ['meduse', 'meduse', 'hippocampe', 'ctenophore', 'poissonClown', 'krill', 'meduse'];
-  const floor = ['crevette', 'crevette', 'etoile', 'nudibranche', 'crabe', 'crevette', 'ophiure', 'verPlat'];
-  for (let i = 0; i < swim.length; i++) addActor(SPECIES[swim[i]](), rand(-600, 1300), rand(-600, 600), 'swim', 1);
-  for (let i = 0; i < floor.length; i++) addActor(SPECIES[floor[i]](), rand(-400, 1200), rand(-500, 500), 'floor', 1);
-  // one close to the start so the first view has company
-  addActor(SPECIES.meduse(), 90, -110, 'swim', 1);
-  addActor(SPECIES.crevette(), -90, 110, 'floor', 0.8);
+  for (let i = 0; i < 6; i++) addActor(firstAncestor(), rand(-160, 160), rand(40, 160), 'sib', 0.45 + R() * 0.15, rand(-40, 30));
+  const swim: [string, number][] = [['meduse', 0], ['meduse', -140], ['hippocampe', -60], ['ctenophore', -200], ['poissonClown', 0], ['krill', 20], ['meduse', -320], ['anguille', -90], ['calmar', -260]];
+  for (const [id, z] of swim) addActor(SPECIES[id](), rand(-500, 2200), rand(40, 220), 'swim', 1, z);
+  // floor crawlers lie on the sand, in front of and behind the plane
+  const floor = ['crevette', 'crevette', 'etoile', 'nudibranche', 'crabe', 'crevette', 'ophiure', 'verPlat', 'etoile', 'crabe'];
+  for (const id of floor) addActor(SPECIES[id](), rand(-400, 2200), rand(-300, 120), 'floor', 1);
+  // company near the start
+  addActor(SPECIES.meduse(), 120, 60, 'swim', 1, -30);
+  addActor(SPECIES.crevette(), -40, 60, 'floor', 0.8);
 }
 
 // ----- a school of small fish (instanced) ----- //
@@ -130,8 +137,9 @@ const fishGeo = (() => {
 const fishMesh = new THREE.InstancedMesh(fishGeo, new THREE.MeshStandardMaterial({ color: 0xc8d8e0, metalness: 0.5, roughness: 0.3 }), FISH);
 fishMesh.frustumCulled = false;
 scene.add(fishMesh);
+// fish.z holds the engine y (depth below the surface) of each fish; yo its own plane
 const fish = { x: new Float32Array(FISH), z: new Float32Array(FISH), vx: new Float32Array(FISH), vz: new Float32Array(FISH), yo: new Float32Array(FISH), ph: new Float32Array(FISH) };
-for (let i = 0; i < FISH; i++) { fish.x[i] = 300 + rand(-60, 60); fish.z[i] = -200 + rand(-60, 60); fish.vx[i] = rand(-1, 1); fish.vz[i] = rand(-1, 1); fish.yo[i] = rand(-6, 6); fish.ph[i] = rand(0, TAU); }
+for (let i = 0; i < FISH; i++) { fish.x[i] = 300 + rand(-60, 60); fish.z[i] = 120 + rand(-40, 40); fish.vx[i] = rand(-1, 1); fish.vz[i] = rand(-1, 1); fish.yo[i] = -70 + rand(-25, 25); fish.ph[i] = rand(0, TAU); }
 
 // ----- glows ----- //
 
@@ -147,13 +155,12 @@ scene.add(glows);
 // ----- controls ----- //
 
 const input = new Input(canvas, 0.35, 3);
-input.zoomMul = 260 / settings.dist;
-const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3();
+input.zoomMul = 300 / settings.dist;
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), hit = new THREE.Vector3();
 
 function fingerTarget(sx: number, sy: number): THREE.Vector3 | null {
   ndc.set((sx / window.innerWidth) * 2 - 1, -(sy / window.innerHeight) * 2 + 1);
   ray.setFromCamera(ndc, camera);
-  plane.constant = -player.mesh.y;
   return ray.ray.intersectPlane(plane, hit);
 }
 
@@ -161,15 +168,21 @@ function fingerTarget(sx: number, sy: number): THREE.Vector3 | null {
 
 const flow = new Flow(32);
 let t = 0;
-const camTarget = new THREE.Vector3(0, player.mesh.y, 0);
+const camTarget = new THREE.Vector3(0, -70, 0);
 
-function collideRocks(cr: Creature, y: number, rocks: Rock[]): void {
-  const r = cr.root;
+/** keep a swimmer (engine coords, plane z) out of the rocks that cut its plane, and above the floor */
+function collide(cr: Creature, z: number, rocks: Rock[]): void {
+  const r = cr.root, rad = r.rad[0] + 2;
   for (const k of rocks) {
-    if (k.top < y - 4) continue;
-    const dx = r.x[0] - k.x, dz = r.y[0] - k.z, d = Math.hypot(dx, dz), m = k.r * 0.95 + r.rad[0];
-    if (d < m && d > 0.01) { r.x[0] = k.x + (dx / d) * m; r.y[0] = k.z + (dz / d) * m; }
+    const dz = Math.abs(k.z - z);
+    if (dz >= k.r || Math.abs(k.x - r.x[0]) > k.r + 40) continue;
+    const rs = Math.sqrt(k.r * k.r - dz * dz) * 0.85, cy = -k.cy;
+    const dx = r.x[0] - k.x, dy = (r.y[0] - cy) / 0.7, d = Math.hypot(dx, dy), m = rs + rad;
+    if (d < m && d > 0.01) { r.x[0] = k.x + (dx / d) * m; r.y[0] = cy + (dy / d) * m * 0.7; }
   }
+  const fy = -floorAt(r.x[0], z) - rad;
+  if (r.y[0] > fy) { r.y[0] = fy; if (cr.vy > 0) cr.vy *= -0.3; }
+  if (r.y[0] < 6) { r.y[0] = 6; if (cr.vy < 0) cr.vy *= -0.3; }
 }
 
 function update(): void {
@@ -177,57 +190,60 @@ function update(): void {
   shared.time.value = t;
   const p = player.cr, r = p.root;
 
-  // the player swims toward the finger
+  // the player swims toward the finger (engine y = -world y)
   const f = input.follow, kd = input.keyDir();
   if (f) {
     const w = fingerTarget(f.x, f.y);
     if (w) {
-      const dx = w.x - r.x[0], dz = w.z - r.y[0], d = Math.hypot(dx, dz) || 1, sp = 2.6 * Math.min(1, d / 70);
-      p.update(t, (dx / d) * sp, (dz / d) * sp, 0.08);
+      const dx = w.x - r.x[0], dy = -w.y - r.y[0], d = Math.hypot(dx, dy) || 1, sp = 2.6 * Math.min(1, d / 70);
+      p.update(t, (dx / d) * sp, (dy / d) * sp, 0.08);
     } else p.update(t, 0, 0, 0.03);
   } else if (kd) {
     const d = Math.hypot(kd.x, kd.y);
     p.update(t, (kd.x / d) * 2.6, (kd.y / d) * 2.6, 0.08);
   } else p.update(t, 0, 0, 0.03);
-  r.x[0] = clamp(r.x[0], BOUNDS.x0 + 80, BOUNDS.x1 - 80);
-  r.y[0] = clamp(r.y[0], BOUNDS.z0 + 80, BOUNDS.z1 - 80);
-  player.mesh.y += (planeAt(r.x[0], r.y[0]) - player.mesh.y) * 0.02;
-  collideRocks(p, player.mesh.y, rocks);
-  const px = r.x[0], pz = r.y[0], py = player.mesh.y;
+  r.x[0] = clamp(r.x[0], BOUNDS.x0 + 150, BOUNDS.x1 - 150);
+  collide(p, 0, rocks);
+  const px = r.x[0], py = r.y[0];
 
   // the others
   flow.clear();
-  for (const a of actors) if (Math.abs(a.cr.root.x[0] - px) < 700 && Math.abs(a.cr.root.y[0] - pz) < 700) flow.add(a.cr);
+  const near = (a: Actor) => Math.abs(a.cr.root.x[0] - px) < 900;
+  for (const a of actors) if (a.kind !== 'floor' && Math.abs(a.z) < 45 && near(a)) flow.add(a.cr);
   for (const a of actors) {
-    if (a.kind === 'player') continue;
-    const c = a.cr, cr = c.root, x = cr.x[0], z = cr.y[0];
-    if (Math.abs(x - px) > 900 || Math.abs(z - pz) > 900) continue;
+    if (a.kind === 'player' || !near(a)) continue;
+    const c = a.cr, cr = c.root, x = cr.x[0], y = cr.y[0];
     if (a.kind === 'sib') {
       // siblings drift around the player, loosely
-      const dx = px - x, dz = pz - z, d = Math.hypot(dx, dz) || 1;
-      if (t > a.next) { a.next = t + rand(1.5, 4); a.tx = rand(-60, 60); a.tz = rand(-60, 60); }
-      const gx = px + a.tx - x, gz = pz + a.tz - z, g = Math.hypot(gx, gz) || 1;
-      const sp = d > 240 ? 1.8 : d < 30 ? 0.3 : 0.9 * Math.min(1, g / 60);
-      c.update(t, (gx / g) * sp, (gz / g) * sp, 0.04);
-      a.mesh.y = py + Math.sin(t * 0.7 + a.hx) * 4;
+      if (t > a.next) { a.next = t + rand(1.5, 4); a.tx = rand(-70, 70); a.ty = rand(-50, 50); }
+      const gx = px + a.tx - x, gy = py + a.ty - y, g = Math.hypot(gx, gy) || 1, d = Math.hypot(px - x, py - y);
+      const sp = d > 260 ? 1.8 : 0.9 * Math.min(1, g / 60);
+      c.update(t, (gx / g) * sp, (gy / g) * sp, 0.04);
+      collide(c, a.z, rocks);
     } else {
-      if (t > a.next || Math.hypot(a.tx - x, a.tz - z) < 20) { a.next = t + rand(3, 8); a.tx = a.hx + rand(-240, 240); a.tz = a.hz + rand(-240, 240); }
-      let dx = a.tx - x, dz = a.tz - z;
-      const qx = x - px, qz = z - pz, q = Math.hypot(qx, qz);
-      if (a.kind === 'swim' && q < 60) { dx += (qx / (q + 1)) * 200; dz += (qz / (q + 1)) * 200; }
-      const d = Math.hypot(dx, dz) || 1, sp = c.spec.swim.speed * 0.45 * swimFactor(c, t) * Math.min(1, d / 60);
-      c.update(t, (dx / d) * sp, (dz / d) * sp, 0.05);
-      const target = a.kind === 'floor' ? floorAt(x, z) + 3 : Math.max(planeAt(x, z) + 8, -60);
-      a.mesh.y += (target - a.mesh.y) * 0.05;
+      if (t > a.next || Math.hypot(a.tx - x, a.ty - y) < 20) {
+        a.next = t + rand(3, 8);
+        a.tx = a.hx + rand(-260, 260);
+        a.ty = a.kind === 'floor' ? a.hy + rand(-120, 120) : clamp(a.hy + rand(-120, 120), 30, -floorAt(a.tx, a.z) - 40);
+      }
+      let dx = a.tx - x, dy = a.ty - y;
+      if (a.kind === 'swim' && Math.abs(a.z) < 60) {
+        const qx = x - px, qy = y - py, q = Math.hypot(qx, qy);
+        if (q < 60) { dx += (qx / (q + 1)) * 200; dy += (qy / (q + 1)) * 200; }
+      }
+      const d = Math.hypot(dx, dy) || 1, sp = c.spec.swim.speed * 0.45 * swimFactor(c, t) * Math.min(1, d / 60);
+      c.update(t, (dx / d) * sp, (dy / d) * sp, 0.05);
+      if (a.kind === 'floor') a.mesh.y += (floorAt(cr.x[0], cr.y[0]) + 2 - a.mesh.y) * 0.1;
+      else collide(c, a.z, rocks);
     }
   }
-  for (const a of actors) if (Math.abs(a.cr.root.x[0] - px) < 700 && Math.abs(a.cr.root.y[0] - pz) < 700) flow.apply(a.cr, { push: 0.3, wake: 0.02, body: a.kind === 'player' ? 0.008 : 0.01 });
+  for (const a of actors) if (a.kind !== 'floor' && Math.abs(a.z) < 45 && near(a)) flow.apply(a.cr, { push: 0.3, wake: 0.02, body: a.kind === 'player' ? 0.008 : 0.01 });
 
   // fish school: boids in the plane, scatter around the player
   let cx = 0, cz = 0, ax = 0, az = 0;
   for (let i = 0; i < FISH; i++) { cx += fish.x[i]; cz += fish.z[i]; ax += fish.vx[i]; az += fish.vz[i]; }
   cx /= FISH; cz /= FISH; ax /= FISH; az /= FISH;
-  const gx = 400 + Math.sin(t * 0.05) * 700, gz = Math.cos(t * 0.07) * 500;
+  const gx = 500 + Math.sin(t * 0.05) * 900, gz = 150 + Math.cos(t * 0.07) * 70;
   for (let i = 0; i < FISH; i++) {
     let fx = (cx - fish.x[i]) * 0.002 + (ax - fish.vx[i]) * 0.05 + (gx - cx) * 0.0005;
     let fz = (cz - fish.z[i]) * 0.002 + (az - fish.vz[i]) * 0.05 + (gz - cz) * 0.0005;
@@ -238,19 +254,20 @@ function update(): void {
       const d2 = dx * dx + dz * dz + 0.01;
       fx += (dx / d2) * 1.2; fz += (dz / d2) * 1.2;
     }
-    const dx = fish.x[i] - px, dz = fish.z[i] - pz, d2 = dx * dx + dz * dz;
+    const dx = fish.x[i] - px, dz = fish.z[i] - py, d2 = dx * dx + dz * dz;
     if (d2 < 100 * 100) { const d = Math.sqrt(d2) + 0.1, k = (1 - d / 100) * 0.9; fx += (dx / d) * k; fz += (dz / d) * k; }
     let vx = fish.vx[i] + fx, vz = fish.vz[i] + fz;
     const m = Math.hypot(vx, vz), mx = 2.1;
     if (m > mx) { vx *= mx / m; vz *= mx / m; } else if (m < 0.7) { vx *= 0.7 / (m || 1); vz *= 0.7 / (m || 1); }
-    fish.vx[i] = vx; fish.vz[i] = vz; fish.x[i] += vx; fish.z[i] += vz; fish.ph[i] += 0.3 + m * 0.2;
+    fish.vx[i] = vx; fish.vz[i] = vz * 0.95; fish.x[i] += vx; fish.z[i] = clamp(fish.z[i] + fish.vz[i], 20, -floorAt(fish.x[i], fish.yo[i]) - 30); fish.ph[i] += 0.3 + m * 0.2;
   }
 
   // kelp near the player bends away from whoever swims through
-  const pushers = [{ x: px, y: py, z: pz, r: 10 }];
-  for (const a of actors) if (a.kind !== 'player' && Math.abs(a.cr.root.x[0] - px) < 300) pushers.push({ x: a.cr.root.x[0], y: a.mesh.y, z: a.cr.root.y[0], r: 6 });
-  for (const k of kelps) if (Math.abs(k.base.x - px) < 500 && Math.abs(k.base.z - pz) < 500) k.update(pushers, t);
-  shared.player.value.set(px, py, pz);
+  const pushers = [{ x: px, y: -py, z: 0, r: 12 }];
+  for (const a of actors) if (a.kind !== 'player' && a.kind !== 'floor' && Math.abs(a.cr.root.x[0] - px) < 400) pushers.push({ x: a.cr.root.x[0], y: -a.cr.root.y[0], z: a.z, r: 7 });
+  for (let i = 0; i < FISH; i += 3) if (Math.abs(fish.x[i] - px) < 400) pushers.push({ x: fish.x[i], y: -fish.z[i], z: fish.yo[i], r: 5 });
+  for (const k of kelps) if (Math.abs(k.base.x - px) < 600) k.update(pushers, t);
+  shared.player.value.set(px, -py, 0);
 }
 
 // ----- drawing ----- //
@@ -259,23 +276,24 @@ const dummy = new THREE.Object3D();
 const underCol = new THREE.Color(), tmpC = new THREE.Color();
 
 function render(): void {
-  const r = player.cr.root, px = r.x[0], pz = r.y[0], py = player.mesh.y;
+  const r = player.cr.root, px = r.x[0], py = r.y[0];
   for (const a of actors) {
-    const vis = Math.abs(a.cr.root.x[0] - px) < 800 && Math.abs(a.cr.root.y[0] - pz) < 800;
+    const vis = Math.abs(a.cr.root.x[0] - px) < 1000;
     a.mesh.group.visible = vis;
     if (vis) a.mesh.sync(t);
   }
-  // camera: plunging toward the creature, a little ahead of where it swims
-  const dist = 260 / input.zoomMul, ang = (settings.angle * Math.PI) / 180;
-  camTarget.x += (px + player.cr.vx * 14 - camTarget.x) * 0.08;
-  camTarget.z += (pz + player.cr.vy * 14 - camTarget.z) * 0.08;
-  camTarget.y += (py - camTarget.y) * 0.08;
-  camera.position.set(camTarget.x, camTarget.y + Math.sin(ang) * dist, camTarget.z + Math.cos(ang) * dist);
-  camera.lookAt(camTarget);
+  // camera: in front of the plane, a little above, looking slightly down
+  const dist = 300 / input.zoomMul, ang = (settings.angle * Math.PI) / 180;
+  camTarget.x += (px + player.cr.vx * 16 - camTarget.x) * 0.08;
+  camTarget.y += (-py - player.cr.vy * 16 - camTarget.y) * 0.08;
+  camTarget.z = 0;
+  const ty = Math.min(camTarget.y, -40);
+  camera.position.set(camTarget.x, Math.min(-10, ty + Math.sin(ang) * dist), Math.cos(ang) * dist);
+  camera.lookAt(camTarget.x, ty, 0);
 
   // above or below the surface
   const under = camera.position.y < 0;
-  const depth = Math.max(0, -camTarget.y);
+  const depth = Math.max(0, -camTarget.y - 60);
   underCol.copy(WATER.shallow).lerp(WATER.deep, clamp(depth / 500, 0, 0.9));
   const fog = scene.fog as THREE.FogExp2;
   if (under) { fog.color.copy(underCol); fog.density = 0.0024 + depth * 0.000002; scene.background = underCol; }
@@ -300,8 +318,8 @@ function render(): void {
   // fish
   for (let i = 0; i < FISH; i++) {
     const a = Math.atan2(fish.vz[i], fish.vx[i]);
-    dummy.position.set(fish.x[i], planeAt(fish.x[i], fish.z[i]) + 10 + fish.yo[i], fish.z[i]);
-    dummy.rotation.set(0, -a + Math.sin(fish.ph[i]) * 0.25, 0);
+    dummy.position.set(fish.x[i], -fish.z[i], fish.yo[i]);
+    dummy.rotation.set(0, Math.sin(fish.ph[i]) * 0.3, -a);
     dummy.updateMatrix();
     fishMesh.setMatrixAt(i, dummy.matrix);
   }
@@ -311,10 +329,10 @@ function render(): void {
   let g = 0;
   for (const a of actors) {
     if (!a.mesh.group.visible) continue;
-    const y = a.mesh.y;
-    eachGlow(a.cr.list, (x, z, _size, hue, al) => {
+    const flat = a.kind === 'floor', y0 = a.mesh.y, z0 = a.z;
+    eachGlow(a.cr.list, (x, ey, _size, hue, al) => {
       if (g >= GLOWS) return;
-      glowPos.set([x, y + 1, z], g * 3);
+      if (flat) glowPos.set([x, y0 + 1, ey], g * 3); else glowPos.set([x, -ey, z0 + 1], g * 3);
       tmpC.setHSL(hue / 360, 0.9, 0.6).multiplyScalar(al * 0.8);
       glowCol.set([tmpC.r, tmpC.g, tmpC.b], g * 3);
       g++;
@@ -331,7 +349,7 @@ function render(): void {
 
 let last = performance.now(), acc = 0, fn = 0, fsum = 0;
 const stats = { fps: 0 };
-(window as unknown as { lignee3d: unknown }).lignee3d = { settings, player, camera, stats, actors, teleport: (x: number, z: number) => { player.cr.translate(x - player.cr.root.x[0], z - player.cr.root.y[0]); player.mesh.y = planeAt(x, z); camTarget.set(x, player.mesh.y, z); } };
+(window as unknown as { lignee3d: unknown }).lignee3d = { settings, player, camera, stats, actors, teleport: (x: number, y: number) => { player.cr.translate(x - player.cr.root.x[0], y - player.cr.root.y[0]); camTarget.set(x, -y, 0); } };
 
 function frame(now: number): void {
   const dt = now - last;
@@ -359,16 +377,16 @@ const angleIn = document.getElementById('angle') as HTMLInputElement, angleOut =
 const distIn = document.getElementById('dist') as HTMLInputElement, distOut = document.getElementById('distVal')!;
 const fpsEl = document.getElementById('fps')!;
 angleIn.value = String(settings.angle); distIn.value = String(Math.round(settings.dist));
-const showVals = () => { angleOut.textContent = settings.angle + '°'; distOut.textContent = Math.round(260 / input.zoomMul) + ''; };
+const showVals = () => { angleOut.textContent = settings.angle + '°'; distOut.textContent = Math.round(300 / input.zoomMul) + ''; };
 showVals();
 gear.addEventListener('click', () => { panel.hidden = !panel.hidden; });
 angleIn.addEventListener('input', () => { settings.angle = +angleIn.value; showVals(); save(); });
-distIn.addEventListener('input', () => { input.zoomMul = 260 / +distIn.value; settings.dist = +distIn.value; showVals(); save(); });
+distIn.addEventListener('input', () => { input.zoomMul = 300 / +distIn.value; settings.dist = +distIn.value; showVals(); save(); });
 for (const b of document.querySelectorAll<HTMLButtonElement>('[data-angle]')) {
   b.addEventListener('click', () => { settings.angle = +b.dataset.angle!; angleIn.value = b.dataset.angle!; showVals(); save(); });
 }
 // pinch changes the distance: keep the slider in step
-setInterval(() => { const d = Math.round(260 / input.zoomMul); if (+distIn.value !== d) { distIn.value = String(d); settings.dist = d; showVals(); save(); } }, 400);
+setInterval(() => { const d = Math.round(300 / input.zoomMul); if (+distIn.value !== d) { distIn.value = String(d); settings.dist = d; showVals(); save(); } }, 400);
 for (const el of [panel, gear]) {
   for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'wheel']) el.addEventListener(ev, (e) => e.stopPropagation());
 }

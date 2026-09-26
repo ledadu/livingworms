@@ -14,17 +14,17 @@
   <div id="panel" hidden>
     <h2>Caméra</h2>
     <label for="angle"><span class="row"><span>Angle</span><span id="angleVal"></span></span>
-      <input id="angle" type="range" min="30" max="90" step="1"></label>
+      <input id="angle" type="range" min="0" max="60" step="1"></label>
     <div class="presets">
-      <button data-angle="90">Zénith 90°</button>
-      <button data-angle="72">Plongée 72°</button>
-      <button data-angle="50">Oblique 50°</button>
+      <button data-angle="0">De face 0°</button>
+      <button data-angle="15">Légère 15°</button>
+      <button data-angle="35">Plongée 35°</button>
     </div>
     <label for="dist"><span class="row"><span>Distance</span><span id="distVal"></span></span>
-      <input id="dist" type="range" min="80" max="740" step="5"></label>
+      <input id="dist" type="range" min="100" max="800" step="5"></label>
     <div class="fps" id="fps">…</div>
   </div>
-  <div id="hint">Guide la larve avec le doigt · pince pour zoomer · ⚙ pour l'angle</div>
+  <div id="hint">Guide la larve avec le doigt · pince pour zoomer · ⚙ pour l’angle</div>
   <script type="module" src="./src/proto3d/main.ts"></script>
 </body>
 </html>

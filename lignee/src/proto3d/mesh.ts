@@ -76,8 +76,13 @@ export class CreatureMesh {
   private eyes: THREE.Mesh[] = [];
   private tips: { s: Seg; w: THREE.Mesh; p: THREE.Mesh }[] = [];
 
-  constructor(cr: Creature, mats: THREE.Material[]) {
+  /**
+   * vertical: the creature swims in a vertical plane facing the camera (engine y
+   * points down); otherwise it lies flat (floor crawlers), engine y along +z.
+   */
+  constructor(cr: Creature, mats: THREE.Material[], vertical = true) {
     this.cr = cr;
+    if (vertical) this.group.rotation.x = Math.PI / 2;
     const parts: Part[][] = [[], [], []];
     for (const s of cr.list) {
       const c = classify(s), d = s.def;
@@ -143,6 +148,8 @@ export class CreatureMesh {
       const geo = new THREE.BufferGeometry();
       const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), col = new Float32Array(nv * 4);
       for (const p of list) col.set(p.cols, p.v0 * 4);
+      // additive parts: both faces of a membrane add up, keep them soft
+      if (L === 2) for (let k = 0; k < col.length; k += 4) { col[k] *= 0.45; col[k + 1] *= 0.45; col[k + 2] *= 0.45; }
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
       geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3).setUsage(THREE.DynamicDrawUsage));
       geo.setAttribute('color', new THREE.BufferAttribute(col, 4));
