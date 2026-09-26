@@ -183,7 +183,7 @@ export class Visitor {
   constructor(sp: Spec, p: number, x0: number, x1: number, y: number, scale: number, speed: number) {
     this.p = p; this.y = y; this.x0 = x0; this.x1 = x1; this.dir = 1; this.speed = speed;
     this.x = x0;
-    this.cr = new Creature(sp, x0, y, { dir: Math.PI, scale });
+    this.cr = new Creature(sp, x0, y, { dir: Math.PI, scale, profile: true });
     for (let t = 0; t < 120; t++) this.cr.update(t * STEP, speed, 0, 0.2);
     this.buf = makeCanvas(256, 256);
     this.bctx = this.buf.getContext('2d')!;
@@ -223,7 +223,7 @@ export class Wanderer {
   private next = 0;
   private hit = { x: 0, y: 0, hit: false };
   constructor(sp: Spec, x: number, y: number, benthic: boolean, scale = 1) {
-    this.cr = new Creature(sp, x, y, { dir: rand(0, TAU), scale });
+    this.cr = new Creature(sp, x, y, { dir: rand(0, TAU), scale, profile: true });
     this.hx = this.tx = x; this.hy = this.ty = y; this.benthic = benthic;
   }
   update(t: number, pl: Player | null): void {

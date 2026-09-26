@@ -88,7 +88,7 @@ export class Game {
     this.input.zoomMul = 1.25;
     this.resize();
     window.addEventListener('resize', () => this.resize());
-    this.player = new Creature(firstAncestor(), startX, 150, { dir: Math.PI, scale: 0.8 });
+    this.player = new Creature(firstAncestor(), startX, 150, { dir: Math.PI, scale: 0.8, profile: true });
     this.cam.x = startX; this.cam.y = 200;
     this.mood = moodAt(startX);
     const ctile = causticTile();
@@ -346,16 +346,16 @@ export class Game {
     this.drawCaustics(chunks, m);
     this.drawRays(m);
     for (const ch of chunks) if (inView(ch.carpet.box, v)) drawCarpet(ctx, ch.carpet, v[0], v[2]);
-    for (const ch of chunks) for (const h of ch.heroes) if (h.kind !== 'sargasse' && inView(h.cr.box, v)) draw(ctx, h.cr, { view: v });
-    for (const ch of chunks) for (const w of ch.fauna) if (inView(w.cr.box, v)) draw(ctx, w.cr, { view: v });
+    for (const ch of chunks) for (const h of ch.heroes) if (h.kind !== 'sargasse' && inView(h.cr.box, v)) draw(ctx, h.cr, { view: v, ink: true });
+    for (const ch of chunks) for (const w of ch.fauna) if (inView(w.cr.box, v)) draw(ctx, w.cr, { view: v, ink: true });
     for (const s of this.schools) {
       if (s.cx < v[0] - 300 || s.cx > v[2] + 300) continue;
       s.draw(ctx, a, 0, 0, a, ex, ey);
     }
     ctx.setTransform(a, 0, 0, a, ex, ey);
     this.swarm.draw(ctx, t);
-    draw(ctx, this.player, { view: v });
-    for (const ch of chunks) for (const h of ch.heroes) if (h.kind === 'sargasse' && inView(h.cr.box, v)) draw(ctx, h.cr, { view: v });
+    draw(ctx, this.player, { view: v, ink: true });
+    for (const ch of chunks) for (const h of ch.heroes) if (h.kind === 'sargasse' && inView(h.cr.box, v)) draw(ctx, h.cr, { view: v, ink: true });
     this.drawSurface(m);
 
     // 4. light: glows
@@ -582,6 +582,13 @@ export class Game {
     // deep water closes in
     const d = clamp((this.cam.y - 300) / 900, 0, 1);
     if (d > 0) { ctx.fillStyle = css(m.deep, d * 0.25, -10); ctx.fillRect(0, 0, W, H); }
+  }
+
+  /** debug / test helper: a species next to the player */
+  spawnNear(id: string, dx: number, dy: number): void {
+    const r = this.player.root, ch = this.chunks.get(chunkOf(r.x[0]));
+    if (!ch || !SPECIES[id]) return;
+    ch.fauna.push(new Wanderer(SPECIES[id](), r.x[0] + dx, r.y[0] + dy, false, 1));
   }
 
   /** debug / test helpers */
