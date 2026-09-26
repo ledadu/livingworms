@@ -10,7 +10,7 @@ import { firstAncestor } from '../game/game';
 import { Input } from '../game/input';
 import { waterAt } from '../game/palette';
 import { plantSpec } from '../game/plants';
-import { toonRamp } from './mesh';
+import { CreatureMesh, creatureMaterials, toonRamp } from './mesh';
 import { Card, cardGeometry } from './card';
 import {
   BOUNDS, REEF_X, causticTexture, col3, floorAt, glowTexture, makeMeadow, makePlankton, makeRays, makeRocks,
@@ -117,8 +117,12 @@ const plants: Plant[] = [];
 
 // ----- animals: all in profile ----- //
 
+const mats = creatureMaterials();
+
 interface Actor {
-  cr: Creature; card: Card; kind: 'player' | 'swim' | 'floor' | 'sib' | 'far';
+  cr: Creature; mesh: CreatureMesh; kind: 'player' | 'swim' | 'floor' | 'sib' | 'far';
+  /** +1 heading right, -1 heading left; turning around happens in the horizontal plane */
+  face: number; turnT: number;
   z: number; hx: number; hy: number; tx: number; ty: number; next: number;
 }
 const actors: Actor[] = [];
@@ -127,9 +131,11 @@ const actors: Actor[] = [];
 function addActor(sp: Spec, x: number, y: number, kind: Actor['kind'], scale = 1, z = 0): Actor {
   const cr = new Creature(sp, x, y, { dir: Math.random() < 0.5 ? 0 : Math.PI, scale, profile: true });
   for (let i = 0; i < 60; i++) cr.update(i * STEP, 0, 0, 0.1);
-  const card = new Card(cr, z, cardGeometry);
-  scene.add(card.mesh);
-  const a: Actor = { cr, card, kind, z, hx: x, hy: y, tx: x, ty: y, next: 0 };
+  const mesh = new CreatureMesh(cr, mats);
+  mesh.root.position.z = z;
+  scene.add(mesh.root);
+  const face = Math.cos(cr.heading()) >= 0 ? 1 : -1;
+  const a: Actor = { cr, mesh, kind, z, hx: x, hy: y, tx: x, ty: y, next: 0, face, turnT: -9 };
   actors.push(a);
   return a;
 }
@@ -224,6 +230,23 @@ function collide(cr: Creature, z: number, rocks: Rock[]): void {
   if (r.y[0] < 6) { r.y[0] = 6; if (cr.vy < 0) cr.vy *= -0.3; }
 }
 
+/**
+ * swim toward (dvx, dvy). The vertical plane is only for going up and down:
+ * to go the other way the animal turns around about the vertical axis.
+ */
+function steer(a: Actor, dvx: number, dvy: number, accel: number): void {
+  const c = a.cr;
+  if (dvx * a.face < -0.2 && t - a.turnT > 0.5) {
+    c.mirrorX();
+    a.face = -a.face;
+    a.turnT = t;
+    // the body is mirrored at once; drawing it half a turn back and easing
+    // to zero shows it swinging round through the depth
+    a.mesh.yaw = a.face > 0 ? Math.PI : -Math.PI;
+  }
+  c.update(t, dvx, dvy, accel);
+}
+
 function update(): void {
   t += STEP;
   shared.time.value = t;
@@ -235,12 +258,12 @@ function update(): void {
     const w = fingerTarget(f.x, f.y);
     if (w) {
       const dx = w.x - r.x[0], dy = -w.y - r.y[0], d = Math.hypot(dx, dy) || 1, sp = 2.6 * Math.min(1, d / 70);
-      p.update(t, (dx / d) * sp, (dy / d) * sp, 0.08);
-    } else p.update(t, 0, 0, 0.03);
+      steer(player, (dx / d) * sp, (dy / d) * sp, 0.08);
+    } else steer(player, 0, 0, 0.03);
   } else if (kd) {
     const d = Math.hypot(kd.x, kd.y);
-    p.update(t, (kd.x / d) * 2.6, (kd.y / d) * 2.6, 0.08);
-  } else p.update(t, 0, 0, 0.03);
+    steer(player, (kd.x / d) * 2.6, (kd.y / d) * 2.6, 0.08);
+  } else steer(player, 0, 0, 0.03);
   r.x[0] = clamp(r.x[0], BOUNDS.x0 + 150, BOUNDS.x1 - 150);
   collide(p, 0, rocks);
   const px = r.x[0], py = r.y[0];
@@ -257,14 +280,14 @@ function update(): void {
       if (t > a.next) { a.next = t + rand(1.5, 4); a.tx = rand(-70, 70); a.ty = rand(-50, 50); }
       const gx = px + a.tx - x, gy = py + a.ty - y, g = Math.hypot(gx, gy) || 1, d = Math.hypot(px - x, py - y);
       const sp = d > 260 ? 1.8 : 0.9 * Math.min(1, g / 60);
-      c.update(t, (gx / g) * sp, (gy / g) * sp, 0.04);
+      steer(a, (gx / g) * sp, (gy / g) * sp, 0.04);
       collide(c, a.z, rocks);
       continue;
     }
     if (a.kind === 'far') {
       // cruises slowly back and forth, far behind
       if (x > a.hx + 1400) a.tx = -1; else if (x < a.hx - 200) a.tx = 1; else if (!a.tx || Math.abs(a.tx) > 1) a.tx = 1;
-      c.update(t, a.tx * 0.5 * swimFactor(c, t), (a.hy - y) * 0.01, 0.02);
+      steer(a, a.tx * 0.5 * swimFactor(c, t), (a.hy - y) * 0.01, 0.02);
       continue;
     }
     if (t > a.next || Math.hypot(a.tx - x, a.ty - y) < 20) {
@@ -278,7 +301,7 @@ function update(): void {
       if (q < 60) { dx += (qx / (q + 1)) * 200; dy += (qy / (q + 1)) * 200; }
     }
     const d = Math.hypot(dx, dy) || 1, sp = c.spec.swim.speed * 0.45 * swimFactor(c, t) * Math.min(1, d / 60);
-    c.update(t, (dx / d) * sp, (dy / d) * sp, 0.05);
+    steer(a, (dx / d) * sp, (dy / d) * sp, 0.05);
     collide(c, a.z, rocks);
   }
   // plants in the swimming plane are pushed by the water too
@@ -333,13 +356,13 @@ function render(): void {
   const kAt = (z: number) => clamp(pxH / Math.max(40, camera.position.z - z), 0.3, 4);
   frameNo++;
   const c0 = performance.now();
-  actors.forEach((a, i) => {
-    const dx = Math.abs(a.cr.root.x[0] - camTarget.x);
-    if (a.kind !== 'far' && dx > 900) { a.card.sleep(); return; }
-    // close to the player: every frame; further away or behind: one frame in three
-    const every = a.kind === 'player' || (dx < 450 && Math.abs(a.z) < 80) ? 1 : 3;
-    if (!a.card.alive || (frameNo + i) % every === 0) a.card.paint(kAt(a.z));
-  });
+  for (const a of actors) {
+    const vis = a.kind === 'far' || Math.abs(a.cr.root.x[0] - camTarget.x) < 900;
+    a.mesh.root.visible = vis;
+    a.mesh.yaw *= 0.86;
+    if (Math.abs(a.mesh.yaw) < 0.01) a.mesh.yaw = 0;
+    if (vis) a.mesh.sync(t);
+  }
   plants.forEach((pl, i) => {
     const dx = Math.abs(pl.cr.root.x[0] - camTarget.x);
     if (dx > 1300) { pl.card.sleep(); return; }
@@ -392,7 +415,7 @@ function render(): void {
   // glows
   let g = 0;
   for (const a of actors) {
-    if (!a.card.mesh.visible) continue;
+    if (!a.mesh.root.visible) continue;
     const z0 = a.z;
     eachGlow(a.cr.list, (x, ey, _size, hue, al) => {
       if (g >= GLOWS) return;

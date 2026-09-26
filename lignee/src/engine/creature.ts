@@ -319,6 +319,28 @@ export class Creature {
 
   heading(): number { return this.root.ang[1] + Math.PI; }
 
+  /**
+   * turn around: mirror the whole body left-right around the head, belly
+   * still down. Drawn with a half turn about the vertical axis that eases
+   * back to zero, this reads as the animal turning in the horizontal plane.
+   */
+  mirrorX(): void {
+    const cx = this.root.x[0];
+    for (const s of this.list) {
+      for (let i = 0; i <= s.n; i++) {
+        s.x[i] = 2 * cx - s.x[i];
+        s.ox[i] = 2 * cx - s.ox[i];
+        s.ang[i] = Math.PI - s.ang[i];
+      }
+      const b = s.box, x0 = b[0];
+      b[0] = 2 * cx - b[2]; b[2] = 2 * cx - x0;
+    }
+    const b = this.box, x0 = b[0];
+    b[0] = 2 * cx - b[2]; b[2] = 2 * cx - x0;
+    this.facing = -this.facing;
+    this.facingTarget = -this.facingTarget;
+  }
+
   /** move every node at once (teleport, spawn) */
   translate(dx: number, dy: number): void {
     for (const s of this.list) {
