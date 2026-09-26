@@ -1,7 +1,7 @@
 // HYDRA — la lignée des abysses
-// Mobile port of the whip engine (whip.js): verlet chains with angle limits,
-// sub-whips hanging on the nodes of their parent, easings for the body shape.
-// Every creature is a tree of whips; cutting a node cuts its whole subtree.
+// The game: creatures are trees of whips built by engine.js (the same species
+// format as the Atelier editor). Cutting a node cuts its whole subtree, the
+// part floats away and, once eaten, becomes a gene you can graft on yourself.
 
 (function () {
 'use strict';
@@ -12,14 +12,7 @@ var TAU = Math.PI * 2;
 var STEP = 1 / 60;
 
 function rand(a, b) { return a + Math.random() * (b - a); }
-function randi(a, b) { return Math.floor(rand(a, b + 1)); }
 function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
-function wrapAngle(a) {
-  a %= TAU;
-  if (a > Math.PI) a -= TAU;
-  else if (a < -Math.PI) a += TAU;
-  return a;
-}
 function weighted(list) {
   var total = 0, i;
   for (i = 0; i < list.length; i++) total += list[i][1];
@@ -30,13 +23,6 @@ function weighted(list) {
   }
   return list[0][0];
 }
-function shuffle(a) {
-  for (var i = a.length - 1; i > 0; i--) {
-    var j = Math.floor(Math.random() * (i + 1)), t = a[i];
-    a[i] = a[j]; a[j] = t;
-  }
-  return a;
-}
 function store(key, value) {
   try {
     if (value === undefined) return localStorage.getItem(key);
@@ -45,315 +31,86 @@ function store(key, value) {
   return null;
 }
 
-// ----- easings (from whip.js, nbPeriod = 1) ----- //
+// ----- game model on top of the engine ----- //
 
-var EASE = {
-  linear:        function (w, t) { return w * (1 - t); },
-  worm:          function (w, t) { return w * (Math.sin(t * Math.PI) / 3 + 1); },
-  sansueBigHead: function (w, t) { return w * (Math.sin(t * Math.PI * 1.5) + 1); },
-  sansue:        function (w, t) { return w * (Math.sin(-0.5 + t * Math.PI * 1.5) + 1); },
-  virgule:       function (w, t) { return w * (Math.cos(t * Math.PI) + 1); },
-  bloby:         function (w, t) { return w * (Math.sin(t) / 3 + 1); },
-  point:         function (w) { return w; }
+var E = HydraEngine;
+
+// damage multiplier and minimal relative speed (px/step) per role
+var ROLES = {
+  whip:  { dmg: 1, thr: 2.5 },
+  sting: { dmg: 2, thr: 1.5 },
+  jaw:   { dmg: 1.4, thr: 2 },
+  fin:   { dmg: 0.3, thr: 5 }
 };
-
-// ----- kinds: the building blocks of every tree ----- //
-// amax: max angle between two links (angleMax in whip.js)
-// dmg/thr: damage multiplier and minimal relative speed to hurt
-// inert: decorative sub-part, can't be hit nor grafted on
-
-var KINDS = {
-  // bodies
-  anguille: { name: 'Anguille', links: 16, len: 7, w: 5.5, shape: 'worm', amax: 0.55, fr: 0.8, hp: 45, hs: 40 },
-  ver:      { name: 'Larve', links: 10, len: 6, w: 4, shape: 'worm', amax: 0.5, fr: 0.8, hp: 16, hs: 30 },
-  meduse:   { name: 'Méduse', links: 5, len: 6, w: 10, shape: 'bloby', amax: 0.3, fr: 0.8, hp: 34, hs: 25 },
-  serpent:  { name: 'Serpent', links: 22, len: 6.5, w: 5, shape: 'sansueBigHead', amax: 0.42, fr: 0.8, hp: 55, hs: 60 },
-  hydre:    { name: 'Hydre', links: 12, len: 9, w: 9, shape: 'sansue', amax: 0.45, fr: 0.8, hp: 120, hs: 70 },
-  // limbs (genes)
-  tentacule: { name: 'Tentacule', role: 'whip', links: 10, len: 6, w: 2.4, shape: 'virgule', amax: 2.4, fr: 0.88, hp: 14, dmg: 1, thr: 2.5, hs: 50 },
-  dard:      { name: 'Dard', role: 'sting', links: 6, len: 2.6, w: 2.4, shape: 'linear', amax: 0.2, fr: 0.8, hp: 9, dmg: 2, thr: 1.5, glow: true, hs: 20 },
-  nageoire:  { name: 'Nageoire', role: 'fin', links: 4, len: 5, w: 4.5, shape: 'sansue', amax: 0.9, fr: 0.8, hp: 12, wave: 0.55, dmg: 0.3, thr: 5, hs: 35 },
-  pince:     { name: 'Pince', role: 'jaw', links: 3, len: 4.5, w: 3.2, shape: 'virgule', amax: 0.6, fr: 0.8, hp: 12, dmg: 1.4, thr: 2, hs: 25 },
-  cils:      { name: 'Peigne de cils', role: 'cilia', links: 8, len: 4.5, w: 1.4, shape: 'worm', amax: 1.6, fr: 0.86, hp: 11, hs: 60 },
-  lanterne:  { name: 'Lanterne', role: 'light', links: 6, len: 5, w: 1.3, shape: 'worm', amax: 1.4, fr: 0.86, hp: 10, hs: 20 },
-  // decorative sub-parts
-  cil:   { links: 2, len: 3.5, w: 0.9, shape: 'virgule', amax: 1, fr: 0.86, hp: 1, inert: true, hs: 30 },
-  bulbe: { links: 1, len: 3, w: 4, shape: 'point', amax: 0, fr: 0.8, hp: 1, inert: true, glow: true, hs: 0 }
-};
-
-// attach slots of each body: node indices + angle of the mirrored pair
-var SLOTS = {
-  anguille: { at: [3, 6, 9, 12], a: 1.15 },
-  ver:      { at: [4], a: 1.2 },
-  meduse:   { at: [1, 2, 3], a: 0.35 },
-  serpent:  { at: [3, 7, 11, 15, 19], a: 1.3 },
-  hydre:    { at: [2, 4, 6, 8, 10], a: 1.1 }
-};
-
-var MAX_TREE_DEPTH = 4;   // root = 0
+var MAX_TREE_DEPTH = 4;   // levels, root included
 var MAX_GENES = 4;
+var BODY_SLOTS = [0.15, 0.3, 0.45, 0.6, 0.75, 0.9];
 
-// ----- genes ----- //
-// gene = { k: kind, hue, ch: [{ at: node index, a: angle, g: gene }] }
+// species met at each depth level: [id, first level, weight]
+var ENEMIES = [
+  ['larve', 0, 4], ['crevette', 0, 3], ['anguille', 0, 2.5],
+  ['meduse', 1, 3], ['nudibranche', 1, 2], ['plumeau', 1, 1.2],
+  ['serpentCilie', 2, 1.5], ['calmar', 2, 2.5],
+  ['baudroie', 3, 2], ['hydre', 4, 1.5]
+];
 
-function makeLimb(k, L, hue) {
-  hue = (hue + 360) % 360;
-  var g = { k: k, hue: hue, ch: [] }, i;
-  if (k === 'tentacule') {
-    var tip = null, n = KINDS.tentacule.links;
-    if (L >= 3 && Math.random() < 0.25) tip = makeLimb('tentacule', L - 2, hue + 25);
-    else if (L >= 1 && Math.random() < 0.25 + 0.15 * L) tip = { k: 'dard', hue: (hue + 40) % 360, ch: [] };
-    else if (L >= 2 && Math.random() < 0.2) tip = makeLimb('pince', 0, hue + 20);
-    if (tip) g.ch.push({ at: n, a: 0, g: tip });
-  } else if (k === 'cils') {
-    for (i = 1; i <= KINDS.cils.links; i++) {
-      var side = i % 2 ? 1 : -1;
-      g.ch.push({ at: i, a: side * Math.PI / 2, g: { k: 'cil', hue: hue, ch: [] } });
-    }
-  } else if (k === 'lanterne') {
-    g.ch.push({ at: KINDS.lanterne.links, a: 0, g: { k: 'bulbe', hue: (hue + 50) % 360, ch: [] } });
-  } else if (k === 'nageoire' && L >= 3 && Math.random() < 0.3) {
-    g.ch.push({ at: KINDS.nageoire.links, a: 0, g: { k: 'dard', hue: (hue + 40) % 360, ch: [] } });
-  }
-  return g;
+function playerSpec() {
+  try {
+    var s = store('hydra.player');
+    if (s) return E.spec(JSON.parse(s));
+  } catch (e) { /* broken save: fall back */ }
+  return E.SPECIES.anguille();
 }
 
-function cloneGene(g, mirror) {
-  return {
-    k: g.k, hue: g.hue,
-    ch: g.ch.map(function (c) { return { at: c.at, a: mirror ? -c.a : c.a, g: cloneGene(c.g, mirror) }; })
-  };
+function prepSeg(s, level) {
+  s.inert = s.def.style === 'eye' || (s.n * s.len < 8 && s.maxRad < 1);
+  s.maxHp = s.hp = 3 + s.n * s.len * Math.max(0.8, s.maxRad) * 0.08 * (1 + 0.2 * level);
 }
 
-function addPair(g, at, a, limb) {
-  g.ch.push({ at: at, a: a, g: limb });
-  g.ch.push({ at: at, a: -a, g: cloneGene(limb, true) });
-}
-
-function geneDepth(g) {
-  var d = 0;
-  g.ch.forEach(function (c) { if (!KINDS[c.g.k].inert) d = Math.max(d, geneDepth(c.g)); });
-  return 1 + d;
-}
-
-function geneName(g) {
-  var names = [];
-  (function walk(x, top) {
-    var K = KINDS[x.k];
-    if (!K.inert && !top && names.indexOf(K.name) < 0) names.push(K.name);
-    x.ch.forEach(function (c) { walk(c.g, false); });
-  })(g, true);
-  return KINDS[g.k].name + (names.length ? ' + ' + names.join(' + ') : '');
-}
-
-function playerGene() {
-  var g = { k: 'anguille', hue: 172, ch: [] };
-  addPair(g, 6, SLOTS.anguille.a, { k: 'tentacule', hue: 190, ch: [] });
-  return g;
-}
-
-function enemyGene(L) {
-  var hue = rand(0, 360);
-  var body = weighted([
-    ['ver', L < 2 ? 5 : 1],
-    ['anguille', 3],
-    ['meduse', L >= 1 ? 3 : 1],
-    ['serpent', L >= 1 ? 2 : 0],
-    ['hydre', L >= 3 ? 1 + L * 0.3 : 0]
-  ]);
-  var g = { k: body, hue: hue, ch: [] };
-  var slots = SLOTS[body];
-  var pairs;
-  if (body === 'ver') pairs = Math.random() < 0.6 ? 0 : 1;
-  else if (body === 'meduse') pairs = randi(2, 3);
-  else pairs = randi(L > 0 ? 1 : 0, Math.min(slots.at.length, 1 + L));
-  var ats = shuffle(slots.at.slice()).slice(0, pairs);
-  ats.forEach(function (at) {
-    var k = body === 'meduse' ? 'tentacule' : weighted([
-      ['tentacule', 6], ['nageoire', 3], ['pince', 2 + L * 0.5],
-      ['cils', L >= 1 ? 2 : 0], ['lanterne', L >= 2 ? 2.5 : 0.3]
-    ]);
-    addPair(g, at, slots.a, makeLimb(k, L, hue + rand(-35, 35)));
+function computeStats(c) {
+  var st = { fin: 0, light: 0, cilia: 0, jaw: 0, sense: 0, weapons: 0, depth: 0 };
+  c.list.forEach(function (s) {
+    if (s.creatureCut) return;
+    var r = s.def.role;
+    if (s.depth > st.depth) st.depth = s.depth;
+    if (r === 'fin') st.fin++;
+    else if (r === 'light') st.light++;
+    else if (r === 'cilia') st.cilia++;
+    else if (r === 'jaw') st.jaw++;
+    else if (r === 'sense') st.sense++;
+    if (ROLES[r] && r !== 'fin') st.weapons++;
   });
-  return g;
+  c.stats = st;
 }
 
-// ----- Whip ----- //
+function makeCreature(sp, x, y, o) {
+  var c = new E.Creature(sp, x, y, o);
+  c.isPlayer = !!o.player;
+  c.level = o.level || 0;
+  c.alive = true;
+  c.dmgMult = 1;
+  c.speed = sp.swim.speed;
+  c.list.forEach(function (s) { prepSeg(s, c.level); });
+  var r = c.root;
+  r.maxHp = r.hp = c.isPlayer ? 100 : (10 + r.n * r.len * r.maxRad * 0.06) * (1 + 0.25 * c.level);
+  computeStats(c);
+  return c;
+}
 
-function Whip(g, parent, at, a, x, y, baseAngle) {
-  var K = KINDS[g.k], n = K.links, i;
-  this.g = g;
-  this.K = K;
-  this.parent = parent;
-  this.at = parent ? Math.min(at, parent.n) : 0;
-  this.a = a;
-  this.depth = parent ? parent.depth + 1 : 0;
-  this.n = n;
-  this.len = K.len;
-  this.hue = g.hue;
-  this.maxHp = this.hp = K.hp;
-  this.cd = 0;
-  this.flash = 0;
-  this.phase = Math.random() * TAU;
-  this.box = [x, y, x, y];
-  this.x = new Float32Array(n + 1);
-  this.y = new Float32Array(n + 1);
-  this.ox = new Float32Array(n + 1);
-  this.oy = new Float32Array(n + 1);
-  this.ang = new Float32Array(n + 1);
-  this.rad = new Float32Array(n + 1);
-  this.col = [];
-  for (i = 0; i <= n; i++) {
-    var t = i / n;
-    this.x[i] = this.ox[i] = x + Math.cos(baseAngle) * this.len * i;
-    this.y[i] = this.oy[i] = y + Math.sin(baseAngle) * this.len * i;
-    this.ang[i] = baseAngle;
-    this.rad[i] = EASE[K.shape](K.w, t);
-    var h = (g.hue + (K.hs || 0) * t) % 360,
-        s = K.glow ? 100 : 62 + 25 * Math.sin(t * 6),
-        l = K.glow ? 68 : 46 + 20 * (1 - t) + (K.inert ? 10 : 0);
-    this.col[i] = 'hsl(' + h.toFixed(0) + ',' + s.toFixed(0) + '%,' + l.toFixed(0) + '%)';
-  }
-  var that = this;
-  this.children = g.ch.map(function (c) {
-    var at2 = Math.min(c.at, n);
-    return new Whip(c.g, that, at2, c.a, that.x[at2], that.y[at2], baseAngle + c.a);
+function refreshCreature(c) {
+  c.refresh();
+  computeStats(c);
+  c.needsRefresh = false;
+}
+
+// deeper species grow stings at the tip of their whips
+function enrich(sp, L) {
+  if (L < 2) return;
+  E.walkNodes(sp.body, function (n) {
+    if (n.role !== 'whip' || n.attach.some(function (a) { return a.at > 0.9; })) return;
+    if (Math.random() < 0.2 + 0.1 * L) n.attach.push(E.part('dard'));
   });
 }
-
-Whip.prototype.addChild = function (g, at, a) {
-  var w = new Whip(g, this, at, a, this.x[at], this.y[at], this.ang[at] + a);
-  this.children.push(w);
-  return w;
-};
-
-Whip.prototype.update = function (time) {
-  var n = this.n, x = this.x, y = this.y, ox = this.ox, oy = this.oy, ang = this.ang, rad = this.rad,
-      K = this.K, fixed = null, i;
-
-  if (this.parent) {
-    var p = this.parent, k = this.at;
-    ox[0] = x[0]; oy[0] = y[0];
-    x[0] = p.x[k]; y[0] = p.y[k];
-    fixed = p.ang[k] + this.a;
-    if (K.wave) fixed += Math.sin(time * 7 + this.phase) * K.wave * (this.a >= 0 ? 1 : -1);
-  }
-
-  var fr = K.fr, amax = K.amax, len = this.len, sink = this.sink || 0;
-  var minx = x[0] - rad[0], maxx = x[0] + rad[0], miny = y[0] - rad[0], maxy = y[0] + rad[0];
-
-  for (i = 1; i <= n; i++) {
-    var px = x[i], py = y[i];
-    var vx = (px - ox[i]) * fr, vy = (py - oy[i]) * fr;
-    ox[i] = px; oy[i] = py;
-    px += vx; py += vy + sink;
-
-    var a;
-    if (i === 1 && fixed !== null) {
-      a = fixed;
-    } else {
-      a = Math.atan2(py - y[i - 1], px - x[i - 1]);
-      if (i > 1) {
-        // angleMax * ((len - i) / len) like whip.js: the tail gets stiffer
-        var rel = wrapAngle(a - ang[i - 1]);
-        var lim = amax * (n - i + 1) / n + 0.03;
-        if (rel > lim) a = ang[i - 1] + lim;
-        else if (rel < -lim) a = ang[i - 1] - lim;
-      }
-    }
-    ang[i] = a;
-    px = x[i - 1] + Math.cos(a) * len;
-    py = y[i - 1] + Math.sin(a) * len;
-    x[i] = px; y[i] = py;
-
-    var r = rad[i];
-    if (px - r < minx) minx = px - r;
-    if (px + r > maxx) maxx = px + r;
-    if (py - r < miny) miny = py - r;
-    if (py + r > maxy) maxy = py + r;
-  }
-  ang[0] = ang[1];
-  this.box[0] = minx; this.box[1] = miny; this.box[2] = maxx; this.box[3] = maxy;
-
-  if (this.cd > 0) this.cd -= STEP;
-  if (this.flash > 0) this.flash -= STEP;
-
-  for (i = 0; i < this.children.length; i++) this.children[i].update(time);
-};
-
-Whip.prototype.walk = function (fn) {
-  fn(this);
-  for (var i = 0; i < this.children.length; i++) this.children[i].walk(fn);
-};
-
-Whip.prototype.serialize = function () {
-  return {
-    k: this.g.k, hue: this.hue,
-    ch: this.children.map(function (c) { return { at: c.at, a: c.a, g: c.serialize() }; })
-  };
-};
-
-// ----- Creature ----- //
-
-function Creature(gene, x, y, opts) {
-  opts = opts || {};
-  this.isPlayer = !!opts.player;
-  this.level = opts.level || 0;
-  this.ai = opts.ai || null;
-  this.speed = opts.speed || 2;
-  this.dmgMult = opts.dmgMult || 1;
-  this.root = new Whip(gene, null, 0, 0, x, y, opts.heading === undefined ? Math.PI / 2 : opts.heading);
-  this.vx = 0; this.vy = 0;
-  this.alive = true;
-  this.list = [];
-  this.box = [x, y, x, y];
-  this.stats = {};
-  this.refresh();
-  if (this.isPlayer) this.root.maxHp = this.root.hp = 100;
-  else this.root.maxHp = this.root.hp = KINDS[gene.k].hp * (1 + 0.25 * this.level);
-}
-
-Creature.prototype.refresh = function () {
-  var list = this.list, s = { fin: 0, light: 0, cilia: 0, jaw: 0, weapons: 0, depth: 0, count: 0 };
-  list.length = 0;
-  this.root.walk(function (w) {
-    list.push(w);
-    s.count++;
-    if (w.depth > s.depth) s.depth = w.depth;
-    var r = w.K.role;
-    if (r === 'fin') s.fin++;
-    else if (r === 'cilia') s.cilia++;
-    else if (r === 'jaw') s.jaw++;
-    if (w.g.k === 'bulbe') s.light++;
-    if (w.K.dmg && r !== 'fin') s.weapons++;
-  });
-  this.stats = s;
-  this.dirty = false;
-};
-
-Creature.prototype.update = function (time, dvx, dvy, accel) {
-  if (this.dirty) this.refresh();
-  this.vx += (dvx - this.vx) * accel;
-  this.vy += (dvy - this.vy) * accel;
-  var r = this.root;
-  r.ox[0] = r.x[0]; r.oy[0] = r.y[0];
-  r.x[0] += this.vx; r.y[0] += this.vy;
-  if (r.y[0] < 24) { r.y[0] = 24; if (this.vy < 0) this.vy *= -0.3; }
-  r.update(time);
-  var b = this.box, l = this.list;
-  b[0] = b[1] = Infinity; b[2] = b[3] = -Infinity;
-  for (var i = 0; i < l.length; i++) {
-    var wb = l[i].box;
-    if (wb[0] < b[0]) b[0] = wb[0];
-    if (wb[1] < b[1]) b[1] = wb[1];
-    if (wb[2] > b[2]) b[2] = wb[2];
-    if (wb[3] > b[3]) b[3] = wb[3];
-  }
-};
-
-Creature.prototype.heading = function () {
-  return this.root.ang[1] + Math.PI;
-};
 
 // ----- DOM ----- //
 
@@ -481,7 +238,8 @@ function newGame(attract) {
   state.maxTree = 1;
   state.t = 0;
   state.dash.t = state.dash.cd = 0;
-  state.player = new Creature(playerGene(), 0, 260, { player: true, heading: -Math.PI / 2 });
+  state.player = makeCreature(playerSpec(), 0, 260, { player: true, dir: Math.PI / 2 });
+  state.maxTree = state.player.stats.depth + 1;
   state.cam.x = 0; state.cam.y = 300;
   for (var i = 0; i < (attract ? 5 : 3); i++) spawnEnemy(true);
   renderTray();
@@ -494,16 +252,19 @@ function spawnEnemy(near) {
   var dist = near ? rand(viewR * 0.6, viewR * 1.1) : viewR * 1.1 + rand(0, 220);
   var x = p.x[0] + Math.cos(a) * dist, y = Math.max(90, p.y[0] + Math.sin(a) * dist);
   var L = levelAt(depthM(y));
-  var gene = enemyGene(L);
-  var probe = new Creature(gene, x, y, { level: L });
-  var type;
-  if (gene.k === 'meduse') type = 'drifter';
-  else if (probe.stats.weapons === 0) type = 'prey';
-  else type = Math.random() < 0.45 + 0.12 * L ? 'hunter' : 'prey';
-  probe.ai = { type: type, tx: x, ty: y, timer: 0, orb: rand(0, TAU), spin: Math.random() < 0.5 ? 1 : -1, lunge: rand(1.5, 3) };
-  probe.speed = (type === 'drifter' ? 0.9 : 1.9) * (1 + 0.06 * Math.min(L, 8)) * (gene.k === 'hydre' ? 0.8 : 1);
-  probe.dmgMult = 0.5 * (1 + 0.14 * L);
-  state.enemies.push(probe);
+  var id = weighted(ENEMIES.filter(function (e) { return L >= e[1]; }).map(function (e) {
+    return [e[0], e[2] * (e[0] === 'hydre' ? 1 + L * 0.2 : 1)];
+  }));
+  var sp = E.mutate(E.SPECIES[id](), 0.6);
+  if (id === 'larve' || id === 'anguille') sp.palette.hue = Math.round(rand(0, 360));
+  enrich(sp, L);
+  var c = makeCreature(sp, x, y, { level: L, scale: 1 + 0.04 * Math.min(L, 8), dir: rand(0, TAU) });
+  var type = sp.ai;
+  if (type === 'hunter' && c.stats.weapons === 0) type = 'prey';
+  c.ai = { type: type, tx: x, ty: y, timer: 0, orb: rand(0, TAU), spin: Math.random() < 0.5 ? 1 : -1, lunge: rand(1.5, 3) };
+  c.speed = sp.swim.speed * (1 + 0.06 * Math.min(L, 8));
+  c.dmgMult = 0.5 * (1 + 0.14 * L);
+  state.enemies.push(c);
 }
 
 // ----- effects ----- //
@@ -536,27 +297,29 @@ function boxHit(a, b, pad) {
   return a[0] - pad < b[2] && a[2] + pad > b[0] && a[1] - pad < b[3] && a[3] + pad > b[1];
 }
 
+// every weapon node of A against every node of D; damage grows with the
+// relative speed, so a cracking whip tip hurts much more than a touch
 function strike(A, D) {
   if (!A.alive || !D.alive || !boxHit(A.box, D.box, 4)) return;
   var al = A.list, dl = D.list;
   for (var wi = 0; wi < al.length; wi++) {
-    var aw = al[wi], K = aw.K;
-    if (!K.dmg || !boxHit(aw.box, D.box, 4)) continue;
+    var aw = al[wi], K = ROLES[aw.def.role];
+    if (!K || aw.creatureCut || !boxHit(aw.box, D.box, 4)) continue;
     for (var i = 1; i <= aw.n; i++) {
       var ax = aw.x[i], ay = aw.y[i], ar = aw.rad[i] + 1.5;
       var avx = ax - aw.ox[i], avy = ay - aw.oy[i];
       for (var di = 0; di < dl.length; di++) {
         var dw = dl[di];
-        if (dw.cd > 0 || dw.K.inert || dw.creatureCut) continue;
+        if (dw.cd > 0 || dw.inert || dw.creatureCut) continue;
         var b = dw.box;
         if (ax < b[0] - ar || ax > b[2] + ar || ay < b[1] - ar || ay > b[3] + ar) continue;
         for (var j = 0; j <= dw.n; j++) {
           var dx = dw.x[j] - ax, dy = dw.y[j] - ay, rr = dw.rad[j] + ar;
           if (dx * dx + dy * dy > rr * rr) continue;
           var rvx = avx - (dw.x[j] - dw.ox[j]), rvy = avy - (dw.y[j] - dw.oy[j]);
-          var s = Math.sqrt(rvx * rvx + rvy * rvy);
-          if (s > K.thr) {
-            hit(dw, D, Math.min(26, (1 + s - K.thr) * K.dmg * A.dmgMult * 1.3), ax, ay, avx, avy, A);
+          var sp = Math.sqrt(rvx * rvx + rvy * rvy);
+          if (sp > K.thr) {
+            hit(dw, D, Math.min(26, (1 + sp - K.thr) * K.dmg * A.dmgMult * 1.3), ax, ay, avx, avy, A);
             if (!D.alive) return;
           }
           break;
@@ -591,17 +354,17 @@ function hit(dw, D, dmg, x, y, vx, vy, A) {
 function cut(w, C, A) {
   var p = w.parent, idx = p.children.indexOf(w);
   if (idx >= 0) p.children.splice(idx, 1);
-  var gene = w.serialize();
+  var gene = w.inert ? null : E.geneFromSeg(w);
   w.walk(function (x) { x.creatureCut = true; x.cd = 0.5; });
   var vx = w.x[0] - w.ox[0], vy = w.y[0] - w.oy[0];
   w.parent = null;
   w.sink = 0.01;
-  state.debris.push({ w: w, gene: w.K.inert ? null : gene, bio: 8, vx: vx, vy: vy, life: 16, age: 0 });
-  C.dirty = true;
+  state.debris.push({ w: w, gene: gene, bio: 6 + w.n, vx: vx, vy: vy, life: 16, age: 0 });
+  C.needsRefresh = true;
   ring(w.x[0], w.y[0], w.hue, 34);
   sfx('cut');
   if (C.isPlayer && !C.dying) {
-    toast('Membre perdu : ' + geneName(gene), 'bad');
+    toast('Membre perdu : ' + w.def.name, 'bad');
     vibrate([30, 40, 30]);
   } else if (A && A.isPlayer && !C.dying) {
     vibrate([15, 25, 15]);
@@ -625,7 +388,7 @@ function killCreature(C) {
     vibrate([60, 50, 120]);
   } else {
     state.kills++;
-    toast(KINDS[root.g.k].name + ' vaincue');
+    toast(C.spec.name + ' vaincue');
   }
 }
 
@@ -640,7 +403,7 @@ function eat(d) {
   if (d.gene) {
     if (state.genes.length < MAX_GENES) {
       state.genes.push(d.gene);
-      toast('Gène absorbé : ' + geneName(d.gene) + ' · niv. ' + geneDepth(d.gene), 'gene');
+      toast('Gène absorbé : ' + E.nodeTitle(d.gene) + ' · niv. ' + E.nodeDepth(d.gene), 'gene');
       renderTray();
     } else {
       heal += 12;
@@ -652,37 +415,47 @@ function eat(d) {
 }
 
 // ----- grafting ----- //
+// a graft is added to the part's definition, so every symmetric copy of
+// that part receives it: the structure stays clean
+
+function occupies(a, f) {
+  if (a.pattern === 'series') return f >= a.at - 0.06 && f <= a.to + 0.06;
+  return Math.abs(a.at - f) < 0.08;
+}
 
 function attachPoints() {
   var p = state.player, pts = [];
   if (!p || !p.alive || state.pendingGene < 0) return pts;
-  var gene = state.genes[state.pendingGene], gd = geneDepth(gene);
+  var gd = E.nodeDepth(state.genes[state.pendingGene]);
   var root = p.root;
-  SLOTS.anguille.at.forEach(function (k) {
-    if (root.children.some(function (c) { return c.at === k; })) return;
-    pts.push({ w: root, at: k, pair: true });
+  BODY_SLOTS.forEach(function (f) {
+    if (root.def.attach.some(function (a) { return occupies(a, f); })) return;
+    var k = Math.round(f * root.n);
+    pts.push({ seg: root, t: f, body: true, x: root.x[k], y: root.y[k] });
   });
-  p.list.forEach(function (w) {
-    if (w === root || w.K.inert || w.depth + gd > MAX_TREE_DEPTH) return;
-    if (w.children.some(function (c) { return c.at === w.n && !c.K.inert; })) return;
-    if (w.g.k === 'lanterne') return;
-    pts.push({ w: w, at: w.n, pair: false });
+  p.list.forEach(function (s) {
+    if (s === root || s.creatureCut || s.inert || s.n < 3 || s.def.role === 'light') return;
+    if (s.depth + 1 + gd > MAX_TREE_DEPTH) return;
+    if (s.def.attach.some(function (a) { return a.at > 0.9 && a.pattern !== 'series'; })) return;
+    pts.push({ seg: s, t: 1, body: false, x: s.x[s.n], y: s.y[s.n] });
   });
-  pts.forEach(function (pt) { pt.x = pt.w.x[pt.at]; pt.y = pt.w.y[pt.at]; });
   return pts;
 }
 
 function graftAt(pt) {
   var p = state.player, gene = state.genes[state.pendingGene];
-  if (pt.pair) {
-    pt.w.addChild(gene, pt.at, SLOTS.anguille.a);
-    pt.w.addChild(cloneGene(gene, true), pt.at, -SLOTS.anguille.a);
-  } else {
-    pt.w.addChild(gene, pt.at, 0);
-  }
+  var a = pt.body ?
+    E.att({ node: gene, pattern: 'pair', at: pt.t, angle: 1.2, edge: 0.7 }) :
+    E.att({ node: gene, pattern: 'single', at: 1, angle: 0 });
+  var def = pt.seg.def;
+  def.attach.push(a);
+  p.list.slice().forEach(function (s) {
+    if (s.def !== def || s.creatureCut) return;
+    s.instantiate(a).forEach(function (ns) { ns.walk(function (x) { prepSeg(x, 0); }); });
+  });
+  refreshCreature(p);
   state.genes.splice(state.pendingGene, 1);
   state.pendingGene = -1;
-  p.refresh();
   state.grafts++;
   state.maxTree = Math.max(state.maxTree, p.stats.depth + 1);
   ring(pt.x, pt.y, 50, 50);
@@ -836,11 +609,12 @@ function aiControl(e, t, playing) {
       v = wander(e, sp * 0.6);
     }
   }
-  e.update(t, v[0], v[1], 0.06);
+  var f = E.swimFactor(e, t);
+  e.update(t, v[0] * f, v[1] * f, 0.06, 24);
 }
 
 function playerControl(p, t) {
-  var sp = 3 * (1 + Math.min(0.8, 0.12 * p.stats.fin)), dvx = 0, dvy = 0, acc = 0.09;
+  var sp = 3 * (1 + Math.min(0.8, 0.06 * p.stats.fin)), dvx = 0, dvy = 0, acc = 0.09;
   if (state.mode === 'title') {
     if (!p.ai) p.ai = { tx: 0, ty: 300, timer: 0 };
     var w = wander(p, sp * 0.7);
@@ -873,16 +647,19 @@ function playerControl(p, t) {
     d.t -= STEP;
   }
   if (d.cd > 0) d.cd -= STEP;
-  p.update(t, dvx, dvy, acc);
+  p.update(t, dvx, dvy, acc, 24);
 }
 
 function tick() {
   var t = (state.t += STEP), p = state.player, i, j;
   var playing = state.mode === 'play' || state.mode === 'graft';
 
+  if (p && p.needsRefresh) refreshCreature(p);
+  for (i = 0; i < state.enemies.length; i++) if (state.enemies[i].needsRefresh) refreshCreature(state.enemies[i]);
+
   if (p && p.alive) {
     playerControl(p, t);
-    var regen = 0.6 + p.stats.cilia * 0.9;
+    var regen = 0.6 + Math.min(4, p.stats.cilia * 0.15);
     p.root.hp = Math.min(p.root.maxHp, p.root.hp + regen * STEP);
     var m = depthM(p.root.y[0]);
     if (state.mode !== 'title') state.maxDepth = Math.max(state.maxDepth, m);
@@ -987,40 +764,8 @@ function glowSprite(hue) {
 
 var view = [0, 0, 0, 0];
 
-// limbs are drawn over their parent so they never hide behind the body
-function drawWhip(w) {
-  var b = w.box;
-  if (!(b[2] < view[0] || b[0] > view[2] || b[3] < view[1] || b[1] > view[3])) drawLinks(w);
-  for (var c = 0; c < w.children.length; c++) drawWhip(w.children[c]);
-}
-
-function drawLinks(w) {
-  var fl = w.flash > 0, x = w.x, y = w.y, rad = w.rad, col = w.col;
-  for (var i = w.n; i >= 0; i--) {
-    var r = rad[i];
-    if (r < 0.35) continue;
-    ctx.fillStyle = fl ? '#ffffff' : col[i];
-    ctx.beginPath();
-    ctx.arc(x[i], y[i], r, 0, TAU);
-    ctx.fill();
-  }
-}
-
-function drawEyes(c, bright) {
-  var r = c.root, h = c.heading(), rad = r.rad[0];
-  var fx = Math.cos(h), fy = Math.sin(h), px = -fy, py = fx;
-  for (var s = -1; s <= 1; s += 2) {
-    var ex = r.x[0] + fx * rad * 0.35 + px * rad * 0.55 * s,
-        ey = r.y[0] + fy * rad * 0.35 + py * rad * 0.55 * s;
-    ctx.fillStyle = bright ? '#eafffb' : 'rgba(255,240,220,0.85)';
-    ctx.beginPath();
-    ctx.arc(ex, ey, Math.max(1, rad * 0.26), 0, TAU);
-    ctx.fill();
-    ctx.fillStyle = '#02060c';
-    ctx.beginPath();
-    ctx.arc(ex + fx * rad * 0.08, ey + fy * rad * 0.08, Math.max(0.5, rad * 0.12), 0, TAU);
-    ctx.fill();
-  }
+function inView(b) {
+  return !(b[2] < view[0] || b[0] > view[2] || b[3] < view[1] || b[1] > view[3]);
 }
 
 function lerp(a, b, t) { return a + (b - a) * t; }
@@ -1086,20 +831,21 @@ function render() {
     ctx.stroke();
   }
 
-  var i;
+  var i, o = { view: view };
   for (i = 0; i < state.debris.length; i++) {
     var d = state.debris[i];
-    ctx.globalAlpha = Math.min(1, d.life / 3) * 0.75;
-    drawWhip(d.w);
+    o.alpha = Math.min(1, d.life / 3) * 0.75;
+    E.drawSeg(ctx, d.w, o);
   }
-  ctx.globalAlpha = 1;
+  o.alpha = 1;
   for (i = 0; i < state.enemies.length; i++) {
-    drawWhip(state.enemies[i].root);
-    drawEyes(state.enemies[i], false);
+    var en0 = state.enemies[i];
+    if (inView(en0.box)) E.draw(ctx, en0, o);
   }
   if (p && p.alive) {
-    drawWhip(p.root);
-    drawEyes(p, true);
+    o.bright = true;
+    E.draw(ctx, p, o);
+    o.bright = false;
   }
 
   ctx.globalCompositeOperation = 'lighter';
@@ -1136,7 +882,7 @@ function render() {
   // darkness: the deeper, the smaller the light around you
   var dark = clamp((m - 40) / 380, 0, 0.94);
   var lights = p && p.alive ? p.stats.light : 0;
-  var vision = Math.max(150, 430 - m * 0.3) + lights * 110;
+  var vision = Math.max(150, 430 - m * 0.3) + lights * 110 + (p && p.alive ? Math.min(4, p.stats.sense) * 15 : 0);
   if (dark > 0.01) {
     var pcx = p && p.alive ? (p.root.x[0] - cam.x) * zoom + W / 2 : W / 2,
         pcy = p && p.alive ? (p.root.y[0] - cam.y) * zoom + H / 2 : H / 2;
@@ -1152,20 +898,15 @@ function render() {
   ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, dpr * ox, dpr * oy);
   ctx.globalCompositeOperation = 'lighter';
   var glowA = 0.35 + 0.65 * f;
-  function glowWhips(list, alpha) {
-    for (var gi = 0; gi < list.length; gi++) {
-      var w = list[gi];
-      if (!w.K.glow) continue;
-      var b = w.box;
-      if (b[2] < view[0] || b[0] > view[2] || b[3] < view[1] || b[1] > view[3]) continue;
-      var size = w.g.k === 'bulbe' ? 46 : 16;
-      ctx.globalAlpha = alpha * (w.g.k === 'bulbe' ? 0.8 + 0.2 * Math.sin(state.t * 3 + w.phase) : 0.7);
-      ctx.drawImage(glowSprite(w.hue), w.x[w.n] - size / 2, w.y[w.n] - size / 2, size, size);
-    }
+  function glowAt(x, y, size, hue, a) {
+    ctx.globalAlpha = a * glowAlpha;
+    ctx.drawImage(glowSprite(hue), x - size / 2, y - size / 2, size, size);
   }
+  var glowAlpha = glowA;
   for (i = 0; i < state.enemies.length; i++) {
     var en = state.enemies[i];
-    glowWhips(en.list, glowA);
+    if (!inView(en.box)) continue;
+    E.eachGlow(en.list, glowAt, view);
     if (f > 0.3) {
       ctx.globalAlpha = (f - 0.3) * 0.5;
       ctx.drawImage(glowSprite(en.root.hue), en.root.x[0] - 10, en.root.y[0] - 10, 20, 20);
@@ -1179,9 +920,8 @@ function render() {
     }
   }
   if (p && p.alive) {
-    var pl = [];
-    p.root.walk(function (w) { pl.push(w); });
-    glowWhips(pl, 1);
+    glowAlpha = 1;
+    E.eachGlow(p.list, glowAt, view);
     ctx.globalAlpha = 0.3 + 0.3 * f;
     ctx.drawImage(glowSprite(p.root.hue), p.root.x[0] - 40, p.root.y[0] - 40, 80, 80);
   }
@@ -1245,42 +985,20 @@ function updateHud() {
 }
 
 function previewGene(g, cv) {
-  var w = new Whip(g, null, 0, 0, 0, 0, 0);
-  var minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity, all = [];
-  w.walk(function (x) {
-    all.push(x);
-    for (var i = 0; i <= x.n; i++) {
-      minx = Math.min(minx, x.x[i] - x.rad[i]); maxx = Math.max(maxx, x.x[i] + x.rad[i]);
-      miny = Math.min(miny, x.y[i] - x.rad[i]); maxy = Math.max(maxy, x.y[i] + x.rad[i]);
-    }
-  });
-  var r = Math.min(2, window.devicePixelRatio || 1);
-  cv.width = cv.clientWidth * r || 120;
-  cv.height = cv.clientHeight * r || 60;
-  var c = cv.getContext('2d');
-  var s = Math.min(cv.width / (maxx - minx + 6), cv.height / (maxy - miny + 6), 3 * r);
-  c.setTransform(s, 0, 0, s, cv.width / 2 - (minx + maxx) / 2 * s, cv.height / 2 - (miny + maxy) / 2 * s);
-  all.forEach(function (x) {
-    for (var i = x.n; i >= 0; i--) {
-      if (x.rad[i] < 0.35) continue;
-      c.fillStyle = x.col[i];
-      c.beginPath();
-      c.arc(x.x[i], x.y[i], x.rad[i], 0, TAU);
-      c.fill();
-    }
-  });
+  var p = state.player;
+  E.snapshot(E.spec({ palette: p ? p.spec.palette : undefined, eyes: { on: false }, body: g }), cv, { pad: 3, max: 3 });
 }
 
 function renderTray() {
   var tray = hud.tray;
   tray.innerHTML = '';
   state.genes.forEach(function (g, i) {
-    var b = document.createElement('button'), depth = geneDepth(g);
+    var b = document.createElement('button'), depth = E.nodeDepth(g);
     b.type = 'button';
     b.className = 'gene' + (i === state.pendingGene ? ' active' : '');
-    b.setAttribute('aria-label', 'Greffer ' + geneName(g));
+    b.setAttribute('aria-label', 'Greffer ' + E.nodeTitle(g));
     b.innerHTML = '<canvas></canvas><span class="gname"></span><span class="glevel"></span>';
-    b.querySelector('.gname').textContent = geneName(g);
+    b.querySelector('.gname').textContent = E.nodeTitle(g);
     b.querySelector('.glevel').textContent = new Array(depth + 1).join('●') + ' niv. ' + depth;
     b.addEventListener('click', function () { selectGene(i); });
     tray.appendChild(b);
@@ -1322,7 +1040,7 @@ function setMode(mode) {
   screens.title.hidden = mode !== 'title';
   screens.pause.hidden = mode !== 'pause';
   screens.over.hidden = mode !== 'over';
-  $('hud').hidden = mode === 'title' || mode === 'over';
+  $('hud').hidden = mode === 'title' || mode === 'over' || mode === 'atelier';
   $('graftBar').hidden = mode !== 'graft';
   if (mode !== 'play') { input.joy = null; input.swipe = null; }
 }
@@ -1366,6 +1084,32 @@ $('btnResume').addEventListener('click', function () { setMode('play'); });
 $('btnQuit').addEventListener('click', function () { newGame(true); setMode('title'); });
 $('graftCancel').addEventListener('click', cancelGraft);
 
+// ----- atelier (species editor) ----- //
+
+function refreshTitle() {
+  $('titleSpecies').textContent = playerSpec().name;
+  $('titleBest').textContent = best;
+}
+
+function openAtelier() {
+  setMode('atelier');
+  HydraAtelier.open();
+}
+HydraAtelier.onPlay = function (sp) {
+  store('hydra.player', JSON.stringify(sp));
+  refreshTitle();
+  startGame();
+};
+HydraAtelier.onClose = function () {
+  if (state.mode === 'atelier') {
+    newGame(true);
+    setMode('title');
+    refreshTitle();
+  }
+};
+$('btnAtelier').addEventListener('click', openAtelier);
+$('btnAtelier2').addEventListener('click', openAtelier);
+
 function syncToggles() {
   $('btnSound').setAttribute('aria-pressed', String(!muted));
   $('btnSound').classList.toggle('off', muted);
@@ -1402,6 +1146,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   var dt = Math.min(0.1, (now - last) / 1000);
   last = now;
+  if (state.mode === 'atelier') return;   // the editor has its own loop
 
   // drop resolution / glow if the phone struggles
   frames++;
@@ -1424,11 +1169,11 @@ function frame(now) {
   if ((hudTimer += dt) > 0.1) { hudTimer = 0; updateHud(); }
 }
 
-if (/[?&]debug\b/.test(location.search)) window.__hydra = { state: state, spawnEnemy: spawnEnemy, attachPoints: attachPoints, Creature: Creature, enemyGene: enemyGene };
+if (/[?&]debug\b/.test(location.search)) window.__hydra = { state: state, spawnEnemy: spawnEnemy, attachPoints: attachPoints, makeCreature: makeCreature };
 
 newGame(true);
 setMode('title');
-$('titleBest').textContent = best;
+refreshTitle();
 requestAnimationFrame(frame);
 
 })();
