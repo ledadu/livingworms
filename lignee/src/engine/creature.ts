@@ -20,7 +20,7 @@ export function isMirrored(a: AttDef): boolean {
 /** in profile: 1 = both copies under the belly, -1 = both on the back, 0 = one each side */
 function lateralOf(d: NodeDef): number {
   if (d.style === 'eye') return -1;
-  if (d.role === 'sense' || d.role === 'whip' || d.role === 'sting' || d.role === 'light' || d.role === 'cilia') return 0;
+  if (d.role === 'sense' || d.role === 'whip' || d.role === 'sting' || d.role === 'light') return 0;
   return 1;
 }
 

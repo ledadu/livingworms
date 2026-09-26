@@ -27,13 +27,13 @@ const save = () => { try { localStorage.setItem('lignee3d-side', JSON.stringify(
 // ----- renderer ----- //
 
 const canvas = document.getElementById('sea') as HTMLCanvasElement;
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 let quality = 1;
 const camera = new THREE.PerspectiveCamera(45, 1, 2, 5000);
 function resize(): void {
-  renderer.setPixelRatio(Math.min(1.75, window.devicePixelRatio || 1) * quality);
+  renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1) * quality);
   renderer.setSize(window.innerWidth, window.innerHeight, false);
   canvas.style.width = window.innerWidth + 'px';
   canvas.style.height = window.innerHeight + 'px';
@@ -94,7 +94,7 @@ const plants: Plant[] = [];
     if (reef < 0.5) {
       const meadow = noise2(x / 230, z / 230, 31);
       const k = R();
-      if (noise2(x / 320, z / 200, 51) > 0.56 && k < 0.5) add('kelp', x, z);
+      if (noise2(x / 320, z / 200, 51) > 0.56 && k < 0.5 && z < 30) add('kelp', x, z);
       else if (meadow > 0.55 && k < 0.6) add('posidonie', x, z);
       else if (k < 0.08) add('anemone', x, z);
     } else {
@@ -105,7 +105,7 @@ const plants: Plant[] = [];
       else if (k < 0.66) add('anemone', x, z);
       else if (k < 0.74) add('tubes', x, z);
       else if (k < 0.78 && g < -150) add('seapen', x, z);
-      else if (k < 0.82) add('kelp', x, z);
+      else if (k < 0.82 && z < 30) add('kelp', x, z);
     }
   }
   // sargassum rafts hanging from the surface over the lagoon
@@ -137,7 +137,7 @@ function addActor(sp: Spec, x: number, y: number, kind: Actor['kind'], scale = 1
 const player = addActor(firstAncestor(), 0, 70, 'player', 1);
 {
   const R = rng(3);
-  for (let i = 0; i < 6; i++) addActor(firstAncestor(), rand(-160, 160), rand(40, 160), 'sib', 0.45 + R() * 0.15, rand(-40, 30));
+  for (let i = 0; i < 4; i++) addActor(firstAncestor(), rand(-160, 160), rand(40, 160), 'sib', 0.45 + R() * 0.15, rand(-40, 30));
   const lagoon: [string, number][] = [['meduse', 0], ['meduse', -140], ['hippocampe', -60], ['ctenophore', -200], ['krill', 20], ['meduse', -320], ['copepode', -40], ['larve', -90]];
   for (const [id, z] of lagoon) addActor(SPECIES[id](), rand(-500, REEF_X - 200), rand(40, 200), 'swim', id === 'meduse' ? 0.8 : 1, z);
   const reef: [string, number][] = [['poissonClown', 0], ['poissonClown', -80], ['koi', -150], ['hippocampe', -40], ['anguille', -220], ['calmar', -300], ['poissonLion', -120]];
@@ -207,6 +207,7 @@ function fingerTarget(sx: number, sy: number): THREE.Vector3 | null {
 const flow = new Flow(32);
 let t = 0;
 const camTarget = new THREE.Vector3(0, -70, 0);
+let frameNo = 0;
 
 /** keep a swimmer (engine coords, plane z) out of the rocks that cut its plane, and above the floor */
 function collide(cr: Creature, z: number, rocks: Rock[]): void {
@@ -314,7 +315,9 @@ function update(): void {
 const dummy = new THREE.Object3D();
 const tmpC = new THREE.Color(), deepC = new THREE.Color(), topC = new THREE.Color();
 
+const perf = { render: 0, update: 0, cards: 0 };
 function render(): void {
+  const r0 = performance.now();
   const r = player.cr.root, px = r.x[0], py = r.y[0];
   // camera: in front of the plane, a little above, looking slightly down
   const dist = 300 / input.zoomMul, ang = (settings.angle * Math.PI) / 180;
@@ -327,18 +330,25 @@ function render(): void {
 
   // cards: drawn by the 2D renderer at the resolution their plane gets on screen
   const pxH = window.innerHeight * renderer.getPixelRatio() / (2 * Math.tan((camera.fov * Math.PI) / 360));
-  const kAt = (z: number) => clamp(pxH / Math.max(40, camera.position.z - z), 0.3, 6);
-  for (const a of actors) {
-    const vis = a.kind === 'far' || Math.abs(a.cr.root.x[0] - camTarget.x) < 900;
-    if (vis) a.card.paint(kAt(a.z)); else a.card.sleep();
-  }
-  for (const pl of plants) {
+  const kAt = (z: number) => clamp(pxH / Math.max(40, camera.position.z - z), 0.3, 4);
+  frameNo++;
+  const c0 = performance.now();
+  actors.forEach((a, i) => {
+    const dx = Math.abs(a.cr.root.x[0] - camTarget.x);
+    if (a.kind !== 'far' && dx > 900) { a.card.sleep(); return; }
+    // close to the player: every frame; further away or behind: one frame in three
+    const every = a.kind === 'player' || (dx < 450 && Math.abs(a.z) < 80) ? 1 : 3;
+    if (!a.card.alive || (frameNo + i) % every === 0) a.card.paint(kAt(a.z));
+  });
+  plants.forEach((pl, i) => {
     const dx = Math.abs(pl.cr.root.x[0] - camTarget.x);
-    if (dx > 1300) { pl.card.sleep(); continue; }
-    const k = kAt(pl.z);
-    // still plants are drawn once; the ones in the swimming plane move with the water
-    if (!pl.card.alive || Math.abs(k - pl.card.drawnK) / pl.card.drawnK > 0.35 || (pl.live && dx < 600)) pl.card.paint(k);
-  }
+    if (dx > 1300) { pl.card.sleep(); return; }
+    const k = kAt(pl.z) * 0.75;
+    // still plants are drawn once; the ones in the swimming plane only when the water moved them
+    if (!pl.card.alive || Math.abs(k - pl.card.drawnK) / pl.card.drawnK > 0.35) pl.card.paint(k);
+    else if (pl.live && dx < 600 && (frameNo + i) % 2 === 0 && pl.card.moved()) pl.card.paint(k);
+  });
+  perf.cards = perf.cards * 0.9 + (performance.now() - c0) * 0.1;
 
   // water colour from the chapter palette, darker with depth
   const m = mood3(camTarget.x), depth = Math.max(0, -camTarget.y);
@@ -397,6 +407,7 @@ function render(): void {
   glowGeo.attributes.color.needsUpdate = true;
 
   renderer.render(scene, camera);
+  perf.render = perf.render * 0.9 + (performance.now() - r0) * 0.1;
 }
 
 // ----- loop with adaptive resolution ----- //
@@ -404,7 +415,7 @@ function render(): void {
 let last = performance.now(), acc = 0, fn = 0, fsum = 0;
 const stats = { fps: 0 };
 (window as unknown as { lignee3d: unknown }).lignee3d = {
-  settings, player, camera, stats, actors, plants,
+  settings, player, camera, stats, actors, plants, perf, renderer,
   teleport: (x: number, y: number) => { player.cr.translate(x - player.cr.root.x[0], y - player.cr.root.y[0]); camTarget.set(x, -y, 0); },
   spawn: (id: string, dx: number, dy: number) => addActor(SPECIES[id](), player.cr.root.x[0] + dx, player.cr.root.y[0] + dy, 'swim', 1, 0)
 };
@@ -414,7 +425,9 @@ function frame(now: number): void {
   last = now;
   acc += Math.min(0.1, dt / 1000);
   let steps = 0;
+  const u0 = performance.now();
   while (acc >= STEP && steps < 3) { update(); acc -= STEP; steps++; }
+  perf.update = perf.update * 0.9 + (performance.now() - u0) * 0.1;
   if (steps === 3) acc = 0;
   render();
   fn++; fsum += dt;

@@ -19,6 +19,8 @@ export class Card {
   /** resolution the card was last drawn at (px per world unit) */
   drawnK = 0;
   alive = false;
+  /** a cheap fingerprint of the pose at the last paint */
+  private sig = 0;
 
   constructor(cr: Creature, z: number, geo: THREE.PlaneGeometry) {
     this.cr = cr;
@@ -65,7 +67,17 @@ export class Card {
     this.k = k;
     this.drawnK = k;
     this.alive = true;
+    this.sig = this.pose();
   }
+
+  private pose(): number {
+    let s = 0;
+    for (const g of this.cr.list) s += g.x[g.n] * 1.3 + g.y[g.n] * 0.7 + g.x[g.n >> 1] * 0.5;
+    return s;
+  }
+
+  /** has the creature moved enough since the last paint to be worth redrawing? */
+  moved(eps = 0.4): boolean { return Math.abs(this.pose() - this.sig) > eps; }
 
   /** free the canvas memory when the card is far away */
   sleep(): void {

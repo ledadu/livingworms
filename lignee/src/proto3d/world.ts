@@ -91,15 +91,17 @@ export function withCaustics<T extends THREE.Material>(m: T, strength = 1): T {
 
 // ----- terrain ----- //
 
-export function makeTerrain(): THREE.Mesh {
-  const W = BOUNDS.x1 - BOUNDS.x0, D = BOUNDS.z1 - BOUNDS.z0, step = 9;
-  const nx = Math.round(W / step), nz = Math.round(D / step);
-  const geo = new THREE.PlaneGeometry(W, D, nx, nz);
+/** the world is cut in slices along x so that only what is on screen is drawn */
+export const SLICE = 800;
+
+function terrainSlice(x0: number, w: number, mat: THREE.Material): THREE.Mesh {
+  const D = BOUNDS.z1 - BOUNDS.z0, step = 14;
+  const geo = new THREE.PlaneGeometry(w, D, Math.round(w / step), Math.round(D / step));
   geo.rotateX(-Math.PI / 2);
-  geo.translate(BOUNDS.x0 + W / 2, 0, BOUNDS.z0 + D / 2);
+  geo.translate(x0 + w / 2, 0, BOUNDS.z0 + D / 2);
   const pos = geo.attributes.position as THREE.BufferAttribute, n = pos.count;
   const col = new Float32Array(n * 3), c = new THREE.Color();
-  let cm = mood3(0), cmx = 0;
+  let cm = mood3(x0), cmx = x0;
   for (let i = 0; i < n; i++) {
     const x = pos.getX(i), z = pos.getZ(i), y = floorAt(x, z);
     pos.setY(i, y);
@@ -116,24 +118,34 @@ export function makeTerrain(): THREE.Mesh {
   }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   geo.computeVertexNormals();
-  const mat = withCaustics(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonRamp(), side: THREE.DoubleSide }), 1);
   return new THREE.Mesh(geo, mat);
 }
+
+export function makeTerrain(): THREE.Group {
+  const g = new THREE.Group();
+  const mat = withCaustics(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonRamp(), side: THREE.DoubleSide }), 1);
+  for (let x = BOUNDS.x0; x < BOUNDS.x1; x += SLICE) g.add(terrainSlice(x, Math.min(SLICE, BOUNDS.x1 - x), mat));
+  return g;
+}
+
+const sliceOf = (x: number) => Math.floor((x - BOUNDS.x0) / SLICE);
 
 // ----- rocks ----- //
 
 export interface Rock { x: number; z: number; r: number; top: number; cy: number; }
 
-export function makeRocks(): { mesh: THREE.Mesh; rocks: Rock[] } {
-  const R = rng(77), geos: THREE.BufferGeometry[] = [], rocks: Rock[] = [];
+export function makeRocks(): { mesh: THREE.Group; rocks: Rock[] } {
+  const R = rng(77), slices = new Map<number, THREE.BufferGeometry[]>(), rocks: Rock[] = [];
   const c = new THREE.Color();
-  for (let k = 0; k < 150; k++) {
+  for (let k = 0; k < 110; k++) {
     const x = BOUNDS.x0 + 200 + R() * (BOUNDS.x1 - BOUNDS.x0 - 400), z = -800 + R() * 1000;
     if (Math.abs(x) < 200 && Math.abs(z) < 120) continue;
     const reef = reefT(x), m = mood3(x);
-    const r = (10 + R() * 26) * (1 + reef * 0.9) * (R() < 0.12 + reef * 0.2 ? 2.2 : 1);
+    let r = (10 + R() * 26) * (1 + reef * 0.9) * (R() < 0.12 + reef * 0.2 ? 2.2 : 1);
+    // between the camera and the swimming plane, only pebbles: nothing hides the player
+    if (z > 20) r = Math.min(r, 12);
     const top = col3(m.accents[Math.floor(R() * m.accents.length)], reef > 0.5 ? 0 : -10);
-    const g0 = new THREE.IcosahedronGeometry(r, 4);
+    const g0 = new THREE.IcosahedronGeometry(r, 2);
     g0.deleteAttribute('normal'); g0.deleteAttribute('uv');
     const g = mergeVertices(g0);
     const p = g.attributes.position as THREE.BufferAttribute;
@@ -151,16 +163,21 @@ export function makeRocks(): { mesh: THREE.Mesh; rocks: Rock[] } {
     const y = floorAt(x, z);
     g.translate(x, y + r * 0.2, z);
     g.computeVertexNormals();
-    geos.push(g);
+    const si = sliceOf(x);
+    if (!slices.has(si)) slices.set(si, []);
+    slices.get(si)!.push(g);
     rocks.push({ x, z, r, top: y + r * 0.82, cy: y + r * 0.2 });
   }
-  const merged = mergeGeometries(geos);
-  const mesh = new THREE.Mesh(merged, withCaustics(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonRamp() }), 0.8));
+  const mat = withCaustics(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonRamp() }), 0.8);
   // ink outline, like the 2D drawing
   const inkM = new THREE.MeshBasicMaterial({ color: 0x1a1612, side: THREE.BackSide });
   inkM.customProgramCacheKey = () => 'rock-ink';
   inkM.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += normalize(normal) * 0.9;'); };
-  mesh.add(new THREE.Mesh(merged, inkM));
+  const mesh = new THREE.Group();
+  for (const geos of slices.values()) {
+    const merged = mergeGeometries(geos);
+    mesh.add(new THREE.Mesh(merged, mat), new THREE.Mesh(merged, inkM));
+  }
   return { mesh, rocks };
 }
 
@@ -189,12 +206,13 @@ function mergeGeometries(list: THREE.BufferGeometry[]): THREE.BufferGeometry {
 
 // ----- sea grass: thousands of blades bent in the vertex shader ----- //
 
-export function makeMeadow(rocks: Rock[]): THREE.Mesh {
-  const R = rng(5), SEG = 4;
-  const pos: number[] = [], root: number[] = [], tt: number[] = [], col: number[] = [], idx: number[] = [];
+interface Blades { pos: number[]; root: number[]; tt: number[]; col: number[]; idx: number[]; v: number; }
+
+export function makeMeadow(rocks: Rock[]): THREE.Group {
+  const R = rng(5), SEG = 4, slices = new Map<number, Blades>();
   const c = new THREE.Color(), nm = mood3(0), base = col3(nm.blades[1], -6), tip = col3(nm.blades[2], 12);
-  let v = 0, blades = 0;
-  for (let tries = 0; tries < 80000 && blades < 12000; tries++) {
+  let blades = 0;
+  for (let tries = 0; tries < 80000 && blades < 6000; tries++) {
     const x = -700 + R() * (REEF_X + 200), z = -500 + R() * 800;
     const m = noise2(x / 230, z / 230, 31);
     if (m < 0.5 || R() > (m - 0.5) * 3) continue;
@@ -203,6 +221,9 @@ export function makeMeadow(rocks: Rock[]): THREE.Mesh {
     const lean = (R() - 0.5) * 0.6;
     const ca = Math.cos(a), sa = Math.sin(a);
     const shade = 0.75 + R() * 0.4;
+    const si = sliceOf(x);
+    if (!slices.has(si)) slices.set(si, { pos: [], root: [], tt: [], col: [], idx: [], v: 0 });
+    const B = slices.get(si)!, { pos, root, tt, col, idx } = B, v = B.v;
     for (let k = 0; k <= SEG; k++) {
       const t = k / SEG, ww = w * (1 - t * 0.85);
       for (const sd of [-1, 1]) {
@@ -217,16 +238,9 @@ export function makeMeadow(rocks: Rock[]): THREE.Mesh {
       const a0 = v + k * 2;
       idx.push(a0, a0 + 1, a0 + 2, a0 + 1, a0 + 3, a0 + 2);
     }
-    v += (SEG + 1) * 2;
+    B.v += (SEG + 1) * 2;
     blades++;
   }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute('aRoot', new THREE.Float32BufferAttribute(root, 4));
-  geo.setAttribute('aT', new THREE.Float32BufferAttribute(tt, 1));
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  geo.setIndex(idx);
-  geo.computeVertexNormals();
   const mat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonRamp(), side: THREE.DoubleSide });
   mat.customProgramCacheKey = () => 'meadow';
   mat.onBeforeCompile = (sh) => {
@@ -246,9 +260,21 @@ export function makeMeadow(rocks: Rock[]): THREE.Mesh {
       transformed.xz += (push + sway) * bend;
       transformed.y -= length(push) * bend * 0.45;`);
   };
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.frustumCulled = false;
-  return mesh;
+  const group = new THREE.Group();
+  for (const B of slices.values()) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(B.pos, 3));
+    geo.setAttribute('aRoot', new THREE.Float32BufferAttribute(B.root, 4));
+    geo.setAttribute('aT', new THREE.Float32BufferAttribute(B.tt, 1));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(B.col, 3));
+    geo.setIndex(B.idx);
+    geo.computeVertexNormals();
+    geo.computeBoundingSphere();
+    // blades bend in the shader: leave room so they are not culled too early
+    geo.boundingSphere!.radius += 40;
+    group.add(new THREE.Mesh(geo, mat));
+  }
+  return group;
 }
 
 // ----- kelp: vertical verlet chains pushed by swimmers ----- //
@@ -390,7 +416,7 @@ export function makeSargassum(): THREE.Mesh {
 
 export function makeRays(): THREE.Group {
   const g = new THREE.Group(), R = rng(13);
-  for (let k = 0; k < 50; k++) {
+  for (let k = 0; k < 24; k++) {
     const len = 700, w = 18 + R() * 40;
     const geo = new THREE.PlaneGeometry(w, len, 4, 6);
     const col = new Float32Array(geo.attributes.position.count * 4);
