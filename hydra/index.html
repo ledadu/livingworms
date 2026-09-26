@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#02060c">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<!--artifact:start-->
+<title>Hydra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=Chakra+Petch:wght@400;600&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --abyss: #02060c;
+    --ink: #d9fff6;
+    --dim: #7fa9a6;
+    --biolum: #5ef2d6;
+    --coral: #ff5a7a;
+    --amber: #ffc857;
+    --panel: rgba(3, 18, 26, 0.74);
+    --line: rgba(94, 242, 214, 0.22);
+    --display: 'Syne', 'Trebuchet MS', sans-serif;
+    --ui: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
+  }
+  html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: var(--abyss);
+    color: var(--ink);
+    font-family: var(--ui);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    overscroll-behavior: none;
+  }
+  [hidden] { display: none !important; }
+  #c {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+  }
+  button { font: inherit; color: inherit; touch-action: manipulation; cursor: pointer; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--biolum); outline-offset: 2px; }
+
+  /* ---------- HUD ---------- */
+  #hud {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 10px) calc(env(safe-area-inset-right, 0px) + 14px) 0 calc(env(safe-area-inset-left, 0px) + 14px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    pointer-events: none;
+  }
+  #hud > * { pointer-events: auto; }
+  .gauge { display: grid; gap: 3px; min-width: 128px; pointer-events: none; }
+  .label, .meta {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  .depth {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 30px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 18px rgba(94, 242, 214, 0.45);
+  }
+  .depth::before { content: '−'; color: var(--biolum); }
+  .depth small { font-size: 14px; font-weight: 600; color: var(--dim); }
+  .hp {
+    height: 5px;
+    width: 128px;
+    border-radius: 3px;
+    background: rgba(94, 242, 214, 0.12);
+    overflow: hidden;
+  }
+  .hp i {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--biolum), #9ff7ff);
+    transform-origin: left center;
+    transition: transform 0.15s linear;
+  }
+  .hp i.low { background: var(--coral); }
+  .meta { letter-spacing: 0.08em; font-variant-numeric: tabular-nums; }
+  .meta b { color: var(--ink); font-weight: 600; }
+
+  .btns { display: flex; gap: 8px; order: 3; }
+  .round {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    display: grid;
+    place-items: center;
+    padding: 0;
+  }
+  .round svg { width: 18px; height: 18px; }
+  .round.off { color: var(--dim); }
+  .round.off .wave { display: none; }
+  .round:not(.off) .mute { display: none; }
+
+  #tray {
+    display: flex;
+    gap: 6px;
+    order: 4;
+    width: 100%;
+    justify-content: center;
+  }
+  @media (min-aspect-ratio: 4/3) {
+    #tray { order: 2; width: auto; }
+  }
+  .gene {
+    width: 76px;
+    height: 70px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 200, 87, 0.45);
+    background: rgba(40, 26, 4, 0.55);
+    display: grid;
+    grid-template-rows: 1fr auto auto;
+    padding: 4px 4px 5px;
+    gap: 1px;
+    text-align: center;
+    box-shadow: 0 0 16px rgba(255, 200, 87, 0.12) inset;
+  }
+  .gene canvas { width: 100%; height: 100%; min-height: 0; display: block; }
+  .gname {
+    font-size: 9px;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .glevel { font-size: 8px; color: var(--amber); letter-spacing: 0.05em; }
+  .gene.active {
+    border-color: var(--amber);
+    box-shadow: 0 0 18px rgba(255, 200, 87, 0.55);
+  }
+  .tray-hint {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255, 200, 87, 0.7);
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px dashed rgba(255, 200, 87, 0.3);
+    background: rgba(3, 18, 26, 0.45);
+  }
+
+  #graftBar {
+    position: fixed;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
+    transform: translateX(-50%);
+    width: min(92vw, 440px);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 10px 10px 16px;
+    border-radius: 14px;
+    background: var(--panel);
+    border: 1px solid rgba(255, 200, 87, 0.5);
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  #graftBar span { flex: 1; }
+  #graftBar b { color: var(--amber); font-weight: 600; }
+  .ghost {
+    border: 1px solid var(--line);
+    background: transparent;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  #toasts {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 190px);
+    display: grid;
+    justify-items: center;
+    gap: 6px;
+    pointer-events: none;
+    padding: 0 16px;
+  }
+  .toast {
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    animation: rise 0.25s ease-out;
+    transition: opacity 0.5s, transform 0.5s;
+    text-align: center;
+    width: max-content;
+    max-width: min(90vw, 420px);
+    box-sizing: border-box;
+  }
+  .toast.gene { border-color: rgba(255, 200, 87, 0.6); color: #ffe2a0; }
+  .toast.bad { border-color: rgba(255, 90, 122, 0.6); color: #ffb3c1; }
+  .toast.out { opacity: 0; transform: translateY(-8px); }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+
+  /* ---------- screens ---------- */
+  .screen {
+    position: fixed;
+    inset: 0;
+    overflow-y: auto;
+    display: grid;
+    place-items: center;
+    padding: calc(env(safe-area-inset-top, 0px) + 20px) 16px calc(env(safe-area-inset-bottom, 0px) + 20px);
+    box-sizing: border-box;
+    background: radial-gradient(ellipse at 50% 40%, rgba(2, 6, 12, 0.25), rgba(2, 6, 12, 0.82));
+  }
+  .card {
+    width: min(100%, 420px);
+    display: grid;
+    gap: 18px;
+  }
+  .brand {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(56px, 19vw, 96px);
+    line-height: 0.9;
+    letter-spacing: 0.04em;
+    margin: 0;
+    color: var(--ink);
+    text-shadow: 0 0 28px rgba(94, 242, 214, 0.55), 0 0 2px #fff;
+  }
+  .brand + p {
+    margin: -8px 0 0;
+    font-size: 12px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--biolum);
+  }
+  .lede { margin: 0; font-size: 15px; line-height: 1.5; color: #b9e3dc; max-width: 36ch; }
+  .controls { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .controls li {
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    gap: 10px;
+    align-items: baseline;
+    font-size: 13px;
+    line-height: 1.4;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+  }
+  .controls li b {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--biolum);
+    font-weight: 600;
+  }
+  .controls li:nth-child(2) b { color: var(--coral); }
+  .controls li:nth-child(4) b { color: var(--amber); }
+  .cta {
+    justify-self: start;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 20px;
+    letter-spacing: 0.08em;
+    padding: 14px 34px;
+    border-radius: 999px;
+    border: 0;
+    color: var(--abyss);
+    background: var(--biolum);
+    box-shadow: 0 0 30px rgba(94, 242, 214, 0.5);
+  }
+  .cta:active { transform: scale(0.97); }
+  .small { font-size: 11px; color: var(--dim); letter-spacing: 0.06em; margin: 0; }
+  h2 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 34px;
+    line-height: 1.05;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h2 em { font-style: normal; color: var(--biolum); }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin: 0;
+  }
+  .stats div { border-top: 1px solid var(--line); padding-top: 6px; }
+  .stats dt { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+  .stats dd { margin: 2px 0 0; font-family: var(--display); font-weight: 800; font-size: 26px; font-variant-numeric: tabular-nums; }
+  .record { color: var(--amber); font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; margin: 0; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .opt { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+  .opt input { width: 20px; height: 20px; accent-color: #5ef2d6; }
+
+  /* ---------- atelier ---------- */
+  #atelier {
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    background: var(--abyss);
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .at-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px calc(env(safe-area-inset-right, 0px) + 12px) 8px calc(env(safe-area-inset-left, 0px) + 12px);
+    border-bottom: 1px solid var(--line);
+  }
+  .at-bar .round { width: 38px; height: 38px; flex: none; }
+  #atName {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 18px;
+    color: var(--ink);
+    background: transparent;
+    border: 0;
+    border-bottom: 1px dashed rgba(94, 242, 214, 0.25);
+    padding: 4px 2px;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  #atName:focus { outline: none; border-bottom-color: var(--biolum); }
+  .cta.sm { font-size: 14px; padding: 9px 18px; letter-spacing: 0.06em; }
+  button:disabled { opacity: 0.35; cursor: default; }
+  .at-main {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: minmax(210px, 42%) 1fr;
+  }
+  @media (min-width: 860px) {
+    .at-main { grid-template-rows: none; grid-template-columns: 1fr 400px; }
+    .at-panel { border-top: 0 !important; border-left: 1px solid var(--line); }
+  }
+  .at-stage { position: relative; min-height: 0; overflow: hidden; }
+  #atCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .meter {
+    position: absolute;
+    top: 10px; left: 12px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+  .meter.warn { color: var(--amber); }
+  #atFlash {
+    position: absolute;
+    top: 8px; right: 12px;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    color: #ffe2a0;
+    background: rgba(40, 26, 4, 0.7);
+    border: 1px solid rgba(255, 200, 87, 0.5);
+    pointer-events: none;
+  }
+  .stage-tools {
+    position: absolute;
+    left: 10px; right: 10px; bottom: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    pointer-events: none;
+  }
+  .stage-tools button {
+    pointer-events: auto;
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: rgba(3, 18, 26, 0.8);
+  }
+  .stage-tools button[aria-pressed="true"] { border-color: var(--biolum); color: #eafffb; background: rgba(94, 242, 214, 0.18); }
+  .stage-tools .sep { flex: 1; }
+  .at-panel {
+    min-height: 0;
+    overflow-y: auto;
+    border-top: 1px solid var(--line);
+    background: #040c13;
+    padding: 0 calc(env(safe-area-inset-right, 0px) + 14px) calc(env(safe-area-inset-bottom, 0px) + 24px) calc(env(safe-area-inset-left, 0px) + 14px);
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .at-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    margin: 0 -14px;
+    background: #040c13;
+    border-bottom: 1px solid var(--line);
+  }
+  .at-tabs button {
+    flex: 1;
+    padding: 12px 6px 10px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  .at-tabs button[aria-selected="true"] { color: var(--biolum); border-bottom-color: var(--biolum); }
+  .tree { display: grid; gap: 2px; padding-top: 10px; max-height: 34vh; overflow-y: auto; }
+  .tree-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px 7px calc(10px + var(--depth) * 16px);
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    text-align: left;
+    font-size: 13px;
+  }
+  .tree-row.on { background: rgba(255, 200, 87, 0.12); box-shadow: inset 0 0 0 1px rgba(255, 200, 87, 0.45); }
+  .tree-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tree-badge { margin-left: auto; flex: none; font-size: 10px; letter-spacing: 0.06em; color: var(--dim); }
+  .swatch {
+    display: inline-block;
+    width: 12px; height: 12px;
+    flex: none;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  }
+  .tree-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0 2px; }
+  .tree-actions .ghost { font-size: 12px; padding: 7px 11px; }
+  #atAdd { border-color: rgba(94, 242, 214, 0.55); color: var(--biolum); }
+  .props-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 14px 0 6px; }
+  .props-head b { font-family: var(--display); font-weight: 800; font-size: 20px; }
+  .props-head span { font-size: 12px; color: var(--dim); }
+  details.sec { border-top: 1px solid var(--line); }
+  details.sec summary {
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--biolum);
+    cursor: pointer;
+  }
+  details.sec summary::-webkit-details-marker { display: none; }
+  details.sec summary::after { content: '+'; color: var(--dim); }
+  details.sec[open] summary::after { content: '−'; }
+  .sec-body { display: grid; gap: 14px; padding-bottom: 16px; }
+  .f-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; }
+  .f-row label, .f-label { font-size: 13px; }
+  .f-row output { font-size: 12px; color: var(--amber); font-variant-numeric: tabular-nums; }
+  .f-row input[type="range"] { grid-column: 1 / -1; width: 100%; margin: 0; height: 26px; accent-color: #5ef2d6; }
+  .f-row input[type="text"] {
+    grid-column: 1 / -1;
+    background: #0a1a24;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 9px 10px;
+    color: var(--ink);
+    font: inherit;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  .hint { grid-column: 1 / -1; font-size: 11px; line-height: 1.4; color: var(--dim); margin: 0; }
+  .hint.danger { color: #ffb3c1; }
+  .chips-row { grid-template-columns: 1fr; gap: 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: transparent;
+    font-size: 12px;
+  }
+  .with-icons .chip { padding: 5px 10px 5px 6px; }
+  .chip[aria-pressed="true"] { background: rgba(94, 242, 214, 0.16); border-color: var(--biolum); color: #eafffb; }
+  .chip-icon { width: 44px; height: 18px; display: block; }
+  .toggle-row { display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer; }
+  .toggle-row input { width: 20px; height: 20px; margin: 0; accent-color: #5ef2d6; flex: none; }
+  .palette-strip { display: flex; gap: 6px; }
+  .palette-strip .swatch { flex: 1; height: 28px; border-radius: 8px; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tab-title {
+    margin: 18px 0 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--biolum);
+  }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .pick-card {
+    display: grid;
+    gap: 3px;
+    padding: 8px 10px 10px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: #071620;
+    text-align: left;
+  }
+  .pick-card canvas { width: 100%; height: 84px; display: block; }
+  .pick-card b { font-size: 13px; font-weight: 600; }
+  .pick-card small { font-size: 11px; line-height: 1.35; color: var(--dim); }
+  .lib-list { display: grid; gap: 6px; margin-bottom: 14px; }
+  .lib-row { display: grid; grid-template-columns: 64px 1fr auto auto; gap: 8px; align-items: center; }
+  .lib-row canvas { width: 64px; height: 40px; }
+  .lib-row b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lib-row .ghost { font-size: 12px; padding: 6px 10px; }
+  .ghost.danger { color: var(--coral); }
+  .sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(1, 4, 8, 0.7);
+  }
+  .sheet-card {
+    width: min(100%, 720px);
+    max-height: 84vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+    background: #061019;
+    border: 1px solid var(--line);
+    border-bottom: 0;
+    border-radius: 16px 16px 0 0;
+    padding: 14px 16px calc(env(safe-area-inset-bottom, 0px) + 18px);
+    display: grid;
+    gap: 12px;
+  }
+  .sheet-card header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .sheet-card h3 { margin: 0; font-family: var(--display); font-size: 18px; text-wrap: balance; }
+  .sheet-card textarea {
+    width: 100%;
+    min-height: 180px;
+    box-sizing: border-box;
+    background: #020a10;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px;
+    font: 12px/1.4 ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  .sheet-card .cta { justify-self: start; }
+  .ghost.big { font-size: 15px; padding: 13px 20px; border-radius: 999px; }
+  @media (prefers-reduced-motion: reduce) {
+    .toast { animation: none; transition: none; }
+  }
+</style>
+<!--artifact:head-end-->
+</head>
+<body>
+<!--artifact:body-start-->
+<canvas id="c" aria-label="Aire de jeu"></canvas>
+
+<div id="hud" hidden>
+  <div class="gauge">
+    <div class="label">Profondeur</div>
+    <div class="depth"><span id="depth">0</span><small> m</small></div>
+    <div class="hp"><i id="hpbar"></i></div>
+    <div class="meta"><b id="kills">0</b> proies · arbre <b id="tree">1</b> niv. · record <b id="best">0</b> m</div>
+  </div>
+  <div id="tray" aria-label="Gènes absorbés"></div>
+  <div class="btns">
+    <button id="btnSound" class="round" type="button" aria-label="Son" aria-pressed="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 9v6h4l5 4V5L8 9H4z"/>
+        <path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7"/>
+        <path class="mute" d="M17 9l5 6M22 9l-5 6"/>
+      </svg>
+    </button>
+    <button id="btnPause" class="round" type="button" aria-label="Pause">
+      <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+    </button>
+  </div>
+</div>
+
+<div id="graftBar" hidden>
+  <span><b>Greffe</b> : touche un point d'ancrage doré. Le bout d'un membre accepte aussi une branche.</span>
+  <button id="graftCancel" class="ghost" type="button">Annuler</button>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+
+<section id="title" class="screen">
+  <div class="card">
+    <h1 class="brand">HYDRA</h1>
+    <p>La lignée des abysses</p>
+    <p class="lede">Ton corps est un arbre de fouets. Tranche les membres des autres créatures, dévore-les et greffe leurs gènes sur toi. Chaque branche peut en porter une autre.</p>
+    <ul class="controls">
+      <li><b>Pouce gauche</b><span>Glisse pour nager.</span></li>
+      <li><b>Pouce droit</b><span>Touche pour foncer. Glisse pour choisir la direction.</span></li>
+      <li><b>Fouetter</b><span>Change brusquement de direction : le bout des tentacules claque et tranche.</span></li>
+      <li><b>Greffer</b><span>Touche un gène en haut, puis un point d'ancrage doré sur ton corps.</span></li>
+    </ul>
+    <div class="row">
+      <button id="btnStart" class="cta" type="button">Plonger</button>
+      <button id="btnAtelier" class="ghost big" type="button">Atelier des espèces</button>
+    </div>
+    <p class="small">Espèce jouée : <b id="titleSpecies">Anguille</b> · record −<span id="titleBest">0</span> m</p>
+  </div>
+</section>
+
+<section id="pause" class="screen" hidden>
+  <div class="card">
+    <h2>Pause</h2>
+    <label class="opt"><input id="optSound" type="checkbox"> Son</label>
+    <label class="opt"><input id="optGlow" type="checkbox"> Lueur (désactive-la si le jeu rame)</label>
+    <div class="row">
+      <button id="btnResume" class="cta" type="button">Reprendre</button>
+      <button id="btnQuit" class="ghost" type="button">Menu</button>
+    </div>
+  </div>
+</section>
+
+<section id="over" class="screen" hidden>
+  <div class="card">
+    <h2>La lignée s'éteint à <em>−<span id="overDepth">0</span> m</em></h2>
+    <p id="overRecord" class="record" hidden>Nouveau record</p>
+    <dl class="stats">
+      <div><dt>Créatures vaincues</dt><dd id="statKills">0</dd></div>
+      <div><dt>Morceaux dévorés</dt><dd id="statEaten">0</dd></div>
+      <div><dt>Greffes</dt><dd id="statGrafts">0</dd></div>
+      <div><dt>Arbre le plus haut</dt><dd id="statTree">1</dd></div>
+    </dl>
+    <div class="row">
+      <button id="btnRetry" class="cta" type="button">Replonger</button>
+      <button id="btnAtelier2" class="ghost big" type="button">Atelier des espèces</button>
+    </div>
+  </div>
+</section>
+
+<section id="atelier" hidden>
+  <header class="at-bar">
+    <button id="atBack" class="round" type="button" aria-label="Retour au menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <input id="atName" type="text" maxlength="40" aria-label="Nom de l'espèce">
+    <button id="atUndo" class="round" type="button" aria-label="Annuler">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-2" transform="translate(0 -6)"/></svg>
+    </button>
+    <button id="atRedo" class="round" type="button" aria-label="Rétablir">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7l5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12h2" transform="translate(0 -6)"/></svg>
+    </button>
+    <button id="atPlay" class="cta sm" type="button">Jouer</button>
+  </header>
+  <div class="at-main">
+    <div class="at-stage">
+      <canvas id="atCanvas" aria-label="Aquarium : touche une partie pour la sélectionner"></canvas>
+      <span id="atMeter" class="meter"></span>
+      <span id="atFlash" hidden></span>
+      <div class="stage-tools">
+        <button type="button" data-mode="swim" aria-pressed="true">Circuit</button>
+        <button type="button" data-mode="follow" aria-pressed="false">Guider du doigt</button>
+        <button type="button" data-mode="pose" aria-pressed="false">Pose</button>
+        <span class="sep"></span>
+        <button id="atSkel" type="button" aria-pressed="false">Squelette</button>
+      </div>
+    </div>
+    <div class="at-panel">
+      <div class="at-tabs" role="tablist">
+        <button type="button" role="tab" data-tab="parts" aria-selected="true">Structure</button>
+        <button type="button" role="tab" data-tab="species" aria-selected="false">Espèce</button>
+        <button type="button" role="tab" data-tab="models" aria-selected="false">Modèles</button>
+      </div>
+      <div id="atTabParts">
+        <div id="atTree" class="tree"></div>
+        <div class="tree-actions">
+          <button id="atAdd" class="ghost" type="button">+ Ajouter une partie</button>
+          <button id="atDup" class="ghost" type="button">Dupliquer</button>
+          <button id="atDel" class="ghost danger" type="button">Supprimer</button>
+        </div>
+        <div id="atProps"></div>
+      </div>
+      <div id="atTabSpecies" hidden></div>
+      <div id="atTabModels" hidden></div>
+    </div>
+  </div>
+  <div id="atSheet" class="sheet" hidden>
+    <div class="sheet-card" role="dialog" aria-labelledby="atSheetTitle">
+      <header><h3 id="atSheetTitle"></h3><button id="atSheetClose" class="ghost" type="button">Fermer</button></header>
+      <div id="atSheetBody"></div>
+    </div>
+  </div>
+</section>
+
+<script src="engine.js"></script>
+<script src="editor.js"></script>
+<script src="hydra.js"></script>
+<!--artifact:body-end-->
+<script>
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  }
+</script>
+</body>
+</html>
