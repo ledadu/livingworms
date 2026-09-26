@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "check": "tsc --noEmit",
     "preview": "vite preview",
-    "build3d": "tsc --noEmit && vite build --config vite.3d.config.ts"
+    "build3d": "tsc --noEmit && vite build --config vite.3d.config.ts",
+    "build25": "tsc --noEmit && vite build --config vite.25.config.ts"
   },
   "devDependencies": {
     "@types/three": "^0.170.0",
