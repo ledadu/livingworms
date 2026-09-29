@@ -32,7 +32,7 @@ const ctx = canvas.getContext('2d', { alpha: false })!;
 const view = new View();
 let dpr = 1, quality = 1, W = 0, H = 0;
 function resize(): void {
-  dpr = Math.min(2, window.devicePixelRatio || 1) * quality;
+  dpr = Math.min(1.5, window.devicePixelRatio || 1) * quality;
   W = window.innerWidth; H = window.innerHeight;
   canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
   canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
@@ -219,12 +219,17 @@ function update(): void {
     fish.ph[i] += 0.25 + m * 0.12;
   }
 
-  // plants grow when they come near, and are forgotten far behind
-  let grow = 4;
+  // plants grow when they come near (a few milliseconds of work per frame at most), and are forgotten far behind
+  const deadline = performance.now() + 3;
   for (const pl of plants) {
     const dx = Math.abs(pl.x - px);
-    if (!pl.cr && dx < 1800 && grow-- > 0) growPlant(pl);
-    else if (pl.cr && dx > 3200) { pl.cr = null; pl.sprite = null; }
+    if (!pl.cr && dx < 1800) {
+      const g0 = performance.now();
+      growPlant(pl);
+      const gt = performance.now() - g0;
+      if (gt > stats.growMax) stats.growMax = gt;
+      if (g0 + gt > deadline) break;
+    } else if (pl.cr && dx > 3200) { pl.cr = null; pl.sprite = null; }
   }
 }
 
@@ -234,18 +239,22 @@ const P: Proj = { x: 0, y: 0, s: 1, d: 1 };
 const Q: Proj = { x: 0, y: 0, s: 1, d: 1 };
 const ROWS = [2000, 1700, 1450, 1240, 1060, 910, 780, 670, 570, 480, 400, 330, 265, 205, 150, 100, 55, 12, -35];
 
-type Item = { d: number; fn: () => void };
+type Item = { d: number; fn: () => void; k?: string };
+const skip = new Set<string>();
 const items: Item[] = [];
 
-function drawSprite(sp: { canvas: HTMLCanvasElement; ax: number; ay: number; res: number }, x: number, y: number, z: number): void {
+function drawSprite(sp: { canvas: HTMLCanvasElement; ax: number; ay: number; res: number; w?: number; h?: number }, x: number, y: number, z: number): void {
   view.project(x, y, z, P);
   const k = P.s / sp.res, kv = Math.cos(view.pitch);
   ctx.setTransform(dpr * k, 0, 0, dpr * k * kv, dpr * P.x, dpr * P.y);
-  ctx.drawImage(sp.canvas, -sp.ax * sp.res, -sp.ay * sp.res);
+  if (sp.w) ctx.drawImage(sp.canvas, 0, 0, sp.w, sp.h!, -sp.ax * sp.res, -sp.ay * sp.res, sp.w, sp.h!);
+  else ctx.drawImage(sp.canvas, -sp.ax * sp.res, -sp.ay * sp.res);
 }
 
 let bakes = 0;
 const glowPts: number[] = [];
+let frameCount = 0;
+const deepEl = document.getElementById('deep');
 
 function render(): void {
   const m = moodAt(cam.x), pr = player.cr.root, plane = settings.dist;
@@ -291,43 +300,45 @@ function render(): void {
 
   // everything with a depth, sorted from far to near
   items.length = 0;
-  for (const z of ROWS) items.push({ d: view.depth(floorAt(cam.x, z), z) + 0.5, fn: () => drawRow(z, m, plane) });
+  computeProfiles();
+  ROWS.forEach((z, r) => items.push({ d: view.depth(floorAt(cam.x, z), z) + 0.5, fn: () => drawRow(r, m, plane), k: 'row' }));
+  items.push({ d: view.depth(floorAt(cam.x, -20), -20) + 0.6, fn: () => drawCaustics(m), k: 'caustic' });
   for (const k of rocks) {
     if (Math.abs(k.x - cam.x) > 2200) continue;
     const [x0, x1] = view.xRange(k.z, k.r * 2);
     if (k.x < x0 || k.x > x1) continue;
     const y = floorAt(k.x, k.z);
-    items.push({ d: view.depth(y, k.z), fn: () => drawRock(k, y, m, plane) });
+    items.push({ d: view.depth(y, k.z), fn: () => drawRock(k, y, m, plane), k: 'rock' });
   }
   for (const pl of plants) {
     if (!pl.cr) continue;
     const [x0, x1] = view.xRange(pl.z, 240);
     if (pl.x < x0 || pl.x > x1) continue;
-    items.push({ d: view.depth(pl.cr.root.y[0], pl.z), fn: () => drawPlant(pl, m, plane) });
+    items.push({ d: view.depth(pl.cr.root.y[0], pl.z), fn: () => drawPlant(pl, m, plane), k: 'plant' });
   }
   for (const a of actors) {
     const [x0, x1] = view.xRange(a.z, 200);
     const x = a.cr.root.x[0];
     if (x < x0 || x > x1) continue;
     const rz = a.cr.root.z[0];
-    items.push({ d: view.depth(a.cr.root.y[0], rz) - 0.2, fn: () => drawActor(a, m, plane) });
+    items.push({ d: view.depth(a.cr.root.y[0], rz) - 0.2, fn: () => drawActor(a, m, plane), k: 'actor' });
     const fy = floorAt(x, rz), h = fy - a.cr.root.y[0];
-    if (h < 260 && h > -8 && rz < 900) items.push({ d: view.depth(fy, rz) + 0.3, fn: () => drawShadow(a, fy, h) });
+    if (h < 260 && h > -8 && rz < 900) items.push({ d: view.depth(fy, rz) + 0.3, fn: () => drawShadow(a, fy, h), k: 'shadow' });
   }
   for (const v of visitors) {
     const [x0, x1] = view.xRange(v.z, 400);
     if (v.cr.root.x[0] < x0 || v.cr.root.x[0] > x1) continue;
-    items.push({ d: view.depth(v.y, v.cr.root.z[0]), fn: () => drawVisitor(v, m, plane) });
+    items.push({ d: view.depth(v.y, v.cr.root.z[0]), fn: () => drawVisitor(v, m, plane), k: 'visitor' });
   }
-  items.push({ d: view.depth(200, FZ), fn: drawFish });
-  items.push({ d: view.depth(300, 700), fn: () => drawRays(m) });
+  items.push({ d: view.depth(200, FZ), fn: drawFish, k: 'fish' });
+  items.push({ d: view.depth(300, 700), fn: () => drawRays(m), k: 'rays' });
   items.sort((a, b) => b.d - a.d);
   bakes = 0;
-  for (const it of items) it.fn();
+  for (const it of items) if (!it.k || !skip.has(it.k)) it.fn();
 
   // glows of the creatures: many small lights on one animal share their strength, so they never burn to white
   ctx.globalCompositeOperation = 'lighter';
-  for (const a of actors) {
+  if (!skip.has('glow')) for (const a of actors) {
     if (Math.abs(a.cr.root.x[0] - cam.x) > 1400) continue;
     glowPts.length = 0;
     eachGlow3(a.cr, view, (x, y, size, hue, al) => { glowPts.push(x, y, size, hue, al); });
@@ -347,7 +358,7 @@ function render(): void {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = css(m.plankton, 0.5);
   ctx.beginPath();
-  for (const mo of motes) {
+  if (!skip.has('motes')) for (const mo of motes) {
     const x = cam.x + ((((mo[0] + t * 3 - cam.x * 0.0) % 1400) + 2100) % 1400) - 700;
     const y = cam.y + mo[1] + Math.sin(t * 0.3 + mo[3] * 9) * 6;
     if (y < 4) continue;
@@ -359,58 +370,89 @@ function render(): void {
   ctx.fill();
   ctx.globalCompositeOperation = 'source-over';
 
-  // vignette, and the deep closing in
-  ctx.drawImage(vignette(), 0, 0, W, H);
+  // the vignette and the deep closing in are CSS layers over the canvas (free of canvas fill-rate)
   const dd = clamp((pr.y[0] - 300) / 900, 0, 1);
-  if (dd > 0) { ctx.fillStyle = css(m.deep, dd * 0.22, -10); ctx.fillRect(0, 0, W, H); }
+  if (deepEl && (frameCount++ & 7) === 0) deepEl.style.background = css(m.deep, dd * 0.24, -10);
   void deepC;
 }
 
-function drawRow(z: number, m: ReturnType<typeof moodAt>, plane: number): void {
-  const [x0, x1] = view.xRange(z, 80), n = 44;
+/** projected profile of every row of floor, computed once per frame (x, y pairs, left to right) */
+const ROW_N = 40;
+const profiles: Float32Array[] = ROWS.map(() => new Float32Array((ROW_N + 1) * 2));
+function computeProfiles(): void {
+  ROWS.forEach((z, r) => {
+    const [x0, x1] = view.xRange(z, 80), pf = profiles[r];
+    for (let i = 0; i <= ROW_N; i++) {
+      const x = x0 + ((x1 - x0) * i) / ROW_N;
+      view.project(x, floorAt(x, z), z, P);
+      pf[i * 2] = P.x; pf[i * 2 + 1] = P.y;
+    }
+  });
+}
+
+/**
+ * One row of floor as a band: from its own horizon line down to the horizon
+ * line of the next, nearer row (so every pixel is painted once, not once per
+ * row behind it). The nearest row goes down to the bottom of the screen.
+ */
+function drawRow(r: number, m: ReturnType<typeof moodAt>, plane: number): void {
+  const z = ROWS[r], pf = profiles[r], nf = r + 1 < ROWS.length ? profiles[r + 1] : null;
   const d = view.depth(floorAt(cam.x, z), z), fog = fogOf(d, plane);
   const back = clamp((z - 300) / 700, 0, 1);
   const base = { h: m.sand.h, s: m.sand.s, l: m.sand.l - 6 - z * 0.004 };
   const col = fogged(m, back > 0 ? { h: base.h + (m.rock.h - base.h) * back, s: base.s + (m.rock.s - base.s) * back, l: base.l + (m.rock.l - base.l) * back } : base, 400 + z * 0.3, fog);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  let top = Infinity, bot = -Infinity;
   ctx.beginPath();
-  const pts: number[] = [];
-  for (let i = 0; i <= n; i++) {
-    const x = x0 + ((x1 - x0) * i) / n;
-    view.project(x, floorAt(x, z), z, P);
-    pts.push(P.x, P.y);
-    if (i) ctx.lineTo(P.x, P.y); else ctx.moveTo(P.x, P.y);
+  for (let i = 0; i <= ROW_N; i++) {
+    const x = pf[i * 2], y = pf[i * 2 + 1];
+    if (y < top) top = y;
+    if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
   }
-  ctx.lineTo(W + 50, H + 50);
-  ctx.lineTo(-50, H + 50);
+  if (nf) {
+    // back along the next row's line (never above this one), a little overlapped so no seam shows
+    for (let i = ROW_N; i >= 0; i--) {
+      const y = Math.max(nf[i * 2 + 1], pf[i * 2 + 1]) + 2.5;
+      if (y > bot) bot = y;
+      ctx.lineTo(nf[i * 2], y);
+    }
+  } else { bot = H + 4; ctx.lineTo(pf[ROW_N * 2] + 20, bot); ctx.lineTo(pf[0] - 20, bot); }
   ctx.closePath();
-  const top = Math.min(...pts.filter((_, i) => i % 2 === 1));
-  const gr = ctx.createLinearGradient(0, top, 0, top + 420);
+  if (top > H || bot < 0) return;
+  const gr = ctx.createLinearGradient(0, top, 0, Math.max(top + 30, bot));
   gr.addColorStop(0, css(col, 1, 2));
-  gr.addColorStop(1, css(col, 1, -5));
-  ctx.fillStyle = gr;
+  gr.addColorStop(1, css(col, 1, -4));
+  ctx.fillStyle = skip.has('grad') ? css(col) : gr;
   ctx.fill();
-  // caustics on the nearest rows
-  if (z <= 240 && z > -120) {
-    ctx.save();
-    ctx.clip();
-    view.project(0, 0, z, P);
-    const s = P.s;
-    caustic.setTransform(new DOMMatrix([s * 0.75, 0, s * 0.2, s * 0.3, P.x + t * 10 * s, P.y + t * 4 * s]));
-    ctx.fillStyle = caustic;
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.1 * m.caustics * (1 - fog);
-    ctx.fillRect(0, top, W, H - top);
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.restore();
-  }
-  // lit rim, and ink
+  // lit rim
+  if (skip.has('rim')) return;
   ctx.beginPath();
-  for (let i = 0; i < pts.length; i += 2) if (i) ctx.lineTo(pts[i], pts[i + 1]); else ctx.moveTo(pts[i], pts[i + 1]);
+  for (let i = 0; i <= ROW_N; i++) if (i) ctx.lineTo(pf[i * 2], pf[i * 2 + 1]); else ctx.moveTo(pf[0], pf[1]);
   ctx.lineWidth = 1.6;
   ctx.strokeStyle = css(col, z > 600 ? 0.5 : 0.18, 12);
   ctx.stroke();
+}
+
+/** caustics on the floor near the swimmer, one pass over the whole near floor */
+const CAUSTIC_FROM = ROWS.findIndex((z) => z <= 240);
+function drawCaustics(m: ReturnType<typeof moodAt>): void {
+  const pf = profiles[CAUSTIC_FROM], z = ROWS[CAUSTIC_FROM];
+  view.project(0, 0, z, P);
+  const s = P.s;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.save();
+  ctx.beginPath();
+  for (let i = 0; i <= ROW_N; i++) if (i) ctx.lineTo(pf[i * 2], pf[i * 2 + 1]); else ctx.moveTo(pf[0], pf[1]);
+  ctx.lineTo(pf[ROW_N * 2] + 20, H + 4);
+  ctx.lineTo(pf[0] - 20, H + 4);
+  ctx.closePath();
+  ctx.clip();
+  caustic.setTransform(new DOMMatrix([s * 0.75, 0, s * 0.2, s * 0.3, P.x + t * 10 * s, P.y + t * 4 * s]));
+  ctx.fillStyle = caustic;
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = 0.1 * m.caustics;
+  ctx.fillRect(0, Math.max(0, Math.min(...Array.from({ length: ROW_N + 1 }, (_, i) => pf[i * 2 + 1]))), W, H);
+  ctx.restore();
 }
 
 function drawRock(k: Rock, y: number, m: ReturnType<typeof moodAt>, plane: number): void {
@@ -480,7 +522,7 @@ function drawVisitor(v: Visitor, m: ReturnType<typeof moodAt>, plane: number): v
   const k = P.s / sp.res;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.globalAlpha = 0.85;
-  ctx.drawImage(sp.canvas, P.x - sp.ax * sp.res * k, P.y - sp.ay * sp.res * k * Math.cos(view.pitch), sp.canvas.width * k, sp.canvas.height * k * Math.cos(view.pitch));
+  ctx.drawImage(sp.canvas, 0, 0, sp.w!, sp.h!, P.x - sp.ax * sp.res * k, P.y - sp.ay * sp.res * k * Math.cos(view.pitch), sp.w! * k, sp.h! * k * Math.cos(view.pitch));
   ctx.globalAlpha = 1;
 }
 
@@ -498,11 +540,11 @@ function drawFish(): void {
 function drawRays(m: ReturnType<typeof moodAt>): void {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.globalCompositeOperation = 'lighter';
-  const sp = 260;
-  for (let k = Math.floor((cam.x - 1400) / sp); k <= Math.floor((cam.x + 1400) / sp); k++) {
+  const sp = 380;
+  for (let k = Math.floor((cam.x - 1200) / sp); k <= Math.floor((cam.x + 1200) / sp); k++) {
     const h1 = Math.abs(Math.sin(k * 12.9898) * 43758.5453) % 1, h2 = Math.abs(Math.sin(k * 78.233) * 12345.678) % 1;
-    if (h1 < 0.4) continue;
-    const x = k * sp + h2 * 200, z = 150 + h1 * 900, w = 20 + h2 * 50, L = 700;
+    if (h1 < 0.45) continue;
+    const x = k * sp + h2 * 200, z = 150 + h1 * 900, w = 26 + h2 * 60, L = 560;
     const al = m.rays * 0.12 * (0.5 + 0.5 * Math.sin(t * 0.25 + k * 1.7));
     view.project(x, 0, z, P); const ax = P.x, ay = P.y, aw = w * P.s;
     view.project(x + L * 0.3, L, z, Q); const bx = Q.x, by = Q.y, bw = w * 1.6 * Q.s;
@@ -517,26 +559,17 @@ function drawRays(m: ReturnType<typeof moodAt>): void {
   ctx.globalCompositeOperation = 'source-over';
 }
 
-let vig: HTMLCanvasElement | null = null;
-function vignette(): HTMLCanvasElement {
-  if (vig) return vig;
-  vig = makeCanvas(256, 256);
-  const g = vig.getContext('2d')!, rg = g.createRadialGradient(128, 128, 70, 128, 128, 182);
-  rg.addColorStop(0, 'rgba(0,0,0,0)');
-  rg.addColorStop(1, 'rgba(0,0,0,0.42)');
-  g.fillStyle = rg;
-  g.fillRect(0, 0, 256, 256);
-  return vig;
-}
-
 // ----- loop ----- //
 
 let last = performance.now(), acc = 0, fn = 0, fsum = 0;
 const timeScale = { v: 1 };
-const stats = { fps: 0, render: 0, update: 0 };
+const lockQuality = { v: false };
+const stats = { fps: 0, render: 0, update: 0, jank: 0, slow: 0, growMax: 0 };
 function frame(now: number): void {
   const dt = now - last;
   last = now;
+  if (dt > stats.jank) stats.jank = dt;
+  if (dt > 50) stats.slow++;
   acc += Math.min(0.1, dt / 1000) * timeScale.v;
   let steps = 0;
   const u0 = performance.now();
@@ -556,7 +589,7 @@ function frame(now: number): void {
   if (fn >= 90) {
     const avg = fsum / fn;
     stats.fps = 1000 / avg;
-    if (avg > 21 && quality > 0.55) { quality *= 0.85; resize(); } else if (avg < 15 && quality < 1) { quality = Math.min(1, quality / 0.9); resize(); }
+    if (!lockQuality.v) { if (avg > 21 && quality > 0.55) { quality *= 0.85; resize(); } else if (avg < 15 && quality < 1) { quality = Math.min(1, quality / 0.9); resize(); } }
     fn = 0; fsum = 0;
     fpsEl.textContent = stats.fps.toFixed(0) + ' img/s';
   }
@@ -564,7 +597,7 @@ function frame(now: number): void {
 }
 
 (window as unknown as { lignee25: unknown }).lignee25 = {
-  settings, player, stats, actors, view, input, plants, rocks, timeScale,
+  settings, player, stats, actors, view, input, plants, rocks, timeScale, skip, lockQuality,
   teleport: (x: number, y: number) => { player.cr.translate(x - player.cr.root.x[0], y - player.cr.root.y[0], 0); cam.x = x; cam.y = y; },
   spawn: (id: string, dx: number, dy: number) => addActor(SPECIES[id](), player.cr.root.x[0] + dx, player.cr.root.y[0] + dy, 'swim', 1, 0)
 };

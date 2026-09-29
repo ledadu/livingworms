@@ -29,3 +29,8 @@ body { font-family: 'Cormorant Garamond', Georgia, serif; color: #f4efe2; -webki
   transition: opacity 1.2s ease;
 }
 #hint.gone { opacity: 0; }
+
+/* 2.5D prototype: lighting layers over the canvas */
+#vig, #deep { position: fixed; inset: 0; pointer-events: none; }
+#vig { background: radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.42) 100%); }
+#deep { background: transparent; }

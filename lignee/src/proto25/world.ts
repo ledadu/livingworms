@@ -31,7 +31,7 @@ export function fogOf(d: number, plane: number): number {
 
 // ----- baked sprites ----- //
 
-export interface Sprite { canvas: HTMLCanvasElement; ax: number; ay: number; res: number; }
+export interface Sprite { canvas: HTMLCanvasElement; ax: number; ay: number; res: number; /** pixels in use (a reused buffer can be larger) */ w?: number; h?: number; }
 
 /** a lumpy rock with a lit rim, speckles, and life on top */
 export function bakeRock(r: number, seed: number, m: Mood, reef: number, fog: number, fogCol: HSL, res: number): Sprite {
@@ -111,14 +111,25 @@ export function bakeCreature(cr: Creature3, fog: number, fogCol: HSL, res: numbe
   const b = cr.box, pad = 5;
   const w = b[3] - b[0] + pad * 2, h = b[4] - b[1] + pad * 2;
   res = Math.min(res, 900 / Math.max(w, h));
-  const c = into || makeCanvas(w * res, h * res);
-  if (into) { into.width = Math.max(1, Math.ceil(w * res)); into.height = Math.max(1, Math.ceil(h * res)); }
+  const pw = Math.max(1, Math.ceil(w * res)), ph = Math.max(1, Math.ceil(h * res));
+  const c = into || makeCanvas(pw, ph);
+  // a reused buffer only grows (and shrinks when it is far too big), so its memory is not reallocated every frame
+  if (into && (into.width < pw || into.height < ph || into.width > pw * 2.2 + 16 || into.height > ph * 2.2 + 16)) {
+    into.width = Math.ceil(pw * 1.25) + 4; into.height = Math.ceil(ph * 1.25) + 4;
+  }
   const ctx = c.getContext('2d')!;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.clearRect(0, 0, pw + 2, ph + 2);
   draw3(ctx, cr, new Ortho(res, (-b[0] + pad) * res, (-b[1] + pad) * res), { ink: true, water: env.water });
-  tint(ctx, c, fog, fogCol);
-  return { canvas: c, ax: cr.root.x[0] - b[0] + pad, ay: cr.root.y[0] - b[1] + pad, res };
+  // wash only what was drawn
+  if (fog > 0.01) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.fillStyle = css(fogCol, fog);
+    ctx.fillRect(0, 0, pw + 2, ph + 2);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  return { canvas: c, ax: cr.root.x[0] - b[0] + pad, ay: cr.root.y[0] - b[1] + pad, res, w: pw, h: ph };
 }
 
 // ----- what stands where ----- //
@@ -154,7 +165,7 @@ export function growPlant(p: Plant): Creature3 {
   if (hanging) { dv.x = Math.sin(tilt) * ca; dv.z = Math.sin(tilt) * sa; dv.y = Math.cos(tilt); }
   const cr = new Creature3(sp, p.x, y, p.z, { anchor: { dir: dv, plane: az }, phase: R() * TAU, scale });
   if (kind === 'anemone') for (const sg of cr.list) sg.def.motion.amp *= 0.3;
-  settle3(cr, kind === 'kelp' || hanging ? 300 : 140);
+  settle3(cr, kind === 'kelp' || hanging ? 70 : 40);
   p.cr = cr;
   return cr;
 }
