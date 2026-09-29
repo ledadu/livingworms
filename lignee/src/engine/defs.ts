@@ -28,7 +28,7 @@ export const SHAPES: Record<string, (w: number, t: number) => number> = {
 };
 
 const NODE_DEFAULTS = {
-  name: 'Partie', role: 'deco', links: 8, len: 6, width: 3, shape: 'worm', style: 'ribbon',
+  name: 'Partie', role: 'deco', drive: 'none', links: 8, len: 6, width: 3, shape: 'worm', style: 'ribbon',
   flex: 0.5, spring: 0.1, curl: 0, curlBias: 0, drag: 0.84, gravity: 0, lenTo: 1
 } as const;
 const COLOR_DEFAULTS: ColorDef = {

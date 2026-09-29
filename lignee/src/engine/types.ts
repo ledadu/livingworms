@@ -5,6 +5,17 @@
 export type Role = 'body' | 'whip' | 'sting' | 'jaw' | 'fin' | 'cilia' | 'light' | 'sense' | 'deco';
 export type Style = 'ribbon' | 'plates' | 'line' | 'disc' | 'eye';
 export type MotionType = 'none' | 'wave' | 'row' | 'flutter' | 'pulse' | 'breathe' | 'undulate' | 'curl' | 'recoil';
+/**
+ * The part of the body that moves the animal, and how. A part with a drive moves
+ * on the rhythm of the animal (swim.freq) with the stroke that suits it, and it is
+ * what pushes it; a part without one (none) may still have any motion, for show
+ * or to grasp, and does not push:
+ *  - pull: arms that sweep back together: the jets of an octopus;
+ *  - paddle: blades that row, one side after the other: flippers, swimmerets;
+ *  - walk: legs that step by turns, on the pace of the walk;
+ *  - ripple: a fin that undulates: cuttlefish, ray, ribbon fin.
+ */
+export type Drive = 'none' | 'pull' | 'paddle' | 'walk' | 'ripple';
 export type Pattern = 'single' | 'pair' | 'fan' | 'series' | 'ring';
 export type Motif = 'none' | 'bands' | 'spots' | 'stripe' | 'ocelli' | 'edge';
 export type Glow = 'none' | 'tip' | 'body';
@@ -31,6 +42,7 @@ export interface MotionDef { type: MotionType; amp: number; freq: number; wave: 
 export interface NodeDef {
   name: string; role: Role;
   links: number; len: number; width: number; shape: string; style: Style;
+  drive: Drive;
   flex: number; spring: number; curl: number; curlBias: number; drag: number; gravity: number; lenTo: number;
   color: ColorDef; motion: MotionDef; attach: AttDef[];
 }

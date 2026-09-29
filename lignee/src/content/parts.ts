@@ -27,12 +27,12 @@ export const PARTS: Record<string, PartDef> = {
   },
   patte: {
     desc: 'Pattes articulées qui marchent en rythme',
-    node: { name: 'Patte', role: 'deco', links: 3, len: 5, width: 0.9, shape: 'linear', style: 'line', flex: 0.25, spring: 0.35, curl: 0.9, color: { slot: 1, light: -4 }, motion: { type: 'row', amp: 0.35, freq: 1.4 } },
+    node: { drive: 'walk', name: 'Patte', role: 'deco', links: 3, len: 5, width: 0.9, shape: 'linear', style: 'line', flex: 0.25, spring: 0.35, curl: 0.9, color: { slot: 1, light: -4 }, motion: { type: 'row', amp: 0.35, freq: 1.4 } },
     att: { pattern: 'series', at: 0.12, to: 0.42, count: 5, angle: 1.9, angleTo: 1.4, edge: 0.8, scaleTo: 0.8, phaseStep: 0.9, mirror: true }
   },
   pleopode: {
     desc: 'Petites palettes qui rament',
-    node: { name: 'Pléopode', role: 'fin', links: 3, len: 3.5, width: 1.6, shape: 'leaf', style: 'ribbon', flex: 0.4, spring: 0.3, curl: 0.3, color: { slot: 3, alpha: 0.9 }, motion: { type: 'row', amp: 0.55, freq: 2.2 } },
+    node: { drive: 'paddle', name: 'Pléopode', role: 'fin', links: 3, len: 3.5, width: 1.6, shape: 'leaf', style: 'ribbon', flex: 0.4, spring: 0.3, curl: 0.3, color: { slot: 3, alpha: 0.9 }, motion: { type: 'row', amp: 0.55, freq: 2.2 } },
     att: { pattern: 'series', at: 0.5, to: 0.82, count: 5, angle: 1.7, edge: 0.7, scaleTo: 0.7, phaseStep: 0.8, mirror: true }
   },
   nageoire: {
@@ -89,8 +89,8 @@ export const PARTS: Record<string, PartDef> = {
     att: { pattern: 'pair', at: 1, angle: 0.25, edge: 0.4 }
   },
   bras: {
-    desc: 'Bras charnus qui s\'enroulent',
-    node: { name: 'Bras', role: 'whip', links: 10, len: 4.5, width: 2.6, shape: 'virgule', style: 'ribbon', flex: 0.55, spring: 0.06, color: { slot: 0 }, motion: { type: 'curl', amp: 1.2, freq: 0.4 } },
+    desc: 'Bras charnus qui s\'enroulent, et tirent le poulpe par saccades',
+    node: { drive: 'pull', name: 'Bras', role: 'whip', links: 10, len: 4.5, width: 2.6, shape: 'virgule', style: 'ribbon', flex: 0.55, spring: 0.06, color: { slot: 0 }, motion: { type: 'curl', amp: 1.2, freq: 0.4 } },
     att: { pattern: 'fan', at: 1, count: 8, spread: 0.9, edge: 0.7, angle: 0, phaseStep: 0.7, scaleTo: 0.85 }
   },
   rostre: {
@@ -115,12 +115,12 @@ export const PARTS: Record<string, PartDef> = {
   },
   aile: {
     desc: 'Grande aile qui ondule, comme une raie',
-    node: { name: 'Aile', role: 'fin', links: 6, len: 8, width: 9, shape: 'leaf', style: 'ribbon', flex: 0.35, spring: 0.25, curl: 0.6, color: { slot: 0 }, motion: { type: 'wave', amp: 0.45, freq: 0.6 } },
+    node: { drive: 'ripple', name: 'Aile', role: 'fin', links: 6, len: 8, width: 9, shape: 'leaf', style: 'ribbon', flex: 0.35, spring: 0.25, curl: 0.6, color: { slot: 0 }, motion: { type: 'wave', amp: 0.45, freq: 0.6 } },
     att: { pattern: 'pair', at: 0.35, angle: 1.45, edge: 0.8 }
   },
   collerette: {
     desc: 'Nageoire continue qui ondule tout autour',
-    node: { name: 'Collerette', role: 'fin', links: 2, len: 3, width: 1.8, shape: 'leaf', style: 'ribbon', flex: 0.4, spring: 0.3, color: { slot: 1, alpha: 0.75 }, motion: { type: 'wave', amp: 0.35, freq: 2 } },
+    node: { drive: 'ripple', name: 'Collerette', role: 'fin', links: 2, len: 3, width: 1.8, shape: 'leaf', style: 'ribbon', flex: 0.4, spring: 0.3, color: { slot: 1, alpha: 0.75 }, motion: { type: 'wave', amp: 0.35, freq: 2 } },
     att: { pattern: 'series', at: 0.05, to: 0.95, count: 14, angle: 1.57, edge: 1, phaseStep: 0.45, mirror: true, web: 1 }
   },
   brasEtoile: {
@@ -153,7 +153,7 @@ export const PARTS: Record<string, PartDef> = {
   },
   patteMarche: {
     desc: 'Pattes articulées de crabe',
-    node: { name: 'Patte', role: 'deco', links: 4, len: 6, width: 1.7, shape: 'linear', style: 'plates', flex: 0.12, spring: 0.5, curl: 1, color: { slot: 0, light: -4 }, motion: { type: 'row', amp: 0.3, freq: 1.8 } },
+    node: { drive: 'walk', name: 'Patte', role: 'deco', links: 4, len: 6, width: 1.7, shape: 'linear', style: 'plates', flex: 0.12, spring: 0.5, curl: 1, color: { slot: 0, light: -4 }, motion: { type: 'row', amp: 0.3, freq: 1.8 } },
     att: { pattern: 'series', at: 0.2, to: 0.9, count: 4, angle: 1.9, angleTo: 1.3, edge: 0.95, phaseStep: 1.2, mirror: true }
   },
   pinceHomard: {

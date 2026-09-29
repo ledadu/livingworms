@@ -14,6 +14,7 @@ export const NAMES = {
   pattern: { single: 'Seul', pair: 'Paire', fan: 'Éventail', series: 'Série', ring: 'Anneau' },
   motif: { none: 'Uni', bands: 'Bandes', spots: 'Taches', stripe: 'Ligne', ocelli: 'Ocelles', edge: 'Liseré' },
   harmony: { analog: 'Analogue', complement: 'Complément', triad: 'Triade', split: 'Divisée', mono: 'Mono' },
+  drive: { none: 'Aucun', pull: 'Traction (bras qui tirent)', paddle: 'Rame (pagaies)', walk: 'Marche (pattes)', ripple: 'Ondulation (nageoire)' },
   swim: { steady: 'Régulière', pulse: 'Par pulsations', dart: 'Par à-coups', bell: 'Cloche (méduse)', jet: 'Par jets (poulpe)', crawl: 'Marche au sol' },
   ai: { hunter: 'Curieux', prey: 'Craintif', drifter: 'Dériveur' },
   glow: { none: 'Aucune', tip: 'Au bout', body: 'Partout' },

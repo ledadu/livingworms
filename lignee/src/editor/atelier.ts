@@ -431,10 +431,14 @@ function partSections() {
     { p: 'node.gravity', label: 'Poids', min: -0.15, max: 0.15, step: 0.005, snaps: [0], hint: 'Négatif = flotte vers le haut' }
   ] });
   var mt = n.motion.type;
-  sections.push({ id: 'motion', title: 'Mouvement', fields: [
-    { p: 'node.motion.type', t: 'chips', opts: objOpts(E.NAMES.motion), help: function (v) { return MOTION_HELP[v]; } },
+  var dv = n.drive || 'none';
+  sections.push({ id: 'drive', title: 'Déplacement', fields: [
+    { p: 'node.drive', t: 'chips', label: 'Rôle de cette partie dans le déplacement', opts: objOpts(E.NAMES.drive), help: function (v) { return DRIVE_HELP[v]; } }
+  ] });
+  sections.push({ id: 'motion', title: dv === 'none' ? 'Mouvement' : 'Mouvement (rythme et amplitude du déplacement)', fields: [
+    dv === 'none' && { p: 'node.motion.type', t: 'chips', opts: objOpts(E.NAMES.motion), help: function (v) { return MOTION_HELP[v]; } },
     mt !== 'none' && { p: 'node.motion.amp', label: 'Amplitude', min: 0, max: 1.5, step: 0.01 },
-    mt !== 'none' && { p: 'node.motion.freq', label: 'Fréquence', min: 0.1, max: 4, step: 0.05, unit: ' Hz' },
+    mt !== 'none' && dv === 'none' && { p: 'node.motion.freq', label: 'Fréquence', min: 0.1, max: 4, step: 0.05, unit: ' Hz' },
     mt === 'undulate' && { p: 'node.motion.wave', label: 'Nombre de vagues', min: 0.25, max: 3, step: 0.05 }
   ] });
   sections.push({ id: 'color', title: 'Couleur', fields: [
@@ -464,6 +468,14 @@ function partSections() {
 }
 
 var MOTIF_COUNT = { bands: 'Nombre de bandes', spots: 'Densité des taches', ocelli: 'Nombre d\'ocelles' };
+
+var DRIVE_HELP = {
+  none: 'La partie ne pousse pas l\'animal : elle peut bouger comme elle veut (saisir, parer, briller), sans rien à voir avec la nage.',
+  pull: 'Les bras tirent ensemble vers l\'arrière : c\'est ce qui propulse par saccades, et le corps se contracte avec eux (poulpe, calmar).',
+  paddle: 'Pagaies qui rament, un côté après l\'autre, au rythme de la nage (pattes natatoires, nageoires de tortue).',
+  walk: 'Pattes qui avancent à tour de rôle : elles ne bougent que quand l\'animal marche, au rythme de ses pas.',
+  ripple: 'Nageoire qui ondule à la cadence de la nage (seiche, raie).'
+};
 
 var MOTION_HELP = {
   none: 'La partie ne bouge que par la physique.',

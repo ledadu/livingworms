@@ -272,9 +272,15 @@ export class Seg3 {
 
   update(time: number): void {
     const d = this.def, m = d.motion, n = this.n, x = this.x, y = this.y, z = this.z, ox = this.ox, oy = this.oy, oz = this.oz;
-    const w = TAU * m.freq * time + this.phase;
     const cr = this.creature;
-    this.pulse = m.type === 'pulse' || m.type === 'breathe' ? m.amp * (0.5 + 0.5 * Math.sin(w)) : 0;
+    // a part with a drive moves on the rhythm of the animal, with the stroke of its drive; the others on their own
+    const drv = d.drive;
+    let type: string = m.type, w = TAU * m.freq * time + this.phase;
+    if (drv && drv !== 'none') {
+      type = DRIVE_MOTION[drv];
+      w = TAU * cr.spec.swim.freq * time + cr.phase + this.phase + (drv === 'walk' ? (this.k % 2) * Math.PI + (this.side < 0 ? Math.PI : 0) : 0);
+    }
+    this.pulse = type === 'pulse' || type === 'breathe' ? m.amp * (0.5 + 0.5 * Math.sin(w)) : 0;
 
     let fixed: V | null = null;
     if (this.parent) {
@@ -287,9 +293,9 @@ export class Seg3 {
       fixed = this.dir;
       const fl = cr.planar ? this.flip : 1;
       let ang = 0;
-      if (m.type === 'wave') ang = m.amp * Math.sin(w) * fl;
-      else if (m.type === 'row') ang = m.amp * rowCurve(w) * fl;
-      else if (m.type === 'flutter') ang = m.amp * (0.6 * Math.sin(w) + 0.4 * Math.sin(w * 2.7 + 1.3)) * fl;
+      if (type === 'wave') ang = m.amp * Math.sin(w) * fl;
+      else if (type === 'row') ang = m.amp * rowCurve(w) * fl;
+      else if (type === 'flutter') ang = m.amp * (0.6 * Math.sin(w) + 0.4 * Math.sin(w * 2.7 + 1.3)) * fl;
       if (ang) rotate(this.dir, this.nb, ang, this.tg), fixed = this.tg;
     } else if (this.headDir) {
       this.tg.x = -this.headDir.x; this.tg.y = -this.headDir.y; this.tg.z = -this.headDir.z;
@@ -301,9 +307,10 @@ export class Seg3 {
     const drag = d.drag, grav = d.gravity + this.sink, amax = this.amax, keep = 1 - d.spring;
     const bends = this.bends, lens = this.lens, soak = 0.2 + 0.4 * d.flex, F = cr.planar ? this.flip : 1;
     // curl: arms open and close; recoil: they trail straight behind on every jet stroke and relax between
-    const extra = m.type === 'curl' ? ((m.amp * (0.5 + 0.5 * Math.sin(w)) * (1 - 0.8 * cr.stroke) * F) / n) * 2
-      : m.type === 'recoil' ? (((m.amp * (1 - cr.stroke) + 0.3 * Math.sin(w)) * F) / n) * 2 : 0;
-    const und = m.type === 'undulate' ? m.amp * 0.5 : 0, wk = (TAU * m.wave) / n;
+    const power = drv === 'pull' ? strokeOf(w) : cr.stroke;
+    const extra = type === 'curl' ? ((m.amp * (0.5 + 0.5 * Math.sin(w)) * (1 - 0.8 * cr.stroke) * F) / n) * 2
+      : type === 'recoil' ? (((m.amp * (1 - power) + 0.3 * Math.sin(w)) * F) / n) * 2 : 0;
+    const und = type === 'undulate' ? m.amp * 0.5 : 0, wk = (TAU * m.wave) / n;
     const a = this.tmp, tgt = this.t, prev = this.b, nbi = this.l;
     let mnx = x[0], mxx = x[0], mny = y[0], mxy = y[0], mnz = z[0], mxz = z[0];
     const dyn = !this.parent && !this.anchor && !cr.planar;
@@ -363,6 +370,15 @@ export class Seg3 {
   }
 }
 
+/** the power stroke (0..1) of a beat at phase w: the body contracts, the arms sweep back */
+function strokeOf(w: number): number {
+  const c = -Math.cos(w);
+  return c > 0 ? c * c : 0;
+}
+
+/** the motion that goes with each drive */
+const DRIVE_MOTION: Record<string, string> = { pull: 'recoil', paddle: 'row', walk: 'row', ripple: 'wave' };
+
 function rowCurve(w: number): number {
   const f = (((w / TAU) % 1) + 1) % 1;
   if (f < 0.3) { const u = f / 0.3; return 1 - 2 * u * u * (3 - 2 * u); }
@@ -411,6 +427,8 @@ export class Creature3 {
   private leanX = 0; private leanZ = 0; private leanVX = 0; private leanVZ = 0;
   /** jet: the arms lead (parachute) */
   private rear = false;
+  /** the parts that push the animal along (drive pull), read for the power of its jets */
+  drivers: Seg3[] = [];
 
   constructor(sp: Spec, x: number, y: number, z: number, o: Creature3Options = {}) {
     this.spec = sp;
@@ -438,6 +456,7 @@ export class Creature3 {
   refresh(): void {
     this.list.length = 0;
     this.root.walk((s) => this.list.push(s));
+    this.drivers = this.list.filter((s) => s.def.drive === 'pull');
   }
 
   update(time: number, dvx: number, dvy: number, dvz: number, accel: number): void {
@@ -483,6 +502,13 @@ export class Creature3 {
 
   /** the power stroke (0..1) of the pulse of the trunk at this time */
   private beat(time: number): number {
+    // the arms that pull are what pushes: the power is theirs, on their own phases
+    if (this.drivers.length) {
+      const f = this.spec.swim.freq;
+      let sum = 0;
+      for (const s of this.drivers) sum += strokeOf(TAU * f * time + this.phase + s.phase);
+      return sum / this.drivers.length;
+    }
     const m = this.root.def.motion, f = m.type === 'pulse' || m.type === 'breathe' ? m.freq : this.spec.swim.freq;
     const c = -Math.cos(TAU * f * time + this.phase);
     return c > 0 ? c * c : 0;

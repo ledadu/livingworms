@@ -332,7 +332,7 @@ export const SPECIES: Record<string, () => Spec> = {
         attach: [
           part('oeil', { links: 1, len: 1.5, width: 2.2, color: { slot: 3 } }, { at: 0.85, angle: 1.57, edge: 0.9, front: true }),
           part('bras', { links: 14, len: 4.5, width: 2.8, color: { slot: 0, pattern: 'spots', pslot: 3, pdensity: 8, plight: 20, pscale: 1.2 }, motion: { type: 'recoil', amp: 1.1, freq: 0.35 } },
-            { count: 8, spread: 1.3, edge: 0.8, web: 0.25 })
+            { count: 8, spread: 1.3, edge: 0.8, web: 0.25, phaseStep: 0.06 })
         ]
       }
     });
