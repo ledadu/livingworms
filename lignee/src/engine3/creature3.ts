@@ -537,6 +537,19 @@ export class Creature3 {
     this.mode = on && this.spec.swim.walk ? 'crawl' : this.spec.swim.mode;
   }
 
+  /**
+   * Walkers stand on the floor (at height floorY) by the lowest point of their
+   * body, the legs, not by their root; an octopus (swim.walk) walks when it
+   * touches the floor and swims again when it leaves it. Call after steer.
+   */
+  stand(floorY: number): void {
+    if (this.mode !== 'crawl' && !this.spec.swim.walk) return;
+    const gap = floorY - this.box[4];
+    if (this.mode !== 'crawl') { if (gap < 6) this.ground(true); }
+    else if (this.spec.swim.walk && gap > 14) this.ground(false);
+    if (this.mode === 'crawl' && gap < 40) this.root.y[0] += gap * (gap < 0 ? 0.4 : 0.15);
+  }
+
   /** the power stroke (0..1) of the pulse of the trunk at this time */
   private beat(time: number): number {
     // the arms that pull are what pushes: the power is theirs, on their own phases

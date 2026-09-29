@@ -70,6 +70,7 @@ interface Actor {
 const actors: Actor[] = [];
 function addActor(sp: Spec, x: number, y: number, kind: Actor['kind'], scale = 1, z = 0): Actor {
   const cr = new Creature3(sp, x, y, z, { dir: { x: Math.random() < 0.5 ? 1 : -1, y: 0, z: 0 }, scale });
+  cr.ground(kind === 'floor');
   for (let i = 0; i < 60; i++) cr.update(i * STEP, 0, 0, 0, 0.1);
   const a: Actor = { cr, kind, z, hx: x, hy: y, tx: x, ty: y, next: 0, turning: 0, buf: null };
   actors.push(a);
@@ -154,6 +155,7 @@ function collide(cr: Creature3): void {
     const dx = r.x[0] - k.x, dy = (r.y[0] - cy) / 0.8, d = Math.hypot(dx, dy), m = rs + rad;
     if (d < m && d > 0.01) { r.x[0] = k.x + (dx / d) * m; r.y[0] = cy + (dy / d) * m * 0.8; }
   }
+  cr.stand(floorAt(r.x[0], z));
   const fy = floorAt(r.x[0], z) - rad;
   if (r.y[0] > fy) { r.y[0] = fy; if (cr.vy > 0) cr.vy *= -0.3; }
   if (r.y[0] < 8) { r.y[0] = 8; if (cr.vy < 0) cr.vy *= -0.3; }
@@ -194,7 +196,7 @@ function update(): void {
     if (t > a.next || Math.hypot(a.tx - x, a.ty - y) < 20) {
       a.next = t + rand(3, 8);
       a.tx = a.hx + rand(-260, 260);
-      a.ty = a.kind === 'floor' ? floorAt(a.tx, a.z) - 10 : clamp(a.hy + rand(-120, 120), 40, floorAt(a.tx, a.z) - 50);
+      a.ty = a.kind === 'floor' ? floorAt(a.tx, a.z) + 4 : clamp(a.hy + rand(-120, 120), 40, floorAt(a.tx, a.z) - 50);
     }
     let dx = a.tx - x, dy = a.ty - y;
     if (a.kind === 'swim' && Math.abs(a.z) < 60) {

@@ -277,14 +277,7 @@ function collide(cr: Creature3): void {
     const dx = r.x[0] - k.x, dy = (r.y[0] - cy) / 0.8, d = Math.hypot(dx, dy), m = rs + rad;
     if (d < m && d > 0.01) { r.x[0] = k.x + (dx / d) * m; r.y[0] = cy + (dy / d) * m * 0.8; }
   }
-  // walkers stand on the floor by the lowest point of their body (the legs), not by their root;
-  // an octopus walks when it touches the floor and jets when it leaves it
-  if (cr.mode === 'crawl' || cr.spec.swim.walk) {
-    const gap = floorAt(r.x[0], z) - cr.box[4];
-    if (cr.mode !== 'crawl') { if (gap < 6) cr.ground(true); }
-    else if (cr.spec.swim.walk && gap > 14) cr.ground(false);
-    if (cr.mode === 'crawl' && gap < 40) r.y[0] += gap * (gap < 0 ? 0.4 : 0.15);
-  }
+  cr.stand(floorAt(r.x[0], z));
   const fy = floorAt(r.x[0], z) - rad;
   if (r.y[0] > fy) { r.y[0] = fy; if (cr.vy > 0) cr.vy *= -0.3; }
   if (r.y[0] < 8) { r.y[0] = 8; if (cr.vy < 0) cr.vy *= -0.3; }
