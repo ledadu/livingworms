@@ -20,6 +20,12 @@ export interface DrawOptions {
   /** how parts that make their own light are composited (default 'lighter'), and how strongly */
   addOp?: GlobalCompositeOperation;
   addScale?: number;
+  /**
+   * Level of detail of the whole animal (see render3): 0 everything; 1 no
+   * outline under 1.2 px nor extras under 3 px on the parts, lines in one path
+   * each; 2 no extras, outlines from 2.5 px, plates in one path too.
+   */
+  lod?: number;
 }
 
 let ink = false;
@@ -31,6 +37,11 @@ let shade = false;
  * accelerated canvas). The defaults draw everything as before.
  */
 export const detail = { sheen: 1.2, shade: 2.4, motif: 1, ink: 0 };
+/** level of the animal being drawn (set by drawSelf) */
+let lod = 0;
+/** by level: the width on screen (px) under which a part has no outline, and no motif, sheen or thin edge */
+const INK_MIN = [0, 1.2, 2.5];
+const EXTRA_MIN = [0, 3, Infinity];
 export function setInk(v: boolean): void { ink = v; }
 export function setShade(v: boolean): void { shade = v; }
 
@@ -103,21 +114,23 @@ function drawRibbon(ctx: Ctx, s: Seg): void {
     ctx.fillStyle = s.cols[0];
   }
   ctx.fill();
-  if (ink && !s.def.color.add && s.maxRad >= detail.ink) {
+  // from level 1 the thin parts go without extras (by their width on screen, so a plant keeps the outline of its leaves)
+  const full = !s.parent || s.maxRad >= EXTRA_MIN[lod];
+  if (ink && !s.def.color.add && s.maxRad >= Math.max(detail.ink, s.parent ? INK_MIN[lod] : 0)) {
     ctx.lineWidth = Math.max(minWidth(ctx) * 1.3, Math.min(1.6, 0.35 + s.maxRad * 0.13));
     ctx.lineJoin = 'round';
     ctx.strokeStyle = s.edgeCol;
     ctx.stroke();
   }
-  if (s.maxRad > 1.2) {
-    if (!ink) {
+  if (s.maxRad > 1.2 && lod < 2) {
+    if (!ink && full) {
       ctx.lineWidth = Math.max(0.3, s.maxRad * 0.07);
       ctx.strokeStyle = s.edgeCol;
       ctx.stroke();
     }
-    if (s.maxRad > detail.motif) drawMotif(ctx, s, flat);
+    if (s.maxRad > detail.motif && full) drawMotif(ctx, s, flat);
     shadeBody(ctx, s, flat);
-    if (s.maxRad > detail.sheen) {
+    if (s.maxRad > detail.sheen && full) {
       ribbonPath(ctx, s, 0.36, sheenSide(s, 0.34), flat);
       ctx.fillStyle = s.shineCol;
       ctx.fill();
@@ -126,6 +139,8 @@ function drawRibbon(ctx: Ctx, s: Seg): void {
 }
 
 function drawPlates(ctx: Ctx, s: Seg): void {
+  // small: one ribbon instead of a path per plate
+  if (lod >= 2) { drawRibbon(ctx, s); return; }
   const n = s.n, x = s.x, y = s.y, rad = s.rad, pl = s.pulse;
   ctx.lineWidth = ink ? Math.max(minWidth(ctx) * 1.3, Math.min(1.5, 0.3 + s.maxRad * 0.12)) : Math.max(0.3, s.maxRad * 0.08);
   ctx.strokeStyle = s.edgeCol;
@@ -135,8 +150,9 @@ function drawPlates(ctx: Ctx, s: Seg): void {
     ctx.ellipse((x[i - 1] + x[i]) / 2, (y[i - 1] + y[i]) / 2, s.lens[i] * 0.62 + r * 0.2, r, s.ang[i], 0, TAU);
     ctx.fillStyle = s.cols[i];
     ctx.fill();
-    if (s.maxRad >= detail.ink) ctx.stroke();
+    if (s.maxRad >= Math.max(detail.ink, s.parent ? INK_MIN[lod] : 0)) ctx.stroke();
   }
+  if (lod >= 1 && s.parent && s.maxRad < EXTRA_MIN[lod]) return;
   if (s.def.color.pattern !== 'bands' && s.maxRad > detail.motif) drawMotif(ctx, s, false);
   if (s.maxRad > Math.max(1.5, detail.sheen)) {
     shadeBody(ctx, s, false);
@@ -167,6 +183,38 @@ function drawLine(ctx: Ctx, s: Seg, thin = 0): void {
     ctx.moveTo(x[0], y[0]);
     for (let i = 1; i < n; i++) ctx.quadraticCurveTo(x[i], y[i], (x[i] + x[i + 1]) / 2, (y[i] + y[i + 1]) / 2);
     ctx.lineTo(x[n], y[n]);
+    ctx.stroke();
+    return;
+  }
+  if (lod === 1 && c.pattern === 'bands') {
+    // a banded part: its stripes are its colours, so one stroke per band (a run of links of one colour)
+    for (let i = 1; i <= n;) {
+      let j = i;
+      while (j < n && s.cols[j + 1] === s.cols[i]) j++;
+      ctx.lineWidth = Math.max(mw, rad[i - 1] + rad[j]);
+      ctx.strokeStyle = s.cols[i];
+      ctx.beginPath();
+      ctx.moveTo(x[i - 1], y[i - 1]);
+      for (let k = i; k <= j; k++) ctx.lineTo(x[k], y[k]);
+      ctx.stroke();
+      i = j + 1;
+    }
+    return;
+  }
+  if (lod >= 1) {
+    // smaller: one stroke instead of one per link (the colours along it kept by a gradient, a flat colour
+    // when small), as wide as between its base and its middle; on a thin part the taper does not show
+    ctx.lineWidth = Math.max(mw, thin || rad[0] + rad[n >> 1]);
+    if (lod >= 2 || n < 2) ctx.strokeStyle = s.cols[n >> 1];
+    else {
+      const g = ctx.createLinearGradient(x[0], y[0], x[n], y[n]);
+      g.addColorStop(0, s.cols[0]);
+      g.addColorStop(1, s.cols[n]);
+      ctx.strokeStyle = g;
+    }
+    ctx.beginPath();
+    ctx.moveTo(x[0], y[0]);
+    for (let i = 1; i <= n; i++) ctx.lineTo(x[i], y[i]);
     ctx.stroke();
     return;
   }
@@ -312,6 +360,7 @@ export function drawSelf(ctx: Ctx, s: Seg, o: DrawOptions): void {
   if (o.lit && !(d.color.add || d.color.glow !== 'none')) return;
   ctx.globalAlpha = (o.alpha === undefined ? 1 : o.alpha) * (d.color.add ? (o.addScale === undefined ? 1 : o.addScale) : 1);
   ctx.globalCompositeOperation = d.color.add ? (o.addOp || 'lighter') : 'source-over';
+  lod = o.lod || 0;
   switch (d.style) {
     case 'ribbon': drawRibbon(ctx, s); break;
     case 'plates': drawPlates(ctx, s); break;

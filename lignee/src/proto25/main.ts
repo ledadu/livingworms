@@ -6,7 +6,7 @@
 import { Flow, STEP, TAU, clamp, rand, rng, spec as makeSpec, type Spec } from '../engine';
 import { Atelier } from '../editor';
 import { Creature3, swimFactor3 } from '../engine3/creature3';
-import { draw3, eachGlow3 } from '../engine3/render3';
+import { draw3, eachGlow3, lodOf, prepare3 } from '../engine3/render3';
 import { SPECIES } from '../content';
 import { firstAncestor } from '../game/game';
 import { Input } from '../game/input';
@@ -486,7 +486,7 @@ function drawPlant(pl: Plant, m: ReturnType<typeof moodAt>, plane: number): void
   if (pl.live && Math.abs(pl.x - cam.x) < 900) {
     // in the swimming plane: drawn live, it moves with the water
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    draw3(ctx, cr, view, { ink: true, water: env.water });
+    drawLive(cr);
     return;
   }
   const d = view.depth(cr.root.y[0], pl.z);
@@ -500,15 +500,23 @@ function drawPlant(pl: Plant, m: ReturnType<typeof moodAt>, plane: number): void
   void m;
 }
 
+/** drawn live at the level of detail its size on screen calls for (render3: prepare3), parts off the screen skipped */
+const clipBox: [number, number, number, number] = [0, 0, 0, 0];
+function drawLive(cr: Creature3, isPlayer = false): void {
+  const lv = Math.min(2, prepare3(cr, view));
+  clipBox[0] = -30; clipBox[1] = -30; clipBox[2] = W + 30; clipBox[3] = H + 30;
+  draw3(ctx, cr, view, { ink: true, water: env.water, lod: isPlayer ? Math.min(lv, 1) : lv, clip: clipBox });
+}
+
 /** near: drawn live in perspective; far: drawn flat and washed with the colour of the water */
 function drawActor(a: Actor, m: ReturnType<typeof moodAt>, plane: number): void {
   const r = a.cr.root, rz = r.z[0], d = view.depth(r.y[0], rz), fog = fogOf(d, plane);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  if (fog < 0.1) { draw3(ctx, a.cr, view, { ink: true, water: env.water }); return; }
+  if (fog < 0.1) { drawLive(a.cr, a === player); return; }
   view.project(r.x[0], r.y[0], rz, P);
   const res = clamp(P.s * dpr, 0.3, 3);
   if (!a.buf) a.buf = makeCanvas(8, 8);
-  const sp = bakeCreature(a.cr, fog * 0.85, waterAt(moodAt(r.x[0]), r.y[0] + 140), res, a.buf);
+  const sp = bakeCreature(a.cr, fog * 0.85, waterAt(moodAt(r.x[0]), r.y[0] + 140), res, a.buf, Math.min(2, lodOf((a.cr.box[3] - a.cr.box[0]) * P.s, -1)));
   drawSprite(sp, r.x[0], r.y[0], rz);
   void m;
 }
@@ -530,8 +538,9 @@ function drawShadow(a: Actor, fy: number, h: number): void {
 function drawVisitor(v: Visitor, m: ReturnType<typeof moodAt>, plane: number): void {
   // drawn flat into its own small buffer, washed with the water colour, then placed
   const cr = v.cr, rz = cr.root.z[0], d = view.depth(v.y, rz);
-  const sp = bakeCreature(cr, fogOf(d, plane) * 0.9 + 0.1, fogged(m, m.deep, 300, 0.4), 0.6, v.buf);
   view.project(cr.root.x[0], cr.root.y[0], rz, P);
+  // baked at the level of detail of its size on screen
+  const sp = bakeCreature(cr, fogOf(d, plane) * 0.9 + 0.1, fogged(m, m.deep, 300, 0.4), 0.6, v.buf, Math.min(2, lodOf((cr.box[3] - cr.box[0]) * P.s, -1)));
   const k = P.s / sp.res;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.globalAlpha = 0.85;

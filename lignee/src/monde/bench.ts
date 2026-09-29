@@ -48,8 +48,8 @@ export interface BenchResult {
   tour: ({ biome: string; near: number; live: number; plants: number; items: number } & ReturnType<typeof brief>)[];
   load: ({ extra: number; near: number } & ReturnType<typeof brief>)[];
   farBake: { farEvery: number; cpu: Summary; render: Summary }[];
-  lod: { level: number; fps: number; cpu: Summary }[];
-  species: { id: string; nodes: number; stepUs: number; drawUs: number }[];
+  lod: { zoom: string; mode: string; fps: number; cpu: Summary; perStep: Summary; levels: number[] }[];
+  species: { id: string; nodes: number; stepUs: number; drawUs: number; paths: number[] }[];
 }
 
 let running = false;
@@ -60,10 +60,10 @@ export async function runBench(api: A, out: HTMLElement): Promise<BenchResult | 
   out.hidden = false;
   const say = (s: string) => { out.innerHTML = `<p class="busy">${s}</p>`; };
   const keep = { farEvery: api.opts.farEvery, lock: api.lockQuality.v, x: api.player.cr.root.x[0], y: api.player.cr.root.y[0] };
-  const keepLod = api.lod;
+  const keepBias = api.bias, keepZoom = api.input.zoomMul;
   api.lockQuality.v = true;
   api.setQuality(1);
-  api.setLod(0);
+  api.setBias(1);
   // reading a pixel back forces the rasterisation into the measure (useful with a software canvas), but repeated
   // read-backs make Chrome move a GPU canvas to the CPU: only on demand (?bench=flush)
   api.opts.flush = new URLSearchParams(location.search).get('bench') === 'flush';
@@ -71,8 +71,11 @@ export async function runBench(api: A, out: HTMLElement): Promise<BenchResult | 
     when: new Date().toISOString(), ua: navigator.userAgent, screen: api.size, dpr: api.dpr, tour: [], load: [], farBake: [], lod: [], species: []
   };
 
+  // ?bench=tour: the tour only; ?bench=lod: the levels of detail only (quick before / after)
+  const only = new URLSearchParams(location.search).get('bench') || '';
+
   // 1. the tour
-  for (let i = 0; i < api.biomes.length; i++) {
+  for (let i = 0; i < api.biomes.length && only !== 'lod' && only !== 'species'; i++) {
     const b = api.biomes[i];
     say(`Tour du monde : ${b.name}…`);
     api.gotoBiome(i);
@@ -87,11 +90,8 @@ export async function runBench(api: A, out: HTMLElement): Promise<BenchResult | 
     res.tour.push({ biome: b.name, near: Math.round(near / n), live: Math.round(live / n), plants: Math.round(plants / n), items: Math.round(items / n), ...brief(rec) });
   }
 
-  // ?bench=tour: the tour only (a quick before / after)
-  const tourOnly = new URLSearchParams(location.search).get('bench') === 'tour';
-
   // 2. the load, on the reef
-  if (!tourOnly) {
+  if (only !== 'tour' && only !== 'lod' && only !== 'species') {
     api.gotoBiome(2);
     api.auto.on = false;
     for (const extra of [0, 25, 50, 100, 200]) {
@@ -117,19 +117,31 @@ export async function runBench(api: A, out: HTMLElement): Promise<BenchResult | 
     }
     api.clearCrowd();
     api.opts.farEvery = keep.farEvery;
+  }
 
-    // levels of detail, in the kelp forest (the heaviest place)
+  if (only !== 'tour' && only !== 'species') {
+    // levels of detail against the zoom, in the kelp forest (the heaviest place)
     api.gotoBiome(1);
-    for (let k = 0; k < 3; k++) {
-      say(`Niveau de détail ${k}…`);
-      api.setLod(k);
-      await frames(api, 40);
-      const rec = newRec();
-      await frames(api, 150, rec);
-      res.lod.push({ level: k, fps: 1000 / sum(rec.dt).avg, cpu: sum(rec.cpu) });
+    for (const [zoom, z] of [['éloigné', 0.5], ['normal', 1], ['rapproché', 2.2]] as const) {
+      api.input.zoomMul = z;
+      for (const [mode, lod] of [['sans LOD', false], ['LOD', true]] as const) {
+        say(`Zoom ${zoom}, ${mode}…`);
+        api.opts.lod = lod;
+        await frames(api, 45);
+        const rec = newRec(), lv = [0, 0, 0, 0];
+        let n = 0;
+        const tick = setInterval(() => { for (let k = 0; k < 4; k++) lv[k] += api.lodCount[k]; n++; }, 100);
+        await frames(api, 150, rec);
+        clearInterval(tick);
+        res.lod.push({ zoom, mode, fps: 1000 / sum(rec.dt).avg, cpu: sum(rec.cpu), perStep: sum(rec.perStep), levels: lv.map((v) => Math.round(v / (n || 1))) });
+      }
     }
-    api.setLod(keepLod);
+    api.opts.lod = true;
+    api.input.zoomMul = keepZoom;
+    api.setBias(keepBias);
+  }
 
+  if (only !== 'tour' && only !== 'lod') {
     // 3. the engine alone, species by species (the world is paused: one clean measure)
     say('Moteur seul : chaque espèce…');
     await frames(api, 2);
@@ -152,7 +164,22 @@ export async function runBench(api: A, out: HTMLElement): Promise<BenchResult | 
       for (let i = 0; i < D; i++) { g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 400, 300); draw3(g, cr, view, { ink: true, water: 0.5 }); }
       g.getImageData(0, 0, 1, 1);
       const drawUs = ((performance.now() - t0) / D) * 1000;
-      res.species.push({ id, nodes, stepUs, drawUs });
+      // paths drawn at each level of detail (what an accelerated canvas pays for)
+      const paths: number[] = [];
+      let np = 0;
+      const own = g as unknown as { fill?: (...a: unknown[]) => void; stroke?: (...a: unknown[]) => void };
+      const P2 = CanvasRenderingContext2D.prototype as unknown as { fill: (...a: unknown[]) => void; stroke: (...a: unknown[]) => void };
+      own.fill = function (this: unknown, ...a: unknown[]) { np++; P2.fill.apply(this, a); };
+      own.stroke = function (this: unknown, ...a: unknown[]) { np++; P2.stroke.apply(this, a); };
+      // each level at a size where it is used (its larger side: 200, 80, 25 px)
+      for (let lv = 0; lv < 3; lv++) {
+        const q = [200, 80, 25][lv] / Math.max(1, b[3] - b[0], b[4] - b[1]);
+        np = 0;
+        draw3(g, cr, new Ortho(q, 200 - ((b[0] + b[3]) / 2) * q, 150 - ((b[1] + b[4]) / 2) * q), { ink: true, water: 0.5, lod: lv });
+        paths.push(np);
+      }
+      delete own.fill; delete own.stroke;
+      res.species.push({ id, nodes, stepUs, drawUs, paths });
       await new Promise((r) => setTimeout(r, 0));
     }
     res.species.sort((a, b) => b.stepUs + b.drawUs - (a.stepUs + a.drawUs));
@@ -173,9 +200,9 @@ const f1 = (v: number) => v.toFixed(1), f0 = (v: number) => v.toFixed(0);
 function show(r: BenchResult, out: HTMLElement): void {
   const tour = r.tour.map((b) => `<tr><td>${b.biome}</td><td>${f0(b.fps)}</td><td>${f1(b.cpu.avg)}</td><td>${f1(b.cpu.p95)}</td><td>${f1(b.perStep.avg)}</td><td>${f1(b.render.avg)}</td><td>${f1(b.flush.avg)}</td><td>${b.near}</td><td>${b.plants}</td><td>${b.items}</td></tr>`).join('');
   const load = r.load.map((b) => `<tr><td>+${b.extra}</td><td>${b.near}</td><td>${f0(b.fps)}</td><td>${f1(b.cpu.avg)}</td><td>${f1(b.cpu.p95)}</td><td>${f1(b.perStep.avg)}</td><td>${f1(b.render.avg)}</td><td>${f1(b.flush.avg)}</td></tr>`).join('');
-  const lod = r.lod.map((b) => `<tr><td>niveau ${b.level}</td><td>${f0(b.fps)}</td><td>${f1(b.cpu.avg)}</td></tr>`).join('');
+  const lod = r.lod.map((b) => `<tr><td>${b.zoom}</td><td>${b.mode}</td><td>${f0(b.fps)}</td><td>${f1(b.cpu.avg)}</td><td>${f1(b.perStep.avg)}</td><td>${b.levels.join(' / ')}</td></tr>`).join('');
   const far = r.farBake.map((b) => `<tr><td>toutes les ${b.farEvery}</td><td>${f1(b.cpu.avg)}</td><td>${f1(b.render.avg)}</td></tr>`).join('');
-  const sp = r.species.slice(0, 12).map((s) => `<tr><td>${s.id}</td><td>${s.nodes}</td><td>${f0(s.stepUs)}</td><td>${f0(s.drawUs)}</td></tr>`).join('');
+  const sp = r.species.slice(0, 12).map((s) => `<tr><td>${s.id}</td><td>${s.nodes}</td><td>${f0(s.stepUs)}</td><td>${f0(s.drawUs)}</td><td>${s.paths.join(' / ')}</td></tr>`).join('');
   out.innerHTML = `
     <button class="close" aria-label="Fermer">×</button>
     <h2>Performance</h2>
@@ -186,9 +213,9 @@ function show(r: BenchResult, out: HTMLElement): void {
     <div class="scroll"><table><tr><th>ajout</th><th>proches</th><th>img/s</th><th>moy.</th><th>p95</th><th>simu/pas</th><th>dessin</th><th>raster</th></tr>${load}</table></div>
     <h3>Animaux lointains re-cuits…</h3>
     <div class="scroll"><table><tr><th></th><th>moy.</th><th>dessin</th></tr>${far}</table></div>
-    <h3>Niveaux de détail (forêt de kelp)</h3>
-    <div class="scroll"><table><tr><th></th><th>img/s</th><th>processeur</th></tr>${lod}</table></div>
+    <h3>Niveaux de détail et zoom (forêt de kelp)</h3>
+    <div class="scroll"><table><tr><th>zoom</th><th></th><th>img/s</th><th>processeur</th><th>simu/pas</th><th>N0 / N1 / N2 / imposteurs</th></tr>${lod}</table></div>
     <h3>Moteur seul — les 12 espèces les plus chères</h3>
-    <div class="scroll"><table><tr><th>espèce</th><th>nœuds</th><th>µs / pas</th><th>µs / dessin</th></tr>${sp}</table></div>`;
+    <div class="scroll"><table><tr><th>espèce</th><th>nœuds</th><th>µs / pas</th><th>µs / dessin</th><th>tracés N0 / N1 / N2</th></tr>${sp}</table></div>`;
   out.querySelector('.close')!.addEventListener('click', () => { out.hidden = true; });
 }

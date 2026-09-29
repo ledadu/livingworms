@@ -106,8 +106,8 @@ function tint(ctx: CanvasRenderingContext2D, c: HTMLCanvasElement, fog: number, 
   ctx.globalCompositeOperation = 'source-over';
 }
 
-/** a 3D creature drawn flat into a small image at `res` px per unit (no perspective) */
-export function bakeCreature(cr: Creature3, fog: number, fogCol: HSL, res: number, into?: HTMLCanvasElement): Sprite {
+/** a 3D creature drawn flat into a small image at `res` px per unit (no perspective), at a level of detail (render3) */
+export function bakeCreature(cr: Creature3, fog: number, fogCol: HSL, res: number, into?: HTMLCanvasElement, lod = 0): Sprite {
   const b = cr.box, pad = 5;
   const w = b[3] - b[0] + pad * 2, h = b[4] - b[1] + pad * 2;
   res = Math.min(res, 900 / Math.max(w, h));
@@ -120,7 +120,7 @@ export function bakeCreature(cr: Creature3, fog: number, fogCol: HSL, res: numbe
   const ctx = c.getContext('2d')!;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, pw + 2, ph + 2);
-  draw3(ctx, cr, new Ortho(res, (-b[0] + pad) * res, (-b[1] + pad) * res), { ink: true, water: env.water });
+  draw3(ctx, cr, new Ortho(res, (-b[0] + pad) * res, (-b[1] + pad) * res), { ink: true, water: env.water, lod });
   // wash only what was drawn
   if (fog > 0.01) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);

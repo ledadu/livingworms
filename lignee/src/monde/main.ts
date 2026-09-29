@@ -7,7 +7,7 @@
 import { Flow, STEP, TAU, clamp, detail, rand, rng, spec as makeSpec, type Spec } from '../engine';
 import { Atelier } from '../editor';
 import { Creature3, swimFactor3 } from '../engine3/creature3';
-import { draw3, eachGlow3 } from '../engine3/render3';
+import { draw3, eachGlow3, lodOf, lodSize, prepare3 } from '../engine3/render3';
 import { SPECIES } from '../content';
 import { firstAncestor } from '../game/game';
 import { Input } from '../game/input';
@@ -36,7 +36,9 @@ const opts = {
   /** read one pixel back after drawing, so the time includes the rasterisation */
   flush: false,
   /** how the living things are drawn (to measure what each costs) */
-  shade: true, ink: true
+  shade: true, ink: true,
+  /** levels of detail by size on screen, impostors for the smallest */
+  lod: true
 };
 
 // ----- canvas ----- //
@@ -47,18 +49,16 @@ const view = new View();
 let dpr = 1, quality = 1, W = 0, H = 0;
 
 /**
- * Levels of detail of the living things. On an accelerated canvas the cost is
- * a fixed price per path drawn, whatever its size (measured: a lower resolution
- * gains nothing), so when frames are late the small extras go first (sheen,
- * shading, motifs, outlines of tiny parts), and only then the resolution.
+ * Frame budget of the living things. Each animal gets a level of detail by its
+ * size on screen (render3: lodOf); `bias` > 1 counts every animal smaller than
+ * it is, which pushes them toward the coarser levels. On an accelerated canvas
+ * every path has a fixed price whatever its size (measured: a lower resolution
+ * gained nothing), so when frames are late the bias rises first, and only then
+ * the resolution drops.
  */
-const LOD = [
-  { sheen: 1.2, shade: 2.4, motif: 1, ink: 0 },
-  { sheen: 2.5, shade: 3.5, motif: 2, ink: 0.7 },
-  { sheen: 4, shade: 6, motif: 3, ink: 1.2 }
-];
-let lod = 0;
-function setLod(k: number): void { lod = clamp(k, 0, LOD.length - 1); Object.assign(detail, LOD[lod]); }
+let bias = 1;
+const BIAS_MAX = 3;
+function setBias(b: number): void { bias = clamp(b, 1, BIAS_MAX); }
 function resize(): void {
   dpr = Math.min(1.5, window.devicePixelRatio || 1) * quality;
   W = window.innerWidth; H = window.innerHeight;
@@ -120,13 +120,10 @@ function becomes(sp: Spec): void {
 let paused = false;
 document.getElementById('atBtn')?.addEventListener('click', () => {
   paused = true;
-  // the workshop shares the renderer: full detail there
-  const keepLod = lod;
-  setLod(0);
   Atelier.open(player.cr.spec, {
     playLabel: 'Nager',
     onPlay: (sp) => becomes(makeSpec(sp as Parameters<typeof makeSpec>[0])),
-    onClose: () => { paused = false; last = performance.now(); setLod(keepLod); }
+    onClose: () => { paused = false; last = performance.now(); }
   });
 });
 
@@ -496,7 +493,9 @@ function render(): void {
   items.sort((a, b) => b.d - a.d);
   counts.items = items.length;
   bakes = 0;
+  lodTally.fill(0);
   for (const it of items) if (!it.k || !skip.has(it.k)) it.fn();
+  for (let k = 0; k < 4; k++) lodCount[k] = lodTally[k];
 
   // the deep closes in around the swimmer: the dark is painted over everything, the lights come after
   const dk = m.dark * clamp((cam.y - 250) / 900, 0, 1);
@@ -694,11 +693,7 @@ function drawPuffs(p: Puffs, z: number, spr: HTMLCanvasElement, smokeK: number):
 
 function drawPlant(pl: Plant, plane: number): void {
   const cr = pl.cr!;
-  if (pl.live && Math.abs(pl.x - cam.x) < 900) {
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    draw3(ctx, cr, view, { ink: opts.ink, shade: opts.shade, water: env.water });
-    return;
-  }
+  if (pl.live && Math.abs(pl.x - cam.x) < 900) { drawLive(cr, pl.z, false); return; }
   const d = view.depth(cr.root.y[0], pl.z);
   view.project(pl.x, cr.root.y[0], pl.z, P);
   const res = Math.min(3, P.s * dpr);
@@ -709,20 +704,62 @@ function drawPlant(pl: Plant, plane: number): void {
   if (pl.sprite) drawSprite(pl.sprite, cr.root.x[0], cr.root.y[0], pl.z);
 }
 
+/** what an animal drawn live keeps between frames: its impostor (the image shown while it is too small to draw) */
+interface Impostor { buf: HTMLCanvasElement; spr: Sprite | null; bakedAt: number; }
+const impostors = new WeakMap<Creature3, Impostor>();
+/** how many living things were drawn at each level in the last frame (0, 1, 2, impostor) */
+const lodCount = [0, 0, 0, 0];
+const lodTally = [0, 0, 0, 0];
+const clipBox: [number, number, number, number] = [0, 0, 0, 0];
+
+/**
+ * A living thing near the swimming plane: drawn live in perspective at the
+ * level of detail its size calls for, or shown as its impostor when it is
+ * tiny (re-baked every 2 to 6 frames, the smaller the rarer). Returns the level.
+ */
+function drawLive(cr: Creature3, z: number, isPlayer: boolean): number {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (!opts.lod) { draw3(ctx, cr, view, { ink: opts.ink, shade: opts.shade, water: env.water }); lodTally[0]++; return 0; }
+  // the swimmer (the one you watch) keeps at least level 1, and is never judged smaller than it is
+  let lv = prepare3(cr, view, isPlayer ? 1 : bias);
+  if (isPlayer) lv = Math.min(lv, 1);
+  lodTally[lv]++;
+  if (lv < 3) {
+    clipBox[0] = -30; clipBox[1] = -30; clipBox[2] = W + 30; clipBox[3] = H + 30;
+    draw3(ctx, cr, view, { ink: opts.ink, shade: opts.shade, water: env.water, lod: lv, clip: clipBox });
+    return lv;
+  }
+  const r = cr.root, size = lodSize(cr), every = size < 5 ? 6 : size < 8 ? 4 : 2;
+  view.project(r.x[0], r.y[0], z, P);
+  const res = clamp(P.s * dpr, 0.3, 3);
+  let im = impostors.get(cr);
+  if (!im) { im = { buf: makeCanvas(8, 8), spr: null, bakedAt: -99 }; impostors.set(cr, im); }
+  if (!im.spr || frameNo - im.bakedAt >= every || Math.abs(im.spr.res - res) > res * 0.25) {
+    // an impostor is small: baked at the simplest level (a bake costs its paths like a live drawing)
+    im.spr = bakeCreature(cr, 0, waterAt(moodAt(r.x[0]), r.y[0]), res, im.buf, 2);
+    im.bakedAt = frameNo;
+  }
+  drawSprite(im.spr, r.x[0], r.y[0], r.z[0]);
+  return 3;
+}
+
 /** near: drawn live in perspective; far: baked flat (every few frames) and washed with the colour of the water */
 function drawActor(a: Actor, plane: number): void {
   const r = a.cr.root, rz = r.z[0], d = view.depth(r.y[0], rz), fog = fogOf(d, plane);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (fog < 0.1) {
-    if (!skip.has('near') && !(onlySp.size && !onlySp.has(a.cr.spec.name))) draw3(ctx, a.cr, view, { ink: opts.ink, shade: opts.shade, water: env.water });
+    if (!skip.has('near') && !(onlySp.size && !onlySp.has(a.cr.spec.name))) drawLive(a.cr, rz, a === player);
     return;
   }
   if (skip.has('far')) return;
   view.project(r.x[0], r.y[0], rz, P);
-  const res = clamp(P.s * dpr, 0.3, 3);
+  const res = clamp(P.s * dpr, 0.3, 3), size = (a.cr.box[3] - a.cr.box[0]) * P.s;
+  // the smaller on screen, the less often it is re-baked
+  const every = opts.lod ? Math.max(opts.farEvery, size < 6 ? 6 : size < 12 ? 4 : 0) : opts.farEvery;
   if (!a.buf) a.buf = makeCanvas(8, 8);
-  if (!a.spr || frameNo - a.bakedAt >= opts.farEvery || Math.abs(a.spr.res - res) > res * 0.25) {
-    a.spr = bakeCreature(a.cr, fog * 0.85, waterAt(moodAt(r.x[0]), r.y[0] + 140), res, a.buf);
+  if (!a.spr || frameNo - a.bakedAt >= every || Math.abs(a.spr.res - res) > res * 0.25) {
+    // at the level of detail its size calls for (a bake costs its paths like a live drawing)
+    a.spr = bakeCreature(a.cr, fog * 0.85, waterAt(moodAt(r.x[0]), r.y[0] + 140), res, a.buf, opts.lod ? Math.min(2, lodOf(size, -1, bias)) : 0);
     a.bakedAt = frameNo;
   }
   // its anchor is the root: between two bakes the image just follows the root
@@ -744,8 +781,9 @@ function drawShadow(a: Actor, fy: number, h: number): void {
 
 function drawVisitor(v: Visitor, m: Mood, plane: number): void {
   const cr = v.cr, rz = cr.root.z[0], d = view.depth(v.y, rz);
-  const sp = bakeCreature(cr, fogOf(d, plane) * 0.9 + 0.1, fogged(m, m.deep, 300, 0.4), 0.6, v.buf);
   view.project(cr.root.x[0], cr.root.y[0], rz, P);
+  // baked at the level of detail of its size on screen
+  const sp = bakeCreature(cr, fogOf(d, plane) * 0.9 + 0.1, fogged(m, m.deep, 300, 0.4), 0.6, v.buf, opts.lod ? Math.min(2, lodOf((cr.box[3] - cr.box[0]) * P.s, -1, bias)) : 0);
   const k = P.s / sp.res;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.globalAlpha = 0.85;
@@ -847,11 +885,11 @@ function frame(now: number): void {
     const avg = fsum / fn;
     stats.fps = 1000 / avg;
     if (!lockQuality.v) {
-      if (avg > 21) { if (lod < LOD.length - 1) setLod(lod + 1); else if (quality > 0.55) { quality *= 0.85; resize(); } }
-      else if (avg < 15) { if (quality < 1) { quality = Math.min(1, quality / 0.9); resize(); } else if (lod > 0) setLod(lod - 1); }
+      if (avg > 21) { if (bias < BIAS_MAX) setBias(bias * 1.3); else if (quality > 0.55) { quality *= 0.85; resize(); } }
+      else if (avg < 15) { if (quality < 1) { quality = Math.min(1, quality / 0.9); resize(); } else if (bias > 1) setBias(bias / 1.3); }
     }
     fn = 0; fsum = 0;
-    fpsEl.textContent = `${stats.fps.toFixed(0)} img/s · détail ${LOD.length - 1 - lod}/${LOD.length - 1} · résolution ${Math.round(quality * 100)} % · simulation ${stats.update.toFixed(1)} ms · dessin ${stats.render.toFixed(1)} ms · ${counts.near} animaux proches · ${counts.plants} plantes`;
+    fpsEl.textContent = `${stats.fps.toFixed(0)} img/s · niveaux ${lodCount.join('/')} (biais ${bias.toFixed(2)}) · résolution ${Math.round(quality * 100)} % · simulation ${stats.update.toFixed(1)} ms · dessin ${stats.render.toFixed(1)} ms · ${counts.near} animaux proches · ${counts.plants} plantes`;
   }
   if ((frameNo & 15) === 0) hudEl.textContent = `${BIOMES[biomeIndex(r.x[0])].name} · −${metres(r.y[0])} m`;
   requestAnimationFrame(frame);
@@ -890,7 +928,7 @@ export const api = {
   settings, opts, detail, onlySp, player, stats, counts, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto,
   biomes: BIOMES, teleport, gotoBiome, spawnCrowd, clearCrowd, floorAt,
   setQuality: (q: number) => { quality = q; resize(); },
-  setLod, get lod() { return lod; },
+  setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
   get size() { return [W, H, canvas.width, canvas.height]; },
   setFrameHook: (f: typeof onFrame) => { onFrame = f; }
@@ -929,4 +967,6 @@ document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).c
 
 setTimeout(() => showChapter(0), 400);
 requestAnimationFrame(frame);
+// ?lod=0: without the levels of detail (to compare)
+if (new URLSearchParams(location.search).get('lod') === '0') opts.lod = false;
 if (new URLSearchParams(location.search).has('bench')) setTimeout(() => void runBench(api, benchOut), 800);

@@ -5,6 +5,7 @@
 // gradients, motifs, ink, all flat. Parts are ordered by depth.
 
 import type { Seg } from '../engine/creature';
+import type { Box } from '../engine/types';
 import { TAU, wrapAngle } from '../engine/util';
 import { drawSelf, drawWebs, setInk, setShade, type DrawOptions } from '../engine/render';
 import type { Creature3, Seg3 } from './creature3';
@@ -27,6 +28,68 @@ interface Shim {
 }
 
 const shims = new WeakMap<Creature3, Shim>();
+
+/** per animal: its level of detail (kept between frames for the hysteresis) and the view it was last projected for */
+interface LodState { lv: number; size: number; fresh: Projector | null; }
+const lods = new WeakMap<Creature3, LodState>();
+
+/**
+ * Levels of detail by the size of the animal on screen (its larger side, css
+ * px), like the meshes of a 3D engine by distance:
+ *   0  > 120 px   everything
+ *   1  40–120 px  thin parts without outline or extras (the body keeps them); lines in one path
+ *   2  12–40 px   no extras; plates in one path too; long rows of copies thinned out; simple eyes
+ *   3  < 12 px    too small to draw live: the caller shows a baked image (an impostor)
+ * On an accelerated canvas every path has a fixed price whatever its size, so
+ * the saving is in the number of paths. `bias` > 1 pushes toward the coarser
+ * levels (a frame-time budget). A level changes only 15 % past its threshold,
+ * so an animal at the limit does not flicker between two.
+ */
+export const LOD_SIZES = [120, 40, 12];
+
+export function lodOf(size: number, prev: number, bias = 1): number {
+  const e = size / bias;
+  let lv = 3;
+  for (let k = 0; k < LOD_SIZES.length; k++) if (e > LOD_SIZES[k]) { lv = k; break; }
+  if (prev >= 0 && lv !== prev) {
+    // stay unless clearly past the threshold between the two
+    const edge = LOD_SIZES[Math.min(lv, prev)];
+    if (Math.abs(e - edge) < edge * 0.15) lv = prev;
+  }
+  return lv;
+}
+
+/**
+ * Project an animal for this view and choose its level of detail; the next
+ * draw3 with the same view reuses the projection. Returns the level.
+ */
+export function prepare3(cr: Creature3, view: Projector, bias = 1): number {
+  let root = shims.get(cr);
+  if (!root) { root = build(cr.root, null); shims.set(cr, root); }
+  projectSeg(root, cr, view);
+  const b = unionBox(root);
+  const size = Math.max(b[2] - b[0], b[3] - b[1]);
+  let st = lods.get(cr);
+  if (!st) { st = { lv: -1, size, fresh: null }; lods.set(cr, st); }
+  st.lv = lodOf(size, st.lv, bias);
+  st.size = size;
+  st.fresh = view;
+  return st.lv;
+}
+
+/** size on screen (css px) found by the last prepare3 */
+export function lodSize(cr: Creature3): number { return lods.get(cr)?.size || 0; }
+
+function unionBox(root: Shim): [number, number, number, number] {
+  const b: [number, number, number, number] = [Infinity, Infinity, -Infinity, -Infinity];
+  const walk = (s: Shim) => {
+    if (s.box[0] < b[0]) b[0] = s.box[0]; if (s.box[1] < b[1]) b[1] = s.box[1];
+    if (s.box[2] > b[2]) b[2] = s.box[2]; if (s.box[3] > b[3]) b[3] = s.box[3];
+    for (const c of s.children) walk(c);
+  };
+  walk(root);
+  return b;
+}
 
 function build(seg: Seg3, parent: Shim | null): Shim {
   const N = seg.n + 1;
@@ -114,14 +177,19 @@ function projectSeg(sh: Shim, cr: Creature3, view: Projector): void {
 
 const EPS = 0.6;
 
+/** at level 2, a long row of copies (legs, cilia, filaments) keeps one copy in two (not when a membrane joins them) */
+const thinned = (c: Shim, o: DrawOptions) => !!o.lod && o.lod >= 2 && !!c.att && c.att.count >= 6 && !(c.att.web > 0) && (c.k & 1) === 1;
+const outside = (b: Box, v?: Box) => !!v && (b[2] < v[0] || b[0] > v[2] || b[3] < v[1] || b[1] > v[3]);
+
 function drawTree(ctx: Ctx, sh: Shim, o: DrawOptions): void {
   const ch = sh.children, me = sh as unknown as Seg;
   drawWebs(ctx, me, false, o);
   // parts further from the eye than this one first, nearer ones after it
-  for (const c of ch) if (c.key > sh.key + EPS || (Math.abs(c.key - sh.key) <= EPS && !c.att?.front)) drawTree(ctx, c, o);
-  drawSelf(ctx, me, o);
+  for (const c of ch) if ((c.key > sh.key + EPS || (Math.abs(c.key - sh.key) <= EPS && !c.att?.front)) && !thinned(c, o)) drawTree(ctx, c, o);
+  // a part off the screen is not drawn (its children may be on it)
+  if (!outside(sh.box, o.view)) drawSelf(ctx, me, o);
   drawWebs(ctx, me, true, o);
-  for (const c of ch) if (!(c.key > sh.key + EPS || (Math.abs(c.key - sh.key) <= EPS && !c.att?.front))) drawTree(ctx, c, o);
+  for (const c of ch) if (!(c.key > sh.key + EPS || (Math.abs(c.key - sh.key) <= EPS && !c.att?.front)) && !thinned(c, o)) drawTree(ctx, c, o);
   if (!sh.parent) { ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
 }
 
@@ -133,7 +201,7 @@ const H = { x: 0, y: 0, z: 0 }, F = { x: 0, y: 0, z: 0 }, E = { x: 0, y: 0, z: 0
  * fades out before it disappears, so that turning round shows the second eye
  * gradually instead of making it pop in.
  */
-function drawEyes3(ctx: Ctx, cr: Creature3, view: Projector, bright?: boolean): void {
+function drawEyes3(ctx: Ctx, cr: Creature3, view: Projector, bright?: boolean, simple = false): void {
   const e = cr.spec.eyes;
   if (!e.on) return;
   const r = cr.root, rad = r.rad[0];
@@ -159,6 +227,15 @@ function drawEyes3(ctx: Ctx, cr: Creature3, view: Projector, bright?: boolean): 
     if (vf < 0.02) continue;
     view.project(H.x, H.y, H.z, P);
     const px = P.x, py = P.y, s = P.s, rr = er * s;
+    if (simple) {
+      // small: a white disc and its pupil, two paths instead of four and no state saved
+      ctx.globalAlpha = vf;
+      ctx.fillStyle = bright ? '#f4fffd' : '#fbf6ec';
+      ctx.beginPath(); ctx.arc(px, py, rr, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#05080f';
+      ctx.beginPath(); ctx.arc(px, py, rr * 0.56, 0, TAU); ctx.fill();
+      continue;
+    }
     // the screen direction the disc leans toward: the ellipse is squeezed along it
     view.axis(N.x, N.y, N.z, 1, A);
     const lean = Math.atan2(A.y, A.x);
@@ -191,40 +268,40 @@ export interface Draw3Options {
   shade?: boolean;
   /** 0 = deep dark water, 1 = bright shallow water: decides how light-emitting parts are blended */
   water?: number;
+  /** level of detail (see prepare3): 0 everything … 2 simplest drawn live */
+  lod?: number;
+  /** the screen rectangle (css px): parts entirely outside it are skipped */
+  clip?: Box;
 }
 
 /** draw a creature; the context must be scaled to screen pixels */
 export function draw3(ctx: Ctx, cr: Creature3, view: Projector, o: Draw3Options = {}): void {
   let root = shims.get(cr);
   if (!root) { root = build(cr.root, null); shims.set(cr, root); }
-  projectSeg(root, cr, view);
+  // already projected for this view by prepare3: reuse it
+  const st = lods.get(cr);
+  if (st && st.fresh === view) st.fresh = null;
+  else { projectSeg(root, cr, view); if (st) st.fresh = null; }
   setInk(!!o.ink);
   setShade(o.shade !== false);
   // in bright water, light-emitting parts would burn to white: blend them as plain translucent colour
   const w = o.water === undefined ? 0 : o.water;
   const opts: DrawOptions = {
     alpha: o.alpha, bright: o.bright, lit: o.lit, ink: o.ink, shade: o.shade !== false,
-    addOp: w > 0.3 ? 'source-over' : 'lighter', addScale: w > 0.3 ? 0.9 : 0.55
+    addOp: w > 0.3 ? 'source-over' : 'lighter', addScale: w > 0.3 ? 0.9 : 0.55,
+    lod: o.lod, view: o.clip
   };
   drawTree(ctx, root, opts);
   if (o.lit) return;
   ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
-  drawEyes3(ctx, cr, view, o.bright);
+  drawEyes3(ctx, cr, view, o.bright, (o.lod || 0) >= 2);
   ctx.globalAlpha = 1;
 }
 
 /** screen box of a creature after the last draw3 */
 export function screenBox(cr: Creature3): [number, number, number, number] | null {
   const root = shims.get(cr);
-  if (!root) return null;
-  const b: [number, number, number, number] = [Infinity, Infinity, -Infinity, -Infinity];
-  const walk = (s: Shim) => {
-    if (s.box[0] < b[0]) b[0] = s.box[0]; if (s.box[1] < b[1]) b[1] = s.box[1];
-    if (s.box[2] > b[2]) b[2] = s.box[2]; if (s.box[3] > b[3]) b[3] = s.box[3];
-    for (const c of s.children) walk(c);
-  };
-  walk(root);
-  return b;
+  return root ? unionBox(root) : null;
 }
 
 /** glowing points, in screen space: fn(x, y, size, hue, alpha) */
