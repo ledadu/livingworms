@@ -6,7 +6,7 @@
 
 import type { Seg } from '../engine/creature';
 import { TAU, wrapAngle } from '../engine/util';
-import { drawSelf, drawWebs, setInk, type DrawOptions } from '../engine/render';
+import { drawSelf, drawWebs, setInk, setShade, type DrawOptions } from '../engine/render';
 import type { Creature3, Seg3 } from './creature3';
 import type { Proj, Projector } from './view';
 
@@ -168,7 +168,13 @@ function drawEyes3(ctx: Ctx, cr: Creature3, view: Projector, bright?: boolean): 
   }
 }
 
-export interface Draw3Options { alpha?: number; bright?: boolean; ink?: boolean; lit?: boolean; }
+export interface Draw3Options {
+  alpha?: number; bright?: boolean; ink?: boolean; lit?: boolean;
+  /** light from above on the bodies (default on) */
+  shade?: boolean;
+  /** 0 = deep dark water, 1 = bright shallow water: decides how light-emitting parts are blended */
+  water?: number;
+}
 
 /** draw a creature; the context must be scaled to screen pixels */
 export function draw3(ctx: Ctx, cr: Creature3, view: Projector, o: Draw3Options = {}): void {
@@ -176,7 +182,13 @@ export function draw3(ctx: Ctx, cr: Creature3, view: Projector, o: Draw3Options 
   if (!root) { root = build(cr.root, null); shims.set(cr, root); }
   projectSeg(root, cr, view);
   setInk(!!o.ink);
-  const opts: DrawOptions = { alpha: o.alpha, bright: o.bright, lit: o.lit, ink: o.ink };
+  setShade(o.shade !== false);
+  // in bright water, light-emitting parts would burn to white: blend them as plain translucent colour
+  const w = o.water === undefined ? 0 : o.water;
+  const opts: DrawOptions = {
+    alpha: o.alpha, bright: o.bright, lit: o.lit, ink: o.ink, shade: o.shade !== false,
+    addOp: w > 0.3 ? 'source-over' : 'lighter', addScale: w > 0.3 ? 0.9 : 0.55
+  };
   drawTree(ctx, root, opts);
   if (o.lit) return;
   ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;

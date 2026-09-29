@@ -67,8 +67,8 @@ export function glowSprite(hue: number): HTMLCanvasElement {
   if (c) return c;
   c = makeCanvas(64, 64);
   const ctx = c.getContext('2d')!, g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-  g.addColorStop(0, `hsla(${k},100%,88%,1)`);
-  g.addColorStop(0.25, `hsla(${k},100%,65%,0.45)`);
+  g.addColorStop(0, `hsla(${k},100%,80%,0.9)`);
+  g.addColorStop(0.25, `hsla(${k},100%,62%,0.4)`);
   g.addColorStop(1, `hsla(${k},100%,50%,0)`);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 64, 64);

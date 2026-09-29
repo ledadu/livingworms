@@ -13,6 +13,9 @@ import { makeCanvas } from '../game/bake';
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
+/** shared drawing environment: 0 = deep dark water, 1 = bright shallow water */
+export const env = { water: 0 };
+
 /** depth of the floor (y down) at x and at depth z */
 export function floorAt(x: number, z: number): number {
   const back = smooth(clamp((z - 250) / 700, 0, 1)) * (180 + 240 * noise1(x / 520 + z / 400, 77));
@@ -113,7 +116,7 @@ export function bakeCreature(cr: Creature3, fog: number, fogCol: HSL, res: numbe
   const ctx = c.getContext('2d')!;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, c.width, c.height);
-  draw3(ctx, cr, new Ortho(res, (-b[0] + pad) * res, (-b[1] + pad) * res), { ink: true });
+  draw3(ctx, cr, new Ortho(res, (-b[0] + pad) * res, (-b[1] + pad) * res), { ink: true, water: env.water });
   tint(ctx, c, fog, fogCol);
   return { canvas: c, ax: cr.root.x[0] - b[0] + pad, ay: cr.root.y[0] - b[1] + pad, res };
 }

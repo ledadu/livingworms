@@ -15,10 +15,42 @@ export interface DrawOptions {
   lit?: boolean;
   /** cartoon look: a darker, thicker outline */
   ink?: boolean;
+  /** light from above: top-to-bottom shading on bodies, the sheen kept on top */
+  shade?: boolean;
+  /** how parts that make their own light are composited (default 'lighter'), and how strongly */
+  addOp?: GlobalCompositeOperation;
+  addScale?: number;
 }
 
 let ink = false;
+let shade = false;
 export function setInk(v: boolean): void { ink = v; }
+export function setShade(v: boolean): void { shade = v; }
+
+/** soft light from above over a body: pale on top, deeper below */
+function shadeBody(ctx: Ctx, s: Seg, flat: boolean): void {
+  if (!shade || s.maxRad < 2.4 || s.def.color.add) return;
+  const b = s.box, h = b[3] - b[1];
+  if (h < 3) return;
+  ribbonPath(ctx, s, 1, 0, flat);
+  ctx.save();
+  ctx.clip();
+  const g = ctx.createLinearGradient(0, b[1], 0, b[3]);
+  g.addColorStop(0, 'rgba(255,255,255,0.34)');
+  g.addColorStop(0.42, 'rgba(255,255,255,0)');
+  g.addColorStop(1, 'rgba(6,18,40,0.36)');
+  ctx.fillStyle = g;
+  ctx.fillRect(b[0] - 1, b[1] - 1, b[2] - b[0] + 2, h + 2);
+  ctx.restore();
+}
+
+/** which side of a ribbon faces the light (the top of the screen) */
+function sheenSide(s: Seg, off: number): number {
+  if (!shade) return off;
+  let cs = 0;
+  for (let i = 1; i <= s.n; i++) cs += Math.cos(s.ang[i]);
+  return cs > 0 ? -off : off;
+}
 
 // scratch outline buffers, shared by every draw call
 const L = { x: new Float32Array(64), y: new Float32Array(64) };
@@ -78,7 +110,8 @@ function drawRibbon(ctx: Ctx, s: Seg): void {
       ctx.stroke();
     }
     drawMotif(ctx, s, flat);
-    ribbonPath(ctx, s, 0.36, 0.34, flat);
+    shadeBody(ctx, s, flat);
+    ribbonPath(ctx, s, 0.36, sheenSide(s, 0.34), flat);
     ctx.fillStyle = s.shineCol;
     ctx.fill();
   }
@@ -98,7 +131,8 @@ function drawPlates(ctx: Ctx, s: Seg): void {
   }
   if (s.def.color.pattern !== 'bands') drawMotif(ctx, s, false);
   if (s.maxRad > 1.5) {
-    ribbonPath(ctx, s, 0.3, 0.38, false);
+    shadeBody(ctx, s, false);
+    ribbonPath(ctx, s, 0.3, sheenSide(s, 0.38), false);
     ctx.fillStyle = s.shineCol;
     ctx.fill();
   }
@@ -268,8 +302,8 @@ export function inView(b: Box, v?: Box): boolean {
 export function drawSelf(ctx: Ctx, s: Seg, o: DrawOptions): void {
   const d = s.def;
   if (o.lit && !(d.color.add || d.color.glow !== 'none')) return;
-  ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
-  ctx.globalCompositeOperation = d.color.add ? 'lighter' : 'source-over';
+  ctx.globalAlpha = (o.alpha === undefined ? 1 : o.alpha) * (d.color.add ? (o.addScale === undefined ? 1 : o.addScale) : 1);
+  ctx.globalCompositeOperation = d.color.add ? (o.addOp || 'lighter') : 'source-over';
   switch (d.style) {
     case 'ribbon': drawRibbon(ctx, s); break;
     case 'plates': drawPlates(ctx, s); break;

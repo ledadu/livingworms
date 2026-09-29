@@ -14,7 +14,7 @@ import { faunaFor } from '../game/ambient';
 import { reefness } from '../game/terrain';
 import { View, type Proj } from '../engine3/view';
 import {
-  X0, X1, bakeCreature, bakeRock, css, floorAt, fogOf, fogged, growPlant, makePlants, makeRocks, moodAt, waterAt,
+  X0, X1, bakeCreature, bakeRock, css, env, floorAt, fogOf, fogged, growPlant, makePlants, makeRocks, moodAt, waterAt,
   type Plant, type Rock
 } from './world';
 import '../proto3d/style.css';
@@ -56,12 +56,14 @@ interface Actor {
   z: number; hx: number; hy: number; tx: number; ty: number; next: number;
   /** turning around in the horizontal plane: which way it swings (+1 away from the eye) */
   turning: number;
+  /** buffer used when it is far enough to be washed by the water */
+  buf: HTMLCanvasElement | null;
 }
 const actors: Actor[] = [];
 function addActor(sp: Spec, x: number, y: number, kind: Actor['kind'], scale = 1, z = 0): Actor {
   const cr = new Creature3(sp, x, y, z, { dir: { x: Math.random() < 0.5 ? 1 : -1, y: 0, z: 0 }, scale });
   for (let i = 0; i < 60; i++) cr.update(i * STEP, 0, 0, 0, 0.1);
-  const a: Actor = { cr, kind, z, hx: x, hy: y, tx: x, ty: y, next: 0, turning: 0 };
+  const a: Actor = { cr, kind, z, hx: x, hy: y, tx: x, ty: y, next: 0, turning: 0, buf: null };
   actors.push(a);
   return a;
 }
@@ -243,10 +245,12 @@ function drawSprite(sp: { canvas: HTMLCanvasElement; ax: number; ay: number; res
 }
 
 let bakes = 0;
+const glowPts: number[] = [];
 
 function render(): void {
   const m = moodAt(cam.x), pr = player.cr.root, plane = settings.dist;
   const deepC = waterAt(m, cam.y + 200);
+  env.water = clamp((waterAt(m, cam.y).l - 28) / 30, 0, 1);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
@@ -264,7 +268,8 @@ function render(): void {
     const top = Math.min(P.y, 0), yFar = Q.y;
     const sg = ctx.createLinearGradient(0, top, 0, yFar);
     sg.addColorStop(0, css({ h: m.top.h + 10, s: 80, l: 84 }));
-    sg.addColorStop(1, css(waterAt(m, 60), 1));
+    sg.addColorStop(0.7, css(waterAt(m, 60), 0.85));
+    sg.addColorStop(1, css(waterAt(m, 60), 0));
     ctx.fillStyle = sg;
     ctx.fillRect(0, 0, W, Math.max(0, yFar));
     // wave lines on the underside
@@ -305,7 +310,9 @@ function render(): void {
     const x = a.cr.root.x[0];
     if (x < x0 || x > x1) continue;
     const rz = a.cr.root.z[0];
-    items.push({ d: view.depth(a.cr.root.y[0], rz) - 0.2, fn: () => { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); draw3(ctx, a.cr, view, { ink: true }); } });
+    items.push({ d: view.depth(a.cr.root.y[0], rz) - 0.2, fn: () => drawActor(a, m, plane) });
+    const fy = floorAt(x, rz), h = fy - a.cr.root.y[0];
+    if (h < 260 && h > -8 && rz < 900) items.push({ d: view.depth(fy, rz) + 0.3, fn: () => drawShadow(a, fy, h) });
   }
   for (const v of visitors) {
     const [x0, x1] = view.xRange(v.z, 400);
@@ -318,15 +325,21 @@ function render(): void {
   bakes = 0;
   for (const it of items) it.fn();
 
-  // glows of the creatures
+  // glows of the creatures: many small lights on one animal share their strength, so they never burn to white
   ctx.globalCompositeOperation = 'lighter';
   for (const a of actors) {
     if (Math.abs(a.cr.root.x[0] - cam.x) > 1400) continue;
-    eachGlow3(a.cr, view, (x, y, size, hue, al) => {
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.globalAlpha = al * 0.55;
-      ctx.drawImage(glowSprite(hue), x - size, y - size, size * 2, size * 2);
-    });
+    glowPts.length = 0;
+    eachGlow3(a.cr, view, (x, y, size, hue, al) => { glowPts.push(x, y, size, hue, al); });
+    const n = glowPts.length / 5;
+    if (!n) continue;
+    const share = 1 / Math.sqrt(Math.max(1, n / 2.5)), base = 0.46 - 0.3 * env.water;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    for (let i = 0; i < glowPts.length; i += 5) {
+      const size = glowPts[i + 2] * (0.8 + 0.2 * share);
+      ctx.globalAlpha = glowPts[i + 4] * base * share;
+      ctx.drawImage(glowSprite(glowPts[i + 3]), glowPts[i] - size, glowPts[i + 1] - size, size * 2, size * 2);
+    }
   }
   ctx.globalAlpha = 1;
 
@@ -418,7 +431,7 @@ function drawPlant(pl: Plant, m: ReturnType<typeof moodAt>, plane: number): void
   if (pl.live && Math.abs(pl.x - cam.x) < 900) {
     // in the swimming plane: drawn live, it moves with the water
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    draw3(ctx, cr, view, { ink: true });
+    draw3(ctx, cr, view, { ink: true, water: env.water });
     return;
   }
   const d = view.depth(cr.root.y[0], pl.z);
@@ -430,6 +443,33 @@ function drawPlant(pl: Plant, m: ReturnType<typeof moodAt>, plane: number): void
   }
   if (pl.sprite) drawSprite(pl.sprite, cr.root.x[0], cr.root.y[0], pl.z);
   void m;
+}
+
+/** near: drawn live in perspective; far: drawn flat and washed with the colour of the water */
+function drawActor(a: Actor, m: ReturnType<typeof moodAt>, plane: number): void {
+  const r = a.cr.root, rz = r.z[0], d = view.depth(r.y[0], rz), fog = fogOf(d, plane);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (fog < 0.1) { draw3(ctx, a.cr, view, { ink: true, water: env.water }); return; }
+  view.project(r.x[0], r.y[0], rz, P);
+  const res = clamp(P.s * dpr, 0.3, 3);
+  if (!a.buf) a.buf = makeCanvas(8, 8);
+  const sp = bakeCreature(a.cr, fog * 0.85, waterAt(moodAt(r.x[0]), r.y[0] + 140), res, a.buf);
+  drawSprite(sp, r.x[0], r.y[0], rz);
+  void m;
+}
+
+/** a soft shadow on the floor below an animal: grounds it and tells its height */
+function drawShadow(a: Actor, fy: number, h: number): void {
+  const cr = a.cr, r = cr.root, len = (cr.box[3] - cr.box[0]) * 0.55 + 6;
+  view.project(r.x[0], fy, r.z[0], P);
+  const rx = len * P.s, al = 0.32 * (1 - clamp(h / 260, 0, 1)) * (1 - fogOf(P.d, settings.dist) * 0.8);
+  if (al < 0.01 || rx < 2) return;
+  ctx.setTransform(dpr, 0, 0, dpr * Math.max(0.12, 0.3 * Math.cos(view.pitch)), dpr * P.x, dpr * P.y);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+  g.addColorStop(0, `rgba(6,20,30,${al.toFixed(3)})`);
+  g.addColorStop(1, 'rgba(6,20,30,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0, 0, rx, 0, TAU); ctx.fill();
 }
 
 function drawVisitor(v: Visitor, m: ReturnType<typeof moodAt>, plane: number): void {
