@@ -635,6 +635,6 @@ setInterval(() => { const d = Math.round(900 / input.zoomMul); if (+distIn.value
 for (const el of [panel, gear, document.getElementById('atBtn')!]) for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'wheel']) el.addEventListener(ev, (e) => e.stopPropagation());
 const hint = document.getElementById('hint')!;
 setTimeout(() => hint.classList.add('gone'), 6000);
-document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).closest('#panel')) e.preventDefault(); }, { passive: false });
+document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).closest('#panel, #atelier')) e.preventDefault(); }, { passive: false });
 
 requestAnimationFrame(frame);
