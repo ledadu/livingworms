@@ -34,3 +34,10 @@ body { font-family: 'Cormorant Garamond', Georgia, serif; color: #f4efe2; -webki
 #vig, #deep { position: fixed; inset: 0; pointer-events: none; }
 #vig { background: radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.42) 100%); }
 #deep { background: transparent; }
+
+#atBtn {
+  position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: 12px; width: 44px; height: 44px; border-radius: 50%;
+  border: 1px solid rgba(244,239,226,0.35); background: rgba(6,40,56,0.45); color: #f4efe2; font-size: 21px; line-height: 1;
+  display: grid; place-items: center; cursor: pointer; backdrop-filter: blur(6px);
+}
+#atBtn:focus-visible { outline: 2px solid #f6d98a; outline-offset: 2px; }

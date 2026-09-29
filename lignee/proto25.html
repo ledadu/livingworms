@@ -6,12 +6,13 @@
   <meta name="theme-color" content="#0a3a55">
   <title>La Lignée 2.5D</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,400&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,400&family=Syne:wght@600;800&family=Chakra+Petch:wght@400;600&display=swap">
 </head>
 <body>
   <canvas id="sea"></canvas>
   <div id="deep"></div>
   <div id="vig"></div>
+  <button id="atBtn" aria-label="Ouvrir l’atelier des espèces">✎</button>
   <button id="gear" aria-label="Réglages de la caméra">⚙</button>
   <div id="panel" hidden>
     <h2>Caméra</h2>
@@ -26,7 +27,7 @@
       <input id="dist" type="range" min="350" max="2000" step="5"></label>
     <div class="fps" id="fps">…</div>
   </div>
-  <div id="hint">Guide la larve avec le doigt · pince pour zoomer · ⚙ pour l’angle</div>
+  <div id="hint">Guide la larve avec le doigt · pince pour zoomer · ✎ atelier · ⚙ angle</div>
   <script type="module" src="./src/proto25/main.ts"></script>
 </body>
 </html>
