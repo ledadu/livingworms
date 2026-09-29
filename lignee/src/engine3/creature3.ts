@@ -564,7 +564,7 @@ export class Creature3 {
     const sw = this.spec.swim, moving = Math.hypot(dvx, dvz * 3) > 0.05;
     if (moving) {
       // toward the eye a little, so that the legs show
-      const gz = dvz * 3 - 0.36 * Math.abs(dvx);
+      const gz = dvz * 3 - 0.6 * Math.abs(dvx);
       this.yawGoal = Math.atan2(gz, dvx) + (sw.rear ? Math.PI : 0);
     }
     const w = this.turnW * 0.6;
@@ -578,7 +578,8 @@ export class Creature3 {
     const face = Math.max(0, Math.cos(err));
     const vx = dvx * (0.15 + 0.85 * face), vz = dvz * 0.5;
     this.clock += STEP * (0.1 + Math.min(1.8, Math.hypot(this.vx, this.vz) * 1.1));
-    this.update(this.clock, vx, dvy * 0.5, vz, accel);
+    // a walker only leaves the floor when it is told to go up; otherwise it falls back and follows the floor
+    this.update(this.clock, vx, dvy < -0.3 ? dvy : 0.5, vz, accel);
   }
 
   private steerGlide(time: number, dvx: number, dvy: number, dvz: number, accel: number): void {
@@ -586,8 +587,12 @@ export class Creature3 {
     let pitchGoal = 0;
     if (sp > 0.05) {
       if (Math.abs(dvx) > 0.2 * sp) this.yawGoal = dvx > 0 ? 0 : Math.PI;
-      pitchGoal = clamp(Math.atan2(dvy, Math.max(Math.abs(dvx), 0.15)), -1.2, 1.2);
+      const pm = this.spec.swim.pitchMax || 1.2;
+      pitchGoal = clamp(Math.atan2(dvy, Math.max(Math.abs(dvx), 0.15)), -pm, pm);
+      // an upright swimmer (seahorse) keeps its head up and only leans a little
+      if (this.spec.swim.posture !== undefined) pitchGoal = this.spec.swim.posture + pitchGoal * 0.25;
     }
+    else if (this.spec.swim.posture !== undefined) pitchGoal = this.spec.swim.posture;
     const w = this.turnW;
     this.yawVel += (w * w * (this.yawGoal - this.yaw) - 2 * w * this.yawVel) * STEP;
     this.yaw += this.yawVel * STEP;
@@ -599,7 +604,9 @@ export class Creature3 {
     this.root.headDir = h;
     const align = Math.max(0, Math.cos(this.yawGoal - this.yaw));
     const speed = sp * (0.25 + 0.75 * align);
-    this.update(time, h.x * speed, h.y * speed, h.z * speed + dvz, accel);
+    // an upright body does not go where its head points: it goes where it is told
+    if (this.spec.swim.posture !== undefined) this.update(time, dvx * (0.25 + 0.75 * align), dvy, dvz, accel);
+    else this.update(time, h.x * speed, h.y * speed, h.z * speed + dvz, accel);
   }
 
   /** direction the head points */

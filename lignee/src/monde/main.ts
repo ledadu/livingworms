@@ -277,6 +277,14 @@ function collide(cr: Creature3): void {
     const dx = r.x[0] - k.x, dy = (r.y[0] - cy) / 0.8, d = Math.hypot(dx, dy), m = rs + rad;
     if (d < m && d > 0.01) { r.x[0] = k.x + (dx / d) * m; r.y[0] = cy + (dy / d) * m * 0.8; }
   }
+  // walkers stand on the floor by the lowest point of their body (the legs), not by their root;
+  // an octopus walks when it touches the floor and jets when it leaves it
+  if (cr.mode === 'crawl' || cr.spec.swim.walk) {
+    const gap = floorAt(r.x[0], z) - cr.box[4];
+    if (cr.mode !== 'crawl') { if (gap < 6) cr.ground(true); }
+    else if (cr.spec.swim.walk && gap > 14) cr.ground(false);
+    if (cr.mode === 'crawl' && gap < 40) r.y[0] += gap * (gap < 0 ? 0.4 : 0.15);
+  }
   const fy = floorAt(r.x[0], z) - rad;
   if (r.y[0] > fy) { r.y[0] = fy; if (cr.vy > 0) cr.vy *= -0.3; }
   if (r.y[0] < 8) { r.y[0] = 8; if (cr.vy < 0) cr.vy *= -0.3; }
@@ -326,7 +334,7 @@ function update(): void {
       a.next = t + rand(3, 8);
       a.tx = a.hx + rand(-260, 260);
       const fy = floorAt(a.tx, a.z);
-      a.ty = a.kind === 'floor' ? fy - 10 : a.kind === 'surface' ? 10 + rand(0, 14) : clamp(a.hy + rand(-120, 120), 40, fy - 50);
+      a.ty = a.kind === 'floor' ? fy + 4 : a.kind === 'surface' ? 10 + rand(0, 14) : clamp(a.hy + rand(-120, 120), 40, fy - 50);
     }
     let dx = a.tx - x, dy = a.ty - y;
     if (a.kind === 'swim' && Math.abs(a.z) < 60) {
