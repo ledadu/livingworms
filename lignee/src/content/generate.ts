@@ -116,7 +116,7 @@ export function generate(opt: GenerateOptions = {}): Spec {
     } else attach.push(jit(fil));
     if (chance(0.65)) attach.push(P('brasOral', { links: ri(10, 18), color: { slot: ri(1, 2) } }, { count: ri(3, 5) }));
     if (chance(c * 0.4)) attach.push(P('couronne', { links: 4, width: 1, color: { slot: 3 } }, { at: 1, count: ri(8, 14), scale: 0.5 }));
-    swim = { mode: 'pulse', speed: r(1, 2), freq: body.motion!.freq };
+    swim = { mode: 'bell', speed: r(1, 2), freq: body.motion!.freq };
     ai = 'drifter';
   }
   function makeCrustacean() {
@@ -131,7 +131,7 @@ export function generate(opt: GenerateOptions = {}): Spec {
     attach.push(P('pleopode', { color: { slot: ri(1, 3) } }, { count: ri(3, 6) }));
     attach.push(P('eventail', { color: { slot: ri(0, 2) } }));
     if (chance(g * 0.7)) attach.push(P('photophore', null, { count: ri(3, 5), at: 0.2, to: 0.7 }));
-    swim = { mode: 'dart', speed: r(1.5, 2.3) };
+    swim = { mode: 'crawl', speed: r(1.2, 1.8) };
     ai = pk<Ai>(['prey', 'hunter']);
   }
   function makeCephalopod() {
@@ -142,7 +142,7 @@ export function generate(opt: GenerateOptions = {}): Spec {
     attach.push(nest(arms));
     if (chance(0.6)) attach.push(glowTip(P('massue', { links: ri(10, 16) })));
     attach.push(chance(0.5) ? P('collerette', { color: { slot: 0, alpha: 0.7, light: 10 } }) : P('nageoire', { width: r(3.5, 5.5), links: 4, color: { slot: 0, alpha: 0.8 } }, { at: 0.05, angle: 2.3, edge: 0.6 }));
-    swim = { mode: 'pulse', speed: r(1.5, 2.4), freq: r(0.5, 0.9) };
+    swim = { mode: 'jet', speed: r(1.5, 2.4), freq: r(0.5, 0.9), walk: chance(0.5), rear: true, posture: -0.9 };
     ai = 'hunter';
   }
   function makeWorm() {

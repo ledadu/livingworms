@@ -107,6 +107,7 @@ interface Actor {
 const actors: Actor[] = [];
 function addActor(sp: Spec, x: number, y: number, kind: Actor['kind'], scale = 1, z = 0): Actor {
   const cr = new Creature3(sp, x, y, z, { dir: { x: Math.random() < 0.5 ? 1 : -1, y: 0, z: 0 }, scale });
+  cr.ground(kind === 'floor');
   for (let i = 0; i < 60; i++) cr.update(i * STEP, 0, 0, 0, 0.1);
   const a: Actor = { cr, kind, z, hx: x, hy: y, tx: x, ty: y, next: 0, buf: null, spr: null, bakedAt: -99 };
   actors.push(a);
@@ -1025,13 +1026,20 @@ function spawnCrowd(n: number, seed = 1): void {
     a.temp = true;
   }
 }
+/** one animal of a species next to the swimmer, in its plane (for the tests) */
+function spawn(id: string, kind: Actor['kind'], dx: number, dy: number, scale = 0.8): Actor {
+  const r = player.cr.root, x = r.x[0] + dx, y = kind === 'floor' ? floorAt(x, 0) - 12 : r.y[0] + dy;
+  const a = addActor(SPECIES[id](), x, y, kind, scale, 0);
+  a.temp = true;
+  return a;
+}
 function clearCrowd(): void {
   for (let i = actors.length - 1; i >= 0; i--) if (actors[i].temp) actors.splice(i, 1);
 }
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto,
-  biomes: BIOMES, teleport, gotoBiome, spawnCrowd, clearCrowd, floorAt,
+  biomes: BIOMES, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },

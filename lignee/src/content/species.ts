@@ -21,7 +21,7 @@ export const SPECIES: Record<string, () => Spec> = {
   meduse: function () {
     return spec({
       name: 'Méduse lune', palette: { hue: 290, harmony: 'analog', sat: 70, light: 66 },
-      swim: { mode: 'pulse', speed: 1.4, freq: 0.7 }, ai: 'drifter', eyes: { on: false },
+      swim: { mode: 'bell', speed: 1.4, freq: 0.7 }, ai: 'drifter', eyes: { on: false },
       body: {
         name: 'Ombrelle', links: 4, len: 4, width: 13, shape: 'bell', style: 'ribbon', flex: 0.06, spring: 0.6, drag: 0.8,
         color: { slot: 0, alpha: 0.42, light: -8, add: true, glow: 'body' }, motion: { type: 'pulse', amp: 0.22, freq: 0.7 },
@@ -51,7 +51,7 @@ export const SPECIES: Record<string, () => Spec> = {
   calmar: function () {
     return spec({
       name: 'Calmar', palette: { hue: 350, harmony: 'split', sat: 62, light: 58 },
-      swim: { mode: 'pulse', speed: 2.4, freq: 0.9 }, ai: 'hunter', eyes: { on: false },
+      swim: { mode: 'jet', speed: 2.4, freq: 0.9 }, ai: 'hunter', eyes: { on: false },
       body: {
         name: 'Manteau', links: 9, len: 7, width: 7, shape: 'spindle', style: 'ribbon', flex: 0.1, spring: 0.4, drag: 0.8,
         color: { slot: 0, grad: 10 }, motion: { type: 'pulse', amp: 0.1, freq: 0.9 },
@@ -143,7 +143,7 @@ export const SPECIES: Record<string, () => Spec> = {
   meduseBoite: function () {
     return spec({
       name: 'Méduse-boîte', palette: { hue: 188, harmony: 'analog', sat: 55, light: 74 },
-      swim: { mode: 'pulse', speed: 1.9, freq: 1.1 }, ai: 'drifter', eyes: { on: false },
+      swim: { mode: 'bell', speed: 1.9, freq: 1.1 }, ai: 'drifter', eyes: { on: false },
       body: {
         name: 'Cloche', links: 4, len: 4.5, width: 10, shape: 'bell', style: 'ribbon', flex: 0.05, spring: 0.6, drag: 0.8,
         color: { slot: 0, alpha: 0.45, add: true, glow: 'body', pattern: 'edge', pslot: 1, pscale: 0.5 }, motion: { type: 'pulse', amp: 0.16, freq: 1.1 },
@@ -187,7 +187,7 @@ export const SPECIES: Record<string, () => Spec> = {
   chrysaora: function () {
     return spec({
       name: 'Méduse ortie', palette: { hue: 24, harmony: 'analog', sat: 80, light: 58 },
-      swim: { mode: 'pulse', speed: 1.2, freq: 0.6 }, ai: 'drifter', eyes: { on: false },
+      swim: { mode: 'bell', speed: 1.2, freq: 0.6 }, ai: 'drifter', eyes: { on: false },
       body: {
         name: 'Ombrelle', links: 5, len: 4, width: 13, shape: 'bell', style: 'ribbon', flex: 0.05, spring: 0.6, drag: 0.8,
         color: { slot: 0, alpha: 0.8, pattern: 'bands', pdensity: 3, pslot: 2, plight: 10 }, motion: { type: 'pulse', amp: 0.18, freq: 0.6 },
@@ -240,7 +240,7 @@ export const SPECIES: Record<string, () => Spec> = {
   homard: function () {
     return spec({
       name: 'Homard bleu', palette: { hue: 212, harmony: 'analog', sat: 60, light: 42 },
-      swim: { mode: 'dart', speed: 1.6 }, ai: 'hunter', eyes: { on: false },
+      swim: { mode: 'crawl', speed: 1.6 }, ai: 'hunter', eyes: { on: false },
       body: {
         name: 'Carapace', links: 12, len: 6.5, width: 7, shape: 'carapace', style: 'plates', flex: 0.12, spring: 0.35, drag: 0.8,
         color: { slot: 0, grad: -6, pattern: 'spots', pdensity: 5, pslot: 3, plight: 20 },
@@ -260,7 +260,7 @@ export const SPECIES: Record<string, () => Spec> = {
   crabe: function () {
     return spec({
       name: 'Crabe', palette: { hue: 8, harmony: 'analog', sat: 75, light: 52 },
-      swim: { mode: 'dart', speed: 1.5 }, ai: 'hunter', eyes: { on: false },
+      swim: { mode: 'crawl', speed: 1.5 }, ai: 'hunter', eyes: { on: false },
       body: {
         name: 'Carapace', links: 6, len: 2.5, width: 13, shape: 'bloby', style: 'ribbon', flex: 0.05, spring: 0.6, drag: 0.8,
         color: { slot: 0, grad: -8, pattern: 'spots', pdensity: 7, pslot: 3, pscale: 0.8 },
@@ -325,13 +325,13 @@ export const SPECIES: Record<string, () => Spec> = {
   poulpe: function () {
     return spec({
       name: 'Poulpe', palette: { hue: 12, harmony: 'analog', sat: 65, light: 55 },
-      swim: { mode: 'pulse', speed: 1.8, freq: 0.6 }, ai: 'hunter', eyes: { on: false },
+      swim: { mode: 'jet', speed: 1.8, freq: 0.6, walk: true, rear: true, posture: -0.9 }, ai: 'hunter', eyes: { on: false },
       body: {
         name: 'Manteau', links: 5, len: 6, width: 10, shape: 'bloby', style: 'ribbon', flex: 0.12, spring: 0.4, drag: 0.8,
         color: { slot: 0, grad: 10, pattern: 'spots', pdensity: 5, pslot: 2 }, motion: { type: 'breathe', amp: 0.08, freq: 0.6 },
         attach: [
           part('oeil', { links: 1, len: 1.5, width: 2.2, color: { slot: 3 } }, { at: 0.85, angle: 1.57, edge: 0.9, front: true }),
-          part('bras', { links: 14, len: 4.5, width: 2.8, color: { slot: 0, pattern: 'spots', pslot: 3, pdensity: 8, plight: 20, pscale: 1.2 }, motion: { type: 'curl', amp: 1.2, freq: 0.35 } },
+          part('bras', { links: 14, len: 4.5, width: 2.8, color: { slot: 0, pattern: 'spots', pslot: 3, pdensity: 8, plight: 20, pscale: 1.2 }, motion: { type: 'recoil', amp: 1.1, freq: 0.35 } },
             { count: 8, spread: 1.3, edge: 0.8, web: 0.25 })
         ]
       }
@@ -340,7 +340,7 @@ export const SPECIES: Record<string, () => Spec> = {
   nautile: function () {
     return spec({
       name: 'Nautile', palette: { hue: 28, harmony: 'mono', sat: 55, light: 62 },
-      swim: { mode: 'pulse', speed: 1.2, freq: 0.7 }, ai: 'drifter', eyes: { on: false },
+      swim: { mode: 'jet', speed: 1.2, freq: 0.7 }, ai: 'drifter', eyes: { on: false },
       body: {
         name: 'Coquille', links: 18, len: 7, lenTo: 0.18, width: 12, shape: 'linear', style: 'plates', flex: 0.02, spring: 0.8, curl: 7, drag: 0.8,
         color: { slot: 1, pattern: 'bands', pdensity: 7, pslot: 2, plight: -10 },

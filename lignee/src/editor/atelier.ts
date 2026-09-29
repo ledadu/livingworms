@@ -473,7 +473,8 @@ var MOTION_HELP = {
   row: 'Coup rapide puis retour lent, comme une rame ou une patte.',
   pulse: 'Gonfle et se contracte, comme une ombrelle de méduse.',
   undulate: 'Une vague parcourt la partie, comme une anguille qui nage.',
-  curl: 'S\'enroule et se déroule, comme un bras de poulpe.'
+  curl: 'S\'enroule et se déroule, comme un bras de poulpe.',
+  recoil: 'Se rabat droit derrière le corps à chaque jet, et se détend entre deux (bras de poulpe ou de calmar en nage à réaction).'
 };
 
 function renderSections(container, sections, species) {
@@ -699,7 +700,7 @@ function renderSpecies() {
     { id: 'swim', title: 'Nage', fields: [
       { p: 'spec.swim.mode', t: 'chips', opts: objOpts(E.NAMES.swim) },
       { p: 'spec.swim.speed', label: 'Vitesse', min: 0.5, max: 4, step: 0.1 },
-      ed.spec.swim.mode === 'pulse' && { p: 'spec.swim.freq', label: 'Rythme des pulsations', min: 0.2, max: 3, step: 0.05, unit: ' Hz',
+      (ed.spec.swim.mode === 'pulse' || ed.spec.swim.mode === 'bell' || ed.spec.swim.mode === 'jet') && { p: 'spec.swim.freq', label: 'Rythme des pulsations', min: 0.2, max: 3, step: 0.05, unit: ' Hz',
         hint: 'Si le tronc a le mouvement « Pulsation », c\'est son rythme qui est utilisé' }
     ] },
     { id: 'ai', title: 'Comportement en jeu', fields: [

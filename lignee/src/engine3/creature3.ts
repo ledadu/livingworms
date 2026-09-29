@@ -10,7 +10,7 @@
 //
 // World axes: x right, y DOWN (the surface is y = 0), z away from the eye.
 
-import type { AttDef, NodeDef, PaletteSlot, Spec } from '../engine/types';
+import type { AttDef, NodeDef, PaletteSlot, Spec, SwimMode } from '../engine/types';
 import { ROOT_SLOT, SHAPES, expand, palette, type Slot } from '../engine/defs';
 import { STEP, TAU, clamp, hsla, lerp, rand } from '../engine/util';
 
@@ -300,7 +300,9 @@ export class Seg3 {
 
     const drag = d.drag, grav = d.gravity + this.sink, amax = this.amax, keep = 1 - d.spring;
     const bends = this.bends, lens = this.lens, soak = 0.2 + 0.4 * d.flex, F = cr.planar ? this.flip : 1;
-    const extra = m.type === 'curl' ? ((m.amp * (0.5 + 0.5 * Math.sin(w)) * F) / n) * 2 : 0;
+    // curl: arms open and close; recoil: they trail straight behind on every jet stroke and relax between
+    const extra = m.type === 'curl' ? ((m.amp * (0.5 + 0.5 * Math.sin(w)) * (1 - 0.8 * cr.stroke) * F) / n) * 2
+      : m.type === 'recoil' ? (((m.amp * (1 - cr.stroke) + 0.3 * Math.sin(w)) * F) / n) * 2 : 0;
     const und = m.type === 'undulate' ? m.amp * 0.5 : 0, wk = (TAU * m.wave) / n;
     const a = this.tmp, tgt = this.t, prev = this.b, nbi = this.l;
     let mnx = x[0], mxx = x[0], mny = y[0], mxy = y[0], mnz = z[0], mxz = z[0];
@@ -400,9 +402,19 @@ export class Creature3 {
   /** how quickly the heading follows (rad/s of a critically damped spring): about 0.35 s for a half turn */
   turnW = 13;
   private heading3 = v3(1, 0, 0);
+  /** how it moves: the species' own, or 'crawl' while a walker is on the floor (see ground) */
+  mode: SwimMode;
+  /** the time of its own gait (crawl): runs fast when it moves and slowly when it stands, so the legs only step when it goes */
+  clock = 0;
+  /** power stroke of a jet or of a bell, 0..1: the parts that answer to it (recoil) read it */
+  stroke = 0;
+  private leanX = 0; private leanZ = 0; private leanVX = 0; private leanVZ = 0;
+  /** jet: the arms lead (parachute) */
+  private rear = false;
 
   constructor(sp: Spec, x: number, y: number, z: number, o: Creature3Options = {}) {
     this.spec = sp;
+    this.mode = sp.swim.mode;
     this.pal = palette(sp.palette);
     this.phase = o.phase === undefined ? rand(0, TAU) : o.phase;
     this.planar = !!o.anchor;
@@ -455,6 +467,121 @@ export class Creature3 {
    * extra pull along z (to return to its plane); the speed drops while turning.
    */
   steer(time: number, dvx: number, dvy: number, dvz: number, accel: number): void {
+    switch (this.mode) {
+      case 'bell': this.steerBell(time, dvx, dvy, dvz, accel); break;
+      case 'jet': this.steerJet(time, dvx, dvy, dvz, accel); break;
+      case 'crawl': this.steerCrawl(time, dvx, dvy, dvz, accel); break;
+      default: this.steerGlide(time, dvx, dvy, dvz, accel);
+    }
+  }
+
+  /** put a walker on the floor or in the water: an octopus (swim.walk) walks on the floor, and jets in the water */
+  ground(on: boolean): void {
+    if (this.spec.swim.mode === 'crawl') return;
+    this.mode = on && this.spec.swim.walk ? 'crawl' : this.spec.swim.mode;
+  }
+
+  /** the power stroke (0..1) of the pulse of the trunk at this time */
+  private beat(time: number): number {
+    const m = this.root.def.motion, f = m.type === 'pulse' || m.type === 'breathe' ? m.freq : this.spec.swim.freq;
+    const c = -Math.cos(TAU * f * time + this.phase);
+    return c > 0 ? c * c : 0;
+  }
+
+  /** spring on an angle (critically damped): returns the new value, the velocity is written in vel[0] */
+  private spring(x: number, goal: number, vel: number, w: number): [number, number] {
+    vel += (w * w * (goal - x) - 2 * w * vel) * STEP;
+    return [x + vel * STEP, vel];
+  }
+
+  private aim(h: V, pitch: number, yaw: number): void {
+    const cp = Math.cos(pitch);
+    h.x = cp * Math.cos(yaw); h.y = Math.sin(pitch); h.z = cp * Math.sin(yaw);
+    this.root.headDir = h;
+  }
+
+  /**
+   * A bell (jellyfish): the axis is nearly vertical, bell up, and never turns
+   * from left to right: there is no profile. It pushes itself along its axis at
+   * every contraction and drifts between two; to go sideways it leans that way, to
+   * go down it only lets itself sink; no pulse is wasted when it is idle.
+   */
+  private steerBell(time: number, dvx: number, dvy: number, dvz: number, accel: number): void {
+    const sp = Math.hypot(dvx, dvy), base = this.spec.swim.speed * 0.3;
+    this.stroke = this.beat(time);
+    const hx = sp > 0.05 ? dvx / sp : 0;
+    const want = sp > 0.05 ? sp * clamp(1 - (Math.max(0, dvy) / sp) * 1.6, 0, 1) : base;
+    // lean toward where it goes (about 45 degrees at most), and toward its plane in depth
+    const gx = clamp(hx * 0.9 * Math.min(1, sp * 1.2), -0.75, 0.75), gz = clamp(dvz * 0.6, -0.4, 0.4);
+    [this.leanX, this.leanVX] = this.spring(this.leanX, gx, this.leanVX, 5);
+    [this.leanZ, this.leanVZ] = this.spring(this.leanZ, gz, this.leanVZ, 5);
+    const h = this.heading3;
+    h.x = Math.sin(this.leanX); h.z = Math.sin(this.leanZ);
+    h.y = -Math.sqrt(Math.max(0.05, 1 - h.x * h.x - h.z * h.z));
+    norm(h);
+    this.root.headDir = h;
+    const push = want * (0.1 + 3.6 * this.stroke);
+    // it sinks a little (and faster when it has to go down)
+    const sink = 0.16 + clamp(dvy, 0, 1.2) * 0.35;
+    this.update(time, h.x * push, h.y * push + sink, h.z * push + dvz * 0.5, accel);
+  }
+
+  /**
+   * A jet swimmer (octopus, squid): it moves mantle first, the arms trailing
+   * behind, and shoots forward at every contraction, then coasts. It turns
+   * a little toward the eye (3/4 view, never a flat profile) and may go straight
+   * up or down; going down it turns round and falls arms first, like a parachute.
+   */
+  private steerJet(time: number, dvx: number, dvy: number, dvz: number, accel: number): void {
+    const sp = Math.hypot(dvx, dvy);
+    this.stroke = this.beat(time);
+    let pitchGoal = 0;
+    if (sp > 0.05) {
+      if (dvy > 0.6 * sp) this.rear = true; else if (dvy < 0.25 * sp) this.rear = false;
+      const p = clamp(Math.atan2(dvy, Math.max(Math.abs(dvx), 0.12)), -1.45, 1.45);
+      pitchGoal = this.rear ? -p : p;
+      if (Math.abs(dvx) > 0.2 * sp) this.yawGoal = (dvx > 0) !== this.rear ? 0.3 : Math.PI - 0.3;
+    }
+    const w = this.turnW * 0.7;
+    [this.yaw, this.yawVel] = this.spring(this.yaw, this.yawGoal, this.yawVel, w);
+    this.yaw = clamp(this.yaw, 0, Math.PI);
+    [this.pitch, this.pitchVel] = this.spring(this.pitch, pitchGoal, this.pitchVel, w * 0.8);
+    const h = this.heading3;
+    this.aim(h, this.pitch, this.yaw);
+    const align = Math.max(0, Math.cos(this.yawGoal - this.yaw)) * Math.max(0, Math.cos(pitchGoal - this.pitch));
+    const speed = sp * (0.1 + 3.6 * this.stroke) * (0.2 + 0.8 * align) * (this.rear ? -0.7 : 1);
+    this.update(time, h.x * speed, h.y * speed, dvz, accel);
+  }
+
+  /**
+   * Walking on the floor: the animal turns on the spot toward where it goes,
+   * all the way round (through the depth, toward the eye as well), seen in
+   * 3/4. Its own clock, and so its gait, runs with its speed. `swim.posture` is
+   * the pitch of its head end (an octopus stands its mantle up) and `swim.rear`
+   * makes the tail end lead (arms first).
+   */
+  private steerCrawl(_time: number, dvx: number, dvy: number, dvz: number, accel: number): void {
+    const sw = this.spec.swim, moving = Math.hypot(dvx, dvz * 3) > 0.05;
+    if (moving) {
+      // toward the eye a little, so that the legs show
+      const gz = dvz * 3 - 0.36 * Math.abs(dvx);
+      this.yawGoal = Math.atan2(gz, dvx) + (sw.rear ? Math.PI : 0);
+    }
+    const w = this.turnW * 0.6;
+    let err = this.yawGoal - this.yaw;
+    err = Math.atan2(Math.sin(err), Math.cos(err));
+    this.yawVel += (w * w * err - 2 * w * this.yawVel) * STEP;
+    this.yaw += this.yawVel * STEP;
+    this.yaw = Math.atan2(Math.sin(this.yaw), Math.cos(this.yaw));
+    [this.pitch, this.pitchVel] = this.spring(this.pitch, sw.posture || 0, this.pitchVel, w);
+    this.aim(this.heading3, this.pitch, this.yaw);
+    const face = Math.max(0, Math.cos(err));
+    const vx = dvx * (0.15 + 0.85 * face), vz = dvz * 0.5;
+    this.clock += STEP * (0.1 + Math.min(1.8, Math.hypot(this.vx, this.vz) * 1.1));
+    this.update(this.clock, vx, dvy * 0.5, vz, accel);
+  }
+
+  private steerGlide(time: number, dvx: number, dvy: number, dvz: number, accel: number): void {
     const sp = Math.hypot(dvx, dvy);
     let pitchGoal = 0;
     if (sp > 0.05) {
@@ -494,6 +621,8 @@ export class Creature3 {
 
 /** speed multiplier given by the way the species swims */
 export function swimFactor3(cr: Creature3, t: number): number {
+  // the bells, jets and walkers shape their own speed
+  if (cr.mode === 'bell' || cr.mode === 'jet' || cr.mode === 'crawl') return 1;
   const s = cr.spec.swim;
   if (s.mode === 'pulse') {
     const m = cr.root.def.motion, f = m.type === 'pulse' ? m.freq : s.freq;

@@ -4,12 +4,20 @@
 
 export type Role = 'body' | 'whip' | 'sting' | 'jaw' | 'fin' | 'cilia' | 'light' | 'sense' | 'deco';
 export type Style = 'ribbon' | 'plates' | 'line' | 'disc' | 'eye';
-export type MotionType = 'none' | 'wave' | 'row' | 'flutter' | 'pulse' | 'breathe' | 'undulate' | 'curl';
+export type MotionType = 'none' | 'wave' | 'row' | 'flutter' | 'pulse' | 'breathe' | 'undulate' | 'curl' | 'recoil';
 export type Pattern = 'single' | 'pair' | 'fan' | 'series' | 'ring';
 export type Motif = 'none' | 'bands' | 'spots' | 'stripe' | 'ocelli' | 'edge';
 export type Glow = 'none' | 'tip' | 'body';
 export type Harmony = 'analog' | 'complement' | 'triad' | 'split' | 'mono';
-export type SwimMode = 'steady' | 'pulse' | 'dart';
+/**
+ * How the animal gets about (3D engine; the 2D one treats the new ones as steady):
+ *  - steady / pulse / dart: it glides head first, in profile, like a fish;
+ *  - bell: a jellyfish, bell up, that pushes itself up in pulses, leans to go
+ *    sideways and only sinks to go down, with no left/right profile;
+ *  - jet: mantle first by jets, the arms trailing; arms first (parachute) when it goes down;
+ *  - crawl: walks on the floor, in the 3/4 view, in any direction, legs moving only when it moves.
+ */
+export type SwimMode = 'steady' | 'pulse' | 'dart' | 'bell' | 'jet' | 'crawl';
 export type Ai = 'hunter' | 'prey' | 'drifter';
 
 export interface ColorDef {
@@ -37,7 +45,15 @@ export interface AttDef {
 }
 
 export interface PaletteDef { hue: number; harmony: Harmony; sat: number; light: number; }
-export interface SwimDef { mode: SwimMode; speed: number; freq: number; }
+export interface SwimDef {
+  mode: SwimMode; speed: number; freq: number;
+  /** walks on the floor when it is on it (a jet swimmer like the octopus) */
+  walk?: boolean;
+  /** the tail end leads (arms first) when it crawls */
+  rear?: boolean;
+  /** pitch of the head end when it crawls (rad, negative = raised) */
+  posture?: number;
+}
 export interface EyesDef { on: boolean; size: number; spread: number; fwd: number; }
 export interface GenInfo { seed: number; archetype: string; mood: string; complexity: number; glow: number; }
 

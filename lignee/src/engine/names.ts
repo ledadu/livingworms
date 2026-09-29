@@ -9,12 +9,12 @@ export const NAMES = {
   style: { ribbon: 'Ruban', plates: 'Plaques', line: 'Trait', disc: 'Perles', eye: 'Œil' },
   motion: {
     none: 'Aucun', wave: 'Battement', row: 'Rame', flutter: 'Frémissement', pulse: 'Pulsation',
-    breathe: 'Respiration', undulate: 'Ondulation', curl: 'Enroulement'
+    breathe: 'Respiration', undulate: 'Ondulation', curl: 'Enroulement', recoil: 'Recul (jets)'
   },
   pattern: { single: 'Seul', pair: 'Paire', fan: 'Éventail', series: 'Série', ring: 'Anneau' },
   motif: { none: 'Uni', bands: 'Bandes', spots: 'Taches', stripe: 'Ligne', ocelli: 'Ocelles', edge: 'Liseré' },
   harmony: { analog: 'Analogue', complement: 'Complément', triad: 'Triade', split: 'Divisée', mono: 'Mono' },
-  swim: { steady: 'Régulière', pulse: 'Par pulsations', dart: 'Par à-coups' },
+  swim: { steady: 'Régulière', pulse: 'Par pulsations', dart: 'Par à-coups', bell: 'Cloche (méduse)', jet: 'Par jets (poulpe)', crawl: 'Marche au sol' },
   ai: { hunter: 'Curieux', prey: 'Craintif', drifter: 'Dériveur' },
   glow: { none: 'Aucune', tip: 'Au bout', body: 'Partout' },
   role: {
