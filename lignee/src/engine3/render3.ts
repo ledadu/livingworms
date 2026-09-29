@@ -186,12 +186,12 @@ export const outside = (b: Box, v?: Box) => !!v && (b[2] < v[0] || b[0] > v[2] |
 
 function drawTree(ctx: Ctx, sh: Shim, o: DrawOptions): void {
   const ch = sh.children, me = sh as unknown as Seg;
-  drawWebs(ctx, me, false, o);
+  drawWebs(ctx, me, false, { ...o, ring3: true });
   // parts further from the eye than this one first, nearer ones after it
   for (const c of ch) if ((c.key > sh.key + EPS || (Math.abs(c.key - sh.key) <= EPS && !c.att?.front)) && !thinned(c, o)) drawTree(ctx, c, o);
   // a part off the screen is not drawn (its children may be on it)
   if (!outside(sh.box, o.view)) drawSelf(ctx, me, o);
-  drawWebs(ctx, me, true, o);
+  drawWebs(ctx, me, true, { ...o, ring3: true });
   for (const c of ch) if (!(c.key > sh.key + EPS || (Math.abs(c.key - sh.key) <= EPS && !c.att?.front)) && !thinned(c, o)) drawTree(ctx, c, o);
   if (!sh.parent) { ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
 }

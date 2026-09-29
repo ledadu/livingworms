@@ -20,6 +20,8 @@ export interface DrawOptions {
   /** how parts that make their own light are composited (default 'lighter'), and how strongly */
   addOp?: GlobalCompositeOperation;
   addScale?: number;
+  /** 3D: arms that pull are set all round the body, their membrane closes into a ring */
+  ring3?: boolean;
   /**
    * Level of detail of the whole animal (see render3): 0 everything; 1 no
    * outline under 1.2 px nor extras under 3 px on the parts, lines in one path
@@ -332,7 +334,7 @@ export function drawWebs(ctx: Ctx, s: Seg, front: boolean, o: DrawOptions): void
     ctx.globalCompositeOperation = a.node.color.add ? 'lighter' : 'source-over';
     for (const g of [pos, neg]) {
       g.sort((p, q) => p.k - q.k);
-      const ring = a.pattern === 'ring' && g.length > 2;
+      const ring = (a.pattern === 'ring' || (!!o.ring3 && a.node.drive === 'pull')) && g.length > 2;
       for (let j = 0; j < g.length - (ring ? 0 : 1); j++) {
         const A = g[j], B = g[(j + 1) % g.length];
         // a torn membrane stays torn

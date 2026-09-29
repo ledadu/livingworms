@@ -236,6 +236,25 @@ export class Seg3 {
     // (the caller falls back to the parent's axis if this is degenerate)
   }
 
+  /**
+   * Arms that pull (octopus): set all round the body at node `at`, like the
+   * ribs of an umbrella, each `open` radians away from the axis of the body.
+   * Writes the first direction, the bend axis and the lean of the arm.
+   */
+  ringMount(at: number, k: number, count: number, open: number, dirOut: V, nbOut: V, mOut: V): void {
+    const i = Math.max(1, at), t = this.t;
+    t.x = this.dx[i]; t.y = this.dy[i]; t.z = this.dz[i];
+    const b = belly(t, this.b, this.creature.side), l = cross(t, b, this.l);
+    norm(l);
+    const phi = (TAU * (k + 0.5)) / count, c = Math.cos(phi), s = Math.sin(phi);
+    mOut.x = c * l.x + s * b.x; mOut.y = c * l.y + s * b.y; mOut.z = c * l.z + s * b.z;
+    const co = Math.cos(open), so = Math.sin(open);
+    dirOut.x = t.x * co + mOut.x * so; dirOut.y = t.y * co + mOut.y * so; dirOut.z = t.z * co + mOut.z * so;
+    norm(dirOut);
+    // bending about this axis turns the arm outward (away from the body)
+    cross(t, mOut, nbOut); norm(nbOut);
+  }
+
   instantiate(a: AttDef): void {
     const dir = v3(), nb = v3(), m = v3();
     for (const s of expand(a, this.n)) {
@@ -281,11 +300,19 @@ export class Seg3 {
       w = TAU * cr.spec.swim.freq * time + cr.phase + this.phase + (drv === 'walk' ? (this.k % 2) * Math.PI + (this.side < 0 ? Math.PI : 0) : 0);
     }
     this.pulse = type === 'pulse' || type === 'breathe' ? m.amp * (0.5 + 0.5 * Math.sin(w)) : 0;
+    // the body of an animal pulled by its arms fills while they open and empties on the stroke
+    if (!this.parent && cr.drivers.length && cr.mode === 'jet') this.pulse = m.amp * (0.3 + 0.7 * cr.open);
+    const pull = drv === 'pull' && !cr.planar && !!this.parent && !!this.att;
 
     let fixed: V | null = null;
     if (this.parent) {
       const p = this.parent, k = this.at;
-      p.mountFor(d, { at: k, angle: this.rel / (p.flip || 1), scale: 1, phase: 0, side: this.side, edge: this.edge, k: this.k, hue: 0, radial: this.radial }, k, this.dir, this.nb, this.m);
+      if (pull) {
+        // swimming: open slowly, close at once (the stroke); walking: wide open, each arm stepping in turn
+        const hi = 0.35 + m.amp * 0.9;
+        const open = cr.mode === 'crawl' ? hi * 0.75 + 0.3 * Math.sin(w + this.k * Math.PI) : 0.12 + (hi - 0.12) * openOf(w);
+        p.ringMount(k, this.k, this.att!.count, open, this.dir, this.nb, this.m);
+      } else p.mountFor(d, { at: k, angle: this.rel / (p.flip || 1), scale: 1, phase: 0, side: this.side, edge: this.edge, k: this.k, hue: 0, radial: this.radial }, k, this.dir, this.nb, this.m);
       if (Math.hypot(this.nb.x, this.nb.y, this.nb.z) < 0.5) { this.nb.x = p.nb.x; this.nb.y = p.nb.y; this.nb.z = p.nb.z; }
       const pr = p.rad[k] * (1 + p.pulse * (p.pulseU ? 1 : k / p.n)) * Math.abs(this.edge);
       ox[0] = x[0]; oy[0] = y[0]; oz[0] = z[0];
@@ -307,8 +334,9 @@ export class Seg3 {
     const drag = d.drag, grav = d.gravity + this.sink, amax = this.amax, keep = 1 - d.spring;
     const bends = this.bends, lens = this.lens, soak = 0.2 + 0.4 * d.flex, F = cr.planar ? this.flip : 1;
     // curl: arms open and close; recoil: they trail straight behind on every jet stroke and relax between
-    const power = drv === 'pull' ? strokeOf(w) : cr.stroke;
-    const extra = type === 'curl' ? ((m.amp * (0.5 + 0.5 * Math.sin(w)) * (1 - 0.8 * cr.stroke) * F) / n) * 2
+    const power = cr.stroke;
+    const extra = pull ? (((cr.mode === 'crawl' ? 0.35 : 0.6 * openOf(w)) * m.amp) / n) * 2
+      : type === 'curl' ? ((m.amp * (0.5 + 0.5 * Math.sin(w)) * (1 - 0.8 * cr.stroke) * F) / n) * 2
       : type === 'recoil' ? (((m.amp * (1 - power) + 0.3 * Math.sin(w)) * F) / n) * 2 : 0;
     const und = type === 'undulate' ? m.amp * 0.5 : 0, wk = (TAU * m.wave) / n;
     const a = this.tmp, tgt = this.t, prev = this.b, nbi = this.l;
@@ -370,14 +398,21 @@ export class Seg3 {
   }
 }
 
-/** the power stroke (0..1) of a beat at phase w: the body contracts, the arms sweep back */
-function strokeOf(w: number): number {
-  const c = -Math.cos(w);
-  return c > 0 ? c * c : 0;
+/**
+ * The beat of arms that pull, at phase w: a quick stroke (the first 30 % of the
+ * beat) that closes them and pushes, then a slow opening that does not.
+ * openOf = how open they are (0..1), thrustOf = how hard they push (0..1).
+ */
+function openOf(w: number): number {
+  return (rowCurve(w) + 1) / 2;
+}
+function thrustOf(w: number): number {
+  const f = (((w / TAU) % 1) + 1) % 1;
+  return f < 0.3 ? Math.sin((Math.PI * f) / 0.3) : 0;
 }
 
 /** the motion that goes with each drive */
-const DRIVE_MOTION: Record<string, string> = { pull: 'recoil', paddle: 'row', walk: 'row', ripple: 'wave' };
+const DRIVE_MOTION: Record<string, string> = { pull: 'none', paddle: 'row', walk: 'row', ripple: 'wave' };
 
 function rowCurve(w: number): number {
   const f = (((w / TAU) % 1) + 1) % 1;
@@ -424,6 +459,8 @@ export class Creature3 {
   clock = 0;
   /** power stroke of a jet or of a bell, 0..1: the parts that answer to it (recoil) read it */
   stroke = 0;
+  /** how open the pulling arms are (0..1) */
+  open = 0;
   private leanX = 0; private leanZ = 0; private leanVX = 0; private leanVZ = 0;
   /** jet: the arms lead (parachute) */
   private rear = false;
@@ -505,8 +542,9 @@ export class Creature3 {
     // the arms that pull are what pushes: the power is theirs, on their own phases
     if (this.drivers.length) {
       const f = this.spec.swim.freq;
-      let sum = 0;
-      for (const s of this.drivers) sum += strokeOf(TAU * f * time + this.phase + s.phase);
+      let sum = 0, op = 0;
+      for (const s of this.drivers) { const w = TAU * f * time + this.phase + s.phase; sum += thrustOf(w); op += openOf(w); }
+      this.open = op / this.drivers.length;
       return sum / this.drivers.length;
     }
     const m = this.root.def.motion, f = m.type === 'pulse' || m.type === 'breathe' ? m.freq : this.spec.swim.freq;
@@ -575,7 +613,7 @@ export class Creature3 {
     const h = this.heading3;
     this.aim(h, this.pitch, this.yaw);
     const align = Math.max(0, Math.cos(this.yawGoal - this.yaw)) * Math.max(0, Math.cos(pitchGoal - this.pitch));
-    const speed = sp * (0.1 + 3.6 * this.stroke) * (0.2 + 0.8 * align) * (this.rear ? -0.7 : 1);
+    const speed = sp * (this.drivers.length ? 0.15 + 4.2 * this.stroke : 0.1 + 3.6 * this.stroke) * (0.2 + 0.8 * align) * (this.rear ? -0.7 : 1);
     this.update(time, h.x * speed, h.y * speed, dvz, accel);
   }
 

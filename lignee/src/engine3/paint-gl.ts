@@ -411,7 +411,7 @@ function drawWebs(s: Shim, front: boolean, base: number): void {
     g.setBlend(a.node.color.add ? 'add' : 'over');
     for (const gr of [pos, neg]) {
       gr.sort((p, q) => p.k - q.k);
-      const ring = a.pattern === 'ring' && gr.length > 2;
+      const ring = (a.pattern === 'ring' || a.node.drive === 'pull') && gr.length > 2;
       for (let j = 0; j < gr.length - (ring ? 0 : 1); j++) {
         const A = gr[j], B = gr[(j + 1) % gr.length];
         if (B.k - A.k === 1 || (ring && A.k === a.count - 1 && B.k === 0)) webPair(A as unknown as Seg, B as unknown as Seg, a.web);
