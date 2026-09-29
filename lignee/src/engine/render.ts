@@ -24,24 +24,30 @@ export interface DrawOptions {
 
 let ink = false;
 let shade = false;
+
+/**
+ * Level of detail, in screen pixels of a part's widest radius: below these the
+ * extras are left out (they would hardly show, and every path costs on an
+ * accelerated canvas). The defaults draw everything as before.
+ */
+export const detail = { sheen: 1.2, shade: 2.4, motif: 1, ink: 0 };
 export function setInk(v: boolean): void { ink = v; }
 export function setShade(v: boolean): void { shade = v; }
 
 /** soft light from above over a body: pale on top, deeper below */
 function shadeBody(ctx: Ctx, s: Seg, flat: boolean): void {
-  if (!shade || s.maxRad < 2.4 || s.def.color.add) return;
+  if (!shade || s.maxRad < detail.shade || s.def.color.add) return;
   const b = s.box, h = b[3] - b[1];
   if (h < 3) return;
+  // the outline filled with the gradient: the same look as clipping to it and filling its box, without a
+  // clip (a clip to a curved path is one more mask for an accelerated canvas)
   ribbonPath(ctx, s, 1, 0, flat);
-  ctx.save();
-  ctx.clip();
   const g = ctx.createLinearGradient(0, b[1], 0, b[3]);
   g.addColorStop(0, 'rgba(255,255,255,0.34)');
   g.addColorStop(0.42, 'rgba(255,255,255,0)');
   g.addColorStop(1, 'rgba(6,18,40,0.36)');
   ctx.fillStyle = g;
-  ctx.fillRect(b[0] - 1, b[1] - 1, b[2] - b[0] + 2, h + 2);
-  ctx.restore();
+  ctx.fill();
 }
 
 /** which side of a ribbon faces the light (the top of the screen) */
@@ -97,7 +103,7 @@ function drawRibbon(ctx: Ctx, s: Seg): void {
     ctx.fillStyle = s.cols[0];
   }
   ctx.fill();
-  if (ink && !s.def.color.add) {
+  if (ink && !s.def.color.add && s.maxRad >= detail.ink) {
     ctx.lineWidth = Math.max(minWidth(ctx) * 1.3, Math.min(1.6, 0.35 + s.maxRad * 0.13));
     ctx.lineJoin = 'round';
     ctx.strokeStyle = s.edgeCol;
@@ -109,11 +115,13 @@ function drawRibbon(ctx: Ctx, s: Seg): void {
       ctx.strokeStyle = s.edgeCol;
       ctx.stroke();
     }
-    drawMotif(ctx, s, flat);
+    if (s.maxRad > detail.motif) drawMotif(ctx, s, flat);
     shadeBody(ctx, s, flat);
-    ribbonPath(ctx, s, 0.36, sheenSide(s, 0.34), flat);
-    ctx.fillStyle = s.shineCol;
-    ctx.fill();
+    if (s.maxRad > detail.sheen) {
+      ribbonPath(ctx, s, 0.36, sheenSide(s, 0.34), flat);
+      ctx.fillStyle = s.shineCol;
+      ctx.fill();
+    }
   }
 }
 
@@ -127,10 +135,10 @@ function drawPlates(ctx: Ctx, s: Seg): void {
     ctx.ellipse((x[i - 1] + x[i]) / 2, (y[i - 1] + y[i]) / 2, s.lens[i] * 0.62 + r * 0.2, r, s.ang[i], 0, TAU);
     ctx.fillStyle = s.cols[i];
     ctx.fill();
-    ctx.stroke();
+    if (s.maxRad >= detail.ink) ctx.stroke();
   }
-  if (s.def.color.pattern !== 'bands') drawMotif(ctx, s, false);
-  if (s.maxRad > 1.5) {
+  if (s.def.color.pattern !== 'bands' && s.maxRad > detail.motif) drawMotif(ctx, s, false);
+  if (s.maxRad > Math.max(1.5, detail.sheen)) {
     shadeBody(ctx, s, false);
     ribbonPath(ctx, s, 0.3, sheenSide(s, 0.38), false);
     ctx.fillStyle = s.shineCol;

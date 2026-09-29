@@ -1,0 +1,932 @@
+// Le Grand Monde: a whole world for the 2.5D engine, to see it and to measure
+// it. Six biomes along x, from the sunny grass beds down a drop-off to the
+// black smokers; all the species of the catalogue live somewhere in it.
+// Same drawing as the 2.5D prototype (our own small 3D, painter from far to
+// near, far things baked into small images washed by the water).
+
+import { Flow, STEP, TAU, clamp, detail, rand, rng, spec as makeSpec, type Spec } from '../engine';
+import { Atelier } from '../editor';
+import { Creature3, swimFactor3 } from '../engine3/creature3';
+import { draw3, eachGlow3 } from '../engine3/render3';
+import { SPECIES } from '../content';
+import { firstAncestor } from '../game/game';
+import { Input } from '../game/input';
+import { causticTile, fishSprites, glowSprite, makeCanvas } from '../game/bake';
+import { css, fogged, waterAt, type HSL, type Mood } from '../game/palette';
+import { View, type Proj } from '../engine3/view';
+import { bakeCreature, bakeRock, env, fogOf, type Plant, type Sprite } from '../proto25/world';
+import { BIOMES, X0, X1, biomeIndex, biomeMid, floorAt, metres, moodAt } from './biomes';
+import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
+import { runBench } from './bench';
+import '../proto3d/style.css';
+import './monde.css';
+
+type M = ReturnType<typeof moodAt>;
+
+// ----- settings ----- //
+
+const settings = { angle: 7, dist: 900 };
+try { Object.assign(settings, JSON.parse(localStorage.getItem('lignee.monde') || '{}')); } catch { /* private mode */ }
+const save = () => { try { localStorage.setItem('lignee.monde', JSON.stringify(settings)); } catch { /* ignore */ } };
+
+/** switches for the performance tests (and to compare before / after) */
+const opts = {
+  /** far animals are re-baked into their image every n frames */
+  farEvery: 3,
+  /** read one pixel back after drawing, so the time includes the rasterisation */
+  flush: false,
+  /** how the living things are drawn (to measure what each costs) */
+  shade: true, ink: true
+};
+
+// ----- canvas ----- //
+
+const canvas = document.getElementById('sea') as HTMLCanvasElement;
+const ctx = canvas.getContext('2d', { alpha: false })!;
+const view = new View();
+let dpr = 1, quality = 1, W = 0, H = 0;
+
+/**
+ * Levels of detail of the living things. On an accelerated canvas the cost is
+ * a fixed price per path drawn, whatever its size (measured: a lower resolution
+ * gains nothing), so when frames are late the small extras go first (sheen,
+ * shading, motifs, outlines of tiny parts), and only then the resolution.
+ */
+const LOD = [
+  { sheen: 1.2, shade: 2.4, motif: 1, ink: 0 },
+  { sheen: 2.5, shade: 3.5, motif: 2, ink: 0.7 },
+  { sheen: 4, shade: 6, motif: 3, ink: 1.2 }
+];
+let lod = 0;
+function setLod(k: number): void { lod = clamp(k, 0, LOD.length - 1); Object.assign(detail, LOD[lod]); }
+function resize(): void {
+  dpr = Math.min(1.5, window.devicePixelRatio || 1) * quality;
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  view.resize(W, H, W < H ? 52 : 44);
+}
+resize();
+window.addEventListener('resize', resize);
+
+const input = new Input(canvas, 0.45, 2.6);
+input.zoomMul = 900 / settings.dist;
+
+// ----- world ----- //
+
+const decor: Decor[] = makeDecor();
+const vents = decor.filter((d) => d.kind === 'vent');
+const rocks: RockX[] = makeRocks().sort((a, b) => a.x - b.x);
+/** first rock at or after x (the rocks are sorted along x) */
+function rockFrom(x: number): number {
+  let lo = 0, hi = rocks.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (rocks[mid].x < x) lo = mid + 1; else hi = mid; }
+  return lo;
+}
+const plants: Plant[] = makePlants(vents);
+const caustic = ctx.createPattern(causticTile(256, 7, 5), 'repeat')!;
+
+interface Actor {
+  cr: Creature3; kind: 'player' | 'swim' | 'floor' | 'surface' | 'sib';
+  z: number; hx: number; hy: number; tx: number; ty: number; next: number;
+  buf: HTMLCanvasElement | null;
+  /** last baked image and the frame it was made (far animals are re-baked only every few frames) */
+  spr: Sprite | null; bakedAt: number;
+  /** added by a test */
+  temp?: boolean;
+}
+const actors: Actor[] = [];
+function addActor(sp: Spec, x: number, y: number, kind: Actor['kind'], scale = 1, z = 0): Actor {
+  const cr = new Creature3(sp, x, y, z, { dir: { x: Math.random() < 0.5 ? 1 : -1, y: 0, z: 0 }, scale });
+  for (let i = 0; i < 60; i++) cr.update(i * STEP, 0, 0, 0, 0.1);
+  const a: Actor = { cr, kind, z, hx: x, hy: y, tx: x, ty: y, next: 0, buf: null, spr: null, bakedAt: -99 };
+  actors.push(a);
+  return a;
+}
+
+function savedPlayer(): Spec | null {
+  try { const j = localStorage.getItem('lignee.player'); return j ? makeSpec(JSON.parse(j)) : null; } catch { return null; }
+}
+const player = addActor(savedPlayer() || firstAncestor(), 420, 180, 'player', 0.8);
+
+function becomes(sp: Spec): void {
+  const old = player.cr, r = old.root;
+  const cr = new Creature3(sp, r.x[0], r.y[0], 0, { dir: { x: old.yaw > 1.57 ? -1 : 1, y: 0, z: 0 }, scale: 0.8 });
+  cr.yaw = cr.yawGoal = old.yaw;
+  for (let i = 0; i < 60; i++) cr.steer(i * STEP, old.vx, old.vy, 0, 0.2);
+  player.cr = cr;
+  try { localStorage.setItem('lignee.player', JSON.stringify(sp)); } catch { /* private mode */ }
+}
+let paused = false;
+document.getElementById('atBtn')?.addEventListener('click', () => {
+  paused = true;
+  // the workshop shares the renderer: full detail there
+  const keepLod = lod;
+  setLod(0);
+  Atelier.open(player.cr.spec, {
+    playLabel: 'Nager',
+    onPlay: (sp) => becomes(makeSpec(sp as Parameters<typeof makeSpec>[0])),
+    onClose: () => { paused = false; last = performance.now(); setLod(keepLod); }
+  });
+});
+
+/** where an animal of this kind lives at x, z */
+function homeY(kind: Actor['kind'], x: number, z: number, R: () => number): number {
+  const fy = floorAt(x, z);
+  if (kind === 'floor') return fy - 12;
+  if (kind === 'surface') return 12 + R() * 16;
+  return clamp(fy - 90 - R() * 560, 40, fy - 80);
+}
+
+// the animals of every biome: each species of its list at least once, then by weight
+{
+  const R = rng(3);
+  for (let i = 0; i < 5; i++) addActor(firstAncestor(), 420 + rand(-200, 200), rand(120, 260), 'sib', 0.45 + R() * 0.15, rand(-40, 60));
+  BIOMES.forEach((b, bi) => {
+    const x0 = Math.max(X0 + 300, b.x0 + 200), x1 = (bi + 1 < BIOMES.length ? BIOMES[bi + 1].x0 : X1) - 200;
+    let total = 0;
+    for (const f of b.fauna) total += f[2];
+    for (let k = 0; k < b.pop; k++) {
+      let f = b.fauna[k];
+      if (!f) { let u = R() * total; f = b.fauna.find((g) => (u -= g[2]) <= 0) || b.fauna[0]; }
+      const [id, kind, , scale] = f;
+      const x = x0 + R() * (x1 - x0), z = [0, 0, 0, 70, 150, 260, 400][Math.floor(R() * 7)];
+      addActor(SPECIES[id](), x, homeY(kind, x, z, R), kind, scale, z);
+    }
+  });
+}
+
+// big animals passing far away, one or two per biome
+interface Visitor { cr: Creature3; z: number; x0: number; x1: number; y: number; dir: number; buf: HTMLCanvasElement; }
+const visitors: Visitor[] = ([
+  ['tortue', 800, 3200, 260, 1500, 2.4], ['tortue', 4200, 7000, 300, 1300, 2.2], ['manta', 7600, 11000, 200, 1600, 2.6],
+  ['requinBaleine', 11600, 14500, 520, 1500, 3], ['manta', 12200, 14400, 900, 1100, 2.2],
+  ['calmar', 15000, 18000, 1500, 1300, 3.5], ['dragonAbyssal', 18600, 21600, 1950, 1400, 3]
+] as [string, number, number, number, number, number][]).map(([id, x0, x1, y, z, s]) => {
+  const cr = new Creature3(SPECIES[id](), (x0 + x1) / 2, y, z, { dir: { x: 1, y: 0, z: 0 }, scale: s });
+  for (let i = 0; i < 90; i++) cr.update(i * STEP, 0.5, 0, 0, 0.2);
+  return { cr, z, x0, x1, y, dir: 1, buf: makeCanvas(8, 8) };
+});
+
+// fish schools, each in its own plane
+class Shoal {
+  n: number; z: number; home: number; y0: number; y1: number; glow: boolean; seed: number;
+  x: Float32Array; y: Float32Array; vx: Float32Array; vy: Float32Array; ph: Float32Array;
+  spr: HTMLCanvasElement[]; cx = 0; cy = 0; size: number;
+  constructor(home: number, z: number, n: number, body: HSL, belly: HSL, size: number, glow: boolean, seed: number) {
+    this.n = n; this.z = z; this.home = home; this.glow = glow; this.seed = seed; this.size = size;
+    const fy = floorAt(home, z);
+    this.y0 = Math.max(40, fy - 420); this.y1 = fy - 90;
+    this.x = new Float32Array(n); this.y = new Float32Array(n); this.vx = new Float32Array(n); this.vy = new Float32Array(n); this.ph = new Float32Array(n);
+    for (let i = 0; i < n; i++) { this.x[i] = home + rand(-60, 60); this.y[i] = (this.y0 + this.y1) / 2 + rand(-40, 40); this.vx[i] = rand(-1, 1); this.ph[i] = rand(0, TAU); }
+    this.spr = fishSprites(body, belly, 14 * size);
+  }
+  update(t: number, px: number, py: number, near: boolean): void {
+    const n = this.n, X = this.x, Y = this.y, VX = this.vx, VY = this.vy;
+    let cx = 0, cy = 0, ax = 0, ay = 0;
+    for (let i = 0; i < n; i++) { cx += X[i]; cy += Y[i]; ax += VX[i]; ay += VY[i]; }
+    cx /= n; cy /= n; ax /= n; ay /= n;
+    this.cx = cx; this.cy = cy;
+    const gx = this.home + Math.sin(t * 0.05 + this.seed) * 700, gy = (this.y0 + this.y1) / 2 + Math.cos(t * 0.07 + this.seed) * (this.y1 - this.y0) * 0.4;
+    const sep = 10 * this.size;
+    for (let i = 0; i < n; i++) {
+      let fx = (cx - X[i]) * 0.002 + (ax - VX[i]) * 0.05 + (gx - cx) * 0.0004;
+      let fy = (cy - Y[i]) * 0.002 + (ay - VY[i]) * 0.05 + (gy - cy) * 0.0004;
+      for (let j = 0; j < n; j++) {
+        if (j === i) continue;
+        const dx = X[i] - X[j], dy = Y[i] - Y[j];
+        if (dx > sep || dx < -sep || dy > sep || dy < -sep) continue;
+        const d2 = dx * dx + dy * dy + 0.01;
+        fx += (dx / d2) * 1.3; fy += (dy / d2) * 1.3;
+      }
+      if (near) {
+        // scatter around the swimmer (they see it through the depth)
+        const dx = X[i] - px, dy = Y[i] - py, d2 = dx * dx + dy * dy;
+        if (d2 < 130 * 130) { const d = Math.sqrt(d2) + 0.1, k = (1 - d / 130) * 0.9; fx += (dx / d) * k; fy += (dy / d) * k; }
+      }
+      let vx = VX[i] + fx, vy = VY[i] + fy;
+      const m = Math.hypot(vx, vy);
+      if (m > 2.2) { vx *= 2.2 / m; vy *= 2.2 / m; } else if (m < 0.7) { vx *= 0.7 / (m || 1); vy *= 0.7 / (m || 1); }
+      VX[i] = vx; VY[i] = vy * 0.95;
+      X[i] += vx; Y[i] = clamp(Y[i] + VY[i], 30, floorAt(X[i], this.z) - 40);
+      this.ph[i] += 0.25 + m * 0.12;
+    }
+  }
+}
+const shoals: Shoal[] = [];
+{
+  const R = rng(9);
+  BIOMES.forEach((b, bi) => b.schools.forEach((s, k) => {
+    const mid = biomeMid(bi) + (k - (b.schools.length - 1) / 2) * 1400 + (R() - 0.5) * 600;
+    shoals.push(new Shoal(mid, 110 + R() * 380, s.n, s.body, s.belly, s.size, !!s.glow, bi * 10 + k));
+  }));
+}
+
+// smoke and bubbles
+const smoke = new Map<Decor, Puffs>(), bubbles = new Map<Decor, Puffs>();
+for (const d of decor) {
+  if (d.kind === 'vent') { smoke.set(d, new Puffs(70)); bubbles.set(d, new Puffs(24)); }
+  if (d.kind === 'seep') bubbles.set(d, new Puffs(40));
+}
+const smokeSpr = (() => {
+  const c = makeCanvas(64, 64), g = c.getContext('2d')!, gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  // lit from below by the mouth: a warm grey that reads on the black water
+  gr.addColorStop(0, 'rgba(96,82,74,0.85)'); gr.addColorStop(0.6, 'rgba(70,60,56,0.4)'); gr.addColorStop(1, 'rgba(60,52,50,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return c;
+})();
+const bubbleSpr = (() => {
+  const c = makeCanvas(32, 32), g = c.getContext('2d')!;
+  g.strokeStyle = 'rgba(230,250,255,0.85)'; g.lineWidth = 2;
+  g.beginPath(); g.arc(16, 16, 13, 0, TAU); g.stroke();
+  g.fillStyle = 'rgba(255,255,255,0.9)'; g.beginPath(); g.arc(11, 11, 3.5, 0, TAU); g.fill();
+  g.fillStyle = 'rgba(200,240,255,0.12)'; g.beginPath(); g.arc(16, 16, 12, 0, TAU); g.fill();
+  return c;
+})();
+
+// plankton and marine snow: points around the camera
+const MOTES = 220;
+const motes = Array.from({ length: MOTES }, () => [rand(-700, 700), rand(-500, 500), rand(-200, 1600), rand(0.6, 1.6)]);
+
+// ----- simulation ----- //
+
+const flow = new Flow(32);
+let t = 0;
+const cam = { x: 420, y: 180 };
+
+function steer(a: Actor, dvx: number, dvy: number, accel: number): void {
+  const r = a.cr.root;
+  a.cr.steer(t, dvx, dvy, clamp((a.z - r.z[0]) * 0.035, -0.5, 0.5), accel);
+}
+
+function collide(cr: Creature3): void {
+  const r = cr.root, rad = r.rad[0] + 3, z = r.z[0], x = r.x[0];
+  for (let q = rockFrom(x - 200); q < rocks.length && rocks[q].x < x + 200; q++) {
+    const k = rocks[q];
+    if (Math.abs(k.x - x) > k.r * 1.4 + 20) continue;
+    const dz = Math.abs(k.z - z);
+    if (dz > k.r) continue;
+    const cy = floorAt(k.x, k.z) - k.r * 0.5, rs = Math.sqrt(k.r * k.r - dz * dz) * 1.05;
+    const dx = r.x[0] - k.x, dy = (r.y[0] - cy) / 0.8, d = Math.hypot(dx, dy), m = rs + rad;
+    if (d < m && d > 0.01) { r.x[0] = k.x + (dx / d) * m; r.y[0] = cy + (dy / d) * m * 0.8; }
+  }
+  const fy = floorAt(r.x[0], z) - rad;
+  if (r.y[0] > fy) { r.y[0] = fy; if (cr.vy > 0) cr.vy *= -0.3; }
+  if (r.y[0] < 8) { r.y[0] = 8; if (cr.vy < 0) cr.vy *= -0.3; }
+}
+
+const counts = { near: 0, live: 0, plants: 0, items: 0 };
+
+function update(): void {
+  t += STEP;
+  const p = player.cr, r = p.root, f = input.follow, kd = input.keyDir();
+  if (auto.on) {
+    // autopilot (tests): swim along a line through the world
+    const dx = auto.x - r.x[0], dy = auto.y - r.y[0], d = Math.hypot(dx, dy) || 1, sp = 2.6 * Math.min(1, d / 70);
+    steer(player, (dx / d) * sp, (dy / d) * sp, 0.08);
+  } else if (f) {
+    const w = view.unproject(f.x, f.y, 0);
+    if (w) {
+      const dx = w.x - r.x[0], dy = w.y - r.y[0], d = Math.hypot(dx, dy) || 1, sp = 2.6 * Math.min(1, d / 70);
+      steer(player, (dx / d) * sp, (dy / d) * sp, 0.08);
+    } else steer(player, 0, 0, 0.03);
+  } else if (kd) {
+    const d = Math.hypot(kd.x, kd.y);
+    steer(player, (kd.x / d) * 2.6, (kd.y / d) * 2.6, 0.08);
+  } else steer(player, 0, 0, 0.03);
+  r.x[0] = clamp(r.x[0], X0 + 200, X1 - 200);
+  collide(p);
+  const px = r.x[0], py = r.y[0];
+
+  flow.clear();
+  const near = (x: number) => Math.abs(x - px) < 1100;
+  const inPlane = (a: Actor) => Math.abs(a.cr.root.z[0]) < 60;
+  let nNear = 0;
+  for (const a of actors) if (inPlane(a) && near(a.cr.root.x[0])) flow.add(a.cr as never);
+  for (const a of actors) {
+    if (a.kind === 'player' || !near(a.cr.root.x[0])) continue;
+    nNear++;
+    const c = a.cr, cr = c.root, x = cr.x[0], y = cr.y[0];
+    if (a.kind === 'sib') {
+      if (t > a.next) { a.next = t + rand(1.5, 4); a.tx = rand(-90, 90); a.ty = rand(-60, 60); }
+      const gx = px + a.tx - x, gy = py + a.ty - y, g = Math.hypot(gx, gy) || 1, d = Math.hypot(px - x, py - y);
+      const sp = d > 280 ? 1.9 : 0.9 * Math.min(1, g / 60);
+      steer(a, (gx / g) * sp, (gy / g) * sp, 0.04);
+      collide(c);
+      continue;
+    }
+    if (t > a.next || Math.hypot(a.tx - x, a.ty - y) < 20) {
+      a.next = t + rand(3, 8);
+      a.tx = a.hx + rand(-260, 260);
+      const fy = floorAt(a.tx, a.z);
+      a.ty = a.kind === 'floor' ? fy - 10 : a.kind === 'surface' ? 10 + rand(0, 14) : clamp(a.hy + rand(-120, 120), 40, fy - 50);
+    }
+    let dx = a.tx - x, dy = a.ty - y;
+    if (a.kind === 'swim' && Math.abs(a.z) < 60) {
+      const qx = x - px, qy = y - py, q = Math.hypot(qx, qy);
+      if (q < 70) { dx += (qx / (q + 1)) * 200; dy += (qy / (q + 1)) * 200; }
+    }
+    const d = Math.hypot(dx, dy) || 1, sp = c.spec.swim.speed * 0.45 * swimFactor3(c, t) * Math.min(1, d / 60);
+    steer(a, (dx / d) * sp, (dy / d) * sp, 0.05);
+    collide(c);
+  }
+  counts.near = nNear;
+  let live = 0;
+  for (const pl of plants) if (pl.live && pl.cr && Math.abs(pl.x - px) < 700) { live++; pl.cr.update(t, 0, 0, 0, 1); flow.apply(pl.cr as never, { push: 0.25, wake: 0.04, reach: 18 }); }
+  counts.live = live;
+  for (const a of actors) if (inPlane(a) && near(a.cr.root.x[0])) flow.apply(a.cr as never, { push: 0.3, wake: 0.02, body: a.kind === 'player' ? 0.008 : 0.01 });
+
+  for (const v of visitors) {
+    const cr = v.cr, vx = cr.root.x[0];
+    if (Math.abs(vx - px) > 5200) continue;
+    if (vx > v.x1) v.dir = -1; else if (vx < v.x0) v.dir = 1;
+    cr.steer(t, v.dir * 0.55 * swimFactor3(cr, t), (v.y - cr.root.y[0]) * 0.01, clamp((v.z - cr.root.z[0]) * 0.02, -0.4, 0.4), 0.02);
+  }
+
+  for (const s of shoals) if (Math.abs(s.cx - px) < 2600 || Math.abs(s.home - px) < 2600) s.update(t, px, py, Math.abs(s.z) < 400);
+
+  // smoke rises from the chimneys, bubbles from the chimneys and the seeps
+  for (const d of decor) {
+    if (Math.abs(d.x - px) > 1800) continue;
+    const fy = floorAt(d.x, d.z), sm = smoke.get(d), bu = bubbles.get(d);
+    if (sm) {
+      if (Math.random() < 0.7) sm.emit(d.x + rand(-4, 4), fy + ventMouth(d), rand(-0.15, 0.15), rand(-1.4, -0.9), rand(6, 10));
+      sm.step(t, 'smoke', 0.006);
+    }
+    if (bu) {
+      const y0 = d.kind === 'vent' ? fy + ventMouth(d) - 4 : fy - 2;
+      if (Math.random() < (d.kind === 'vent' ? 0.12 : 0.22)) bu.emit(d.x + rand(-8, 8), y0, 0, rand(-1.6, -0.9), rand(1.2, 3.2));
+      bu.step(t, 'bubble', 0.0016);
+    }
+  }
+
+  // plants grow when they come near (a few milliseconds of work per frame at most), and are forgotten far behind
+  const deadline = performance.now() + 3;
+  for (const pl of plants) {
+    const dx = Math.abs(pl.x - px);
+    if (!pl.cr && dx < 1800) {
+      growPlant2(pl);
+      if (performance.now() > deadline) break;
+    } else if (pl.cr && dx > 3200) { pl.cr = null; pl.sprite = null; }
+  }
+
+  // entering a biome
+  const bi = biomeIndex(px);
+  if (bi !== here.i && Math.abs(px - BIOMES[bi].x0) > 150) { here.i = bi; showChapter(bi); }
+}
+
+// ----- drawing ----- //
+
+const P: Proj = { x: 0, y: 0, s: 1, d: 1 };
+const Q: Proj = { x: 0, y: 0, s: 1, d: 1 };
+const ROWS = [2000, 1700, 1450, 1240, 1060, 910, 780, 670, 570, 480, 400, 330, 265, 205, 150, 100, 55, 12, -35];
+
+type Item = { d: number; fn: () => void; k?: string };
+const skip = new Set<string>();
+/** tests: when not empty, only these species are drawn live */
+const onlySp = new Set<string>();
+const items: Item[] = [];
+
+function drawSprite(sp: Sprite, x: number, y: number, z: number): void {
+  view.project(x, y, z, P);
+  const k = P.s / sp.res, kv = Math.cos(view.pitch);
+  ctx.setTransform(dpr * k, 0, 0, dpr * k * kv, dpr * P.x, dpr * P.y);
+  if (sp.w) ctx.drawImage(sp.canvas, 0, 0, sp.w, sp.h!, -sp.ax * sp.res, -sp.ay * sp.res, sp.w, sp.h!);
+  else ctx.drawImage(sp.canvas, -sp.ax * sp.res, -sp.ay * sp.res);
+}
+
+let bakes = 0, frameNo = 0;
+const glowPts: number[] = [];
+/** lights drawn after the dark closes in: x, y (screen), size, hue, alpha */
+const lights: number[] = [];
+
+function render(): void {
+  const m = moodAt(cam.x), pr = player.cr.root, plane = settings.dist;
+  env.water = clamp((waterAt(m, cam.y).l - 28) / 30, 0, 1);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  lights.length = 0;
+
+  // water behind everything
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  for (let i = 0; i <= 4; i++) g.addColorStop(i / 4, css(waterAt(m, cam.y * 0.7 + (i / 4 - 0.4) * 500)));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // the surface seen from below
+  view.project(cam.x, 0, -120, P);
+  view.project(cam.x, 0, 3200, Q);
+  if (P.y > -40 || Q.y > 0) {
+    const top = Math.min(P.y, 0), yFar = Q.y;
+    const sg = ctx.createLinearGradient(0, top, 0, yFar);
+    sg.addColorStop(0, css({ h: m.top.h + 10, s: 80, l: Math.min(84, m.top.l + 30) }));
+    sg.addColorStop(0.7, css(waterAt(m, 60), 0.85));
+    sg.addColorStop(1, css(waterAt(m, 60), 0));
+    ctx.fillStyle = sg;
+    ctx.fillRect(0, 0, W, Math.max(0, yFar));
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineWidth = 1.2;
+    for (const z of [1600, 700, 260, 40]) {
+      const [x0, x1] = view.xRange(z, 40);
+      ctx.strokeStyle = css(m.sky, clamp(0.22 - fogOf(view.depth(0, z), plane) * 0.22, 0, 0.22));
+      ctx.beginPath();
+      for (let i = 0; i <= 40; i++) {
+        const x = x0 + ((x1 - x0) * i) / 40, y = Math.sin(x * 0.012 + t * 1.1 + z) * 3 + Math.sin(x * 0.031 - t * 1.6) * 1.5 + Math.sin(x * 0.004 + z * 0.01) * 14;
+        view.project(x, y, z, P);
+        if (i) ctx.lineTo(P.x, P.y); else ctx.moveTo(P.x, P.y);
+      }
+      ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // everything with a depth, sorted from far to near
+  items.length = 0;
+  computeProfiles();
+  ROWS.forEach((z, r) => items.push({ d: view.depth(floorAt(cam.x, z), z) + 0.5, fn: () => drawRow(r, m, plane), k: 'row' }));
+  const causticA = 0.1 * m.caustics * clamp(1 - (floorAt(cam.x, 0) - 500) / 700, 0, 1);
+  if (causticA > 0.005) items.push({ d: view.depth(floorAt(cam.x, -20), -20) + 0.6, fn: () => drawCaustics(causticA), k: 'caustic' });
+  for (let q = rockFrom(cam.x - 2200); q < rocks.length && rocks[q].x < cam.x + 2200; q++) {
+    const k = rocks[q];
+    const [x0, x1] = view.xRange(k.z, k.r * 2);
+    if (k.x < x0 || k.x > x1) continue;
+    const y = floorAt(k.x, k.z);
+    items.push({ d: view.depth(y, k.z), fn: () => drawRock(k, y, plane), k: 'rock' });
+  }
+  for (const d of decor) {
+    if (Math.abs(d.x - cam.x) > 2600) continue;
+    const [x0, x1] = view.xRange(d.z, 400);
+    if (d.x < x0 || d.x > x1) continue;
+    const y = floorAt(d.x, d.z);
+    if (d.kind !== 'seep') items.push({ d: view.depth(y, d.z), fn: () => drawDecor(d, y, plane), k: 'decor' });
+    const sm = smoke.get(d), bu = bubbles.get(d);
+    if (sm) items.push({ d: view.depth(y - d.h, d.z) - 1, fn: () => drawPuffs(sm, d.z, smokeSpr, 1), k: 'smoke' });
+    if (bu) items.push({ d: view.depth(y - 200, d.z) - 1.5, fn: () => drawPuffs(bu, d.z, bubbleSpr, 0), k: 'bubbles' });
+    if (d.kind === 'vent') { view.project(d.x, y + ventMouth(d), d.z, P); lights.push(P.x, P.y, 40 * P.s + 10, 25, 0.9); }
+  }
+  let np = 0;
+  for (const pl of plants) {
+    if (!pl.cr) continue;
+    const [x0, x1] = view.xRange(pl.z, 240);
+    if (pl.x < x0 || pl.x > x1) continue;
+    np++;
+    items.push({ d: view.depth(pl.cr.root.y[0], pl.z), fn: () => drawPlant(pl, plane), k: 'plant' });
+  }
+  counts.plants = np;
+  for (const a of actors) {
+    const [x0, x1] = view.xRange(a.z, 200);
+    const x = a.cr.root.x[0];
+    if (x < x0 || x > x1) continue;
+    const rz = a.cr.root.z[0];
+    items.push({ d: view.depth(a.cr.root.y[0], rz) - 0.2, fn: () => drawActor(a, plane), k: 'actor' });
+    const fy = floorAt(x, rz), h = fy - a.cr.root.y[0];
+    if (h < 260 && h > -8 && rz < 900 && m.dark < 0.6) items.push({ d: view.depth(fy, rz) + 0.3, fn: () => drawShadow(a, fy, h), k: 'shadow' });
+  }
+  for (const v of visitors) {
+    const [x0, x1] = view.xRange(v.z, 400);
+    if (v.cr.root.x[0] < x0 || v.cr.root.x[0] > x1) continue;
+    items.push({ d: view.depth(v.y, v.cr.root.z[0]), fn: () => drawVisitor(v, m, plane), k: 'visitor' });
+  }
+  for (const s of shoals) {
+    if (Math.abs(s.cx - cam.x) > 2000) continue;
+    items.push({ d: view.depth(s.cy, s.z), fn: () => drawShoal(s), k: 'fish' });
+  }
+  if (m.rays > 0.02 && cam.y < 1400) items.push({ d: view.depth(300, 700), fn: () => drawRays(m), k: 'rays' });
+  items.sort((a, b) => b.d - a.d);
+  counts.items = items.length;
+  bakes = 0;
+  for (const it of items) if (!it.k || !skip.has(it.k)) it.fn();
+
+  // the deep closes in around the swimmer: the dark is painted over everything, the lights come after
+  const dk = m.dark * clamp((cam.y - 250) / 900, 0, 1);
+  if (dk > 0.02 && !skip.has('dark')) {
+    view.project(pr.x[0], pr.y[0], 0, P);
+    const r0 = 70 * P.s, r1 = Math.max(W, H) * (0.9 - dk * 0.35);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const dg = ctx.createRadialGradient(P.x, P.y, r0, P.x, P.y, r1);
+    const deep = m.deep;
+    dg.addColorStop(0, css(deep, 0));
+    dg.addColorStop(0.35, css(deep, dk * 0.55, -2));
+    dg.addColorStop(1, css(deep, Math.min(0.97, dk * 1.08), -3));
+    ctx.fillStyle = dg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // glows of the creatures: many small lights on one animal share their strength, so they never burn to white
+  ctx.globalCompositeOperation = 'lighter';
+  const lum = 1 + dk * 1.2;
+  if (!skip.has('glow')) for (const a of actors) {
+    if (Math.abs(a.cr.root.x[0] - cam.x) > 1400) continue;
+    glowPts.length = 0;
+    eachGlow3(a.cr, view, (x, y, size, hue, al) => { glowPts.push(x, y, size, hue, al); });
+    const n = glowPts.length / 5;
+    if (!n) continue;
+    const share = 1 / Math.sqrt(Math.max(1, n / 2.5)), base = (0.46 - 0.3 * env.water) * lum;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    for (let i = 0; i < glowPts.length; i += 5) {
+      const size = glowPts[i + 2] * (0.8 + 0.2 * share);
+      ctx.globalAlpha = Math.min(1, glowPts[i + 4] * base * share);
+      ctx.drawImage(glowSprite(glowPts[i + 3]), glowPts[i] - size, glowPts[i + 1] - size, size * 2, size * 2);
+    }
+  }
+  // lights of the world: vent mouths, lantern fish
+  if (!skip.has('glow')) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    for (let i = 0; i < lights.length; i += 5) {
+      const size = lights[i + 2];
+      ctx.globalAlpha = lights[i + 4];
+      ctx.drawImage(glowSprite(lights[i + 3]), lights[i] - size, lights[i + 1] - size, size * 2, size * 2);
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+
+  // plankton, marine snow; in the dark they sparkle where the swimmer stirs the water
+  if (!skip.has('motes')) drawMotes(m, dk);
+
+  // the vignette and the deep closing in are CSS layers over the canvas (free of canvas fill-rate)
+  const dd = clamp((pr.y[0] - 300) / 900, 0, 1);
+  if (deepEl && (frameNo & 7) === 0) deepEl.style.background = css(m.deep, dd * 0.18 * (1 - m.dark), -10);
+}
+
+const deepEl = document.getElementById('deep');
+
+function drawMotes(m: M, dk: number): void {
+  const pr = player.cr.root;
+  view.project(pr.x[0], pr.y[0], 0, Q);
+  const qx = Q.x, qy = Q.y, reach = 110 * Q.s + 30;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const fall = m.snow * 22;
+  const near: number[] = [];
+  ctx.fillStyle = css(m.plankton, 0.5 * (1 - dk * 0.6));
+  ctx.beginPath();
+  for (const mo of motes) {
+    const x = cam.x + ((((mo[0] + t * 3) % 1400) + 2100) % 1400) - 700;
+    const y = cam.y + ((((mo[1] + t * fall * mo[3] + 500) % 1000) + 1000) % 1000) - 500 + Math.sin(t * 0.3 + mo[3] * 9) * 6;
+    if (y < 4) continue;
+    view.project(x, y, mo[2], P);
+    const s = Math.max(0.4, mo[3] * P.s * (1 + m.snow * 0.5));
+    if (dk > 0.2 && Math.abs(P.x - qx) < reach && Math.abs(P.y - qy) < reach) { near.push(P.x, P.y, s); continue; }
+    ctx.moveTo(P.x + s, P.y);
+    ctx.arc(P.x, P.y, s, 0, TAU);
+  }
+  ctx.fill();
+  if (near.length) {
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = `hsla(185,100%,72%,${(0.35 + 0.25 * Math.sin(t * 5)).toFixed(3)})`;
+    ctx.beginPath();
+    for (let i = 0; i < near.length; i += 3) { const s = near[i + 2] * 1.6; ctx.moveTo(near[i] + s, near[i + 1]); ctx.arc(near[i], near[i + 1], s, 0, TAU); }
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+}
+
+/** projected profile of every row of floor, computed once per frame */
+const ROW_N = 40;
+const profiles: Float32Array[] = ROWS.map(() => new Float32Array((ROW_N + 1) * 2));
+function computeProfiles(): void {
+  ROWS.forEach((z, r) => {
+    const [x0, x1] = view.xRange(z, 80), pf = profiles[r];
+    for (let i = 0; i <= ROW_N; i++) {
+      const x = x0 + ((x1 - x0) * i) / ROW_N;
+      view.project(x, floorAt(x, z), z, P);
+      pf[i * 2] = P.x; pf[i * 2 + 1] = P.y;
+    }
+  });
+}
+
+function drawRow(r: number, m: M, plane: number): void {
+  const z = ROWS[r], pf = profiles[r], nf = r + 1 < ROWS.length ? profiles[r + 1] : null;
+  const fy = floorAt(cam.x, z), d = view.depth(fy, z), fog = fogOf(d, plane);
+  const back = clamp((z - 300) / 700, 0, 1);
+  const base = { h: m.sand.h, s: m.sand.s, l: m.sand.l - 6 - z * 0.004 };
+  const col = fogged(m, back > 0 ? { h: base.h + (m.rock.h - base.h) * back, s: base.s + (m.rock.s - base.s) * back, l: base.l + (m.rock.l - base.l) * back } : base, fy * 0.6 + z * 0.3, fog);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  let top = Infinity, bot = -Infinity;
+  ctx.beginPath();
+  for (let i = 0; i <= ROW_N; i++) {
+    const x = pf[i * 2], y = pf[i * 2 + 1];
+    if (y < top) top = y;
+    if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+  }
+  if (nf) {
+    for (let i = ROW_N; i >= 0; i--) {
+      const y = Math.max(nf[i * 2 + 1], pf[i * 2 + 1]) + 2.5;
+      if (y > bot) bot = y;
+      ctx.lineTo(nf[i * 2], y);
+    }
+  } else { bot = H + 4; ctx.lineTo(pf[ROW_N * 2] + 20, bot); ctx.lineTo(pf[0] - 20, bot); }
+  ctx.closePath();
+  if (top > H || bot < 0) return;
+  const gr = ctx.createLinearGradient(0, top, 0, Math.max(top + 30, bot));
+  gr.addColorStop(0, css(col, 1, 2));
+  gr.addColorStop(1, css(col, 1, -4));
+  ctx.fillStyle = gr;
+  ctx.fill();
+  ctx.beginPath();
+  for (let i = 0; i <= ROW_N; i++) if (i) ctx.lineTo(pf[i * 2], pf[i * 2 + 1]); else ctx.moveTo(pf[0], pf[1]);
+  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = css(col, z > 600 ? 0.5 : 0.18, 12);
+  ctx.stroke();
+}
+
+const CAUSTIC_FROM = ROWS.findIndex((z) => z <= 240);
+function drawCaustics(alpha: number): void {
+  const pf = profiles[CAUSTIC_FROM], z = ROWS[CAUSTIC_FROM];
+  view.project(0, 0, z, P);
+  const s = P.s;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.save();
+  ctx.beginPath();
+  let top = Infinity;
+  for (let i = 0; i <= ROW_N; i++) { if (pf[i * 2 + 1] < top) top = pf[i * 2 + 1]; if (i) ctx.lineTo(pf[i * 2], pf[i * 2 + 1]); else ctx.moveTo(pf[0], pf[1]); }
+  ctx.lineTo(pf[ROW_N * 2] + 20, H + 4);
+  ctx.lineTo(pf[0] - 20, H + 4);
+  ctx.closePath();
+  ctx.clip();
+  caustic.setTransform(new DOMMatrix([s * 0.75, 0, s * 0.2, s * 0.3, P.x + t * 10 * s, P.y + t * 4 * s]));
+  ctx.fillStyle = caustic;
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = alpha;
+  ctx.fillRect(0, Math.max(0, top), W, H);
+  ctx.restore();
+}
+
+function drawRock(k: RockX, y: number, plane: number): void {
+  const d = view.depth(y, k.z);
+  view.project(k.x, y, k.z, P);
+  const res = Math.min(3, P.s * dpr);
+  if ((!k.sprite || Math.abs(d - k.spriteD) / k.spriteD > 0.3 || k.sprite.res < res * 0.6) && bakes++ < 3) {
+    const mm = moodAt(k.x);
+    k.sprite = bakeRock(k.r, k.seed, mm, k.encrust, fogOf(d, plane), waterAt(mm, y * 0.5 + k.z * 0.3), res);
+    k.spriteD = d;
+  }
+  if (k.sprite) drawSprite(k.sprite, k.x, y + k.r * 0.2, k.z);
+}
+
+function drawDecor(dc: Decor, y: number, plane: number): void {
+  const d = view.depth(y, dc.z);
+  view.project(dc.x, y, dc.z, P);
+  const res = Math.min(2.5, P.s * dpr);
+  if ((!dc.sprite || Math.abs(d - dc.spriteD) / dc.spriteD > 0.3 || dc.sprite.res < res * 0.6) && bakes++ < 4) {
+    const mm = moodAt(dc.x);
+    dc.sprite = bakeDecor(dc, mm, fogOf(d, plane), waterAt(mm, y * 0.5 + dc.z * 0.3), res);
+    dc.spriteD = d;
+  }
+  if (dc.sprite) drawSprite(dc.sprite, dc.x, y, dc.z);
+}
+
+function drawPuffs(p: Puffs, z: number, spr: HTMLCanvasElement, smokeK: number): void {
+  const half = spr.width / 2;
+  for (let i = 0; i < p.n; i++) {
+    const life = p.life[i];
+    if (life <= 0) continue;
+    view.project(p.x[i], p.y[i], z, P);
+    const r = p.r[i] * P.s;
+    if (r < 0.3) continue;
+    ctx.setTransform(dpr * r / half, 0, 0, dpr * r / half, dpr * P.x, dpr * P.y);
+    ctx.globalAlpha = smokeK ? Math.min(1, life * 1.4) * 0.55 : Math.min(1, life * 3) * 0.8;
+    ctx.drawImage(spr, -half, -half);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawPlant(pl: Plant, plane: number): void {
+  const cr = pl.cr!;
+  if (pl.live && Math.abs(pl.x - cam.x) < 900) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw3(ctx, cr, view, { ink: opts.ink, shade: opts.shade, water: env.water });
+    return;
+  }
+  const d = view.depth(cr.root.y[0], pl.z);
+  view.project(pl.x, cr.root.y[0], pl.z, P);
+  const res = Math.min(3, P.s * dpr);
+  if ((!pl.sprite || Math.abs(d - pl.spriteD) / pl.spriteD > 0.3) && bakes++ < 4) {
+    pl.sprite = bakeCreature(cr, fogOf(d, plane), waterAt(moodAt(pl.x), cr.root.y[0] * 0.5 + pl.z * 0.3), res);
+    pl.spriteD = d;
+  }
+  if (pl.sprite) drawSprite(pl.sprite, cr.root.x[0], cr.root.y[0], pl.z);
+}
+
+/** near: drawn live in perspective; far: baked flat (every few frames) and washed with the colour of the water */
+function drawActor(a: Actor, plane: number): void {
+  const r = a.cr.root, rz = r.z[0], d = view.depth(r.y[0], rz), fog = fogOf(d, plane);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (fog < 0.1) {
+    if (!skip.has('near') && !(onlySp.size && !onlySp.has(a.cr.spec.name))) draw3(ctx, a.cr, view, { ink: opts.ink, shade: opts.shade, water: env.water });
+    return;
+  }
+  if (skip.has('far')) return;
+  view.project(r.x[0], r.y[0], rz, P);
+  const res = clamp(P.s * dpr, 0.3, 3);
+  if (!a.buf) a.buf = makeCanvas(8, 8);
+  if (!a.spr || frameNo - a.bakedAt >= opts.farEvery || Math.abs(a.spr.res - res) > res * 0.25) {
+    a.spr = bakeCreature(a.cr, fog * 0.85, waterAt(moodAt(r.x[0]), r.y[0] + 140), res, a.buf);
+    a.bakedAt = frameNo;
+  }
+  // its anchor is the root: between two bakes the image just follows the root
+  drawSprite(a.spr, r.x[0], r.y[0], rz);
+}
+
+function drawShadow(a: Actor, fy: number, h: number): void {
+  const cr = a.cr, r = cr.root, len = (cr.box[3] - cr.box[0]) * 0.55 + 6;
+  view.project(r.x[0], fy, r.z[0], P);
+  const rx = len * P.s, al = 0.32 * (1 - clamp(h / 260, 0, 1)) * (1 - fogOf(P.d, settings.dist) * 0.8);
+  if (al < 0.01 || rx < 2) return;
+  ctx.setTransform(dpr, 0, 0, dpr * Math.max(0.12, 0.3 * Math.cos(view.pitch)), dpr * P.x, dpr * P.y);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+  g.addColorStop(0, `rgba(6,20,30,${al.toFixed(3)})`);
+  g.addColorStop(1, 'rgba(6,20,30,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0, 0, rx, 0, TAU); ctx.fill();
+}
+
+function drawVisitor(v: Visitor, m: Mood, plane: number): void {
+  const cr = v.cr, rz = cr.root.z[0], d = view.depth(v.y, rz);
+  const sp = bakeCreature(cr, fogOf(d, plane) * 0.9 + 0.1, fogged(m, m.deep, 300, 0.4), 0.6, v.buf);
+  view.project(cr.root.x[0], cr.root.y[0], rz, P);
+  const k = P.s / sp.res;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.globalAlpha = 0.85;
+  ctx.drawImage(sp.canvas, 0, 0, sp.w!, sp.h!, P.x - sp.ax * sp.res * k, P.y - sp.ay * sp.res * k * Math.cos(view.pitch), sp.w! * k, sp.h! * k * Math.cos(view.pitch));
+  ctx.globalAlpha = 1;
+}
+
+function drawShoal(s: Shoal): void {
+  const spr = s.spr, sw = spr[0].width / 2, sh = spr[0].height / 2;
+  for (let i = 0; i < s.n; i++) {
+    view.project(s.x[i], s.y[i], s.z, P);
+    if (P.x < -40 || P.x > W + 40 || P.y < -40 || P.y > H + 40) continue;
+    const ang = Math.atan2(s.vy[i], s.vx[i]), flip = Math.cos(ang) < 0 ? -1 : 1, co = Math.cos(ang), si = Math.sin(ang), a = P.s * dpr * 0.5;
+    ctx.setTransform(a * co, a * si, -a * si * flip, a * co * flip, P.x * dpr, P.y * dpr);
+    ctx.drawImage(spr[Math.floor(s.ph[i]) % 3], -sw, -sh);
+    // lantern fish: a row of lights on the belly
+    if (s.glow && (i & 1) === 0) lights.push(P.x, P.y + 1.5 * P.s, 5 * P.s + 2, 190, 0.5 + 0.3 * Math.sin(t * 3 + i));
+  }
+}
+
+function drawRays(m: M): void {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.globalCompositeOperation = 'lighter';
+  const sp = 380;
+  for (let k = Math.floor((cam.x - 1200) / sp); k <= Math.floor((cam.x + 1200) / sp); k++) {
+    const h1 = Math.abs(Math.sin(k * 12.9898) * 43758.5453) % 1, h2 = Math.abs(Math.sin(k * 78.233) * 12345.678) % 1;
+    if (h1 < 0.45) continue;
+    const x = k * sp + h2 * 200, z = 150 + h1 * 900, w = 26 + h2 * 60, L = 560;
+    const al = m.rays * 0.12 * (0.5 + 0.5 * Math.sin(t * 0.25 + k * 1.7));
+    view.project(x, 0, z, P); const ax = P.x, ay = P.y, aw = w * P.s;
+    view.project(x + L * 0.3, L, z, Q); const bx = Q.x, by = Q.y, bw = w * 1.6 * Q.s;
+    const gr = ctx.createLinearGradient(0, ay, 0, by);
+    gr.addColorStop(0, css(m.sky, al));
+    gr.addColorStop(1, css(m.sky, 0));
+    ctx.fillStyle = gr;
+    ctx.beginPath();
+    ctx.moveTo(ax - aw / 2, ay); ctx.lineTo(ax + aw / 2, ay); ctx.lineTo(bx + bw / 2, by); ctx.lineTo(bx - bw / 2, by);
+    ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+// ----- chapters and the depth gauge ----- //
+
+const here = { i: 0 };
+const chapterEl = document.getElementById('chapter')!, hudEl = document.getElementById('hud')!;
+let chapterTimer = 0;
+function showChapter(i: number): void {
+  const b = BIOMES[i];
+  chapterEl.innerHTML = '';
+  const h = document.createElement('strong'); h.textContent = b.name;
+  const s = document.createElement('span'); s.textContent = b.sub;
+  chapterEl.append(h, s);
+  chapterEl.classList.remove('show');
+  void chapterEl.offsetWidth;
+  chapterEl.classList.add('show');
+  clearTimeout(chapterTimer);
+  chapterTimer = window.setTimeout(() => chapterEl.classList.remove('show'), 4200);
+}
+
+// ----- loop ----- //
+
+let last = performance.now(), acc = 0, fn = 0, fsum = 0;
+const timeScale = { v: 1 };
+const lockQuality = { v: false };
+const stats = { fps: 0, render: 0, update: 0, flush: 0 };
+/** autopilot for the tests: the swimmer goes to (x, y) */
+const auto = { on: false, x: 0, y: 0 };
+export interface FrameSample { dt: number; update: number; render: number; flush: number; steps: number; }
+let onFrame: ((s: FrameSample) => void) | null = null;
+
+function frame(now: number): void {
+  if (paused) { last = now; requestAnimationFrame(frame); return; }
+  const dt = now - last;
+  last = now;
+  frameNo++;
+  acc += Math.min(0.1, dt / 1000) * timeScale.v;
+  let steps = 0;
+  const u0 = performance.now();
+  while (acc >= STEP && steps < 3) { update(); acc -= STEP; steps++; }
+  const ut = performance.now() - u0;
+  stats.update = stats.update * 0.9 + ut * 0.1;
+  if (steps === 3) acc = 0;
+  const r = player.cr.root, dist = 900 / input.zoomMul, pitch = (settings.angle * Math.PI) / 180;
+  cam.x += (r.x[0] + player.cr.vx * 20 - cam.x) * 0.07;
+  cam.y += (r.y[0] + player.cr.vy * 20 - cam.y) * 0.07;
+  const ty = Math.max(cam.y, 30 + dist * Math.sin(pitch));
+  view.aim(cam.x, ty, dist, pitch);
+  const r0 = performance.now();
+  render();
+  const rt = performance.now() - r0;
+  let ft = 0;
+  if (opts.flush) { const f0 = performance.now(); ctx.getImageData(0, 0, 1, 1); ft = performance.now() - f0; }
+  stats.render = stats.render * 0.9 + rt * 0.1;
+  stats.flush = stats.flush * 0.9 + ft * 0.1;
+  onFrame?.({ dt, update: ut, render: rt, flush: ft, steps });
+  fn++; fsum += dt;
+  if (fn >= 60) {
+    const avg = fsum / fn;
+    stats.fps = 1000 / avg;
+    if (!lockQuality.v) {
+      if (avg > 21) { if (lod < LOD.length - 1) setLod(lod + 1); else if (quality > 0.55) { quality *= 0.85; resize(); } }
+      else if (avg < 15) { if (quality < 1) { quality = Math.min(1, quality / 0.9); resize(); } else if (lod > 0) setLod(lod - 1); }
+    }
+    fn = 0; fsum = 0;
+    fpsEl.textContent = `${stats.fps.toFixed(0)} img/s · détail ${LOD.length - 1 - lod}/${LOD.length - 1} · résolution ${Math.round(quality * 100)} % · simulation ${stats.update.toFixed(1)} ms · dessin ${stats.render.toFixed(1)} ms · ${counts.near} animaux proches · ${counts.plants} plantes`;
+  }
+  if ((frameNo & 15) === 0) hudEl.textContent = `${BIOMES[biomeIndex(r.x[0])].name} · −${metres(r.y[0])} m`;
+  requestAnimationFrame(frame);
+}
+
+function teleport(x: number, y: number): void {
+  const cr = player.cr;
+  cr.translate(x - cr.root.x[0], y - cr.root.y[0], 0);
+  cr.vx = cr.vy = 0;
+  cam.x = x; cam.y = y;
+  // the siblings follow
+  for (const a of actors) if (a.kind === 'sib') a.cr.translate(x + rand(-80, 80) - a.cr.root.x[0], y + rand(-50, 50) - a.cr.root.y[0], 0);
+}
+
+/** swim into the middle of a biome, at mid water */
+function gotoBiome(i: number): void {
+  const x = biomeMid(i), y = Math.max(120, floorAt(x, 0) - 260);
+  teleport(x, y);
+}
+
+/** a crowd of animals around the swimmer, in its plane (for the load test) */
+function spawnCrowd(n: number, seed = 1): void {
+  const R = rng(seed), ids = Object.keys(SPECIES), px = player.cr.root.x[0], py = player.cr.root.y[0];
+  for (let k = 0; k < n; k++) {
+    const x = px + (R() - 0.5) * 1100, z = R() < 0.6 ? 0 : 70 + R() * 300;
+    const y = clamp(py + (R() - 0.5) * 400, 40, floorAt(x, z) - 60);
+    const a = addActor(SPECIES[ids[Math.floor(R() * ids.length)]](), x, y, 'swim', 0.8, z);
+    a.temp = true;
+  }
+}
+function clearCrowd(): void {
+  for (let i = actors.length - 1; i >= 0; i--) if (actors[i].temp) actors.splice(i, 1);
+}
+
+export const api = {
+  settings, opts, detail, onlySp, player, stats, counts, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto,
+  biomes: BIOMES, teleport, gotoBiome, spawnCrowd, clearCrowd, floorAt,
+  setQuality: (q: number) => { quality = q; resize(); },
+  setLod, get lod() { return lod; },
+  get dpr() { return dpr; },
+  get size() { return [W, H, canvas.width, canvas.height]; },
+  setFrameHook: (f: typeof onFrame) => { onFrame = f; }
+};
+(window as unknown as { monde: typeof api }).monde = api;
+
+// ----- settings panel ----- //
+
+const panel = document.getElementById('panel')!, gear = document.getElementById('gear')!;
+const angleIn = document.getElementById('angle') as HTMLInputElement, angleOut = document.getElementById('angleVal')!;
+const distIn = document.getElementById('dist') as HTMLInputElement, distOut = document.getElementById('distVal')!;
+const fpsEl = document.getElementById('fps')!;
+angleIn.value = String(settings.angle); distIn.value = String(Math.round(settings.dist));
+const showVals = () => { angleOut.textContent = settings.angle + '°'; distOut.textContent = Math.round(900 / input.zoomMul) + ''; };
+showVals();
+gear.addEventListener('click', () => { panel.hidden = !panel.hidden; });
+angleIn.addEventListener('input', () => { settings.angle = +angleIn.value; showVals(); save(); });
+distIn.addEventListener('input', () => { input.zoomMul = 900 / +distIn.value; settings.dist = +distIn.value; showVals(); save(); });
+for (const b of document.querySelectorAll<HTMLButtonElement>('[data-angle]')) {
+  b.addEventListener('click', () => { settings.angle = +b.dataset.angle!; angleIn.value = b.dataset.angle!; showVals(); save(); });
+}
+setInterval(() => { const d = Math.round(900 / input.zoomMul); if (+distIn.value !== d) { distIn.value = String(d); settings.dist = d; showVals(); save(); } }, 400);
+const trip = document.getElementById('trip')!;
+BIOMES.forEach((b, i) => {
+  const btn = document.createElement('button');
+  btn.textContent = b.name.replace(/^(La |Le |Les )/, '');
+  btn.addEventListener('click', () => gotoBiome(i));
+  trip.append(btn);
+});
+const benchOut = document.getElementById('benchOut')!;
+document.getElementById('benchBtn')!.addEventListener('click', () => { panel.hidden = true; void runBench(api, benchOut); });
+for (const el of [panel, gear, benchOut, document.getElementById('atBtn')!]) for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'wheel']) el.addEventListener(ev, (e) => e.stopPropagation());
+const hint = document.getElementById('hint')!;
+setTimeout(() => hint.classList.add('gone'), 6000);
+document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).closest('#panel, #atelier, #benchOut')) e.preventDefault(); }, { passive: false });
+
+setTimeout(() => showChapter(0), 400);
+requestAnimationFrame(frame);
+if (new URLSearchParams(location.search).has('bench')) setTimeout(() => void runBench(api, benchOut), 800);
