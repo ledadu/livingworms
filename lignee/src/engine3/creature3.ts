@@ -121,6 +121,8 @@ export class Seg3 {
   nb: V = v3(0, 0, 1);
   /** first link fixed to this direction (plants rooted in the sea floor) */
   anchor: V | null = null;
+  /** the way the head points: the first link runs the opposite way (animals with a driven heading) */
+  headDir: V | null = null;
   x: Float32Array; y: Float32Array; z: Float32Array;
   ox: Float32Array; oy: Float32Array; oz: Float32Array;
   /** direction of link i (from node i-1 to node i); index 0 repeats index 1 */
@@ -289,6 +291,9 @@ export class Seg3 {
       else if (m.type === 'row') ang = m.amp * rowCurve(w) * fl;
       else if (m.type === 'flutter') ang = m.amp * (0.6 * Math.sin(w) + 0.4 * Math.sin(w * 2.7 + 1.3)) * fl;
       if (ang) rotate(this.dir, this.nb, ang, this.tg), fixed = this.tg;
+    } else if (this.headDir) {
+      this.tg.x = -this.headDir.x; this.tg.y = -this.headDir.y; this.tg.z = -this.headDir.z;
+      fixed = this.tg;
     } else if (this.anchor) {
       fixed = this.anchor;
     }
@@ -386,6 +391,15 @@ export class Creature3 {
   planar: boolean;
   /** which way the belly faces when the body is vertical (last horizontal direction) */
   side: V = v3(0, 0, 1);
+  /**
+   * Heading of the head. yaw is the angle about the vertical axis: 0 faces
+   * right, pi faces left, and turning between them always goes through pi/2,
+   * i.e. away from the eye. pitch is the nose up/down (positive = down).
+   */
+  yaw = 0; pitch = 0; yawGoal = 0; private yawVel = 0; private pitchVel = 0;
+  /** how quickly the heading follows (rad/s of a critically damped spring): about 0.35 s for a half turn */
+  turnW = 13;
+  private heading3 = v3(1, 0, 0);
 
   constructor(sp: Spec, x: number, y: number, z: number, o: Creature3Options = {}) {
     this.spec = sp;
@@ -403,6 +417,7 @@ export class Creature3 {
       dir = v3(-dir.x, -dir.y, -dir.z);
       cross(dir, DOWN, nb); if (Math.hypot(nb.x, nb.y, nb.z) < 0.2) nb = v3(0, 0, 1); else norm(nb);
     }
+    if (!o.anchor && o.dir) { this.yaw = this.yawGoal = o.dir.x >= 0 ? 0 : Math.PI; }
     this.root = new Seg3(sp.body, null, null, slot, 1, (o.scale || 1) * (sp.size || 1), v3(x, y, z), dir, nb, this);
     if (o.anchor) this.root.anchor = { ...dir };
     this.refresh();
@@ -431,6 +446,33 @@ export class Creature3 {
       if (c[0] < b[0]) b[0] = c[0]; if (c[1] < b[1]) b[1] = c[1]; if (c[2] < b[2]) b[2] = c[2];
       if (c[3] > b[3]) b[3] = c[3]; if (c[4] > b[4]) b[4] = c[4]; if (c[5] > b[5]) b[5] = c[5];
     }
+  }
+
+  /**
+   * Swim toward the direction (dvx, dvy) at that speed. The head turns toward
+   * it with a spring, so a change of direction is a smooth swing of the whole
+   * animal (through the depth for a right/left turn), never a jump. `dvz` is an
+   * extra pull along z (to return to its plane); the speed drops while turning.
+   */
+  steer(time: number, dvx: number, dvy: number, dvz: number, accel: number): void {
+    const sp = Math.hypot(dvx, dvy);
+    let pitchGoal = 0;
+    if (sp > 0.05) {
+      if (Math.abs(dvx) > 0.2 * sp) this.yawGoal = dvx > 0 ? 0 : Math.PI;
+      pitchGoal = clamp(Math.atan2(dvy, Math.max(Math.abs(dvx), 0.15)), -1.2, 1.2);
+    }
+    const w = this.turnW;
+    this.yawVel += (w * w * (this.yawGoal - this.yaw) - 2 * w * this.yawVel) * STEP;
+    this.yaw += this.yawVel * STEP;
+    if (this.yaw < 0) { this.yaw = 0; this.yawVel = 0; } else if (this.yaw > Math.PI) { this.yaw = Math.PI; this.yawVel = 0; }
+    this.pitchVel += (w * 0.8 * w * 0.8 * (pitchGoal - this.pitch) - 2 * w * 0.8 * this.pitchVel) * STEP;
+    this.pitch += this.pitchVel * STEP;
+    const cp = Math.cos(this.pitch), h = this.heading3;
+    h.x = cp * Math.cos(this.yaw); h.y = Math.sin(this.pitch); h.z = cp * Math.sin(this.yaw);
+    this.root.headDir = h;
+    const align = Math.max(0, Math.cos(this.yawGoal - this.yaw));
+    const speed = sp * (0.25 + 0.75 * align);
+    this.update(time, h.x * speed, h.y * speed, h.z * speed + dvz, accel);
   }
 
   /** direction the head points */

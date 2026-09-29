@@ -124,9 +124,14 @@ function drawTree(ctx: Ctx, sh: Shim, o: DrawOptions): void {
   if (!sh.parent) { ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
 }
 
-const H = { x: 0, y: 0, z: 0 }, F = { x: 0, y: 0, z: 0 }, E = { x: 0, y: 0, z: 0 }, T = { x: 0, y: 0, z: 0 };
+const H = { x: 0, y: 0, z: 0 }, F = { x: 0, y: 0, z: 0 }, E = { x: 0, y: 0, z: 0 }, T = { x: 0, y: 0, z: 0 }, N = { x: 0, y: 0, z: 0 };
 
-/** the eyes: placed in space on the head, drawn only if their side faces the eye */
+/**
+ * The eyes: discs set on the head, looking forward and outward. Each one is
+ * seen as an ellipse that flattens as its side turns away from the eye and
+ * fades out before it disappears, so that turning round shows the second eye
+ * gradually instead of making it pop in.
+ */
 function drawEyes3(ctx: Ctx, cr: Creature3, view: Projector, bright?: boolean): void {
   const e = cr.spec.eyes;
   if (!e.on) return;
@@ -135,36 +140,47 @@ function drawEyes3(ctx: Ctx, cr: Creature3, view: Projector, bright?: boolean): 
   bellyOf(F, cr.side, bel);
   lat.x = F.y * bel.z - F.z * bel.y; lat.y = F.z * bel.x - F.x * bel.z; lat.z = F.x * bel.y - F.y * bel.x;
   const er = Math.max(0.8, rad * 0.3 * e.size);
-  // draw the far eye first so the near one covers it
-  const eyes: { sd: number; k: number }[] = [];
-  for (const sd of [-1, 1]) {
+  const eyes: { sd: number; vis: number }[] = [];
+  const place = (sd: number) => {
     H.x = r.x[0] + F.x * rad * e.fwd - bel.x * rad * 0.3 + lat.x * sd * rad * e.spread * 0.85;
     H.y = r.y[0] + F.y * rad * e.fwd - bel.y * rad * 0.3 + lat.y * sd * rad * e.spread * 0.85;
     H.z = r.z[0] + F.z * rad * e.fwd - bel.z * rad * 0.3 + lat.z * sd * rad * e.spread * 0.85;
+    // where the disc faces: outward and forward
+    N.x = lat.x * sd * 0.62 + F.x * 0.78; N.y = lat.y * sd * 0.62 + F.y * 0.78; N.z = lat.z * sd * 0.62 + F.z * 0.78;
     view.toward(H.x, H.y, H.z, T);
-    const vis = (lat.x * sd * T.x + lat.y * sd * T.y + lat.z * sd * T.z);
-    if (vis > -0.12) eyes.push({ sd, k: vis });
-  }
-  eyes.sort((a, b) => a.k - b.k);
-  for (const { sd } of eyes) {
-    H.x = r.x[0] + F.x * rad * e.fwd - bel.x * rad * 0.3 + lat.x * sd * rad * e.spread * 0.85;
-    H.y = r.y[0] + F.y * rad * e.fwd - bel.y * rad * 0.3 + lat.y * sd * rad * e.spread * 0.85;
-    H.z = r.z[0] + F.z * rad * e.fwd - bel.z * rad * 0.3 + lat.z * sd * rad * e.spread * 0.85;
+    return N.x * T.x + N.y * T.y + N.z * T.z;
+  };
+  for (const sd of [-1, 1]) { const vis = place(sd); if (vis > -0.05) eyes.push({ sd, vis }); }
+  eyes.sort((a, b) => a.vis - b.vis);
+  for (const { sd, vis } of eyes) {
+    place(sd);
+    const f = Math.min(1, Math.max(0, (vis + 0.05) / 0.6)), vf = f * f * (3 - 2 * f);
+    if (vf < 0.02) continue;
     view.project(H.x, H.y, H.z, P);
     const px = P.x, py = P.y, s = P.s, rr = er * s;
+    // the screen direction the disc leans toward: the ellipse is squeezed along it
+    view.axis(N.x, N.y, N.z, 1, A);
+    const lean = Math.atan2(A.y, A.x);
     E.x = H.x + F.x * er; E.y = H.y + F.y * er; E.z = H.z + F.z * er;
     view.project(E.x, E.y, E.z, P);
     let fx = P.x - px, fy = P.y - py; const fl = Math.hypot(fx, fy) || 1; fx /= fl; fy /= fl;
     const look = Math.min(1, fl / (rr || 1));
+    ctx.save();
+    ctx.globalAlpha = vf;
+    ctx.translate(px, py);
+    ctx.rotate(lean);
+    ctx.scale(0.28 + 0.72 * vf, 1);
+    ctx.rotate(-lean);
     ctx.fillStyle = bright ? '#f4fffd' : '#fbf6ec';
-    ctx.beginPath(); ctx.arc(px, py, rr, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, rr, 0, TAU); ctx.fill();
     ctx.lineWidth = Math.max(0.6, rr * 0.16);
     ctx.strokeStyle = 'rgba(10,14,24,0.55)';
     ctx.stroke();
     ctx.fillStyle = '#05080f';
-    ctx.beginPath(); ctx.arc(px + fx * rr * 0.34 * look, py + fy * rr * 0.34 * look, rr * 0.56, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(fx * rr * 0.34 * look, fy * rr * 0.34 * look, rr * 0.56, 0, TAU); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,0.95)';
-    ctx.beginPath(); ctx.arc(px + fx * rr * 0.1 - rr * 0.18, py + fy * rr * 0.1 - rr * 0.22, rr * 0.2, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(fx * rr * 0.1 - rr * 0.18, fy * rr * 0.1 - rr * 0.22, rr * 0.2, 0, TAU); ctx.fill();
+    ctx.restore();
   }
 }
 

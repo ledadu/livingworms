@@ -105,21 +105,13 @@ const cam = { x: 420, y: 180 };
 
 /**
  * Swim toward (dvx, dvy). The vertical plane is for going up and down; to go
- * the other way the animal turns around in the horizontal plane: its velocity
- * swings through the depth (away from the eye), and the whole chain follows in
- * three axes, so the body really curves round instead of flipping.
+ * the other way the animal swings its heading round through the depth (the
+ * creature's own heading spring does it), and the whole chain follows in
+ * three axes: a smooth turn, never a jump.
  */
 function steer(a: Actor, dvx: number, dvy: number, accel: number): void {
-  const c = a.cr, r = c.root, sp = Math.hypot(dvx, dvy) || 1;
-  if (!a.turning && dvx * c.vx < -0.12 && Math.abs(dvx) > 0.25) a.turning = a.z > 220 ? -1 : 1;
-  let dvz = clamp((a.z - r.z[0]) * 0.04, -0.6, 0.6);
-  if (a.turning) {
-    dvz = a.turning * Math.min(1.4, sp * 0.9 + Math.abs(c.vx) * 0.4);
-    // the turn is done when we move the way we want, then the plane pulls it back
-    if (c.vx * dvx > 0.35 * Math.abs(dvx) && Math.abs(c.vz) < 0.35 * sp + 0.2) a.turning = 0;
-    else if (Math.abs(r.z[0] - a.z) > 130) a.turning = 0;
-  }
-  c.update(t, dvx, dvy, dvz, accel);
+  const r = a.cr.root;
+  a.cr.steer(t, dvx, dvy, clamp((a.z - r.z[0]) * 0.035, -0.5, 0.5), accel);
 }
 
 function collide(cr: Creature3): void {
@@ -189,11 +181,8 @@ function update(): void {
     const cr = v.cr, vx = cr.root.x[0];
     if (Math.abs(vx - px) > 5200) continue;
     if (vx > v.x1) v.dir = -1; else if (vx < v.x0) v.dir = 1;
-    // even the far ones turn around in the horizontal plane
-    if (!v.turning && v.dir * cr.vx < -0.1) v.turning = 1;
-    let dvz = clamp((v.z - cr.root.z[0]) * 0.02, -0.4, 0.4);
-    if (v.turning) { dvz = 0.7; if (cr.vx * v.dir > 0.3 || Math.abs(cr.root.z[0] - v.z) > 200) v.turning = 0; }
-    cr.update(t, v.dir * 0.55 * swimFactor3(cr, t), (v.y - cr.root.y[0]) * 0.01, dvz, 0.02);
+    // even the far ones swing round in the horizontal plane
+    cr.steer(t, v.dir * 0.55 * swimFactor3(cr, t), (v.y - cr.root.y[0]) * 0.01, clamp((v.z - cr.root.z[0]) * 0.02, -0.4, 0.4), 0.02);
   }
 
   // fish school
