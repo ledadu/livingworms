@@ -1,3 +1,5 @@
+import { spec as makeSpec, type Spec } from './engine';
+import { Atelier } from './editor';
 import { Game } from './game/game';
 import './style.css';
 
@@ -6,7 +8,19 @@ const title = document.getElementById('title')!;
 const chapter = document.getElementById('chapter')!;
 
 const game = new Game(canvas);
+try {
+  const j = localStorage.getItem('lignee.player');
+  if (j) game.becomes(makeSpec(JSON.parse(j)));
+} catch { /* nothing saved */ }
 game.start();
+document.getElementById('atBtn')!.addEventListener('click', () => {
+  game.stop();
+  Atelier.open(game.player.spec, {
+    playLabel: 'Nager',
+    onPlay: (sp) => game.becomes(makeSpec(sp as Parameters<typeof makeSpec>[0]) as Spec),
+    onClose: () => game.start()
+  });
+});
 (window as unknown as { lignee: Game }).lignee = game;
 
 let chapterTimer = 0;

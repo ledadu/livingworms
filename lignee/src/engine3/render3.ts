@@ -59,6 +59,7 @@ function bellyOf(t: { x: number; y: number; z: number }, side: { x: number; y: n
 
 function projectSeg(sh: Shim, cr: Creature3, view: Projector): void {
   const s = sh.seg, n = s.n, kind = s.kind;
+  sh.cols = s.cols; sh.edgeCol = s.edgeCol; sh.shineCol = s.shineCol; sh.patCol = s.patCol; sh.webCol = s.webCol; sh.hue = s.hue;
   let zsum = 0, mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity, ssum = 0;
   for (let i = 0; i <= n; i++) {
     view.project(s.x[i], s.y[i], s.z[i], P);
@@ -244,3 +245,52 @@ export function eachGlow3(cr: Creature3, view: Projector, fn: (x: number, y: num
 }
 
 void wrapAngle;
+
+// ----- tools for the workshop ----- //
+
+/** the part under a screen point (after a draw3), preferring small and deep parts */
+export function pick3(cr: Creature3, sx: number, sy: number, tol: number): Seg3 | null {
+  const root = shims.get(cr);
+  if (!root) return null;
+  let best: Seg3 | null = null, bs = Infinity;
+  const walk = (s: Shim) => {
+    const b = s.box;
+    if (!(sx < b[0] - tol || sx > b[2] + tol || sy < b[1] - tol || sy > b[3] + tol)) {
+      for (let i = 0; i <= s.n; i++) {
+        const d = Math.hypot(s.x[i] - sx, s.y[i] - sy) - s.rad[i];
+        if (d < tol) {
+          const score = Math.max(0, d) - s.seg.depth * 1.5 + s.maxRad * 0.2;
+          if (score < bs) { bs = score; best = s.seg; }
+        }
+      }
+    }
+    for (const c of s.children) walk(c);
+  };
+  walk(root);
+  return best;
+}
+
+/** thin skeleton and the selected part highlighted (after a draw3), in screen space */
+export function drawSkeleton3(ctx: Ctx, cr: Creature3, selected: unknown, full: boolean): void {
+  const root = shims.get(cr);
+  if (!root) return;
+  const walk = (s: Shim) => {
+    const sel = s.def === selected;
+    if (full || sel) {
+      ctx.lineWidth = sel ? 1.8 : 1;
+      ctx.strokeStyle = sel ? 'rgba(255,214,110,0.95)' : 'rgba(220,255,250,0.35)';
+      ctx.beginPath();
+      ctx.moveTo(s.x[0], s.y[0]);
+      for (let i = 1; i <= s.n; i++) ctx.lineTo(s.x[i], s.y[i]);
+      ctx.stroke();
+      ctx.fillStyle = sel ? 'rgba(255,214,110,0.95)' : 'rgba(220,255,250,0.5)';
+      for (let j = 0; j <= s.n; j++) {
+        ctx.beginPath();
+        ctx.arc(s.x[j], s.y[j], (j === 0 ? 2.8 : 1.6) * (sel ? 1.4 : 1), 0, TAU);
+        ctx.fill();
+      }
+    }
+    for (const c of s.children) walk(c);
+  };
+  walk(root);
+}

@@ -3,7 +3,8 @@
 // draws from far to near. Animals swim in profile in vertical planes and
 // turn around about the vertical axis.
 
-import { Flow, STEP, TAU, clamp, rand, rng, type Spec } from '../engine';
+import { Flow, STEP, TAU, clamp, rand, rng, spec as makeSpec, type Spec } from '../engine';
+import { Atelier } from '../editor';
 import { Creature3, swimFactor3 } from '../engine3/creature3';
 import { draw3, eachGlow3 } from '../engine3/render3';
 import { SPECIES } from '../content';
@@ -68,7 +69,30 @@ function addActor(sp: Spec, x: number, y: number, kind: Actor['kind'], scale = 1
   return a;
 }
 
-const player = addActor(firstAncestor(), 420, 180, 'player', 0.8);
+function savedPlayer(): Spec | null {
+  try { const j = localStorage.getItem('lignee.player'); return j ? makeSpec(JSON.parse(j)) : null; } catch { return null; }
+}
+const player = addActor(savedPlayer() || firstAncestor(), 420, 180, 'player', 0.8);
+
+/** the swimmer becomes this species, where it is and the way it faces */
+function becomes(sp: Spec): void {
+  const old = player.cr, r = old.root;
+  const cr = new Creature3(sp, r.x[0], r.y[0], 0, { dir: { x: old.yaw > 1.57 ? -1 : 1, y: 0, z: 0 }, scale: 0.8 });
+  cr.yaw = cr.yawGoal = old.yaw;
+  for (let i = 0; i < 60; i++) cr.steer(i * STEP, old.vx, old.vy, 0, 0.2);
+  player.cr = cr;
+  try { localStorage.setItem('lignee.player', JSON.stringify(sp)); } catch { /* private mode */ }
+}
+let paused = false;
+function openAtelier(): void {
+  paused = true;
+  Atelier.open(player.cr.spec, {
+    playLabel: 'Nager',
+    onPlay: (sp) => becomes(makeSpec(sp as Parameters<typeof makeSpec>[0])),
+    onClose: () => { paused = false; last = performance.now(); }
+  });
+}
+document.getElementById('atBtn')?.addEventListener('click', openAtelier);
 {
   const R = rng(3);
   for (let i = 0; i < 5; i++) addActor(firstAncestor(), 420 + rand(-200, 200), rand(120, 260), 'sib', 0.45 + R() * 0.15, rand(-40, 60));
@@ -555,6 +579,7 @@ const timeScale = { v: 1 };
 const lockQuality = { v: false };
 const stats = { fps: 0, render: 0, update: 0, jank: 0, slow: 0, growMax: 0 };
 function frame(now: number): void {
+  if (paused) { last = now; requestAnimationFrame(frame); return; }
   const dt = now - last;
   last = now;
   if (dt > stats.jank) stats.jank = dt;
@@ -586,7 +611,7 @@ function frame(now: number): void {
 }
 
 (window as unknown as { lignee25: unknown }).lignee25 = {
-  settings, player, stats, actors, view, input, plants, rocks, timeScale, skip, lockQuality,
+  settings, player, stats, actors, view, input, plants, rocks, timeScale, skip, lockQuality, openAtelier,
   teleport: (x: number, y: number) => { player.cr.translate(x - player.cr.root.x[0], y - player.cr.root.y[0], 0); cam.x = x; cam.y = y; },
   spawn: (id: string, dx: number, dy: number) => addActor(SPECIES[id](), player.cr.root.x[0] + dx, player.cr.root.y[0] + dy, 'swim', 1, 0)
 };
@@ -607,7 +632,7 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-angle]')) {
   b.addEventListener('click', () => { settings.angle = +b.dataset.angle!; angleIn.value = b.dataset.angle!; showVals(); save(); });
 }
 setInterval(() => { const d = Math.round(900 / input.zoomMul); if (+distIn.value !== d) { distIn.value = String(d); settings.dist = d; showVals(); save(); } }, 400);
-for (const el of [panel, gear]) for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'wheel']) el.addEventListener(ev, (e) => e.stopPropagation());
+for (const el of [panel, gear, document.getElementById('atBtn')!]) for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'wheel']) el.addEventListener(ev, (e) => e.stopPropagation());
 const hint = document.getElementById('hint')!;
 setTimeout(() => hint.classList.add('gone'), 6000);
 document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).closest('#panel')) e.preventDefault(); }, { passive: false });

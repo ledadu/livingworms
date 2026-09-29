@@ -584,6 +584,16 @@ export class Game {
     if (d > 0) { ctx.fillStyle = css(m.deep, d * 0.25, -10); ctx.fillRect(0, 0, W, H); }
   }
 
+  /** the swimmer becomes this species, where it is and the way it faces */
+  becomes(sp: Spec): void {
+    const old = this.player, r = old.root;
+    const cr = new Creature(sp, r.x[0], r.y[0], { dir: r.ang[1], scale: 0.8 });
+    for (let i = 0; i < 40; i++) cr.update(i * STEP, old.vx, old.vy, 0.2);
+    cr.vx = old.vx; cr.vy = old.vy;
+    this.player = cr;
+    try { localStorage.setItem('lignee.player', JSON.stringify(sp)); } catch { /* private mode */ }
+  }
+
   /** debug / test helpers */
   teleport(x: number, y: number): void {
     const r = this.player.root;
