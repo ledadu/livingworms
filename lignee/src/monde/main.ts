@@ -2,7 +2,9 @@
 // it. Six biomes along x, from the sunny grass beds down a drop-off to the
 // black smokers; all the species of the catalogue live somewhere in it.
 // Same drawing as the 2.5D prototype (our own small 3D, painter from far to
-// near, far things baked into small images washed by the water).
+// near, far things baked into small images washed by the water), on WebGL2
+// when there is one (engine3/gfx: the canvas pays a fixed price per path, the
+// GPU does not), on the 2D canvas otherwise or with ?gl=0.
 
 import { Flow, STEP, TAU, clamp, detail, rand, rng, spec as makeSpec, type Spec } from '../engine';
 import { Atelier } from '../editor';
@@ -14,10 +16,13 @@ import { Input } from '../game/input';
 import { causticTile, fishSprites, glowSprite, makeCanvas } from '../game/bake';
 import { css, fogged, waterAt, type HSL, type Mood } from '../game/palette';
 import { View, type Proj } from '../engine3/view';
+import { hsl01 } from '../engine3/gfx';
+import { disc, paint3 } from '../engine3/paint-gl';
+import { causticsGL, fishAtlas, fishGL, glowsGL, hcol, raysGL, rings, rowGL, screenGfx, shadowGL, spriteGL, surfaceGL, waterGL } from './scene-gl';
 import { bakeCreature, bakeRock, env, fogOf, type Plant, type Sprite } from '../proto25/world';
 import { BIOMES, X0, X1, biomeIndex, biomeMid, floorAt, metres, moodAt } from './biomes';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
-import { runBench } from './bench';
+import { compareSpecies, runBench } from './bench';
 import '../proto3d/style.css';
 import './monde.css';
 
@@ -43,8 +48,10 @@ const opts = {
 
 // ----- canvas ----- //
 
-const canvas = document.getElementById('sea') as HTMLCanvasElement;
-const ctx = canvas.getContext('2d', { alpha: false })!;
+const { canvas, gx } = screenGfx('sea');
+/** the 2D context of the screen, or a stand-in when WebGL draws (the canvas code paths are then not taken) */
+const ctx = (gx ? makeCanvas(1, 1).getContext('2d') : canvas.getContext('2d', { alpha: false }))!;
+const renderer = gx ? 'WebGL2' : 'Canvas 2D';
 const view = new View();
 let dpr = 1, quality = 1, W = 0, H = 0;
 
@@ -64,6 +71,7 @@ function resize(): void {
   W = window.innerWidth; H = window.innerHeight;
   canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
   canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  gx?.resize(canvas.width, canvas.height);
   view.resize(W, H, W < H ? 52 : 44);
 }
 resize();
@@ -84,7 +92,8 @@ function rockFrom(x: number): number {
   return lo;
 }
 const plants: Plant[] = makePlants(vents);
-const caustic = ctx.createPattern(causticTile(256, 7, 5), 'repeat')!;
+const causticCv = causticTile(256, 7, 5);
+const caustic = ctx.createPattern(causticCv, 'repeat')!;
 
 interface Actor {
   cr: Creature3; kind: 'player' | 'swim' | 'floor' | 'surface' | 'sib';
@@ -387,12 +396,15 @@ const items: Item[] = [];
 function drawSprite(sp: Sprite, x: number, y: number, z: number): void {
   view.project(x, y, z, P);
   const k = P.s / sp.res, kv = Math.cos(view.pitch);
+  if (gx) { spriteGL(gx, view, dpr, sp, x, y, z, spriteStamp.get(sp.canvas) || 0); return; }
   ctx.setTransform(dpr * k, 0, 0, dpr * k * kv, dpr * P.x, dpr * P.y);
   if (sp.w) ctx.drawImage(sp.canvas, 0, 0, sp.w, sp.h!, -sp.ax * sp.res, -sp.ay * sp.res, sp.w, sp.h!);
   else ctx.drawImage(sp.canvas, -sp.ax * sp.res, -sp.ay * sp.res);
 }
 
 let bakes = 0, frameNo = 0;
+/** when a reused canvas was last redrawn (WebGL re-uploads its texture when this changes) */
+const spriteStamp = new WeakMap<HTMLCanvasElement, number>();
 const glowPts: number[] = [];
 /** lights drawn after the dark closes in: x, y (screen), size, hue, alpha */
 const lights: number[] = [];
@@ -400,21 +412,29 @@ const lights: number[] = [];
 function render(): void {
   const m = moodAt(cam.x), pr = player.cr.root, plane = settings.dist;
   env.water = clamp((waterAt(m, cam.y).l - 28) / 30, 0, 1);
+  lights.length = 0;
+  if (gx) {
+    const [r, g, b] = hsl01(m.deep.h, m.deep.s, m.deep.l);
+    gx.begin(r, g, b);
+    gx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    waterGL(gx, m, waterAt, cam.y, W, H);
+    surfaceGL(gx, view, m, waterAt, { h: m.top.h + 10, s: 80, l: Math.min(84, m.top.l + 30) }, cam.x, t, W, (z) => fogOf(view.depth(0, z), plane));
+  } else {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
-  lights.length = 0;
 
   // water behind everything
   const g = ctx.createLinearGradient(0, 0, 0, H);
   for (let i = 0; i <= 4; i++) g.addColorStop(i / 4, css(waterAt(m, cam.y * 0.7 + (i / 4 - 0.4) * 500)));
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
+  }
 
   // the surface seen from below
   view.project(cam.x, 0, -120, P);
   view.project(cam.x, 0, 3200, Q);
-  if (P.y > -40 || Q.y > 0) {
+  if (!gx && (P.y > -40 || Q.y > 0)) {
     const top = Math.min(P.y, 0), yFar = Q.y;
     const sg = ctx.createLinearGradient(0, top, 0, yFar);
     sg.addColorStop(0, css({ h: m.top.h + 10, s: 80, l: Math.min(84, m.top.l + 30) }));
@@ -499,6 +519,7 @@ function render(): void {
 
   // the deep closes in around the swimmer: the dark is painted over everything, the lights come after
   const dk = m.dark * clamp((cam.y - 250) / 900, 0, 1);
+  if (gx) { renderGLTop(m, dk); return; }
   if (dk > 0.02 && !skip.has('dark')) {
     view.project(pr.x[0], pr.y[0], 0, P);
     const r0 = 70 * P.s, r1 = Math.max(W, H) * (0.9 - dk * 0.35);
@@ -551,6 +572,34 @@ function render(): void {
 
 const deepEl = document.getElementById('deep');
 
+/** WebGL: what is painted over the scene (the dark, the glows, the lights, the plankton), then the frame is sent */
+function renderGLTop(m: M, dk: number): void {
+  const g = gx!, pr = player.cr.root;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (dk > 0.02 && !skip.has('dark')) {
+    view.project(pr.x[0], pr.y[0], 0, P);
+    const r0 = 70 * P.s, r1 = Math.max(W, H) * (0.9 - dk * 0.35), deep = m.deep;
+    rings(g, P.x, P.y, [r0, r0 + (r1 - r0) * 0.35, r1], [hcol(g, deep, 0), hcol(g, deep, dk * 0.55, -2), hcol(g, deep, Math.min(0.97, dk * 1.08), -3)], Math.hypot(W, H) * 1.5, 64);
+  }
+  if (!skip.has('glow')) {
+    const lum = 1 + dk * 1.2;
+    for (const a of actors) {
+      if (Math.abs(a.cr.root.x[0] - cam.x) > 1400) continue;
+      glowPts.length = 0;
+      eachGlow3(a.cr, view, (x, y, size, hue, al) => { glowPts.push(x, y, size, hue, al); });
+      const n = glowPts.length / 5;
+      if (!n) continue;
+      const share = 1 / Math.sqrt(Math.max(1, n / 2.5)), base = (0.46 - 0.3 * env.water) * lum;
+      glowsGL(g, glowPts, (i) => Math.min(1, glowPts[i + 4] * base * share), 0.8 + 0.2 * share);
+    }
+    glowsGL(g, lights, (i) => lights[i + 4]);
+  }
+  if (!skip.has('motes')) drawMotes(m, dk);
+  const dd = clamp((pr.y[0] - 300) / 900, 0, 1);
+  if (deepEl && (frameNo & 7) === 0) deepEl.style.background = css(m.deep, dd * 0.18 * (1 - m.dark), -10);
+  g.end();
+}
+
 function drawMotes(m: M, dk: number): void {
   const pr = player.cr.root;
   view.project(pr.x[0], pr.y[0], 0, Q);
@@ -558,6 +607,7 @@ function drawMotes(m: M, dk: number): void {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const fall = m.snow * 22;
   const near: number[] = [];
+  const mcol = gx ? hcol(gx, m.plankton, 0.5 * (1 - dk * 0.6)) : 0;
   ctx.fillStyle = css(m.plankton, 0.5 * (1 - dk * 0.6));
   ctx.beginPath();
   for (const mo of motes) {
@@ -567,8 +617,18 @@ function drawMotes(m: M, dk: number): void {
     view.project(x, y, mo[2], P);
     const s = Math.max(0.4, mo[3] * P.s * (1 + m.snow * 0.5));
     if (dk > 0.2 && Math.abs(P.x - qx) < reach && Math.abs(P.y - qy) < reach) { near.push(P.x, P.y, s); continue; }
+    if (gx) { disc(gx, P.x, P.y, s, mcol); continue; }
     ctx.moveTo(P.x + s, P.y);
     ctx.arc(P.x, P.y, s, 0, TAU);
+  }
+  if (gx) {
+    if (near.length) {
+      gx.setBlend('add');
+      const c = gx.packCss(`hsla(185,100%,72%,${(0.35 + 0.25 * Math.sin(t * 5)).toFixed(3)})`);
+      for (let i = 0; i < near.length; i += 3) disc(gx, near[i], near[i + 1], near[i + 2] * 1.6, c);
+      gx.setBlend('over');
+    }
+    return;
   }
   ctx.fill();
   if (near.length) {
@@ -601,6 +661,7 @@ function drawRow(r: number, m: M, plane: number): void {
   const back = clamp((z - 300) / 700, 0, 1);
   const base = { h: m.sand.h, s: m.sand.s, l: m.sand.l - 6 - z * 0.004 };
   const col = fogged(m, back > 0 ? { h: base.h + (m.rock.h - base.h) * back, s: base.s + (m.rock.s - base.s) * back, l: base.l + (m.rock.l - base.l) * back } : base, fy * 0.6 + z * 0.3, fog);
+  if (gx) { gx.setTransform(dpr, 0, 0, dpr, 0, 0); rowGL(gx, pf, nf, ROW_N, col, z, H); return; }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   let top = Infinity, bot = -Infinity;
   ctx.beginPath();
@@ -635,6 +696,7 @@ function drawCaustics(alpha: number): void {
   const pf = profiles[CAUSTIC_FROM], z = ROWS[CAUSTIC_FROM];
   view.project(0, 0, z, P);
   const s = P.s;
+  if (gx) { gx.setTransform(dpr, 0, 0, dpr, 0, 0); causticsGL(gx, causticCv, pf, ROW_N, H, s, P.x + t * 10 * s, P.y + t * 4 * s, alpha); return; }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.save();
   ctx.beginPath();
@@ -684,10 +746,18 @@ function drawPuffs(p: Puffs, z: number, spr: HTMLCanvasElement, smokeK: number):
     view.project(p.x[i], p.y[i], z, P);
     const r = p.r[i] * P.s;
     if (r < 0.3) continue;
+    const al = smokeK ? Math.min(1, life * 1.4) * 0.55 : Math.min(1, life * 3) * 0.8;
+    if (gx) {
+      gx.setTransform(dpr * r / half, 0, 0, dpr * r / half, dpr * P.x, dpr * P.y);
+      gx.alpha = al;
+      gx.image(spr, 0, 0, spr.width, spr.height, -half, -half, spr.width, spr.height);
+      continue;
+    }
     ctx.setTransform(dpr * r / half, 0, 0, dpr * r / half, dpr * P.x, dpr * P.y);
-    ctx.globalAlpha = smokeK ? Math.min(1, life * 1.4) * 0.55 : Math.min(1, life * 3) * 0.8;
+    ctx.globalAlpha = al;
     ctx.drawImage(spr, -half, -half);
   }
+  if (gx) gx.alpha = 1;
   ctx.globalAlpha = 1;
 }
 
@@ -719,13 +789,23 @@ const clipBox: [number, number, number, number] = [0, 0, 0, 0];
  */
 function drawLive(cr: Creature3, z: number, isPlayer: boolean): number {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  clipBox[0] = -30; clipBox[1] = -30; clipBox[2] = W + 30; clipBox[3] = H + 30;
+  if (gx) {
+    // WebGL: always live (a tiny animal costs a few triangles, no image to bake)
+    gx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    let lv = prepare3(cr, view, isPlayer ? 1 : bias);
+    if (!opts.lod) lv = 0;
+    if (isPlayer) lv = Math.min(lv, 1);
+    lodTally[lv]++;
+    paint3(gx, cr, view, { ink: opts.ink, shade: opts.shade, water: env.water, lod: Math.min(lv, 2), clip: opts.lod ? clipBox : undefined });
+    return lv;
+  }
   if (!opts.lod) { draw3(ctx, cr, view, { ink: opts.ink, shade: opts.shade, water: env.water }); lodTally[0]++; return 0; }
   // the swimmer (the one you watch) keeps at least level 1, and is never judged smaller than it is
   let lv = prepare3(cr, view, isPlayer ? 1 : bias);
   if (isPlayer) lv = Math.min(lv, 1);
   lodTally[lv]++;
   if (lv < 3) {
-    clipBox[0] = -30; clipBox[1] = -30; clipBox[2] = W + 30; clipBox[3] = H + 30;
     draw3(ctx, cr, view, { ink: opts.ink, shade: opts.shade, water: env.water, lod: lv, clip: clipBox });
     return lv;
   }
@@ -754,6 +834,16 @@ function drawActor(a: Actor, plane: number): void {
   if (skip.has('far')) return;
   view.project(r.x[0], r.y[0], rz, P);
   const res = clamp(P.s * dpr, 0.3, 3), size = (a.cr.box[3] - a.cr.box[0]) * P.s;
+  if (gx) {
+    // WebGL: drawn live every frame, washed with the water by a tint of its colours
+    const fc = waterAt(moodAt(r.x[0]), r.y[0] + 140), [fr, fg, fb] = hsl01(fc.h, fc.s, fc.l);
+    gx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    gx.tintR = fr; gx.tintG = fg; gx.tintB = fb; gx.tintAmt = fog * 0.85;
+    const lv = opts.lod ? Math.min(2, prepare3(a.cr, view, bias)) : (prepare3(a.cr, view), 0);
+    paint3(gx, a.cr, view, { ink: opts.ink, shade: opts.shade, water: env.water, lod: lv, clip: opts.lod ? clipBox : undefined });
+    gx.tintAmt = 0;
+    return;
+  }
   // the smaller on screen, the less often it is re-baked
   const every = opts.lod ? Math.max(opts.farEvery, size < 6 ? 6 : size < 12 ? 4 : 0) : opts.farEvery;
   if (!a.buf) a.buf = makeCanvas(8, 8);
@@ -771,6 +861,7 @@ function drawShadow(a: Actor, fy: number, h: number): void {
   view.project(r.x[0], fy, r.z[0], P);
   const rx = len * P.s, al = 0.32 * (1 - clamp(h / 260, 0, 1)) * (1 - fogOf(P.d, settings.dist) * 0.8);
   if (al < 0.01 || rx < 2) return;
+  if (gx) { shadowGL(gx, dpr, view.pitch, P.x, P.y, rx, al); return; }
   ctx.setTransform(dpr, 0, 0, dpr * Math.max(0.12, 0.3 * Math.cos(view.pitch)), dpr * P.x, dpr * P.y);
   const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
   g.addColorStop(0, `rgba(6,20,30,${al.toFixed(3)})`);
@@ -782,6 +873,16 @@ function drawShadow(a: Actor, fy: number, h: number): void {
 function drawVisitor(v: Visitor, m: Mood, plane: number): void {
   const cr = v.cr, rz = cr.root.z[0], d = view.depth(v.y, rz);
   view.project(cr.root.x[0], cr.root.y[0], rz, P);
+  if (gx) {
+    // WebGL: live, washed with the deep water, a little transparent
+    const fc = fogged(m, m.deep, 300, 0.4), [fr, fg, fb] = hsl01(fc.h, fc.s, fc.l);
+    gx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    gx.tintR = fr; gx.tintG = fg; gx.tintB = fb; gx.tintAmt = fogOf(d, plane) * 0.9 + 0.1;
+    const lv = opts.lod ? Math.min(2, prepare3(cr, view, bias)) : (prepare3(cr, view), 0);
+    paint3(gx, cr, view, { ink: opts.ink, shade: opts.shade, water: env.water, lod: lv, alpha: 0.85 });
+    gx.tintAmt = 0;
+    return;
+  }
   // baked at the level of detail of its size on screen
   const sp = bakeCreature(cr, fogOf(d, plane) * 0.9 + 0.1, fogged(m, m.deep, 300, 0.4), 0.6, v.buf, opts.lod ? Math.min(2, lodOf((cr.box[3] - cr.box[0]) * P.s, -1, bias)) : 0);
   const k = P.s / sp.res;
@@ -792,19 +893,23 @@ function drawVisitor(v: Visitor, m: Mood, plane: number): void {
 }
 
 function drawShoal(s: Shoal): void {
-  const spr = s.spr, sw = spr[0].width / 2, sh = spr[0].height / 2;
+  const spr = s.spr, sw = spr[0].width / 2, sh = spr[0].height / 2, atlas = gx ? fishAtlas(spr) : null;
   for (let i = 0; i < s.n; i++) {
     view.project(s.x[i], s.y[i], s.z, P);
     if (P.x < -40 || P.x > W + 40 || P.y < -40 || P.y > H + 40) continue;
     const ang = Math.atan2(s.vy[i], s.vx[i]), flip = Math.cos(ang) < 0 ? -1 : 1, co = Math.cos(ang), si = Math.sin(ang), a = P.s * dpr * 0.5;
-    ctx.setTransform(a * co, a * si, -a * si * flip, a * co * flip, P.x * dpr, P.y * dpr);
-    ctx.drawImage(spr[Math.floor(s.ph[i]) % 3], -sw, -sh);
+    if (gx && atlas) fishGL(gx, atlas, Math.floor(s.ph[i]) % 3, sw, sh, P.x, P.y, s.vx[i], s.vy[i], P.s, dpr);
+    else {
+      ctx.setTransform(a * co, a * si, -a * si * flip, a * co * flip, P.x * dpr, P.y * dpr);
+      ctx.drawImage(spr[Math.floor(s.ph[i]) % 3], -sw, -sh);
+    }
     // lantern fish: a row of lights on the belly
     if (s.glow && (i & 1) === 0) lights.push(P.x, P.y + 1.5 * P.s, 5 * P.s + 2, 190, 0.5 + 0.3 * Math.sin(t * 3 + i));
   }
 }
 
 function drawRays(m: M): void {
+  if (gx) { gx.setTransform(dpr, 0, 0, dpr, 0, 0); raysGL(gx, view, m, cam.x, t); return; }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.globalCompositeOperation = 'lighter';
   const sp = 380;
@@ -876,7 +981,7 @@ function frame(now: number): void {
   render();
   const rt = performance.now() - r0;
   let ft = 0;
-  if (opts.flush) { const f0 = performance.now(); ctx.getImageData(0, 0, 1, 1); ft = performance.now() - f0; }
+  if (opts.flush) { const f0 = performance.now(); if (gx) gx.finish(); else ctx.getImageData(0, 0, 1, 1); ft = performance.now() - f0; }
   stats.render = stats.render * 0.9 + rt * 0.1;
   stats.flush = stats.flush * 0.9 + ft * 0.1;
   onFrame?.({ dt, update: ut, render: rt, flush: ft, steps });
@@ -928,7 +1033,7 @@ export const api = {
   settings, opts, detail, onlySp, player, stats, counts, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto,
   biomes: BIOMES, teleport, gotoBiome, spawnCrowd, clearCrowd, floorAt,
   setQuality: (q: number) => { quality = q; resize(); },
-  setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
+  renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
   get size() { return [W, H, canvas.width, canvas.height]; },
   setFrameHook: (f: typeof onFrame) => { onFrame = f; }
@@ -969,4 +1074,5 @@ setTimeout(() => showChapter(0), 400);
 requestAnimationFrame(frame);
 // ?lod=0: without the levels of detail (to compare)
 if (new URLSearchParams(location.search).get('lod') === '0') opts.lod = false;
-if (new URLSearchParams(location.search).has('bench')) setTimeout(() => void runBench(api, benchOut), 800);
+if (new URLSearchParams(location.search).get('bench') === 'compare') setTimeout(() => void compareSpecies(benchOut), 800);
+else if (new URLSearchParams(location.search).has('bench')) setTimeout(() => void runBench(api, benchOut), 800);

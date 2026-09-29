@@ -14,7 +14,7 @@ import type { Proj, Projector } from './view';
 type Ctx = CanvasRenderingContext2D;
 
 /** what the 2D renderer reads of a Seg, filled with projected data */
-interface Shim {
+export interface Shim {
   seg: Seg3;
   def: Seg3['def']; att: Seg3['att']; n: number; k: number; side: number; hue: number;
   parent: Shim | null; children: Shim[];
@@ -76,6 +76,9 @@ export function prepare3(cr: Creature3, view: Projector, bias = 1): number {
   st.fresh = view;
   return st.lv;
 }
+
+/** the projected parts of an animal after prepare3 (for another painter: WebGL) */
+export function shimOf(cr: Creature3): Shim | null { const st = lods.get(cr); if (st) st.fresh = null; return shims.get(cr) || null; }
 
 /** size on screen (css px) found by the last prepare3 */
 export function lodSize(cr: Creature3): number { return lods.get(cr)?.size || 0; }
@@ -175,11 +178,11 @@ function projectSeg(sh: Shim, cr: Creature3, view: Projector): void {
   for (const c of sh.children) projectSeg(c, cr, view);
 }
 
-const EPS = 0.6;
+export const EPS = 0.6;
 
 /** at level 2, a long row of copies (legs, cilia, filaments) keeps one copy in two (not when a membrane joins them) */
-const thinned = (c: Shim, o: DrawOptions) => !!o.lod && o.lod >= 2 && !!c.att && c.att.count >= 6 && !(c.att.web > 0) && (c.k & 1) === 1;
-const outside = (b: Box, v?: Box) => !!v && (b[2] < v[0] || b[0] > v[2] || b[3] < v[1] || b[1] > v[3]);
+export const thinned = (c: Shim, o: DrawOptions) => !!o.lod && o.lod >= 2 && !!c.att && c.att.count >= 6 && !(c.att.web > 0) && (c.k & 1) === 1;
+export const outside = (b: Box, v?: Box) => !!v && (b[2] < v[0] || b[0] > v[2] || b[3] < v[1] || b[1] > v[3]);
 
 function drawTree(ctx: Ctx, sh: Shim, o: DrawOptions): void {
   const ch = sh.children, me = sh as unknown as Seg;
@@ -200,8 +203,10 @@ const H = { x: 0, y: 0, z: 0 }, F = { x: 0, y: 0, z: 0 }, E = { x: 0, y: 0, z: 0
  * seen as an ellipse that flattens as its side turns away from the eye and
  * fades out before it disappears, so that turning round shows the second eye
  * gradually instead of making it pop in.
+ * This finds where they are on screen: fn(px, py, rr, lean, vf, fx, fy, look)
+ * for each visible one, the farther first (shared by the canvas and WebGL painters).
  */
-function drawEyes3(ctx: Ctx, cr: Creature3, view: Projector, bright?: boolean, simple = false): void {
+export function eyeDiscs3(cr: Creature3, view: Projector, fn: (px: number, py: number, rr: number, lean: number, vf: number, fx: number, fy: number, look: number) => void): void {
   const e = cr.spec.eyes;
   if (!e.on) return;
   const r = cr.root, rad = r.rad[0];
@@ -227,6 +232,18 @@ function drawEyes3(ctx: Ctx, cr: Creature3, view: Projector, bright?: boolean, s
     if (vf < 0.02) continue;
     view.project(H.x, H.y, H.z, P);
     const px = P.x, py = P.y, s = P.s, rr = er * s;
+    // the screen direction the disc leans toward: the ellipse is squeezed along it
+    view.axis(N.x, N.y, N.z, 1, A);
+    const lean = Math.atan2(A.y, A.x);
+    E.x = H.x + F.x * er; E.y = H.y + F.y * er; E.z = H.z + F.z * er;
+    view.project(E.x, E.y, E.z, P);
+    let fx = P.x - px, fy = P.y - py; const fl = Math.hypot(fx, fy) || 1; fx /= fl; fy /= fl;
+    fn(px, py, rr, lean, vf, fx, fy, Math.min(1, fl / (rr || 1)));
+  }
+}
+
+function drawEyes3(ctx: Ctx, cr: Creature3, view: Projector, bright?: boolean, simple = false): void {
+  eyeDiscs3(cr, view, (px, py, rr, lean, vf, fx, fy, look) => {
     if (simple) {
       // small: a white disc and its pupil, two paths instead of four and no state saved
       ctx.globalAlpha = vf;
@@ -234,15 +251,8 @@ function drawEyes3(ctx: Ctx, cr: Creature3, view: Projector, bright?: boolean, s
       ctx.beginPath(); ctx.arc(px, py, rr, 0, TAU); ctx.fill();
       ctx.fillStyle = '#05080f';
       ctx.beginPath(); ctx.arc(px, py, rr * 0.56, 0, TAU); ctx.fill();
-      continue;
+      return;
     }
-    // the screen direction the disc leans toward: the ellipse is squeezed along it
-    view.axis(N.x, N.y, N.z, 1, A);
-    const lean = Math.atan2(A.y, A.x);
-    E.x = H.x + F.x * er; E.y = H.y + F.y * er; E.z = H.z + F.z * er;
-    view.project(E.x, E.y, E.z, P);
-    let fx = P.x - px, fy = P.y - py; const fl = Math.hypot(fx, fy) || 1; fx /= fl; fy /= fl;
-    const look = Math.min(1, fl / (rr || 1));
     ctx.save();
     ctx.globalAlpha = vf;
     ctx.translate(px, py);
@@ -259,7 +269,7 @@ function drawEyes3(ctx: Ctx, cr: Creature3, view: Projector, bright?: boolean, s
     ctx.fillStyle = 'rgba(255,255,255,0.95)';
     ctx.beginPath(); ctx.arc(fx * rr * 0.1 - rr * 0.18, fy * rr * 0.1 - rr * 0.22, rr * 0.2, 0, TAU); ctx.fill();
     ctx.restore();
-  }
+  });
 }
 
 export interface Draw3Options {

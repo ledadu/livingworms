@@ -12,6 +12,8 @@ import { SPECIES } from '../content';
 import { Creature3 } from '../engine3/creature3';
 import { draw3 } from '../engine3/render3';
 import { Ortho } from '../engine3/view';
+import { Gfx } from '../engine3/gfx';
+import { paint3 } from '../engine3/paint-gl';
 import { makeCanvas } from '../game/bake';
 import { biomeMid, floorAt } from './biomes';
 import type { FrameSample, api as Api } from './main';
@@ -53,6 +55,67 @@ export interface BenchResult {
 }
 
 let running = false;
+
+/**
+ * Fidelity of the WebGL painter: every species in one pose, drawn by the
+ * canvas (draw3) and by WebGL (paint3) at three levels of detail, side by
+ * side; the mean difference of the pixels (0..255) for each. ?bench=compare
+ */
+export async function compareSpecies(out: HTMLElement): Promise<void> {
+  out.hidden = false;
+  out.innerHTML = '<p class="busy">Canvas / WebGL : chaque espèce…</p>';
+  const w = 240, h = 170, ids = Object.keys(SPECIES);
+  const a = makeCanvas(w, h), ga = a.getContext('2d', { willReadFrequently: true })!;
+  const b = makeCanvas(w, h), gl = b.getContext('webgl2', { antialias: true, alpha: false, depth: true, preserveDrawingBuffer: true })!;
+  const gfx = new Gfx(gl);
+  gfx.resize(w, h);
+  const bb = makeCanvas(w, h), gb = bb.getContext('2d', { willReadFrequently: true })!;
+  const sheet = makeCanvas(w * 2 * 3, h * ids.length), gs = sheet.getContext('2d')!;
+  const bg = [0.22, 0.42, 0.52];
+  const diffs: { id: string; d: number[] }[] = [];
+  ids.forEach((id, row) => {
+    const cr = new Creature3(SPECIES[id](), 0, 0, 0, { dir: { x: 1, y: 0, z: 0 }, scale: 1, phase: 1 });
+    for (let i = 0; i < 90; i++) cr.steer(i * STEP, 1.2, 0.3 * Math.sin(i * 0.1), 0, 0.1);
+    const box = cr.box, sizes = [200, 80, 30], d: number[] = [];
+    for (let lv = 0; lv < 3; lv++) {
+      const k = sizes[lv] / Math.max(1, box[3] - box[0], box[4] - box[1]);
+      const view = new Ortho(k, w / 2 - ((box[0] + box[3]) / 2) * k, h / 2 - ((box[1] + box[4]) / 2) * k);
+      ga.setTransform(1, 0, 0, 1, 0, 0);
+      ga.fillStyle = `rgb(${bg.map((v) => Math.round(v * 255)).join(',')})`;
+      ga.fillRect(0, 0, w, h);
+      draw3(ga, cr, view, { ink: true, water: 0.5, lod: lv });
+      gfx.begin(bg[0], bg[1], bg[2]);
+      gfx.setTransform(1, 0, 0, 1, 0, 0);
+      paint3(gfx, cr, view, { ink: true, water: 0.5, lod: lv }, true);
+      gfx.end();
+      gb.drawImage(b, 0, 0);
+      const pa = ga.getImageData(0, 0, w, h).data, pb = gb.getImageData(0, 0, w, h).data;
+      let sum = 0, n = 0;
+      for (let i = 0; i < pa.length; i += 4) {
+        const e = Math.abs(pa[i] - pb[i]) + Math.abs(pa[i + 1] - pb[i + 1]) + Math.abs(pa[i + 2] - pb[i + 2]);
+        // only where something is drawn in one of them
+        const bgA = Math.abs(pa[i] - bg[0] * 255) + Math.abs(pa[i + 1] - bg[1] * 255) + Math.abs(pa[i + 2] - bg[2] * 255);
+        const bgB = Math.abs(pb[i] - bg[0] * 255) + Math.abs(pb[i + 1] - bg[1] * 255) + Math.abs(pb[i + 2] - bg[2] * 255);
+        if (bgA > 6 || bgB > 6) { sum += e / 3; n++; }
+      }
+      d.push(n ? sum / n : 0);
+      gs.drawImage(a, lv * w * 2, row * h);
+      gs.drawImage(b, lv * w * 2 + w, row * h);
+    }
+    diffs.push({ id, d });
+  });
+  diffs.sort((x, y) => y.d[0] - x.d[0]);
+  (window as unknown as { __cmp: unknown }).__cmp = { diffs, sheet: sheet.toDataURL('image/png') };
+  out.innerHTML = `<button class="close" aria-label="Fermer">×</button><h2>Canvas / WebGL</h2>
+    <p class="note">Écart moyen des pixels dessinés (0–255), niveaux 0 / 1 / 2 ; à gauche le canvas, à droite WebGL.</p>
+    <div class="scroll"><table><tr><th>espèce</th><th>N0</th><th>N1</th><th>N2</th></tr>${diffs.map((x) => `<tr><td>${x.id}</td>${x.d.map((v) => `<td>${v.toFixed(1)}</td>`).join('')}</tr>`).join('')}</table></div>`;
+  const img = new Image();
+  img.src = sheet.toDataURL('image/png');
+  img.style.maxWidth = '100%';
+  out.append(img);
+  out.querySelector('.close')!.addEventListener('click', () => { out.hidden = true; });
+  console.log('COMPARE_DONE');
+}
 
 export async function runBench(api: A, out: HTMLElement): Promise<BenchResult | null> {
   if (running) return null;

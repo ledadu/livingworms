@@ -40,8 +40,8 @@ export const detail = { sheen: 1.2, shade: 2.4, motif: 1, ink: 0 };
 /** level of the animal being drawn (set by drawSelf) */
 let lod = 0;
 /** by level: the width on screen (px) under which a part has no outline, and no motif, sheen or thin edge */
-const INK_MIN = [0, 1.2, 2.5];
-const EXTRA_MIN = [0, 3, Infinity];
+export const INK_MIN = [0, 1.2, 2.5];
+export const EXTRA_MIN = [0, 3, Infinity];
 export function setInk(v: boolean): void { ink = v; }
 export function setShade(v: boolean): void { shade = v; }
 
@@ -62,7 +62,7 @@ function shadeBody(ctx: Ctx, s: Seg, flat: boolean): void {
 }
 
 /** which side of a ribbon faces the light (the top of the screen) */
-function sheenSide(s: Seg, off: number): number {
+export function sheenSide(s: Seg, off: number): number {
   if (!shade) return off;
   let cs = 0;
   for (let i = 1; i <= s.n; i++) cs += Math.cos(s.ang[i]);
@@ -73,6 +73,10 @@ function sheenSide(s: Seg, off: number): number {
 const L = { x: new Float32Array(64), y: new Float32Array(64) };
 const R = { x: new Float32Array(64), y: new Float32Array(64) };
 const C = { x: new Float32Array(64), y: new Float32Array(64), r: new Float32Array(64), a: new Float32Array(64) };
+const HULL = { L, R, C };
+
+/** the outline of a ribbon: its two sides and its centre line, in shared buffers (also used by the WebGL painter) */
+export function hullOf(s: Seg, k: number, off: number): { L: typeof L; R: typeof R; C: typeof C } { hull(s, k, off); return HULL; }
 
 function hull(s: Seg, k: number, off: number): void {
   const n = s.n, x = s.x, y = s.y, ang = s.ang, rad = s.rad, pl = s.pulse;
