@@ -40,4 +40,4 @@ title.addEventListener('pointerup', () => {
 });
 
 // keep the screen from scrolling or zooming under the fingers
-document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).closest('#atelier')) e.preventDefault(); }, { passive: false });
