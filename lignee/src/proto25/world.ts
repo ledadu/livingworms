@@ -2,7 +2,10 @@
 // set at many depths, all baked once into small images (with their fog), so
 // that a frame costs about what the 2D version costs.
 
-import { Creature, TAU, clamp, draw, noise1, rng, seedOf, settle, type Spec } from '../engine';
+import { TAU, clamp, noise1, rng, seedOf, type Spec } from '../engine';
+import { Creature3, settle3 } from '../engine3/creature3';
+import { draw3 } from '../engine3/render3';
+import { Ortho } from '../engine3/view';
 import { css, fogged, moodAt, waterAt, type HSL, type Mood } from '../game/palette';
 import { plantSpec } from '../game/plants';
 import { floorY as floor2D, reefness } from '../game/terrain';
@@ -100,23 +103,25 @@ function tint(ctx: CanvasRenderingContext2D, c: HTMLCanvasElement, fog: number, 
   ctx.globalCompositeOperation = 'source-over';
 }
 
-/** a whip plant drawn once at `res` px per unit, fogged */
-export function bakeCreature(cr: Creature, fog: number, fogCol: HSL, res: number): Sprite {
-  const b = cr.box, pad = 4;
-  const w = b[2] - b[0] + pad * 2, h = b[3] - b[1] + pad * 2;
+/** a 3D creature drawn flat into a small image at `res` px per unit (no perspective) */
+export function bakeCreature(cr: Creature3, fog: number, fogCol: HSL, res: number, into?: HTMLCanvasElement): Sprite {
+  const b = cr.box, pad = 5;
+  const w = b[3] - b[0] + pad * 2, h = b[4] - b[1] + pad * 2;
   res = Math.min(res, 900 / Math.max(w, h));
-  const c = makeCanvas(w * res, h * res), ctx = c.getContext('2d')!;
-  ctx.setTransform(res, 0, 0, res, (-b[0] + pad) * res, (-b[1] + pad) * res);
-  draw(ctx, cr, { ink: true });
+  const c = into || makeCanvas(w * res, h * res);
+  if (into) { into.width = Math.max(1, Math.ceil(w * res)); into.height = Math.max(1, Math.ceil(h * res)); }
+  const ctx = c.getContext('2d')!;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, c.width, c.height);
+  draw3(ctx, cr, new Ortho(res, (-b[0] + pad) * res, (-b[1] + pad) * res), { ink: true });
   tint(ctx, c, fog, fogCol);
-  // anchor: the plant's root
   return { canvas: c, ax: cr.root.x[0] - b[0] + pad, ay: cr.root.y[0] - b[1] + pad, res };
 }
 
 // ----- what stands where ----- //
 
 export interface Rock { x: number; z: number; r: number; seed: number; sprite: Sprite | null; spriteD: number; }
-export interface Plant { x: number; z: number; kind: string; seed: number; cr: Creature | null; sprite: Sprite | null; spriteD: number; live: boolean; }
+export interface Plant { x: number; z: number; kind: string; seed: number; cr: Creature3 | null; sprite: Sprite | null; spriteD: number; live: boolean; }
 
 export const X0 = -800, X1 = 12000;
 
@@ -134,16 +139,19 @@ export function makeRocks(): Rock[] {
 }
 
 /** build the plant's whip the first time it comes near */
-export function growPlant(p: Plant): Creature {
+export function growPlant(p: Plant): Creature3 {
   const R = rng(p.seed), kind = p.kind, hanging = kind === 'sargasse';
   const y = hanging ? 3 + R() * 4 : floorAt(p.x, p.z) + 3;
-  const dir = hanging ? Math.PI / 2 : -Math.PI / 2;
   const tilt = kind === 'kelp' || kind === 'posidonie' || hanging ? 0 : (R() - 0.5) * 0.35;
   const scale = kind === 'kelp' ? 0.9 + R() * 0.5 : 0.8 + R() * 0.45;
   const sp: Spec = plantSpec(kind, R);
-  const cr = new Creature(sp, p.x, y, { dir: dir + tilt, anchor: dir + tilt, phase: R() * TAU, scale });
+  // each plant lives in its own vertical plane, turned by a random azimuth
+  const az = R() * Math.PI, ca = Math.cos(az), sa = Math.sin(az);
+  const dv = { x: Math.sin(tilt) * ca, y: hanging ? 1 : -Math.cos(tilt), z: Math.sin(tilt) * sa };
+  if (hanging) { dv.x = Math.sin(tilt) * ca; dv.z = Math.sin(tilt) * sa; dv.y = Math.cos(tilt); }
+  const cr = new Creature3(sp, p.x, y, p.z, { anchor: { dir: dv, plane: az }, phase: R() * TAU, scale });
   if (kind === 'anemone') for (const sg of cr.list) sg.def.motion.amp *= 0.3;
-  settle(cr, kind === 'kelp' || hanging ? 300 : 140);
+  settle3(cr, kind === 'kelp' || hanging ? 300 : 140);
   p.cr = cr;
   return cr;
 }
@@ -188,4 +196,4 @@ export function makePlants(): Plant[] {
   return out;
 }
 
-export { css, fogged, moodAt, waterAt };
+export { css, fogged, moodAt, waterAt, type Creature3 };

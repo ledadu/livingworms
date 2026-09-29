@@ -5,7 +5,26 @@
 
 export interface Proj { x: number; y: number; s: number; d: number; }
 
-export class View {
+/** what the renderer needs from a camera */
+export interface Projector {
+  project(x: number, y: number, z: number, out: Proj): Proj;
+  axis(vx: number, vy: number, vz: number, s: number, out: { x: number; y: number }): void;
+  /** unit vector from a world point toward the eye */
+  toward(x: number, y: number, z: number, out: { x: number; y: number; z: number }): void;
+}
+
+/** a flat projection with no perspective (for baking sprites): res px per unit */
+export class Ortho implements Projector {
+  constructor(public res: number, public ox = 0, public oy = 0) {}
+  project(x: number, y: number, z: number, out: Proj): Proj {
+    out.x = this.ox + x * this.res; out.y = this.oy + y * this.res; out.s = this.res; out.d = 1000 + z;
+    return out;
+  }
+  axis(vx: number, vy: number, _vz: number, s: number, out: { x: number; y: number }): void { out.x = vx * s; out.y = vy * s; }
+  toward(_x: number, _y: number, _z: number, out: { x: number; y: number; z: number }): void { out.x = 0; out.y = 0; out.z = -1; }
+}
+
+export class View implements Projector {
   W = 0; H = 0;
   /** focal length in css px */
   f = 1;
@@ -43,6 +62,17 @@ export class View {
     out.s = s;
     out.d = d;
     return out;
+  }
+
+  /** screen displacement of a world vector at a place whose perspective scale is s */
+  axis(vx: number, vy: number, vz: number, s: number, out: { x: number; y: number }): void {
+    out.x = vx * s;
+    out.y = (vy * this.cp - vz * this.sp) * s;
+  }
+
+  toward(x: number, y: number, z: number, out: { x: number; y: number; z: number }): void {
+    const dx = this.cx - x, dy = this.cy - y, dz = this.cz - z, l = Math.hypot(dx, dy, dz) || 1;
+    out.x = dx / l; out.y = dy / l; out.z = dz / l;
   }
 
   /** the point of the plane z = zp under a screen position */

@@ -18,6 +18,7 @@ export interface DrawOptions {
 }
 
 let ink = false;
+export function setInk(v: boolean): void { ink = v; }
 
 // scratch outline buffers, shared by every draw call
 const L = { x: new Float32Array(64), y: new Float32Array(64) };
@@ -227,7 +228,7 @@ function webPair(ctx: Ctx, A: Seg, B: Seg, f: number): void {
   ctx.fill();
 }
 
-function drawWebs(ctx: Ctx, s: Seg, front: boolean, o: DrawOptions): void {
+export function drawWebs(ctx: Ctx, s: Seg, front: boolean, o: DrawOptions): void {
   const ch = s.children;
   for (const a of s.def.attach) {
     if (!(a.web > 0) || !!a.front !== front || (o.lit && !a.node.color.add)) continue;
@@ -264,7 +265,7 @@ export function inView(b: Box, v?: Box): boolean {
   return !v || !(b[2] < v[0] || b[0] > v[2] || b[3] < v[1] || b[1] > v[3]);
 }
 
-function drawSelf(ctx: Ctx, s: Seg, o: DrawOptions): void {
+export function drawSelf(ctx: Ctx, s: Seg, o: DrawOptions): void {
   const d = s.def;
   if (o.lit && !(d.color.add || d.color.glow !== 'none')) return;
   ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;

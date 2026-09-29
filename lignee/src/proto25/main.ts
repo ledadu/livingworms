@@ -3,14 +3,16 @@
 // draws from far to near. Animals swim in profile in vertical planes and
 // turn around about the vertical axis.
 
-import { Creature, Flow, STEP, TAU, clamp, draw, eachGlow, rand, rng, swimFactor, type Spec } from '../engine';
+import { Flow, STEP, TAU, clamp, rand, rng, type Spec } from '../engine';
+import { Creature3, swimFactor3 } from '../engine3/creature3';
+import { draw3, eachGlow3 } from '../engine3/render3';
 import { SPECIES } from '../content';
 import { firstAncestor } from '../game/game';
 import { Input } from '../game/input';
 import { causticTile, fishSprites, glowSprite, makeCanvas } from '../game/bake';
 import { faunaFor } from '../game/ambient';
 import { reefness } from '../game/terrain';
-import { View, type Proj } from './view';
+import { View, type Proj } from '../engine3/view';
 import {
   X0, X1, bakeCreature, bakeRock, css, floorAt, fogOf, fogged, growPlant, makePlants, makeRocks, moodAt, waterAt,
   type Plant, type Rock
@@ -49,16 +51,17 @@ const plants: Plant[] = makePlants();
 const caustic = ctx.createPattern(causticTile(256, 7, 5), 'repeat')!;
 
 interface Actor {
-  cr: Creature; kind: 'player' | 'swim' | 'floor' | 'sib';
+  cr: Creature3; kind: 'player' | 'swim' | 'floor' | 'sib';
+  /** the plane it lives in; it leaves it only to turn around */
   z: number; hx: number; hy: number; tx: number; ty: number; next: number;
-  /** +1 heading right, -1 left; turning around happens about the vertical axis */
-  face: number; yaw: number; turnT: number;
+  /** turning around in the horizontal plane: which way it swings (+1 away from the eye) */
+  turning: number;
 }
 const actors: Actor[] = [];
 function addActor(sp: Spec, x: number, y: number, kind: Actor['kind'], scale = 1, z = 0): Actor {
-  const cr = new Creature(sp, x, y, { dir: Math.random() < 0.5 ? 0 : Math.PI, scale, profile: true });
-  for (let i = 0; i < 60; i++) cr.update(i * STEP, 0, 0, 0.1);
-  const a: Actor = { cr, kind, z, hx: x, hy: y, tx: x, ty: y, next: 0, face: Math.cos(cr.heading()) >= 0 ? 1 : -1, yaw: 0, turnT: -9 };
+  const cr = new Creature3(sp, x, y, z, { dir: { x: Math.random() < 0.5 ? 1 : -1, y: 0, z: 0 }, scale });
+  for (let i = 0; i < 60; i++) cr.update(i * STEP, 0, 0, 0, 0.1);
+  const a: Actor = { cr, kind, z, hx: x, hy: y, tx: x, ty: y, next: 0, turning: 0 };
   actors.push(a);
   return a;
 }
@@ -75,11 +78,12 @@ const player = addActor(firstAncestor(), 420, 180, 'player', 0.8);
 }
 
 // distant visitors: a turtle over the Nurserie, a manta over the Récif
-interface Visitor { cr: Creature; z: number; x0: number; x1: number; y: number; dir: number; sprite: HTMLCanvasElement; }
+interface Visitor { cr: Creature3; z: number; x0: number; x1: number; y: number; dir: number; buf: HTMLCanvasElement; turning: number; }
 const visitors: Visitor[] = [
-  { cr: new Creature(SPECIES.tortue(), 800, 260, { dir: Math.PI, scale: 2.4, profile: true }), z: 1500, x0: 200, x1: 6000, y: 260, dir: 1, sprite: makeCanvas(256, 256) },
-  { cr: new Creature(SPECIES.manta(), 7600, 200, { dir: Math.PI, scale: 2.6, profile: true }), z: 1600, x0: 7200, x1: 12000, y: 200, dir: 1, sprite: makeCanvas(256, 256) }
+  { cr: new Creature3(SPECIES.tortue(), 800, 260, 1500, { dir: { x: 1, y: 0, z: 0 }, scale: 2.4 }), z: 1500, x0: 200, x1: 6000, y: 260, dir: 1, buf: makeCanvas(8, 8), turning: 0 },
+  { cr: new Creature3(SPECIES.manta(), 7600, 200, 1600, { dir: { x: 1, y: 0, z: 0 }, scale: 2.6 }), z: 1600, x0: 7200, x1: 12000, y: 200, dir: 1, buf: makeCanvas(8, 8), turning: 0 }
 ];
+for (const v of visitors) for (let i = 0; i < 90; i++) v.cr.update(i * STEP, 0.5, 0, 0, 0.2);
 
 // a school of small fish in a plane behind the swimmer
 const FISH = 50, FZ = 180;
@@ -97,19 +101,27 @@ const flow = new Flow(32);
 let t = 0;
 const cam = { x: 420, y: 180 };
 
+/**
+ * Swim toward (dvx, dvy). The vertical plane is for going up and down; to go
+ * the other way the animal turns around in the horizontal plane: its velocity
+ * swings through the depth (away from the eye), and the whole chain follows in
+ * three axes, so the body really curves round instead of flipping.
+ */
 function steer(a: Actor, dvx: number, dvy: number, accel: number): void {
-  // the vertical plane is only for up and down: to go the other way, turn around
-  if (dvx * a.face < -0.2 && t - a.turnT > 0.45) {
-    a.cr.mirrorX();
-    a.face = -a.face;
-    a.turnT = t;
-    a.yaw = Math.PI;
+  const c = a.cr, r = c.root, sp = Math.hypot(dvx, dvy) || 1;
+  if (!a.turning && dvx * c.vx < -0.12 && Math.abs(dvx) > 0.25) a.turning = a.z > 220 ? -1 : 1;
+  let dvz = clamp((a.z - r.z[0]) * 0.04, -0.6, 0.6);
+  if (a.turning) {
+    dvz = a.turning * Math.min(1.4, sp * 0.9 + Math.abs(c.vx) * 0.4);
+    // the turn is done when we move the way we want, then the plane pulls it back
+    if (c.vx * dvx > 0.35 * Math.abs(dvx) && Math.abs(c.vz) < 0.35 * sp + 0.2) a.turning = 0;
+    else if (Math.abs(r.z[0] - a.z) > 130) a.turning = 0;
   }
-  a.cr.update(t, dvx, dvy, accel);
+  c.update(t, dvx, dvy, dvz, accel);
 }
 
-function collide(cr: Creature, z: number): void {
-  const r = cr.root, rad = r.rad[0] + 3;
+function collide(cr: Creature3): void {
+  const r = cr.root, rad = r.rad[0] + 3, z = r.z[0];
   for (const k of rocks) {
     const dz = Math.abs(k.z - z);
     if (dz > k.r || Math.abs(k.x - r.x[0]) > k.r * 1.4 + 20) continue;
@@ -136,12 +148,13 @@ function update(): void {
     steer(player, (kd.x / d) * 2.6, (kd.y / d) * 2.6, 0.08);
   } else steer(player, 0, 0, 0.03);
   r.x[0] = clamp(r.x[0], X0 + 200, X1 - 200);
-  collide(p, 0);
+  collide(p);
   const px = r.x[0], py = r.y[0];
 
   flow.clear();
   const near = (x: number) => Math.abs(x - px) < 1100;
-  for (const a of actors) if (Math.abs(a.z) < 50 && near(a.cr.root.x[0])) flow.add(a.cr);
+  const inPlane = (a: Actor) => Math.abs(a.cr.root.z[0]) < 60;
+  for (const a of actors) if (inPlane(a) && near(a.cr.root.x[0])) flow.add(a.cr as never);
   for (const a of actors) {
     if (a.kind === 'player' || !near(a.cr.root.x[0])) continue;
     const c = a.cr, cr = c.root, x = cr.x[0], y = cr.y[0];
@@ -150,7 +163,7 @@ function update(): void {
       const gx = px + a.tx - x, gy = py + a.ty - y, g = Math.hypot(gx, gy) || 1, d = Math.hypot(px - x, py - y);
       const sp = d > 280 ? 1.9 : 0.9 * Math.min(1, g / 60);
       steer(a, (gx / g) * sp, (gy / g) * sp, 0.04);
-      collide(c, a.z);
+      collide(c);
       continue;
     }
     if (t > a.next || Math.hypot(a.tx - x, a.ty - y) < 20) {
@@ -163,20 +176,22 @@ function update(): void {
       const qx = x - px, qy = y - py, q = Math.hypot(qx, qy);
       if (q < 70) { dx += (qx / (q + 1)) * 200; dy += (qy / (q + 1)) * 200; }
     }
-    const d = Math.hypot(dx, dy) || 1, sp = c.spec.swim.speed * 0.45 * swimFactor(c, t) * Math.min(1, d / 60);
+    const d = Math.hypot(dx, dy) || 1, sp = c.spec.swim.speed * 0.45 * swimFactor3(c, t) * Math.min(1, d / 60);
     steer(a, (dx / d) * sp, (dy / d) * sp, 0.05);
-    collide(c, a.z);
+    collide(c);
   }
-  for (const pl of plants) if (pl.live && pl.cr && Math.abs(pl.x - px) < 700) { pl.cr.update(t, 0, 0, 1); flow.apply(pl.cr, { push: 0.25, wake: 0.04, reach: 18 }); }
-  for (const a of actors) if (Math.abs(a.z) < 50 && near(a.cr.root.x[0])) flow.apply(a.cr, { push: 0.3, wake: 0.02, body: a.kind === 'player' ? 0.008 : 0.01 });
+  for (const pl of plants) if (pl.live && pl.cr && Math.abs(pl.x - px) < 700) { pl.cr.update(t, 0, 0, 0, 1); flow.apply(pl.cr as never, { push: 0.25, wake: 0.04, reach: 18 }); }
+  for (const a of actors) if (inPlane(a) && near(a.cr.root.x[0])) flow.apply(a.cr as never, { push: 0.3, wake: 0.02, body: a.kind === 'player' ? 0.008 : 0.01 });
 
   for (const v of visitors) {
-    const vx = v.cr.root.x[0];
+    const cr = v.cr, vx = cr.root.x[0];
+    if (Math.abs(vx - px) > 5200) continue;
     if (vx > v.x1) v.dir = -1; else if (vx < v.x0) v.dir = 1;
-    if (Math.abs(vx - px) < 5000) {
-      if (v.dir * Math.cos(v.cr.heading()) < -0.2) v.cr.mirrorX();
-      v.cr.update(t, v.dir * 0.55 * swimFactor(v.cr, t), (v.y - v.cr.root.y[0]) * 0.01, 0.02);
-    }
+    // even the far ones turn around in the horizontal plane
+    if (!v.turning && v.dir * cr.vx < -0.1) v.turning = 1;
+    let dvz = clamp((v.z - cr.root.z[0]) * 0.02, -0.4, 0.4);
+    if (v.turning) { dvz = 0.7; if (cr.vx * v.dir > 0.3 || Math.abs(cr.root.z[0] - v.z) > 200) v.turning = 0; }
+    cr.update(t, v.dir * 0.55 * swimFactor3(cr, t), (v.y - cr.root.y[0]) * 0.01, dvz, 0.02);
   }
 
   // fish school
@@ -219,16 +234,6 @@ const ROWS = [2000, 1700, 1450, 1240, 1060, 910, 780, 670, 570, 480, 400, 330, 2
 
 type Item = { d: number; fn: () => void };
 const items: Item[] = [];
-
-function creatureTransform(cr: Creature, z: number, yaw: number): number {
-  const r = cr.root;
-  view.project(r.x[0], r.y[0], z, P);
-  const k = P.s, kv = Math.cos(view.pitch);
-  let sx = Math.cos(yaw);
-  if (Math.abs(sx) < 0.12) sx = sx < 0 ? -0.12 : 0.12;
-  ctx.setTransform(dpr * k * sx, 0, 0, dpr * k * kv, dpr * (P.x - k * sx * r.x[0]), dpr * (P.y - k * kv * r.y[0]));
-  return k;
-}
 
 function drawSprite(sp: { canvas: HTMLCanvasElement; ax: number; ay: number; res: number }, x: number, y: number, z: number): void {
   view.project(x, y, z, P);
@@ -299,12 +304,13 @@ function render(): void {
     const [x0, x1] = view.xRange(a.z, 200);
     const x = a.cr.root.x[0];
     if (x < x0 || x > x1) continue;
-    items.push({ d: view.depth(a.cr.root.y[0], a.z) - 0.2, fn: () => { creatureTransform(a.cr, a.z, a.yaw); draw(ctx, a.cr, { ink: true }); } });
+    const rz = a.cr.root.z[0];
+    items.push({ d: view.depth(a.cr.root.y[0], rz) - 0.2, fn: () => { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); draw3(ctx, a.cr, view, { ink: true }); } });
   }
   for (const v of visitors) {
     const [x0, x1] = view.xRange(v.z, 400);
     if (v.cr.root.x[0] < x0 || v.cr.root.x[0] > x1) continue;
-    items.push({ d: view.depth(v.y, v.z), fn: () => drawVisitor(v, m, plane) });
+    items.push({ d: view.depth(v.y, v.cr.root.z[0]), fn: () => drawVisitor(v, m, plane) });
   }
   items.push({ d: view.depth(200, FZ), fn: drawFish });
   items.push({ d: view.depth(300, 700), fn: () => drawRays(m) });
@@ -316,12 +322,10 @@ function render(): void {
   ctx.globalCompositeOperation = 'lighter';
   for (const a of actors) {
     if (Math.abs(a.cr.root.x[0] - cam.x) > 1400) continue;
-    eachGlow(a.cr.list, (x, y, size, hue, al) => {
-      view.project(x, y, a.z, P);
-      const s = size * P.s;
+    eachGlow3(a.cr, view, (x, y, size, hue, al) => {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.globalAlpha = al * 0.55;
-      ctx.drawImage(glowSprite(hue), P.x - s, P.y - s, s * 2, s * 2);
+      ctx.drawImage(glowSprite(hue), x - size, y - size, size * 2, size * 2);
     });
   }
   ctx.globalAlpha = 1;
@@ -413,8 +417,8 @@ function drawPlant(pl: Plant, m: ReturnType<typeof moodAt>, plane: number): void
   const cr = pl.cr!;
   if (pl.live && Math.abs(pl.x - cam.x) < 900) {
     // in the swimming plane: drawn live, it moves with the water
-    creatureTransform(cr, pl.z, 0);
-    draw(ctx, cr, { ink: true });
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw3(ctx, cr, view, { ink: true });
     return;
   }
   const d = view.depth(cr.root.y[0], pl.z);
@@ -429,24 +433,14 @@ function drawPlant(pl: Plant, m: ReturnType<typeof moodAt>, plane: number): void
 }
 
 function drawVisitor(v: Visitor, m: ReturnType<typeof moodAt>, plane: number): void {
-  // drawn small into its own buffer, washed with the water colour, then placed
-  const cr = v.cr, b = cr.box, w = b[2] - b[0] + 20, h = b[3] - b[1] + 20;
-  const s = Math.min(1, 240 / Math.max(w, h));
-  const bc = v.sprite.getContext('2d')!;
-  bc.setTransform(1, 0, 0, 1, 0, 0);
-  bc.clearRect(0, 0, 256, 256);
-  bc.setTransform(s, 0, 0, s, (-b[0] + 10) * s, (-b[1] + 10) * s);
-  draw(bc, cr);
-  bc.setTransform(1, 0, 0, 1, 0, 0);
-  bc.globalCompositeOperation = 'source-atop';
-  bc.fillStyle = css(fogged(m, m.deep, 300, 0.4), fogOf(view.depth(v.y, v.z), plane) * 0.9 + 0.1);
-  bc.fillRect(0, 0, 256, 256);
-  bc.globalCompositeOperation = 'source-over';
-  view.project(b[0] - 10, b[1] - 10, v.z, P);
-  const k = P.s;
+  // drawn flat into its own small buffer, washed with the water colour, then placed
+  const cr = v.cr, rz = cr.root.z[0], d = view.depth(v.y, rz);
+  const sp = bakeCreature(cr, fogOf(d, plane) * 0.9 + 0.1, fogged(m, m.deep, 300, 0.4), 0.6, v.buf);
+  view.project(cr.root.x[0], cr.root.y[0], rz, P);
+  const k = P.s / sp.res;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.globalAlpha = 0.85;
-  ctx.drawImage(v.sprite, 0, 0, Math.ceil(w * s), Math.ceil(h * s), P.x, P.y, w * k, h * k * Math.cos(view.pitch));
+  ctx.drawImage(sp.canvas, P.x - sp.ax * sp.res * k, P.y - sp.ay * sp.res * k * Math.cos(view.pitch), sp.canvas.width * k, sp.canvas.height * k * Math.cos(view.pitch));
   ctx.globalAlpha = 1;
 }
 
@@ -498,13 +492,16 @@ function vignette(): HTMLCanvasElement {
 // ----- loop ----- //
 
 let last = performance.now(), acc = 0, fn = 0, fsum = 0;
-const stats = { fps: 0, render: 0 };
+const timeScale = { v: 1 };
+const stats = { fps: 0, render: 0, update: 0 };
 function frame(now: number): void {
   const dt = now - last;
   last = now;
-  acc += Math.min(0.1, dt / 1000);
+  acc += Math.min(0.1, dt / 1000) * timeScale.v;
   let steps = 0;
+  const u0 = performance.now();
   while (acc >= STEP && steps < 3) { update(); acc -= STEP; steps++; }
+  stats.update = stats.update * 0.9 + (performance.now() - u0) * 0.1;
   if (steps === 3) acc = 0;
   // camera: follows the swimmer, never above the surface
   const r = player.cr.root, dist = 900 / input.zoomMul, pitch = (settings.angle * Math.PI) / 180;
@@ -512,7 +509,6 @@ function frame(now: number): void {
   cam.y += (r.y[0] + player.cr.vy * 20 - cam.y) * 0.07;
   const ty = Math.max(cam.y, 30 + dist * Math.sin(pitch));
   view.aim(cam.x, ty, dist, pitch);
-  for (const a of actors) { a.yaw *= 0.84; if (Math.abs(a.yaw) < 0.01) a.yaw = 0; }
   const r0 = performance.now();
   render();
   stats.render = stats.render * 0.9 + (performance.now() - r0) * 0.1;
@@ -528,8 +524,8 @@ function frame(now: number): void {
 }
 
 (window as unknown as { lignee25: unknown }).lignee25 = {
-  settings, player, stats, actors, view,
-  teleport: (x: number, y: number) => { player.cr.translate(x - player.cr.root.x[0], y - player.cr.root.y[0]); cam.x = x; cam.y = y; },
+  settings, player, stats, actors, view, input, plants, rocks, timeScale,
+  teleport: (x: number, y: number) => { player.cr.translate(x - player.cr.root.x[0], y - player.cr.root.y[0], 0); cam.x = x; cam.y = y; },
   spawn: (id: string, dx: number, dy: number) => addActor(SPECIES[id](), player.cr.root.x[0] + dx, player.cr.root.y[0] + dy, 'swim', 1, 0)
 };
 

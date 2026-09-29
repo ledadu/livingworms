@@ -1,0 +1,473 @@
+// The whip engine in three axes. Same species definitions (defs.ts), same
+// parameters, but every link of every chain has a direction in space:
+//  - a body can swing in the horizontal plane (yaw), in the vertical plane
+//    (pitch), and its limbs turn with it;
+//  - each chain keeps a bend plane (its normal is `nb`): curl, waves, rows and
+//    flutter rotate about that axis, exactly as they did about the screen axis
+//    in 2D;
+//  - a body's bend plane is always the vertical one through its own tangent
+//    (like a dolphin or a fish), so that it undulates whichever way it faces.
+//
+// World axes: x right, y DOWN (the surface is y = 0), z away from the eye.
+
+import type { AttDef, NodeDef, PaletteSlot, Spec } from '../engine/types';
+import { ROOT_SLOT, SHAPES, expand, palette, type Slot } from '../engine/defs';
+import { STEP, TAU, clamp, hsla, lerp, rand } from '../engine/util';
+
+// ----- tiny vector helpers on scalars (no allocation in the hot path) ----- //
+
+interface V { x: number; y: number; z: number; }
+const v3 = (x = 0, y = 0, z = 0): V => ({ x, y, z });
+
+function norm(v: V): V {
+  const l = Math.hypot(v.x, v.y, v.z) || 1;
+  v.x /= l; v.y /= l; v.z /= l;
+  return v;
+}
+
+/** v rotated about the unit axis k by ang (Rodrigues), written into out */
+function rotate(v: V, k: V, ang: number, out: V): V {
+  const c = Math.cos(ang), s = Math.sin(ang), d = (k.x * v.x + k.y * v.y + k.z * v.z) * (1 - c);
+  const cx = k.y * v.z - k.z * v.y, cy = k.z * v.x - k.x * v.z, cz = k.x * v.y - k.y * v.x;
+  out.x = v.x * c + cx * s + k.x * d;
+  out.y = v.y * c + cy * s + k.y * d;
+  out.z = v.z * c + cz * s + k.z * d;
+  return out;
+}
+
+const DOWN: V = v3(0, 1, 0);
+
+/** the belly axis made perpendicular to t; if t is (nearly) vertical, use `fallback` */
+function belly(t: V, out: V, fallback: V): V {
+  const d = t.x * DOWN.x + t.y * DOWN.y + t.z * DOWN.z;
+  out.x = DOWN.x - t.x * d; out.y = DOWN.y - t.y * d; out.z = DOWN.z - t.z * d;
+  const l = Math.hypot(out.x, out.y, out.z);
+  if (l < 0.2) {
+    const f = fallback, fd = f.x * t.x + f.y * t.y + f.z * t.z;
+    out.x = f.x - t.x * fd; out.y = f.y - t.y * fd; out.z = f.z - t.z * fd;
+  }
+  return norm(out);
+}
+
+const cross = (a: V, b: V, out: V): V => {
+  out.x = a.y * b.z - a.z * b.y; out.y = a.z * b.x - a.x * b.z; out.z = a.x * b.y - a.y * b.x;
+  return out;
+};
+
+// ----- how a part is mounted on its parent (real 3D placement of the 2D angles) ----- //
+
+/** roll of the mount plane, by role: 0 = sideways, +pi/2 = straight down, negative = up */
+function rollOf(d: NodeDef): number {
+  switch (d.role) {
+    case 'fin': return 0.7;
+    case 'whip': return 0.55;
+    case 'sting': return 0.5;
+    case 'light': return 0.5;
+    case 'jaw': return 0.5;
+    case 'sense': return -0.45;
+    case 'cilia': return 1.2;
+    default:
+      if (d.style === 'eye') return -0.7;
+      if (d.style === 'line') return 1.1;
+      return 0.9;
+  }
+}
+
+/** flat blades (fins, leaves, frills) are thin along their bend axis; the rest are round tubes */
+export type Kind = 'body' | 'flat' | 'round';
+
+function kindOf(s: { def: NodeDef; parent: unknown }): Kind {
+  const d = s.def;
+  if (!s.parent) return 'body';
+  if (d.style === 'line' || d.style === 'disc' || d.style === 'eye') return 'round';
+  if (d.role === 'fin' || d.shape === 'leaf' || d.shape === 'frill') return 'flat';
+  return 'round';
+}
+
+function thickOf(kind: Kind, d: NodeDef): number {
+  if (kind === 'flat') return 0.16;
+  if (kind === 'body') return d.shape === 'bell' ? 0.85 : d.style === 'plates' ? 0.8 : 0.72;
+  return 1;
+}
+
+export class Seg3 {
+  def: NodeDef;
+  att: AttDef | null;
+  parent: Seg3 | null;
+  creature: Creature3;
+  depth: number;
+  n: number;
+  at: number;
+  rel: number;
+  edge: number;
+  phase: number;
+  k: number;
+  side: number;
+  hueOff: number;
+  radial: boolean;
+  flip: number;
+  scale: number;
+  len: number;
+  amax: number;
+  bend: number;
+  pulse = 0;
+  pulseU: boolean;
+  sink = 0;
+  cut = false;
+  kind: Kind;
+  thick: number;
+  roll: number;
+  /** bend axis of this chain (unit) */
+  nb: V = v3(0, 0, 1);
+  /** first link fixed to this direction (plants rooted in the sea floor) */
+  anchor: V | null = null;
+  x: Float32Array; y: Float32Array; z: Float32Array;
+  ox: Float32Array; oy: Float32Array; oz: Float32Array;
+  /** direction of link i (from node i-1 to node i); index 0 repeats index 1 */
+  dx: Float32Array; dy: Float32Array; dz: Float32Array;
+  rad: Float32Array; lens: Float32Array; bends: Float32Array;
+  maxRad = 0;
+  hue = 0;
+  cols: string[] = [];
+  edgeCol = ''; shineCol = ''; patCol = ''; webCol = '';
+  children: Seg3[] = [];
+  // scratch
+  private t = v3(); private b = v3(); private l = v3(); private m = v3(); private dir = v3(); private tg = v3(); private tmp = v3();
+  private lastNb = v3(0, 0, 1);
+
+  constructor(def: NodeDef, a: AttDef | null, parent: Seg3 | null, slot: Slot, flip: number, scale: number,
+    pos: V, dir: V, nb: V, creature: Creature3) {
+    const n = Math.max(1, def.links);
+    this.def = def; this.att = a; this.parent = parent; this.creature = creature;
+    this.depth = parent ? parent.depth + 1 : 0;
+    this.n = n;
+    this.at = parent ? Math.min(slot.at, parent.n) : 0;
+    const pf = parent ? parent.flip : 1;
+    this.rel = slot.angle * pf;
+    this.edge = slot.edge * pf;
+    this.phase = slot.phase; this.k = slot.k; this.side = slot.side;
+    this.hueOff = slot.hue || 0; this.radial = slot.radial;
+    this.flip = flip; this.scale = scale;
+    this.len = def.len * scale;
+    this.amax = 0.03 + def.flex * 2.6;
+    this.bend = (def.curl * flip) / n;
+    this.kind = kindOf(this);
+    this.thick = thickOf(this.kind, def);
+    this.roll = rollOf(def);
+    this.nb = { x: nb.x, y: nb.y, z: nb.z };
+    const N = n + 1;
+    this.x = new Float32Array(N); this.y = new Float32Array(N); this.z = new Float32Array(N);
+    this.ox = new Float32Array(N); this.oy = new Float32Array(N); this.oz = new Float32Array(N);
+    this.dx = new Float32Array(N); this.dy = new Float32Array(N); this.dz = new Float32Array(N);
+    this.rad = new Float32Array(N); this.lens = new Float32Array(N); this.bends = new Float32Array(N);
+    const lt = def.lenTo === undefined ? 1 : def.lenTo;
+    for (let i = 1; i <= n; i++) this.lens[i] = this.len * lerp(1, lt, n > 1 ? (i - 1) / (n - 1) : 0);
+    this.pulseU = def.motion.type === 'breathe';
+    const cb = def.curlBias || 0;
+    for (let i = 2; i <= n; i++) this.bends[i] = this.bend * (1 + cb * (n > 2 ? ((i - 2) / (n - 2)) * 2 - 1 : 0));
+    const shape = SHAPES[def.shape] || SHAPES.worm, w = def.width * scale;
+    for (let i = 0; i <= n; i++) {
+      this.rad[i] = Math.max(0.15, shape(w, i / n));
+      if (this.rad[i] > this.maxRad) this.maxRad = this.rad[i];
+    }
+    // the rest pose
+    const d = { x: dir.x, y: dir.y, z: dir.z }, o = v3();
+    this.x[0] = this.ox[0] = pos.x; this.y[0] = this.oy[0] = pos.y; this.z[0] = this.oz[0] = pos.z;
+    for (let i = 1; i <= n; i++) {
+      if (i > 1) { rotate(d, this.nb, this.bends[i], o); d.x = o.x; d.y = o.y; d.z = o.z; }
+      this.dx[i] = d.x; this.dy[i] = d.y; this.dz[i] = d.z;
+      this.x[i] = this.ox[i] = this.x[i - 1] + d.x * this.lens[i];
+      this.y[i] = this.oy[i] = this.y[i - 1] + d.y * this.lens[i];
+      this.z[i] = this.oz[i] = this.z[i - 1] + d.z * this.lens[i];
+    }
+    this.dx[0] = this.dx[1]; this.dy[0] = this.dy[1]; this.dz[0] = this.dz[1];
+    this.paint(creature.pal);
+    for (const child of def.attach) this.instantiate(child);
+  }
+
+  /**
+   * The mount of a child at node `at` of this chain: its first direction, its
+   * bend axis and the direction it leans toward (for the offset from the axis).
+   * `side` = which side the copy is on, `ang` = the 2D angle of the slot.
+   */
+  mountFor(child: NodeDef, slot: Slot, at: number, dirOut: V, nbOut: V, mOut: V): void {
+    const i = Math.max(1, at), t = this.t;
+    t.x = this.dx[i]; t.y = this.dy[i]; t.z = this.dz[i];
+    if (this.creature.planar) {
+      // the whole creature lives in one plane (plants): the 2D rules, in that plane
+      const m = cross(this.nb, t, mOut); norm(m);
+      const ang = slot.angle * this.flip;
+      dirOut.x = t.x * Math.cos(ang) + m.x * Math.sin(ang);
+      dirOut.y = t.y * Math.cos(ang) + m.y * Math.sin(ang);
+      dirOut.z = t.z * Math.cos(ang) + m.z * Math.sin(ang);
+      nbOut.x = this.nb.x; nbOut.y = this.nb.y; nbOut.z = this.nb.z;
+      return;
+    }
+    const b = belly(t, this.b, this.creature.side), l = cross(t, b, this.l);
+    norm(l);
+    const roll = rollOf(child);
+    const ang = slot.angle;
+    if (slot.radial) {
+      // a ring lies flat, in the horizontal plane through the node
+      const ra = slot.angle;
+      const hx = t.x, hz = t.z, hl = Math.hypot(hx, hz);
+      const e1x = hl > 0.3 ? hx / hl : 1, e1z = hl > 0.3 ? hz / hl : 0;
+      dirOut.x = e1x * Math.cos(ra) - e1z * Math.sin(ra);
+      dirOut.z = e1z * Math.cos(ra) + e1x * Math.sin(ra);
+      dirOut.y = 0.05;
+      norm(dirOut);
+      mOut.x = dirOut.x; mOut.y = 0; mOut.z = dirOut.z;
+      // bends lift the arms
+      cross(dirOut, DOWN, nbOut); norm(nbOut);
+      return;
+    }
+    const sg = ang < -1e-4 ? -1 : ang > 1e-4 ? 1 : slot.side;
+    // a copy leans to its own side and along the roll of its part
+    mOut.x = sg * Math.cos(roll) * l.x + Math.sin(roll) * b.x;
+    mOut.y = sg * Math.cos(roll) * l.y + Math.sin(roll) * b.y;
+    mOut.z = sg * Math.cos(roll) * l.z + Math.sin(roll) * b.z;
+    norm(mOut);
+    const ca = Math.cos(ang), sa = Math.abs(Math.sin(ang));
+    dirOut.x = t.x * ca + mOut.x * sa; dirOut.y = t.y * ca + mOut.y * sa; dirOut.z = t.z * ca + mOut.z * sa;
+    norm(dirOut);
+    cross(t, mOut, nbOut); norm(nbOut);
+    // (the caller falls back to the parent's axis if this is degenerate)
+  }
+
+  instantiate(a: AttDef): void {
+    const dir = v3(), nb = v3(), m = v3();
+    for (const s of expand(a, this.n)) {
+      const at = s.at;
+      this.mountFor(a.node, s, at, dir, nb, m);
+      // base position: pushed toward the side it leans to, by edge * radius
+      const pr = this.rad[at] * Math.abs(s.edge);
+      const p = { x: this.x[at] + m.x * pr, y: this.y[at] + m.y * pr, z: this.z[at] + m.z * pr };
+      // in a free-form creature mirrored copies are already on their own side: no flip
+      const flip = this.creature.planar ? this.flip * s.side : 1;
+      const c = new Seg3(a.node, a, this, s, flip, this.scale * s.scale, p, dir, nb, this.creature);
+      this.children.push(c);
+    }
+  }
+
+  paint(pal: PaletteSlot[]): void {
+    const c = this.def.color, sl = pal[c.slot] || pal[0], n = this.n;
+    const h = (((sl.h + c.shift + this.hueOff) % 360) + 360) % 360;
+    const ps = pal[c.pslot] || pal[3], ph = (((ps.h + c.shift + this.hueOff) % 360) + 360) % 360;
+    this.hue = h;
+    this.cols = [];
+    const bake = c.pattern === 'bands' && this.def.style !== 'ribbon', nb = Math.max(1, Math.round(c.pdensity));
+    for (let i = 0; i <= n; i++) {
+      const t = i / n, al = clamp(c.alpha * (1 - c.fade * t), 0, 1);
+      if (bake && Math.floor(t * nb * 2 - 0.001) % 2 === 1) this.cols[i] = hsla(ph, ps.s, clamp(ps.l + c.plight, 3, 97), al);
+      else this.cols[i] = hsla(h, sl.s, clamp(sl.l + c.light + c.grad * t, 3, 97), al);
+    }
+    const lm = clamp(sl.l + c.light + c.grad * 0.5, 3, 97);
+    this.edgeCol = hsla(h, sl.s, Math.max(2, lm - 24), clamp(c.alpha * 0.8, 0, 1));
+    this.shineCol = hsla(h, Math.max(0, sl.s - 30), Math.min(97, lm + 30), clamp(c.alpha * 0.28, 0, 1));
+    this.patCol = hsla(ph, ps.s, clamp(ps.l + c.plight, 3, 97), clamp(c.alpha, 0, 1));
+    this.webCol = hsla(h, sl.s, Math.min(95, lm + 8), clamp(c.alpha * 0.42, 0, 1));
+  }
+
+  update(time: number): void {
+    const d = this.def, m = d.motion, n = this.n, x = this.x, y = this.y, z = this.z, ox = this.ox, oy = this.oy, oz = this.oz;
+    const w = TAU * m.freq * time + this.phase;
+    const cr = this.creature;
+    this.pulse = m.type === 'pulse' || m.type === 'breathe' ? m.amp * (0.5 + 0.5 * Math.sin(w)) : 0;
+
+    let fixed: V | null = null;
+    if (this.parent) {
+      const p = this.parent, k = this.at;
+      p.mountFor(d, { at: k, angle: this.rel / (p.flip || 1), scale: 1, phase: 0, side: this.side, edge: this.edge, k: this.k, hue: 0, radial: this.radial }, k, this.dir, this.nb, this.m);
+      if (Math.hypot(this.nb.x, this.nb.y, this.nb.z) < 0.5) { this.nb.x = p.nb.x; this.nb.y = p.nb.y; this.nb.z = p.nb.z; }
+      const pr = p.rad[k] * (1 + p.pulse * (p.pulseU ? 1 : k / p.n)) * Math.abs(this.edge);
+      ox[0] = x[0]; oy[0] = y[0]; oz[0] = z[0];
+      x[0] = p.x[k] + this.m.x * pr; y[0] = p.y[k] + this.m.y * pr; z[0] = p.z[k] + this.m.z * pr;
+      fixed = this.dir;
+      const fl = cr.planar ? this.flip : 1;
+      let ang = 0;
+      if (m.type === 'wave') ang = m.amp * Math.sin(w) * fl;
+      else if (m.type === 'row') ang = m.amp * rowCurve(w) * fl;
+      else if (m.type === 'flutter') ang = m.amp * (0.6 * Math.sin(w) + 0.4 * Math.sin(w * 2.7 + 1.3)) * fl;
+      if (ang) rotate(this.dir, this.nb, ang, this.tg), fixed = this.tg;
+    } else if (this.anchor) {
+      fixed = this.anchor;
+    }
+
+    const drag = d.drag, grav = d.gravity + this.sink, amax = this.amax, keep = 1 - d.spring;
+    const bends = this.bends, lens = this.lens, soak = 0.2 + 0.4 * d.flex, F = cr.planar ? this.flip : 1;
+    const extra = m.type === 'curl' ? ((m.amp * (0.5 + 0.5 * Math.sin(w)) * F) / n) * 2 : 0;
+    const und = m.type === 'undulate' ? m.amp * 0.5 : 0, wk = (TAU * m.wave) / n;
+    const a = this.tmp, tgt = this.t, prev = this.b, nbi = this.l;
+    let mnx = x[0], mxx = x[0], mny = y[0], mxy = y[0], mnz = z[0], mxz = z[0];
+    const dyn = !this.parent && !this.anchor && !cr.planar;
+
+    for (let i = 1; i <= n; i++) {
+      let px2 = x[i], py2 = y[i], pz2 = z[i];
+      const vx = (px2 - ox[i]) * drag, vy = (py2 - oy[i]) * drag, vz = (pz2 - oz[i]) * drag;
+      ox[i] = px2; oy[i] = py2; oz[i] = pz2;
+      px2 += vx; py2 += vy + grav; pz2 += vz;
+
+      a.x = px2 - x[i - 1]; a.y = py2 - y[i - 1]; a.z = pz2 - z[i - 1];
+      norm(a);
+      if (i === 1) {
+        if (fixed) { a.x = fixed.x; a.y = fixed.y; a.z = fixed.z; }
+      } else {
+        prev.x = this.dx[i - 1]; prev.y = this.dy[i - 1]; prev.z = this.dz[i - 1];
+        // a body bends in the vertical plane through its own tangent
+        if (dyn) {
+          cross(prev, DOWN, nbi);
+          if (Math.hypot(nbi.x, nbi.y, nbi.z) < 0.25) { nbi.x = this.lastNb.x; nbi.y = this.lastNb.y; nbi.z = this.lastNb.z; }
+          else norm(nbi);
+          this.lastNb.x = nbi.x; this.lastNb.y = nbi.y; this.lastNb.z = nbi.z;
+        } else { nbi.x = this.nb.x; nbi.y = this.nb.y; nbi.z = this.nb.z; }
+        rotate(prev, nbi, bends[i] * (dyn ? this.flip : 1) + extra + (und ? und * Math.sin(w - i * wk) : 0), tgt);
+        // shape memory: pulled toward the rest bend, never further than amax from it
+        let dot = a.x * tgt.x + a.y * tgt.y + a.z * tgt.z;
+        dot = dot > 1 ? 1 : dot < -1 ? -1 : dot;
+        const th = Math.acos(dot);
+        if (th > amax) {
+          const f = amax / th;
+          a.x = tgt.x + (a.x - tgt.x) * f; a.y = tgt.y + (a.y - tgt.y) * f; a.z = tgt.z + (a.z - tgt.z) * f;
+        }
+        a.x = tgt.x + (a.x - tgt.x) * keep; a.y = tgt.y + (a.y - tgt.y) * keep; a.z = tgt.z + (a.z - tgt.z) * keep;
+        norm(a);
+      }
+      this.dx[i] = a.x; this.dy[i] = a.y; this.dz[i] = a.z;
+      const nx2 = x[i - 1] + a.x * lens[i], ny2 = y[i - 1] + a.y * lens[i], nz2 = z[i - 1] + a.z * lens[i];
+      // like deltaScale in whip.js: part of the correction is not turned into speed
+      ox[i] += (nx2 - px2) * soak; oy[i] += (ny2 - py2) * soak; oz[i] += (nz2 - pz2) * soak;
+      x[i] = nx2; y[i] = ny2; z[i] = nz2;
+      if (nx2 < mnx) mnx = nx2; else if (nx2 > mxx) mxx = nx2;
+      if (ny2 < mny) mny = ny2; else if (ny2 > mxy) mxy = ny2;
+      if (nz2 < mnz) mnz = nz2; else if (nz2 > mxz) mxz = nz2;
+    }
+    this.dx[0] = this.dx[1]; this.dy[0] = this.dy[1]; this.dz[0] = this.dz[1];
+    const r = this.maxRad * (1 + this.pulse);
+    const b = this.box;
+    b[0] = mnx - r; b[1] = mny - r; b[2] = mnz - r; b[3] = mxx + r; b[4] = mxy + r; b[5] = mxz + r;
+    for (const c of this.children) c.update(time);
+  }
+
+  box: [number, number, number, number, number, number] = [0, 0, 0, 0, 0, 0];
+
+  walk(fn: (s: Seg3) => void): void {
+    fn(this);
+    for (const c of this.children) c.walk(fn);
+  }
+}
+
+function rowCurve(w: number): number {
+  const f = (((w / TAU) % 1) + 1) % 1;
+  if (f < 0.3) { const u = f / 0.3; return 1 - 2 * u * u * (3 - 2 * u); }
+  const u = (f - 0.3) / 0.7;
+  return -1 + 2 * u * u * (3 - 2 * u);
+}
+
+export interface Creature3Options {
+  /** first direction of the body (unit); default: heading right */
+  dir?: V;
+  phase?: number;
+  scale?: number;
+  /** rooted in the sea floor: direction of the first link, and azimuth of its plane */
+  anchor?: { dir: V; plane: number };
+}
+
+export class Creature3 {
+  spec: Spec;
+  pal: PaletteSlot[];
+  phase: number;
+  vx = 0; vy = 0; vz = 0;
+  list: Seg3[] = [];
+  box: [number, number, number, number, number, number] = [0, 0, 0, 0, 0, 0];
+  root: Seg3;
+  dartT = 0;
+  dartWait = 1;
+  /** all in one plane (plants): the 2D rules; false: free 3D (animals) */
+  planar: boolean;
+  /** which way the belly faces when the body is vertical (last horizontal direction) */
+  side: V = v3(0, 0, 1);
+
+  constructor(sp: Spec, x: number, y: number, z: number, o: Creature3Options = {}) {
+    this.spec = sp;
+    this.pal = palette(sp.palette);
+    this.phase = o.phase === undefined ? rand(0, TAU) : o.phase;
+    this.planar = !!o.anchor;
+    const slot = { ...ROOT_SLOT, phase: this.phase };
+    let dir = o.dir || v3(-1, 0, 0), nb = v3(0, 0, 1);
+    if (o.anchor) {
+      dir = { ...o.anchor.dir };
+      const a = o.anchor.plane;
+      nb = v3(-Math.sin(a), 0, Math.cos(a));
+    } else {
+      // the body starts as a chain running behind the head: dir is the way the head points, links run the opposite way
+      dir = v3(-dir.x, -dir.y, -dir.z);
+      cross(dir, DOWN, nb); if (Math.hypot(nb.x, nb.y, nb.z) < 0.2) nb = v3(0, 0, 1); else norm(nb);
+    }
+    this.root = new Seg3(sp.body, null, null, slot, 1, (o.scale || 1) * (sp.size || 1), v3(x, y, z), dir, nb, this);
+    if (o.anchor) this.root.anchor = { ...dir };
+    this.refresh();
+  }
+
+  refresh(): void {
+    this.list.length = 0;
+    this.root.walk((s) => this.list.push(s));
+  }
+
+  update(time: number, dvx: number, dvy: number, dvz: number, accel: number): void {
+    this.vx += (dvx - this.vx) * accel;
+    this.vy += (dvy - this.vy) * accel;
+    this.vz += (dvz - this.vz) * accel;
+    const r = this.root;
+    r.ox[0] = r.x[0]; r.oy[0] = r.y[0]; r.oz[0] = r.z[0];
+    r.x[0] += this.vx; r.y[0] += this.vy; r.z[0] += this.vz;
+    // remember which side the belly faces when swimming straight up or down
+    const hl = Math.hypot(this.vx, this.vz);
+    if (hl > 0.4) { this.side.x = this.vz / hl; this.side.z = -this.vx / hl; }
+    r.update(time);
+    const b = this.box;
+    b[0] = b[1] = b[2] = Infinity; b[3] = b[4] = b[5] = -Infinity;
+    for (const s of this.list) {
+      const c = s.box;
+      if (c[0] < b[0]) b[0] = c[0]; if (c[1] < b[1]) b[1] = c[1]; if (c[2] < b[2]) b[2] = c[2];
+      if (c[3] > b[3]) b[3] = c[3]; if (c[4] > b[4]) b[4] = c[4]; if (c[5] > b[5]) b[5] = c[5];
+    }
+  }
+
+  /** direction the head points */
+  heading(out: V): V {
+    const r = this.root;
+    out.x = -r.dx[1]; out.y = -r.dy[1]; out.z = -r.dz[1];
+    return out;
+  }
+
+  /** move every node at once (teleport, spawn) */
+  translate(dx: number, dy: number, dz: number): void {
+    for (const s of this.list) {
+      for (let i = 0; i <= s.n; i++) {
+        s.x[i] += dx; s.ox[i] += dx; s.y[i] += dy; s.oy[i] += dy; s.z[i] += dz; s.oz[i] += dz;
+      }
+    }
+  }
+}
+
+/** speed multiplier given by the way the species swims */
+export function swimFactor3(cr: Creature3, t: number): number {
+  const s = cr.spec.swim;
+  if (s.mode === 'pulse') {
+    const m = cr.root.def.motion, f = m.type === 'pulse' ? m.freq : s.freq;
+    const c = -Math.cos(TAU * f * t + cr.phase);
+    return 0.2 + 2.2 * (c > 0 ? c * c : 0);
+  }
+  if (s.mode === 'dart') {
+    cr.dartT -= STEP;
+    if (cr.dartT < -cr.dartWait) { cr.dartT = 0.22; cr.dartWait = rand(0.5, 1.6); }
+    return cr.dartT > 0 ? 3 : 0.45;
+  }
+  return 1;
+}
+
+/** let a freshly built creature settle in its rest pose */
+export function settle3(cr: Creature3, steps = 420): void {
+  for (let t = 0; t < steps; t++) cr.update(t * STEP, 0, 0, 0, 1);
+  for (const s of cr.list) for (let i = 0; i <= s.n; i++) { s.ox[i] = s.x[i]; s.oy[i] = s.y[i]; s.oz[i] = s.z[i]; }
+}
