@@ -65,8 +65,8 @@ Aucune question posée à l'utilisateur (`ask.mjs`) : tous les choix sont tranch
 
 - Le demi-tour par le dos d'un marcheur est long (environ 240°). Si c'est trop, on pourra baisser sa probabilité pour la marche seulement.
 - Le tirage utilise `Math.random`, comme le reste du moteur (`rand`) : il n'est pas rejouable avec une graine.
-- `make check` : le test `src/monde/nouveautes/plugin.test.ts` (« embeds the published versions only… ») échoue déjà sans ce chantier.
-  - Le budget d'images de l'embarqué est rempli par v0.4.0 et v0.3.0, et les 8 entrées de v0.2.0 n'ont plus d'image.
+- `make check` : le test `src/monde/nouveautes/plugin.test.ts` (« embeds the published versions only… ») échoue déjà sur `backlog` sans ce chantier (vérifié sur une copie de `backlog`).
+  - Le budget d'images de l'embarqué est rempli par v0.5.0 et v0.4.0, et les 8 entrées de v0.2.0 n'ont plus d'image.
   - Ce chantier ne touche ni `changes/v*`, ni `whatsNewPlugin.mjs`, ni ce test.
 
 ## Risques de fusion
