@@ -34,6 +34,7 @@ import { pushCave } from './grotte-draw';
 import { drawFront, frontColour, frontCount, frontPainter, makeFront } from './foreground';
 import { CARCASSE, boneLight, carcasseDwellers, carcasseSchool } from './carcasse';
 import { initNouveautes } from './nouveautes';
+import { createNarrator } from './narration';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -1003,19 +1004,9 @@ function drawFrontLayer(m: M): void {
 
 const here = { i: 0 };
 const chapterEl = document.getElementById('chapter')!, hudEl = document.getElementById('hud')!;
-let chapterTimer = 0;
-function showChapter(i: number): void {
-  const b = BIOMES[i];
-  chapterEl.innerHTML = '';
-  const h = document.createElement('strong'); h.textContent = b.name;
-  const s = document.createElement('span'); s.textContent = b.sub;
-  chapterEl.append(h, s);
-  chapterEl.classList.remove('show');
-  void chapterEl.offsetWidth;
-  chapterEl.classList.add('show');
-  clearTimeout(chapterTimer);
-  chapterTimer = window.setTimeout(() => chapterEl.classList.remove('show'), 4200);
-}
+const narrator = createNarrator(chapterEl, BIOMES);
+/** entering a chapter: its opening, told once (narration.ts) */
+function showChapter(i: number): void { narrator.chapter(i); }
 
 // ----- loop ----- //
 
@@ -1106,7 +1097,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, carcasse: CARCASSE, fosse, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
+  biomes: BIOMES, narrator, carcasse: CARCASSE, fosse, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
@@ -1144,7 +1135,8 @@ for (const el of [panel, gear, benchOut, document.getElementById('atBtn')!]) for
 const hint = document.getElementById('hint')!;
 setTimeout(() => hint.classList.add('gone'), 6000);
 document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).closest('#panel, #atelier, #benchOut')) e.preventDefault(); }, { passive: false });
-initNouveautes(() => !Atelier.isOpen && benchOut.hidden === true);
+const nouveautes = initNouveautes(() => !Atelier.isOpen && benchOut.hidden === true);
+narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen;
 
 setTimeout(() => showChapter(0), 400);
 requestAnimationFrame(frame);
