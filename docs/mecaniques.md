@@ -103,7 +103,7 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
 
 - Un écran accessible à tout moment montre l'arbre des générations, avec le portrait de chaque ancêtre, son nom, le partenaire et le lieu de naissance.
 - Tu peux nommer chaque génération.
-- À la fin, cet arbre devient une image souvenir exportable (sauf dans le lien Artifact, où les téléchargements sont bloqués).
+- À la fin, cet arbre passe en générique, puis devient une image souvenir à télécharger (sauf dans le lien Artifact, où les téléchargements sont bloqués) : voir « Le générique et l'image souvenir » ci-dessous.
 - **Dans le jeu** (`src/monde/arbre-ecran.ts`, la logique pure dans `arbre.ts`) : un bouton rond en haut à gauche (à droite de ✎ quand l'Atelier est là), caché pendant l'adieu et la portée.
   - Les générations descendent comme la lignée, de la première larve (en haut) à celle qu'on joue (en bas, cerclée d'or, « aujourd'hui ») ; l'écran s'ouvre centré sur elle.
   - Pour chacune : son portrait (`snapshot3`) dans un médaillon, « Troisième génération » (en toutes lettres, pas de chiffres), son nom, « née au Récif ». Le lieu de naissance n'est pas gardé à part : c'est le chapitre où la génération d'avant a donné naissance, la Nurserie pour la première.
@@ -111,6 +111,23 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
   - **Nommer** : on touche un nom, on l'écrit (24 lettres au plus), Entrée ou toucher ailleurs le garde, Échap l'annule. Le nom est celui de la créature (`name` de sa définition) : celui de la génération jouée compte donc pour ses enfants, dont le nom commence comme celui du parent.
   - Le jeu s'arrête pendant que l'arbre est ouvert, et les textes attendent. On le ferme par ×, Échap ou en touchant à côté.
   - Pour les tests : `monde.arbre.open()`, `close()`, `rename(rang, nom)` (1 : la première génération), `isOpen`.
+
+### Le générique et l'image souvenir
+
+- **Le générique** (`src/monde/generique-ecran.ts`, la logique pure dans `generique.ts`) : à la fin de l'histoire, toute la lignée monte à l'écran, lentement, comme un générique de film, sur la mer assombrie (le jeu attend).
+  - En tête, « La Lignée » et « Tous ceux que nous avons été ». Puis chaque génération, de la première larve à la dernière (cerclée d'or) : son portrait dans un médaillon teinté de l'eau du chapitre où elle est née, « Troisième génération », son nom, « née au Récif ». Entre deux générations, un bout de fil d'or et le partenaire, en bleu pâle : son petit portrait et « avec Méduse lune ».
+  - Il finit sur « La Lignée », seul au milieu de l'écran, un moment, puis l'image souvenir vient à sa place.
+  - Environ 52 px par seconde, plus vite pour une très longue lignée (deux minutes au plus) : une quarantaine de secondes pour dix générations. Un doigt (ou Espace) posé le presse ; « Passer » (ou Échap) mène tout de suite à l'image. Avec « réduire les animations » du système, l'image vient sans défilement.
+  - **Le déclencher** : `generique.play()` (`monde.generique` dans la console), que la fin de la Remontée appelle quand la lignée a percé la surface. Pour les tests, le panneau ⚙ a un bouton « Le générique de fin » avec `?dev`.
+  - Quand il est allé au bout (ou qu'on l'a passé), l'histoire est finie : la Balade libre est débloquée (`unlockBalade()`), et l'Atelier revient.
+- **L'image souvenir** (`src/monde/generique-image.ts`) : l'arbre dessiné dans un canvas, comme une tranche de la mer descendue.
+  - 1 080 px de large, et haute de ce que demande la lignée (environ 4 000 px pour dix générations) ; une très longue lignée est réduite pour tenir dans 12 000 px de haut, ce qu'un téléphone garde encore dans un canvas.
+  - L'eau derrière chaque génération est celle de son chapitre (`bandColour`, assez sombre pour les lettres claires) : claire en haut, sous la surface, de plus en plus sombre jusqu'à la dernière, avec des rayons et de la neige marine. Le fil d'or, les médaillons, les noms et les partenaires comme dans l'arbre ; en bas, le texte final de la Remontée (lu dans [chapitres.md](chapitres.md)) et « La Lignée ».
+  - Montrée dans un cadre qu'on fait défiler, avec « Garder l'image » : un JPEG (qualité 0,9, 300 à 400 Ko pour dix générations) téléchargé sous le nom de la dernière génération, `la-lignee-aube.jpg`. On peut aussi appuyer longuement sur l'image, là où le navigateur le permet.
+  - **Pas de bouton dans le lien Artifact** de claude.ai, dont le cadre bloque les téléchargements (`downloadsBlocked`) : la page servie depuis `claudeusercontent.com`, ou dans un cadre ouvert depuis `claude.ai` ou `claude.site`. `?artifact` dans l'adresse fait de même, pour les tests. L'image y est montrée quand même.
+  - Une fois l'histoire finie, l'arbre de la lignée a un bouton « L'image souvenir » sous les générations, qui la montre de nouveau, avec la lignée du moment (et toujours avec `?dev`).
+  - Les portraits (`snapshot3`) sont dessinés pendant le générique, quelques-uns par image ; l'image se dessine ensuite en un quart de seconde environ, même si on passe le générique tout de suite.
+  - Pour les tests : `monde.generique.play()`, `souvenir()` (l'image seule), `skip()`, `close()`, `stage` (`'roll'`, `'souvenir'` ou `''`), `image` (le canvas), `canKeep`.
 
 ## Les ancêtres
 
