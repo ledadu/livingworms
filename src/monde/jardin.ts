@@ -10,7 +10,7 @@ import { TAU, clamp, rng } from '../engine';
 import type { Gfx } from '../engine3/gfx';
 import { strokeLine } from '../engine3/paint-gl';
 import type { Proj, View } from '../engine3/view';
-import { BIOMES, blendOf } from './biomes';
+import { BIOMES, X0, X1, blendOf } from './biomes';
 import { fogOf, makeCanvas } from './sprites';
 
 /** depth planes of the field (z), from near to far; the swimming plane is kept clear */
@@ -32,10 +32,15 @@ export const periodY = (z: number) => 1.1 * (z + 2100) + 300;
  * risen, in beats (each beat is a small jet up, eased).
  */
 export function pulse(c: number): { frame: number; lift: number } {
-  const n = Math.floor(c), q = c - n;
-  const frame = q < 0.12 ? 1 : q < 0.28 ? 2 : q < 0.45 ? 3 : 0;
-  const u = Math.min(1, q / 0.4);
-  return { frame, lift: n + u * u * (3 - 2 * u) };
+  return { frame: pulseFrame(c), lift: pulseLift(c) };
+}
+export function pulseFrame(c: number): number {
+  const q = c - Math.floor(c);
+  return q < 0.12 ? 1 : q < 0.28 ? 2 : q < 0.45 ? 3 : 0;
+}
+export function pulseLift(c: number): number {
+  const n = Math.floor(c), u = Math.min(1, (c - n) / 0.4);
+  return n + u * u * (3 - 2 * u);
 }
 
 /** a wave of light that spreads through the field from where it starts */
@@ -98,11 +103,11 @@ function bakeAtlas(): HTMLCanvasElement {
 
 /** a giant siphonophore: a chain of lights tens of metres long */
 interface Siph { u: number; v: number; z: number; len: number; ph: number; hue: number; dir: number; }
-const CHAIN = 48;
+const CHAIN = 48, DENS_STEP = 50;
 
 type Add = (d: number, fn: () => void) => void;
 
-export interface JardinStats { jellies: number; dots: number; siphs: number; }
+export interface JardinStats { jellies: number; dots: number; siphs: number; /** time spent drawing the field in the last frame */ ms: number; }
 
 export class Jardin {
   /** per jelly: home x, home y, depth, radius, phase, beats per second, hue row, rank in its slab (0..1) */
@@ -114,17 +119,18 @@ export class Jardin {
   private waves: Wave[] = [];
   private nextWave = 2;
   private atlas: HTMLCanvasElement | null = null;
-  private dens: number[];
-  private max: number;
+  /** density of the field along x, every DENS_STEP px from X0 */
+  private dens: Float32Array;
   private P: Proj = { x: 0, y: 0, s: 1, d: 1 };
   private XS = new Float32Array(CHAIN); private YS = new Float32Array(CHAIN); private SS = new Float32Array(CHAIN);
-  readonly stats: JardinStats = { jellies: 0, dots: 0, siphs: 0 };
+  readonly stats: JardinStats = { jellies: 0, dots: 0, siphs: 0, ms: 0 };
 
   constructor(private view: View, private ctx: CanvasRenderingContext2D, private gx: Gfx | null, seed = 400) {
-    this.dens = BIOMES.map((b) => b.jellies ?? 0);
-    this.max = Math.max(1, ...this.dens);
+    const per0 = BIOMES.map((b) => b.jellies ?? 0), max = Math.max(1, ...per0);
+    this.dens = new Float32Array(Math.ceil((X1 - X0) / DENS_STEP) + 2);
+    for (let k = 0; k < this.dens.length; k++) this.dens[k] = blendOf(X0 + k * DENS_STEP, per0) / max;
     // the canvas pays a price per image: half as many
-    const n = Math.round(this.max * (gx ? 1 : 0.5)), per = Math.ceil(n / SLABS.length), R = rng(seed);
+    const n = Math.round(max * (gx ? 1 : 0.5)), per = Math.ceil(n / SLABS.length), R = rng(seed);
     const N = per * SLABS.length;
     this.hx = new Float32Array(N); this.hy = new Float32Array(N); this.z = new Float32Array(N); this.r = new Float32Array(N);
     this.ph = new Float32Array(N); this.fr = new Float32Array(N); this.hue = new Uint8Array(N); this.rank = new Float32Array(N);
@@ -149,13 +155,18 @@ export class Jardin {
   }
 
   /** how dense the field is at x, 0..1 */
-  density(x: number): number { return blendOf(x, this.dens) / this.max; }
+  density(x: number): number {
+    const u = (x - X0) / DENS_STEP, k = Math.floor(u), d = this.dens;
+    if (k < 0) return d[0];
+    if (k >= d.length - 1) return d[d.length - 1];
+    return d[k] + (d[k + 1] - d[k]) * (u - k);
+  }
 
   /** the painter's items: one per slab (and one per siphonophore), when the field is near */
   collect(camX: number, camY: number, t: number, add: Add, draw: { dpr: number; W: number; H: number; plane: number }): void {
     const reach = periodX(SLABS[SLABS.length - 1]) / 2;
     if (this.density(camX) <= 0 && this.density(camX - reach) <= 0 && this.density(camX + reach) <= 0) return;
-    this.stats.jellies = 0; this.stats.dots = 0; this.stats.siphs = 0;
+    this.stats.jellies = 0; this.stats.dots = 0; this.stats.siphs = 0; this.stats.ms = 0;
     this.stepWaves(camX, camY, t);
     const v = this.view;
     SLABS.forEach((z, s) => add(v.depth(camY, z), () => this.drawSlab(s, camX, camY, t, draw)));
@@ -191,15 +202,15 @@ export class Jardin {
   }
 
   private drawSlab(s: number, camX: number, camY: number, t: number, o: { dpr: number; W: number; H: number; plane: number }): void {
-    const { atlas } = this.use(), P = this.P, v = this.view, [i0, i1] = this.slab[s], z0 = SLABS[s];
+    const t0 = performance.now(), { atlas } = this.use(), P = this.P, v = this.view, [i0, i1] = this.slab[s], z0 = SLABS[s];
     const px = periodX(z0), py = periodY(z0), waves = this.waves;
     this.begin(o.dpr);
     for (let i = i0; i < i1; i++) {
-      const c = t * this.fr[i] + this.ph[i], pu = pulse(c), z = this.z[i];
+      const c = t * this.fr[i] + this.ph[i], z = this.z[i];
       const x = wrap(this.hx[i] + Math.sin(t * 0.07 + this.ph[i]) * 30, camX, px);
       if (this.rank[i] >= this.density(x)) continue;
       // each beat lifts it a little, and it sinks slowly between: the whole garden climbs
-      const y = wrap(this.hy[i] - pu.lift * 7 + t * 1.2, camY, py);
+      const y = wrap(this.hy[i] - pulseLift(c) * 7 + t * 1.2, camY, py);
       v.project(x, y, z, P);
       const rad = this.r[i] * P.s;
       if (P.x < -rad * 3 || P.x > o.W + rad * 3 || P.y < -rad * 4 || P.y > o.H + rad * 3) continue;
@@ -208,7 +219,7 @@ export class Jardin {
         const dx = x - w.x, dy = y - w.y, dz = z - w.z;
         lit += flash(Math.sqrt(dx * dx + dy * dy + dz * dz * 0.1), t - w.t0);
       }
-      const fog = fogOf(P.d, o.plane), glow = clamp(0.4 + (pu.frame === 2 ? 0.14 : 0) + lit * 1.3, 0, 1.6), al = (1 - fog * 0.85) * glow;
+      const fog = fogOf(P.d, o.plane), frame = pulseFrame(c), glow = clamp(0.4 + (frame === 2 ? 0.14 : 0) + lit * 1.3, 0, 1.6), al = (1 - fog * 0.85) * glow;
       const row = this.hue[i];
       if (rad < 2.2) {
         // tiny: a dot of light
@@ -219,10 +230,11 @@ export class Jardin {
       }
       const k = rad / BELL;
       if (lit > 0.1) { const d = rad * 3; this.blit(atlas, DOT, row, P.x - d, P.y - d * 0.8, d * 2, d * 2, Math.min(1, lit * 0.6 * (1 - fog * 0.6))); }
-      this.blit(atlas, pu.frame, row, P.x - (CELL_W / 2) * k, P.y - BELL_Y * k, CELL_W * k, CELL_H * k, Math.min(1, al));
+      this.blit(atlas, frame, row, P.x - (CELL_W / 2) * k, P.y - BELL_Y * k, CELL_W * k, CELL_H * k, Math.min(1, al));
       this.stats.jellies++;
     }
     this.end();
+    this.stats.ms += performance.now() - t0;
   }
 
   private drawSiph(sp: Siph, camX: number, camY: number, t: number, o: { dpr: number; W: number; H: number; plane: number }): void {
@@ -257,8 +269,8 @@ export class Jardin {
     }
     // the swimming bells at its head
     for (let j = 0; j < 3; j++) {
-      const pu = pulse(t * 0.8 + sp.ph + j * 0.3), r = 40 * SS[0], k = r / BELL;
-      this.blit(atlas, pu.frame, sp.hue, XS[0] - (CELL_W / 2) * k + (j - 1) * r * 0.9, YS[0] - BELL_Y * k - j * r * 0.7, CELL_W * k, CELL_H * k, 0.8 * fade);
+      const r = 40 * SS[0], k = r / BELL;
+      this.blit(atlas, pulseFrame(t * 0.8 + sp.ph + j * 0.3), sp.hue, XS[0] - (CELL_W / 2) * k + (j - 1) * r * 0.9, YS[0] - BELL_Y * k - j * r * 0.7, CELL_W * k, CELL_H * k, 0.8 * fade);
     }
     this.end();
   }
