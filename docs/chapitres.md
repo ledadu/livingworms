@@ -15,14 +15,14 @@ Les profondeurs sont indicatives : le monde est une descente continue, pas une c
 - Ils s'affichent en lettres fines, lentement, au début de chaque chapitre (ouverture) et au moment de l'adieu.
 - Deux à quatre lignes au maximum.
 - La voix est celle de la lignée, un « nous », comme si les ancêtres parlaient.
-- **Dans le jeu** (`src/monde/textes.ts`, affichage dans `narration.ts`) : les textes sont lus dans ce document même, au build. Sous le titre `## N. Nom` d'un chapitre, la citation (`> …`) qui suit une ligne « Ouverture : », « Adieu … : », « Le retournement : » (l'ouverture de la Remontée) ou « Texte final : » devient ce texte ; pour en changer un, il suffit de l'écrire ici. Une phrase par ligne ; une phrase seule et longue se coupe à la virgule la plus proche de son milieu ; quatre lignes au plus. L'ouverture s'écrit la première fois qu'on entre dans le chapitre, ligne après ligne, sous son nom en petites capitales, puis s'efface ; en y revenant, seul le nom passe. Elle attend qu'aucun panneau (Nouveautés, Atelier) ne couvre la mer. L'adieu se dit pendant la scène de l'adieu au parent ([mécaniques](mecaniques.md#ladieu)) ; tant qu'il est à l'écran, une ouverture attend qu'il s'efface.
+- **Dans le jeu** (`src/monde/textes.ts`, affichage dans `narration.ts`) : les textes sont lus dans ce document même, au build. Sous le titre `## N. Nom` d'un chapitre, la citation (`> …`) qui suit une ligne « Ouverture : », « Adieu … : », « Le retournement : » (l'ouverture de la Remontée) ou « Texte final : » ou « Devant l'obstacle : » (dit la première fois que l'obstacle du chapitre nous retient) devient ce texte ; pour en changer un, il suffit de l'écrire ici. Une phrase par ligne ; une phrase seule et longue se coupe à la virgule la plus proche de son milieu ; quatre lignes au plus. L'ouverture s'écrit la première fois qu'on entre dans le chapitre, ligne après ligne, sous son nom en petites capitales, puis s'efface ; en y revenant, seul le nom passe. Elle attend qu'aucun panneau (Nouveautés, Atelier) ne couvre la mer. L'adieu se dit pendant la scène de l'adieu au parent ([mécaniques](mecaniques.md#ladieu)) ; tant qu'il est à l'écran, une ouverture attend qu'il s'efface et rien d'autre ne se dit.
 
 ## Vue d'ensemble
 
 | # | Chapitre | Profondeur | Obstacle | Traits qui le franchissent | Note |
 | --- | --- | --- | --- | --- | --- |
 | 1 | La Nurserie | 0–40 m | aucun (apprentissage) | — | l'éclat |
-| 2 | Le Récif | 40–90 m | courant de passe | nageoires | le battement |
+| 2 | Le Récif | 40–90 m | courant de passe | nageoires, pulsation | le battement |
 | 3 | La Forêt | 90–200 m | mur d'algues dense | pinces, corps fin | le frôlement |
 | 4 | La Grotte *(nouveau)* | 200–250 m | galerie étroite et noire | corps fin, lanterne | l'écho *(proposition)* |
 | 5 | La Carcasse | 250 m | aucun (souvenir) | — | le souvenir |
@@ -55,13 +55,17 @@ Adieu :
 
 - **Décor** : coraux ramifiés, gorgones, anémones avec poissons-clowns, sable clair.
 - **Obstacle** : un courant de passe entre deux barrières de corail ; il faut des nageoires.
-- **Partenaires** : poisson-clown, rascasse volante, hippocampe (`poissonClown`, `poissonLion`, `hippocampe`).
+- **Partenaires** : poisson-clown, rascasse volante, hippocampe (`poissonClown`, `poissonLion`, `hippocampe`), qui ont des nageoires, et une méduse-boîte (`meduseBoite`), qui vit dans les récifs et apporte la pulsation.
 - **Moment fort** : une tortue passe au-dessus, immense, et projette son ombre.
 - **Note** : « le battement ».
 
 Ouverture :
 
 > Ici, tout le monde a une maison. Nous n'en avions pas. Alors nous sommes devenus de ceux qui passent.
+
+Devant l'obstacle :
+
+> Le courant de la passe nous renvoyait vers le récif. Il fallait des nageoires pour le remonter, ou battre comme les méduses.
 
 Adieu (proposition) :
 
@@ -79,6 +83,10 @@ Ouverture :
 
 > La forêt ne pousse pas vers le fond. Elle pousse vers ce qu'elle a quitté.
 
+Devant l'obstacle :
+
+> Les algues se serraient en un mur. Il fallait des pinces pour l'ouvrir, ou un corps assez fin pour s'y glisser.
+
 Adieu (proposition) :
 
 > Tu resteras dans la lumière verte. Nous descendons. Comme la forêt, nous pousserons toujours un peu vers toi.
@@ -95,6 +103,10 @@ Adieu (proposition) :
 Ouverture :
 
 > Il y avait sous la forêt un chemin que la lumière ne prenait pas. Nous l'avons pris pour elle.
+
+Devant l'obstacle :
+
+> La galerie s'enfonçait dans un noir sans bord. Il fallait un corps fin pour s'y faufiler, ou une lueur pour voir le passage.
 
 Adieu (proposition) :
 
@@ -122,13 +134,17 @@ Adieu (proposition) :
 
 - **Décor** : cheminées fumantes, eau trouble et chaude, vers tubicoles rouges, crevettes blanches.
 - **Obstacle** : un couloir brûlant ; il faut une carapace, ou des cils pour passer par la vase.
-- **Partenaires** : ver de feu, crevette-mante, homard (`verDeFeu`, `crevetteMante`, `homard`).
+- **Partenaires** : ver de feu, crevette-mante, homard (`verDeFeu`, `crevetteMante`, `homard`), qui ont une carapace, et le serpent cilié (`serpentCilie`), qui apporte les cils : le ver de feu a des soies, pas des cils.
 - **Moment fort** : une éruption illumine toute la vallée en orange.
 - **Note** : « la braise ».
 
 Ouverture :
 
 > Ici, la chaleur ne vient pas du ciel. Elle monte d'en dessous, comme une promesse.
+
+Devant l'obstacle :
+
+> L'eau brûlait et nous faisait reculer. Il fallait une carapace pour la supporter, ou des cils pour passer par la vase.
 
 Adieu (proposition) :
 
@@ -147,6 +163,10 @@ Ouverture :
 
 > Le froid est venu d'un monde que nous ne verrions jamais. Il descendait, lui aussi.
 
+Devant l'obstacle :
+
+> Le froid figeait tout ce qu'il touchait. Il fallait une carapace contre lui, ou des filaments pour s'y laisser porter.
+
 Adieu (proposition) :
 
 > Le froid descend encore, et nous avec lui. Toi, tu restes au bord de la glace. Nous n'aurons pas froid : tu viens un peu avec nous.
@@ -163,6 +183,10 @@ Ouverture :
 
 > Ceux qui vivent ici n'ont jamais touché le sol. Ils nous ont appris à ne plus en avoir besoin.
 
+Devant l'obstacle :
+
+> Plus rien sous nous, rien où s'appuyer. Il fallait battre comme les méduses, ou des filaments pour se laisser porter.
+
 Adieu (proposition) :
 
 > Tu restes parmi les lumières qui ne touchent jamais le sol. Nous, nous nous laissons tomber, sans peur. C'est toi qui nous l'as appris.
@@ -178,6 +202,10 @@ Adieu (proposition) :
 Ouverture :
 
 > Nous n'avions jamais été aussi loin de la lumière. Nous n'avions jamais autant brillé.
+
+Devant l'obstacle :
+
+> Le noir, et rien pour lui répondre. Il nous faudrait une lumière à nous, ou un chant.
 
 Adieu (proposition) :
 
@@ -219,9 +247,29 @@ La carte du Grand Monde (`src/monde/biomes.ts`) suit la trame : les 10 chapitres
 
 ### Les bornes du monde
 
-Le monde qu'on joue commence à la surface de la Nurserie (x = −600) et finit au fond de la Fosse (x = 27 600, avant que la lumière de la Remontée n'arrive) : `src/monde/limites.ts`. Chaque chapitre qui a un obstacle barre la descente à sa fin (le Récif, la Forêt, la Grotte, les Sources, le Glacier, le Jardin) ; celui de la Fosse garde le fond, et le franchir ouvrira la Remontée. Près d'une borne, l'eau retient le nageur sur 420 px et un léger courant le repousse : rien ne heurte ni ne blesse. Un obstacle franchi le reste (on peut remonter et redescendre). En attendant les traits de l'étape 3 (`CanCross`), tous les obstacles se franchissent librement : seuls le début et la fin du monde retiennent.
+Le monde qu'on joue commence à la surface de la Nurserie (x = −600) et finit au fond de la Fosse (x = 27 600, avant que la lumière de la Remontée n'arrive) : `src/monde/limites.ts`. Chaque chapitre qui a un obstacle barre la descente à sa fin (le Récif, la Forêt, la Grotte, les Sources, le Glacier, le Jardin) ; celui de la Fosse garde le fond, et le franchir ouvrira la Remontée. Près d'une borne, l'eau retient le nageur sur 420 px et un léger courant le repousse : rien ne heurte ni ne blesse. Un obstacle franchi le reste (on peut remonter et redescendre), même pour un enfant qui n'a plus le trait. Qui franchit quoi : voir « Les obstacles-clés » ci-dessous.
 
 Le voyage du panneau de réglages (⚙) sert aux tests : il n'apparaît qu'avec `?dev` dans l'adresse. Voyager (le panneau, `monde.gotoBiome`, `monde.teleport`) compte comme franchis les obstacles d'avant l'arrivée ; au-delà du fond de la Fosse, toute la carte s'ouvre jusqu'au rechargement.
+
+### Les obstacles-clés
+
+Chaque obstacle barre la descente tant que le corps qu'on joue n'a pas l'un des traits de la [vue d'ensemble](#vue-densemble) (`src/monde/obstacles.ts`, dans le jeu `obstacles-jeu.ts`, dessin `obstacles-draw.ts`). Rien ne blesse : l'obstacle retient à sa façon, de plus en plus fort à mesure qu'on s'en approche (sur 700 à 900 px), jusqu'à la borne.
+
+| Chapitre | Obstacle | Il… | Ce qu'on voit | Traits |
+| --- | --- | --- | --- | --- |
+| Le Récif | le courant de passe | repousse | des traînées d'eau claire qui filent vers le récif | nageoires, pulsation |
+| La Forêt | le mur d'algues | ralentit | un rideau de kelp serré, plus sombre que la forêt | pinces, corps fin |
+| La Grotte | la galerie noire | cache le chemin | le noir se referme tout à fait devant la galerie | corps fin, lanterne |
+| Les Sources | le couloir brûlant | repousse | une eau orangée qui tremble et monte | carapace, cils |
+| Le Glacier | l'eau glacée | ralentit (aussi de haut en bas) | une brume blanche et froide | carapace, filaments |
+| Le Jardin | le vide | repousse | des fils de courant qui montent sans fin | pulsation, filaments |
+| La Fosse | le noir et le silence | cache le chemin | le noir complet | lanterne, chant |
+
+- **Avec le trait**, l'obstacle se sent encore un peu (le courant tire, l'eau épaisse freine) mais on passe ; le noir ne se referme plus.
+- **La première fois qu'un obstacle retient** (à mi-chemin de son approche), la lignée dit ce qu'il aurait fallu : la citation « Devant l'obstacle : » du chapitre, dans ce document.
+- **La Fosse** garde la fin du monde : même avec une lanterne, on n'y va pas plus loin tant que la Remontée n'existe pas. Le chant (étape 5) n'est pas un trait du corps.
+- **Les traits du corps** sont lus sur l'arbre de parties (`traitsOf`). En attendant la fonction des traits de l'étape 3, `obstacles-traits.ts` en donne une version approchée, avec les mêmes noms. La larve de départ n'a aucun trait : sans naissance, elle s'arrête au courant du Récif.
+- **Pour les tests** : `monde.keys.traits` (les traits du corps joué), `monde.keys.force = ['nageoires']` (jouer comme si on les avait, `null` pour revenir), `monde.becomes(…)`.
 
 ## À écrire
 

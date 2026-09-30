@@ -53,7 +53,8 @@ export function createNarrator(el: HTMLElement, chapters: { name: string }[]): N
 
   function tell(i: number, kind: TextKind): boolean {
     const c = chapters[i], lines = c && textsOf(TEXTS, c.name, i)?.[kind];
-    if (!lines?.length) return false;
+    // nothing speaks over a farewell
+    if (!lines?.length || (kind !== 'farewell' && performance.now() < farewellUntil)) return false;
     show(c.name, lines, kind);
     return true;
   }

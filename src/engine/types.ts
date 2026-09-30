@@ -43,6 +43,8 @@ export interface NodeDef {
   name: string; role: Role;
   links: number; len: number; width: number; shape: string; style: Style;
   drive: Drive;
+  /** a bud: a part that is only sketched (the first larva's), and brings no trait (content/traits.ts) */
+  bud?: boolean;
   flex: number; spring: number; curl: number; curlBias: number; drag: number; gravity: number; lenTo: number;
   color: ColorDef; motion: MotionDef; attach: AttDef[];
 }

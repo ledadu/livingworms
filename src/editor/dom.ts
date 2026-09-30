@@ -17,6 +17,7 @@ export const ATELIER_HTML = `
     <div class="at-stage">
       <canvas id="atCanvas" aria-label="Aquarium : touche une partie pour la sélectionner"></canvas>
       <span id="atMeter" class="meter"></span>
+      <span id="atTraits" class="meter traits"></span>
       <span id="atFlash" hidden></span>
       <div class="stage-tools">
         <button type="button" data-mode="swim" aria-pressed="true">Circuit</button>

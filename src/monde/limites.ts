@@ -1,8 +1,8 @@
 // The ends of the world (docs/chapitres.md): it starts at the surface of the
 // Nurserie and ends at the bottom of the Fosse. Each chapter with an obstacle
 // bars the way down at its end, until the obstacle is crossed: nothing hurts,
-// the water just holds the swimmer back (zero danger). Until the traits of
-// step 3 exist, every obstacle lets everyone through (`canCross`).
+// the water just holds the swimmer back (zero danger). Who may cross which
+// obstacle is the rule `CanCross` (the traits of the body: obstacles.ts).
 
 import { clamp } from '../engine';
 import { BIOMES, X1, span, type ChapterId } from './biomes';
@@ -38,7 +38,7 @@ export function newLimits(): Limits {
   return { crossed: new Set(), beyond: false };
 }
 
-/** whether the swimmer may cross this obstacle: step 3 will ask its traits; for now, everyone may */
+/** whether the swimmer may cross this obstacle (obstacles.ts asks its traits); by default, everyone may */
 export type CanCross = (chapter: ChapterId) => boolean;
 export const everyone: CanCross = () => true;
 
