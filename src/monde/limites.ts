@@ -1,5 +1,6 @@
 // The ends of the world (docs/chapitres.md): it starts at the surface of the
-// Nurserie and ends at the bottom of the Fosse. Each chapter with an obstacle
+// Nurserie and ends at the bottom of the Remontée, past its well of light. The
+// bottom of the Fosse is guarded by its obstacle. Each chapter with an obstacle
 // bars the way down at its end, until the obstacle is crossed: nothing hurts,
 // the water just holds the swimmer back (zero danger). Who may cross which
 // obstacle is the rule `CanCross` (the traits of the body: obstacles.ts).
@@ -21,11 +22,13 @@ export interface Gate {
 export const SOFT = 420;
 /** the start of the world: the surface of the Nurserie */
 export const WORLD_START = BIOMES[0].x0 + 200;
-/** the end of the world: the bottom of the Fosse, before the light of the Remontée */
-export const WORLD_END = span('fosse')[1] - 800;
+/** the bottom of the Fosse, before the light of the Remontée: its obstacle guards it */
+export const FOSSE_BOTTOM = span('fosse')[1] - 800;
+/** the end of the world: the bottom of the Remontée, a little past its well of light (remontee.ts) */
+export const WORLD_END = span('remontee')[0] + 1400;
 
-/** the obstacles along the descent, one at the end of each chapter that has one; the Fosse's guards the bottom of the world */
-export const GATES: Gate[] = OBSTACLES.map((chapter) => ({ chapter, x: Math.min(span(chapter)[1], WORLD_END) }));
+/** the obstacles along the descent, one at the end of each chapter that has one; the Fosse's guards its bottom */
+export const GATES: Gate[] = OBSTACLES.map((chapter) => ({ chapter, x: Math.min(span(chapter)[1], FOSSE_BOTTOM) }));
 
 export interface Limits {
   /** the obstacles already crossed */
