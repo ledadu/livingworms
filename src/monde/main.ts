@@ -25,6 +25,7 @@ import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMou
 import { compareSpecies, runBench } from './bench';
 import { darkStops, glowOf, lightReach, pitchOf, snowLit } from './fosse';
 import { drawShape } from './fosse-draw';
+import { drawCrystals, glacierItems, type GlacierScene } from './glacier';
 import { caveCover, caveDark, caveKeeps, caveRepel, ceilAt } from './grotte';
 import { pushCave } from './grotte-draw';
 import { drawFront, frontColour, frontCount, frontPainter, makeFront } from './foreground';
@@ -418,6 +419,7 @@ const spriteStamp = new WeakMap<HTMLCanvasElement, number>();
 const glowPts: number[] = [];
 /** lights drawn after the dark closes in: x, y (screen), size, hue, alpha */
 const lights: number[] = [];
+const glacier: GlacierScene = { view, ctx, gx, dpr, t: 0, plane: 0 };
 
 function render(): void {
   const m = moodAt(cam.x), pr = player.cr.root, plane = settings.dist;
@@ -524,6 +526,8 @@ function render(): void {
     if (Math.abs(s.cx - cam.x) > 2000) continue;
     items.push({ d: view.depth(s.cy, s.z), fn: () => drawShoal(s), k: 'fish' });
   }
+  glacier.dpr = dpr; glacier.t = t; glacier.plane = plane;
+  glacierItems(glacier, cam.x, (d, fn) => items.push({ d, fn, k: 'glacier' }));
   if (m.rays * open > 0.02 && cam.y < 1400) items.push({ d: view.depth(300, 700), fn: () => drawRays(open < 1 ? { ...m, rays: m.rays * open } : m), k: 'rays' });
   pushCave(items, { view, ctx, gx, dpr, W, H, t, lights, px: pr.x[0], py: pr.y[0] }, m, cam.x, plane);
   items.sort((a, b) => b.d - a.d);
@@ -585,6 +589,7 @@ function render(): void {
 
   // plankton, marine snow; in the dark they sparkle where the swimmer stirs the water
   if (!skip.has('motes')) drawMotes(m, dk);
+  if (!skip.has('crystals')) drawCrystals(glacier, cam.x, cam.y);
 
   // the vignette and the deep closing in are CSS layers over the canvas (free of canvas fill-rate)
   const dd = clamp((pr.y[0] - 300) / 900, 0, 1);
@@ -628,6 +633,7 @@ function renderGLTop(m: M, dk: number): void {
     glowsGL(g, lights, (i) => lights[i + 4]);
   }
   if (!skip.has('motes')) drawMotes(m, dk);
+  if (!skip.has('crystals')) drawCrystals(glacier, cam.x, cam.y);
   const dd = clamp((pr.y[0] - 300) / 900, 0, 1);
   if (deepEl && (frameNo & 7) === 0) deepEl.style.background = css(m.deep, dd * 0.18 * (1 - m.dark), -10);
   g.end();

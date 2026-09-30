@@ -36,6 +36,10 @@
 - Les deux noirs restent indépendants : le noir total ne dépend que du `dark` du chapitre (Grotte 0.62), la Grotte garde le sien.
 - Doc : la section de la Fosse cite le noir de la Grotte.
 
+### Troisième fusion (décor du Glacier)
+
+- `src/monde/main.ts` : un seul conflit, les imports ; gardés tous les deux (`fosse`, `fosse-draw` et `glacier`). Les cristaux du Glacier se dessinent après le noir comme mes silhouettes, dans leur chapitre seulement : rien à régler de plus.
+
 ## Choix retenus
 
 Aucune question posée sur le tableau de bord ; tout est tranché seul (option recommandée).
@@ -80,6 +84,6 @@ Aucune question posée sur le tableau de bord ; tout est tranché seul (option r
 ## Risques de fusion
 
 - `src/monde/biomes.ts` : seulement l'entrée `fosse` (`dark: 1`, deux espèces de plus, visiteurs géants).
-- `src/monde/main.ts` : imports (à côté de `grotte`), anneaux du noir par `darkStops` (canvas et WebGL), `drawShapes()` après le noir, `drawMotes` (neige dans la lumière), `fosse` dans `window.monde`.
+- `src/monde/main.ts` : imports (à côté de `grotte` et `glacier`), anneaux du noir par `darkStops` (canvas et WebGL), `drawShapes()` après le noir, `drawMotes` (neige dans la lumière), `fosse` dans `window.monde`.
 - `src/monde/foreground.test.ts` : deux identifiants de chapitre.
 - Nouveaux : `src/monde/fosse.ts`, `fosse-draw.ts`, `fosse.test.ts` ; docs `direction-artistique.md`, `chapitres.md`.
