@@ -247,7 +247,7 @@ export const BIOMES: Biome[] = [
 ];
 
 export const X0 = -800, X1 = 30000;
-const BLEND = 1400;
+export const BLEND = 1400;
 
 function mixHSL(a: HSL, b: HSL, t: number): HSL {
   return { h: lerpHue(a.h, b.h, t), s: lerp(a.s, b.s, t), l: lerp(a.l, b.l, t) };

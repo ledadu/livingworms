@@ -20,6 +20,8 @@ import { hsl01 } from '../engine3/gfx';
 import { disc, paint3 } from '../engine3/paint-gl';
 import { causticsGL, fishAtlas, fishGL, glowsGL, hcol, raysGL, rings, rowGL, screenGfx, shadowGL, spriteGL, surfaceGL, waterGL } from './scene-gl';
 import { bakeCreature, bakeRock, causticTile, env, fishSprites, fogOf, glowSprite, makeCanvas, type Plant, type Sprite } from './sprites';
+import { ChapterWatch, faunaX } from './transitions';
+import { holdBack, newLimits, pass, reach, travel, travelShown } from './limites';
 import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, chapterIndex, floorAt, liftAt, metres, moodAt, openFloor } from './biomes';
 import { Jardin } from './jardin';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
@@ -34,6 +36,7 @@ import { pushCave } from './grotte-draw';
 import { drawFront, frontColour, frontCount, frontPainter, makeFront } from './foreground';
 import { CARCASSE, boneLight, carcasseDwellers, carcasseSchool } from './carcasse';
 import { initNouveautes } from './nouveautes';
+import { createNarrator } from './narration';
 import { initPartie } from './partie-jeu';
 import './style.css';
 
@@ -166,14 +169,13 @@ function homeY(kind: Actor['kind'], x: number, z: number, R: () => number): numb
   const R = rng(3);
   for (let i = 0; i < 5; i++) addActor(firstAncestor(), 420 + rand(-200, 200), rand(120, 260), 'sib', 0.45 + R() * 0.15, rand(-40, 60));
   BIOMES.forEach((b, bi) => {
-    const x0 = Math.max(X0 + 300, b.x0 + 200), x1 = (bi + 1 < BIOMES.length ? BIOMES[bi + 1].x0 : X1) - 200;
     let total = 0;
     for (const f of b.fauna) total += f[2];
     for (let k = 0; k < b.pop; k++) {
       let f = b.fauna[k];
       if (!f) { let u = R() * total; f = b.fauna.find((g) => (u -= g[2]) <= 0) || b.fauna[0]; }
       const [id, kind, , scale] = f;
-      const x = x0 + R() * (x1 - x0), z = [0, 0, 0, 70, 150, 260, 400][Math.floor(R() * 7)];
+      const x = faunaX(bi, R), z = [0, 0, 0, 70, 150, 260, 400][Math.floor(R() * 7)];
       addActor(SPECIES[id](), x, homeY(kind, x, z, R), kind, scale, z);
     }
   });
@@ -282,6 +284,7 @@ const cam = { x: 420, y: 180 };
 
 function steer(a: Actor, dvx: number, dvy: number, accel: number): void {
   const r = a.cr.root;
+  if (a === player) dvx = holdBack(r.x[0], dvx, bounds);
   a.cr.steer(t, dvx, dvy, clamp((a.z - r.z[0]) * 0.035, -0.5, 0.5), accel);
 }
 
@@ -305,6 +308,10 @@ function collide(cr: Creature3): void {
   if (r.y[0] < 8) { r.y[0] = 8; if (cr.vy < 0) cr.vy *= -0.3; }
 }
 
+// the ends of the world and the obstacles not crossed yet (limites.ts)
+const limits = newLimits();
+let bounds = reach(limits);
+
 const counts = { near: 0, live: 0, plants: 0, items: 0 };
 
 function update(): void {
@@ -324,7 +331,9 @@ function update(): void {
     const d = Math.hypot(kd.x, kd.y);
     steer(player, (kd.x / d) * 2.6, (kd.y / d) * 2.6, 0.08);
   } else steer(player, 0, 0, 0.03);
-  r.x[0] = clamp(r.x[0], X0 + 200, X1 - 200);
+  pass(limits, r.x[0]);
+  bounds = reach(limits);
+  r.x[0] = clamp(r.x[0], bounds[0], bounds[1]);
   collide(p);
   const px = r.x[0], py = r.y[0];
 
@@ -401,8 +410,9 @@ function update(): void {
   }
 
   // entering a biome
-  const bi = biomeIndex(px);
-  if (bi !== here.i && Math.abs(px - BIOMES[bi].x0) > 150) { here.i = bi; showChapter(bi); partie.reach(BIOMES[bi].id); }
+  const bi = chapters.step(px);
+  if (bi >= 0) showChapter(bi);
+  if (chapters.shown >= 0) partie.reach(BIOMES[chapters.shown].id);
 }
 
 // ----- drawing ----- //
@@ -1004,21 +1014,11 @@ function drawFrontLayer(m: M): void {
 
 // ----- chapters and the depth gauge ----- //
 
-const here = { i: 0 };
+const chapters = new ChapterWatch();
 const chapterEl = document.getElementById('chapter')!, hudEl = document.getElementById('hud')!;
-let chapterTimer = 0;
-function showChapter(i: number): void {
-  const b = BIOMES[i];
-  chapterEl.innerHTML = '';
-  const h = document.createElement('strong'); h.textContent = b.name;
-  const s = document.createElement('span'); s.textContent = b.sub;
-  chapterEl.append(h, s);
-  chapterEl.classList.remove('show');
-  void chapterEl.offsetWidth;
-  chapterEl.classList.add('show');
-  clearTimeout(chapterTimer);
-  chapterTimer = window.setTimeout(() => chapterEl.classList.remove('show'), 4200);
-}
+const narrator = createNarrator(chapterEl, BIOMES);
+/** entering a chapter: its opening, told once (narration.ts) */
+function showChapter(i: number): void { narrator.chapter(i); }
 
 // ----- loop ----- //
 
@@ -1073,6 +1073,8 @@ function frame(now: number): void {
 
 function teleport(x: number, y: number): void {
   const cr = player.cr;
+  travel(limits, x);
+  bounds = reach(limits);
   cr.translate(x - cr.root.x[0], y - cr.root.y[0], 0);
   cr.vx = cr.vy = 0;
   cam.x = x; cam.y = y;
@@ -1084,6 +1086,7 @@ function teleport(x: number, y: number): void {
 function gotoBiome(i: number): void {
   const { x, y } = arrival(i);
   teleport(x, y);
+  showChapter(chapters.jump(x));
 }
 
 /** a crowd of animals around the swimmer, in its plane (for the load test) */
@@ -1109,7 +1112,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, carcasse: CARCASSE, fosse, partie, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
+  biomes: BIOMES, narrator, limits, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
@@ -1135,6 +1138,8 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-angle]')) {
 }
 setInterval(() => { const d = Math.round(900 / input.zoomMul); if (+distIn.value !== d) { distIn.value = String(d); settings.dist = d; showVals(); save(); } }, 400);
 const trip = document.getElementById('trip')!;
+// the travel is for the tests (?dev), hidden from the players
+if (!travelShown(location.search)) trip.hidden = (trip.previousElementSibling as HTMLElement).hidden = true;
 BIOMES.forEach((b, i) => {
   const btn = document.createElement('button');
   btn.textContent = b.name.replace(/^(La |Le |Les )/, '');
@@ -1147,12 +1152,13 @@ for (const el of [panel, gear, benchOut, document.getElementById('atBtn')!]) for
 const hint = document.getElementById('hint')!;
 setTimeout(() => hint.classList.add('gone'), 6000);
 document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).closest('#panel, #atelier, #benchOut')) e.preventDefault(); }, { passive: false });
-initNouveautes(() => !Atelier.isOpen && benchOut.hidden === true);
+const nouveautes = initNouveautes(() => !Atelier.isOpen && benchOut.hidden === true);
+narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen;
 
-// back where the game was left: the start of its chapter
-here.i = Math.max(0, chapterIndex(partie.chapter as (typeof BIOMES)[number]['id']));
-if (here.i > 0) gotoBiome(here.i);
-setTimeout(() => showChapter(here.i), 400);
+// back where the game was left: the start of its chapter, the obstacles before it crossed (teleport)
+const resumeAt = chapterIndex(partie.chapter as (typeof BIOMES)[number]['id']);
+if (resumeAt > 0) { const { x, y } = arrival(resumeAt); teleport(x, y); }
+setTimeout(() => showChapter(chapters.jump(player.cr.root.x[0])), 400);
 requestAnimationFrame(frame);
 // ?lod=0: without the levels of detail (to compare)
 if (new URLSearchParams(location.search).get('lod') === '0') opts.lod = false;
