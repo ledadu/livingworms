@@ -32,12 +32,23 @@ La Nurserie et la Carcasse n'ont pas d'obstacle : on y trouve quand même un par
 - Un court moment de nage synchronisée : tu suis ou imites le partenaire (le suivre sans le perdre, passer dans son sillage, tourner avec lui).
 - Environ 20 secondes, **sans échec possible**, seulement plus ou moins réussie.
 - La qualité de la parade influence la portée : bien réussie, les enfants héritent davantage des traits voulus.
-- **Le début** : on reste un moment (1,2 s) à moins de 130 d'un partenaire (`actor.partner`, voir « Les espèces compatibles ») ; il nous remarque (quelques lueurs montent de lui), puis mène la danse. Rien ne commence pendant qu'un texte est à l'écran ou que la portée est ouverte.
+- **Le début** : on reste un moment (2 s) à moins de 130 d'un partenaire (`actor.partner`, voir « Les espèces compatibles ») ; il nous remarque (quelques lueurs montent de lui), puis mène la danse. Rester près de lui, c'est dire oui : le frôler en passant ne suffit pas. Rien ne commence pendant qu'un texte est à l'écran ou que la portée est ouverte.
+- **La quitter** : on peut toujours s'en aller. À plus de 520 de lui pendant 2,5 s (`LEAVE_FAR`, `LEAVE_TIME`, `away`), il nous laisse partir, avec quelques lueurs, et retourne à sa vie : pas d'œufs, rien ne s'ouvre plus tard. Revenir rester près de lui, c'est recommencer. Le suivre de loin ne compte pas pour un départ : la danse ne l'écarte jamais de plus de 480 (son grand huit).
 - **La danse** : le partenaire dessine un grand huit (240 × 95 de demi-axes) autour de l'endroit de la rencontre, en partant du côté opposé à nous, pour qu'on se retrouve derrière lui. Il avance à son aise (selon sa vitesse de nage), attend quand il prend du retard et ralentit quand on s'éloigne : on peut toujours le rattraper. Un marcheur (crabe, homard) fait l'aller-retour sur le fond.
 - **La qualité**, mesurée à chaque instant puis moyennée sur les 20 s : **le suivre** (près de lui : plein jusqu'à 120, nul au-delà de 360, 40 %), **son sillage** (passer là où il était il y a 0,3 à 1,5 s, 30 %), **tourner avec lui** (aller dans la même direction que lui, 30 %). Le suivre du doigt donne environ 0,95 ; rester à côté sans bouger, 0,3 à 0,4 ; s'en aller, presque 0.
 - **Ce qu'on voit** (pas de chiffres) : son sillage brille de sa couleur ; le nôtre s'allume de la même couleur quand on danse en rythme ; à la fin, un éclat de lumière d'autant plus grand que la parade était belle.
-- **Le résultat** : `monde.parade.last` (`partner` : l'id de l'espèce, `spec` : sa définition, `chapter`, `quality` de 0 à 1, `parts` : les trois mesures), et `monde.parade.onEnd(f)` appelé à la fin de chaque parade. Le jeu y ouvre la portée avec le partenaire et cette qualité, 1,6 s après la fin (le temps de l'éclat).
-- Dans le code : les règles dans `src/monde/parade.ts` (pures, testées), le jeu dans `src/monde/parade-jeu.ts`. Seuls les animaux marqués partenaires dansent. Pour les tests : `monde.parade.start(animal, monde.player.cr)`, `monde.parade.state`, `monde.parade.quiet = () => false`.
+- **Le résultat** : `monde.parade.last` (`partner` : l'id de l'espèce, `spec` : sa définition, `chapter`, `at` : où était le partenaire à la fin, `quality` de 0 à 1, `parts` : les trois mesures), et `monde.parade.onEnd(f)` appelé à la fin de chaque parade (pas quand on la quitte). Le jeu y pond les œufs, là où était le partenaire, dans l'éclat (voir « La ponte »).
+- Dans le code : les règles dans `src/monde/parade.ts` (pures, testées), le jeu dans `src/monde/parade-jeu.ts`. Seuls les animaux marqués partenaires dansent. Pour les tests : `monde.parade.start(animal, monde.player.cr)`, `monde.parade.state`, `monde.parade.finish()`, `monde.parade.leave()`, `monde.parade.quiet = () => false`.
+
+### La ponte
+
+Rien n'est imposé : la portée ne se jette plus sur la mer à la fin de la parade.
+
+- **Les œufs dans l'eau** : quatre œufs d'or pâle, comme ceux de l'écran de la portée, sont pondus là où la parade a fini, dans son éclat de lumière. Ils flottent en petit tas, chacun se balançant à sa façon, et luisent doucement (on les voit aussi dans le noir).
+- **Les faire éclore** : on reste près d'eux (à moins de 110, 1,6 s, après les 1,6 s de l'éclat) ; ils tremblent et brillent de plus en plus, puis la portée s'ouvre. C'est le même geste que pour un partenaire : rester près, c'est dire oui. Si l'on s'en va, rien ne s'ouvre.
+- **Plus tard** : l'écran de la portée a un second bouton, « Plus tard : les œufs t'attendront ici » (ou Échap). Les œufs restent où ils sont ; pour rouvrir la portée, il faut s'en éloigner (180) puis revenir rester près d'eux. Ce sont les mêmes quatre enfants (la même graine de `brood`).
+- **Une ponte à la fois** : une nouvelle parade pond ses œufs à la place des anciens. Choisir un enfant les fait éclore pour de bon. Les œufs ne sont pas gardés dans la sauvegarde : un rechargement les efface.
+- Dans le code : les règles dans `src/monde/ponte.ts` (pures, testées), les œufs dans le monde dans `ponte-jeu.ts`. Pour les tests : `monde.ponte.clutch` (où ils sont, `hold`, `armed`, `crosses`), `monde.ponte.open()`, `monde.portee.later()`. `monde.openPortee(partenaire, qualité)` pond les œufs à côté du nageur et ouvre leur portée tout de suite.
 
 ### La portée
 
@@ -46,21 +57,8 @@ La Nurserie et la Carcasse n'ont pas d'obstacle : on y trouve quand même un par
 - Tu choisis 1 enfant parmi 4 : c'est lui que tu joues ensuite.
 - Dans le code : `brood` (`src/content/portee.ts`) fait les 4 enfants avec `fuse` en mode « mélange », une part du partenaire de 30, 37, 43 et 50 % (40 % en moyenne), et note d'où vient chaque membre et à qui ressemble le corps. Chaque enfant reçoit au moins un membre du côté qui ne lui a pas donné son corps.
 - Les **traits voulus** sont ceux qui franchissent l'obstacle du chapitre (`KEYS`, `src/monde/obstacles.ts`) ; sans obstacle, ceux du partenaire que le parent n'a pas. Les membres du partenaire qui les apportent (`limbTraits`, lu avec `traitsOf` de `src/content/traits.ts`) vont à 1 enfant après une parade ratée, 2 à mi-chemin, 3 après une parade parfaite (`carriers`) : jamais à aucun, jamais aux 4, pour qu'il reste un choix.
-- L'écran (`src/monde/portee-ecran.ts`) : quatre œufs qui tremblent puis fondent, chacun sur son portrait (`snapshot3`), son nom (le début du nom du parent, la fin de celui du partenaire) « de Première : Corps, Cil… / de Méduse lune : Filament… », puis ses traits, en or ceux qui franchissent l'obstacle du chapitre. On touche un enfant, puis « Continuer avec … » : il devient la créature jouée, et le parent rejoint la lignée de la sauvegarde (`partie.born`).
-- Pour l'ouvrir : `monde.openPortee(partenaire, qualité)` (un id du bestiaire ou une espèce, qualité de 0 à 1), ou, avec `?dev`, le bouton « Une portée avec un partenaire d'ici » du panneau ⚙ (un partenaire du chapitre, `PARTNERS`). La parade l'ouvre à sa fin, avec sa qualité.
-
-### L'adieu
-
-- Un texte de deux à quatre lignes, dans la voix du « nous » (voir [chapitres.md](chapitres.md)).
-- Le parent reste dans le monde, là où tu l'as quitté (voir « Les ancêtres »).
-- **Dans le jeu** (`src/monde/adieu.ts`, branché par `adieu-jeu.ts` et `farewell` dans `main.ts`) : une scène d'une dizaine de secondes, sans rien à faire.
-  - L'enfant naît à côté du parent et fait une fois le tour de lui, pendant que le parent le suit de la tête. La caméra se rapproche des deux, les bords de la mer s'assombrissent et les boutons s'effacent (`adieu.css`).
-  - Le texte d'adieu du chapitre arrive (une ouverture de chapitre attend qu'il s'efface).
-  - L'enfant s'en va vers la suite de la descente, de plus en plus vite ; le parent l'accompagne un peu, s'arrête et le regarde partir. La caméra s'élargit, puis suit l'enfant.
-  - On reprend la main quand l'enfant est à environ 700 px, ou au bout de 11 s.
-  - Le parent reste là où on l'a quitté, d'une visite à l'autre (voir « Les ancêtres ») : il y dérive doucement, et quand on revient il se tourne vers nous et vient un peu à notre rencontre, jusqu'à 90 px de nous (`ROOM`). Les larves-sœurs de la première génération restent avec lui.
-  - La naissance est enregistrée dans la partie (`partie.born`).
-  - Pour l'essayer : `monde.farewell(enfant)` ; sans enfant, un enfant d'essai est fait par `fuse` avec la première espèce du chapitre. En jeu, le choix d'un enfant de la portée la lance ; la parade ne commence pas pendant la scène, et aucun autre texte (celui d'un obstacle, une ouverture) ne passe par-dessus l'adieu.
+- L'écran (`src/monde/portee-ecran.ts`) : quatre œufs qui tremblent puis fondent, chacun sur son portrait (`snapshot3`), son nom (le début du nom du parent, la fin de celui du partenaire) « de Première : Corps, Cil… / de Méduse lune : Filament… », puis ses traits, en or ceux qui franchissent l'obstacle du chapitre. Sous le titre, une ligne le dit (`broodNote`) : « Les traits en or franchissent le mur d'algues. », ou, quand aucun enfant ne passerait, « Aucun ne franchira le mur d'algues : tu peux laisser les œufs et chercher un autre partenaire. ». On touche un enfant, puis « Continuer avec … » : il devient la créature jouée, et le parent rejoint la lignée de la sauvegarde (`partie.born`). Ou « Plus tard » (voir « La ponte »).
+- Pour l'ouvrir : `monde.openPortee(partenaire, qualité)` (un id du bestiaire ou une espèce, qualité de 0 à 1), ou, avec `?dev`, le bouton « Une portée avec un partenaire d'ici » du panneau ⚙ (un partenaire du chapitre, `PARTNERS`). Après une parade, ce sont ses œufs qui l'ouvrent, avec sa qualité (« La ponte »).
 
 ## L'hérédité : les traits
 
