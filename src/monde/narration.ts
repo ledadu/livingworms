@@ -14,6 +14,8 @@ export interface Narrator {
   chapter(i: number): void;
   /** a text of the chapter now (the farewell when a generation stays behind); false if the document has none */
   tell(i: number, kind: TextKind): boolean;
+  /** words that are no chapter's (before a trace of the lineage), under a name; false while other words are on screen */
+  say(name: string, lines: string[]): boolean;
   /** the chapters whose opening has been told */
   readonly told: Set<number>;
   /** while this is true (a panel covers the sea), the opening waits */
@@ -25,10 +27,10 @@ export function createNarrator(el: HTMLElement, chapters: { name: string }[]): N
   let timers: number[] = [];
   const later = (ms: number, f: () => void) => timers.push(window.setTimeout(f, ms));
   let waitTimer = 0;
-  /** a farewell is being said until then (ms): an opening waits for it */
+  /** a farewell (or the words before a trace) is being said until then (ms): an opening waits for it */
   let farewellUntil = 0;
 
-  function show(name: string, lines: string[], kind: TextKind | 'name'): void {
+  function show(name: string, lines: string[], kind: TextKind | 'name' | 'trace'): void {
     for (const id of timers) clearTimeout(id);
     timers = [];
     el.innerHTML = '';
@@ -46,7 +48,7 @@ export function createNarrator(el: HTMLElement, chapters: { name: string }[]): N
     el.classList.add('show');
     ps.forEach((p, k) => later(FIRST + k * STEP, () => p.classList.add('on')));
     const end = lines.length ? FIRST + (lines.length - 1) * STEP + LINE_IN + holdTime(lines) : 3600;
-    farewellUntil = kind === 'farewell' ? performance.now() + end + FADE / 2 : 0;
+    farewellUntil = kind === 'farewell' || kind === 'trace' ? performance.now() + end + FADE / 2 : 0;
     later(end, () => el.classList.remove('show'));
     later(end + FADE, () => { el.innerHTML = ''; });
   }
@@ -63,6 +65,11 @@ export function createNarrator(el: HTMLElement, chapters: { name: string }[]): N
     told,
     tell,
     quiet: () => false,
+    say(name, lines) {
+      if (!lines.length || narrator.quiet() || performance.now() < farewellUntil || el.classList.contains('show')) return false;
+      show(name, lines, 'trace');
+      return true;
+    },
     chapter(i) {
       if (!chapters[i]) return;
       clearTimeout(waitTimer);

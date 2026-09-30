@@ -238,6 +238,22 @@ Texte final :
 
 **Générique** : l'arbre complet de ta lignée, génération par génération.
 
+## Les traces de la lignée
+
+Plus bas dans la descente, ce que les générations passées ont laissé ([mécaniques](mecaniques.md#les-ancêtres)). La première fois qu'on s'en approche, la lignée dit l'un de ces textes, sous le nom de l'ancêtre (*propositions*) :
+
+Les œufs non éclos :
+
+> Des œufs, les tiens, que le courant a portés jusqu'ici. Ils n'ont jamais éclos. Nous vivons aussi pour eux.
+
+La mue :
+
+> Ta forme exacte, vide et claire. Tu l'avais quittée pour grandir. Nous aussi, nous laissons derrière nous ce qui nous serre.
+
+La carcasse devenue récif :
+
+> Ton corps est descendu jusqu'ici, et la vie s'y est posée. Toi qui n'avais pas de maison, tu en es une. Rien de nous ne se perd.
+
 ## Dans le monde
 
 La carte du Grand Monde (`src/monde/biomes.ts`) suit la trame : les 10 chapitres se succèdent le long de x, de x = −800 à x = 30 000, et le fond descend de l'un à l'autre. Chaque chapitre a son identifiant (`ChapterId`), son étendue (`span(id)`), sa palette, son relief, ses plantes, sa faune (les partenaires d'abord) et ses grands visiteurs. La jauge de profondeur lit la profondeur du chapitre sur son fond : en pleine eau, plus haut, elle affiche moins.
