@@ -20,7 +20,8 @@ import { hsl01 } from '../engine3/gfx';
 import { disc, paint3 } from '../engine3/paint-gl';
 import { causticsGL, fishAtlas, fishGL, glowsGL, hcol, raysGL, rings, rowGL, screenGfx, shadowGL, spriteGL, surfaceGL, waterGL } from './scene-gl';
 import { bakeCreature, bakeRock, causticTile, env, fishSprites, fogOf, glowSprite, makeCanvas, type Plant, type Sprite } from './sprites';
-import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, floorAt, liftAt, metres, moodAt } from './biomes';
+import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, floorAt, liftAt, metres, moodAt, openFloor } from './biomes';
+import { Jardin } from './jardin';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
 import { compareSpecies, runBench } from './bench';
 import { darkStops, glowOf, lightReach, pitchOf, snowLit } from './fosse';
@@ -146,7 +147,7 @@ document.getElementById('atBtn')?.addEventListener('click', () => {
 
 /** where an animal of this kind lives at x, z */
 function homeY(kind: Actor['kind'], x: number, z: number, R: () => number): number {
-  const fy = floorAt(x, z);
+  const fy = kind === 'floor' ? floorAt(x, z) : openFloor(x, z);
   if (kind === 'floor') return fy - 12;
   if (kind === 'surface') return 12 + R() * 16;
   return clamp(fy - liftAt(x) - 90 - R() * 560, 40, fy - 80);
@@ -187,7 +188,7 @@ class Shoal {
   spr: HTMLCanvasElement[]; cx = 0; cy = 0; size: number;
   constructor(home: number, z: number, n: number, body: HSL, belly: HSL, size: number, glow: boolean, seed: number) {
     this.n = n; this.z = z; this.home = home; this.glow = glow; this.seed = seed; this.size = size;
-    const fy = floorAt(home, z) - liftAt(home);
+    const fy = openFloor(home, z) - liftAt(home);
     this.y0 = Math.max(40, fy - 420); this.y1 = fy - 90;
     this.x = new Float32Array(n); this.y = new Float32Array(n); this.vx = new Float32Array(n); this.vy = new Float32Array(n); this.ph = new Float32Array(n);
     for (let i = 0; i < n; i++) { this.x[i] = home + rand(-60, 60); this.y[i] = (this.y0 + this.y1) / 2 + rand(-40, 40); this.vx[i] = rand(-1, 1); this.ph[i] = rand(0, TAU); }
@@ -260,6 +261,9 @@ const bubbleSpr = (() => {
 
 // plankton and marine snow: points around the camera
 const MOTES = 220;
+
+// the Jardin de méduses: thousands of far jellies and giant siphonophores
+const jardin = new Jardin(view, ctx, gx);
 const motes = Array.from({ length: MOTES }, () => [rand(-700, 700), rand(-500, 500), rand(-200, 1600), rand(0.6, 1.6)]);
 
 // ----- simulation ----- //
@@ -526,6 +530,7 @@ function render(): void {
     if (Math.abs(s.cx - cam.x) > 2000) continue;
     items.push({ d: view.depth(s.cy, s.z), fn: () => drawShoal(s), k: 'fish' });
   }
+  jardin.collect(cam.x, cam.y, t, (d, fn) => items.push({ d, fn, k: 'jellies' }), { dpr, W, H, plane });
   glacier.dpr = dpr; glacier.t = t; glacier.plane = plane;
   glacierItems(glacier, cam.x, (d, fn) => items.push({ d, fn, k: 'glacier' }));
   if (m.rays * open > 0.02 && cam.y < 1400) items.push({ d: view.depth(300, 700), fn: () => drawRays(open < 1 ? { ...m, rays: m.rays * open } : m), k: 'rays' });
@@ -1093,7 +1098,7 @@ function clearCrowd(): void {
 }
 
 export const api = {
-  settings, opts, detail, onlySp, player, stats, counts, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
+  settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
   biomes: BIOMES, carcasse: CARCASSE, fosse, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,

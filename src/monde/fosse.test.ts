@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BIOMES, chapterIndex, floorAt, moodAt, span } from './biomes';
+import { BIOMES, chapterIndex, moodAt, openFloor, span } from './biomes';
 import { darkStops, glowOf, lightReach, pitchOf, snowLit } from './fosse';
 
 describe('La Fosse', () => {
@@ -7,7 +7,8 @@ describe('La Fosse', () => {
   it('is pitch dark, and the only chapter that is', () => {
     expect(pitchOf(moodAt((a + b) / 2).dark)).toBe(1);
     BIOMES.forEach((c, i) => { if (i !== chapterIndex('fosse')) expect(pitchOf(c.dark)).toBe(0); });
-    expect(floorAt((a + b) / 2, 0)).toBeGreaterThan(floorAt(a - 3000, 0));
+    // deeper than the chapter before (the Jardin's floor has fallen out of sight: compare the floor it would have)
+    expect(openFloor((a + b) / 2, 0)).toBeGreaterThan(openFloor(a - 3000, 0));
   });
 
   it('closes in across its borders', () => {

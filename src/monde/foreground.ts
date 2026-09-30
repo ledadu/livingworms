@@ -54,7 +54,9 @@ export function makeFront(seed = 11): FrontPiece[] {
     let u = R() * s, shape: FrontShape = 'rock';
     for (const [k, w] of kinds) { u -= w; if (u <= 0) { shape = k; break; } }
     const [h0, h1, wk] = SIZE[shape], h = h0 + R() * (h1 - h0);
-    out.push({ x, z: FRONT_Z[0] + R() * (FRONT_Z[1] - FRONT_Z[0]), shape, h, w: h * wk * (0.8 + R() * 0.4), seed: Math.floor(R() * 1e9), img: null });
+    const piece: FrontPiece = { x, z: FRONT_Z[0] + R() * (FRONT_Z[1] - FRONT_Z[0]), shape, h, w: h * wk * (0.8 + R() * 0.4), seed: Math.floor(R() * 1e9), img: null };
+    // nothing grows up from a floor that has fallen out of sight
+    if (!b.abyss) out.push(piece);
     // clumps and clearings; fewer where the dark closes in
     x += (R() < 0.35 ? 40 + R() * 70 : 150 + R() * 330) * (1 + b.dark);
   }

@@ -25,7 +25,7 @@ Il manque, pour le plan :
 
 - les reliefs composés (arches, grottes, failles, surplombs, piliers) ;
 - le premier plan sombre et flou ;
-- les décors propres à la Carcasse, le Glacier, le Jardin de méduses et la Fosse (ils ont aujourd'hui un décor provisoire tiré de l'existant) ;
+- le décor propre à la Fosse (elle a aujourd'hui un décor provisoire tiré de l'existant) ;
 - le puits de lumière de la Remontée.
 
 ### Le premier plan
@@ -36,6 +36,17 @@ Entre l'œil et le plan de nage (`src/monde/foreground.ts`) : des silhouettes so
 - **Sombre et flou** : chaque silhouette est cuite une fois, petite et floutée, d'une seule couleur (l'eau autour, très assombrie), puis agrandie ; elle ondule doucement depuis son pied.
 - **Le plan de nage reste lisible** : les silhouettes montent du bas de l'écran (ou de leur sol quand il est visible) et s'effacent presque en approchant du nageur.
 - **Coût** : quelques images par trame, en WebGL comme en canvas. Couche `front` de `monde.skip` pour la comparer.
+
+### Le Jardin de méduses
+
+Réalisé dans `src/monde/jardin.ts` (chapitre `jardin` de `biomes.ts`, entre le Glacier et la Fosse) :
+
+- **Sans fond** : le champ `abyss` d'un biome fait tomber le fond hors de vue (`floorAt`) ; les animaux de pleine eau gardent leur profondeur d'avant (`openFloor`, relevée de `lift`), comme l'arrivée (`arrival`).
+- **Des milliers de méduses lointaines**, bon marché : une image par méduse, tirée d'un petit atlas (trois teintes, quatre temps de pulsation, un point lumineux pour les plus petites), en neuf plans de profondeur entre lesquels passent les animaux simulés. Le champ se répète autour de la caméra : il n'a de bord ni en haut, ni en bas, ni sur les côtés. Sa densité suit le champ `jellies` des biomes et s'éclaircit aux frontières.
+- **Elles pulsent et montent** : chaque battement les soulève un peu, et le jardin entier monte lentement.
+- **Elles s'éclairent par vagues** : toutes les quelques secondes, une onde de lumière part d'un point et traverse le jardin.
+- **Des siphonophores géants** : de longues chaînes lumineuses au loin, avec leurs cloches nageuses en tête et une lumière qui court le long du corps.
+- **Les proches** sont les créatures simulées de la faune du biome (méduse lune, cténophore, siphonophore, chrysaora, cuboméduse, hydre, clione) et un siphonophore géant simulé qui passe au loin (visiteur du chapitre).
 
 ## Une palette par chapitre
 
