@@ -6,7 +6,7 @@
 - Les traits se lisent sur le **rôle, le style et la forme** des parties, jamais sur leur nom (les espèces renomment les parties : « Aile » du clione, « Mâchoire » du grand gosier…). Ça marche donc aussi sur les enfants de `fuse` et les espèces de `generate`.
 - **Ébauches** : champ optionnel `bud?: boolean` sur `NodeDef` (`src/engine/types.ts`) ; une ébauche n'apporte aucun trait (ce qui pousse dessus, si). Posé sur la queue, la lueur et les cils de `firstAncestor` : la génération 1 naît sans trait, comme le veut `chapitres.md`, sans rien changer à son image.
 - **Atelier** : une ligne « Traits : … » (ou « Aucun trait ») sous le compteur de chaînes, mise à jour à chaque modification (`src/editor/atelier.ts`, `dom.ts`, `atelier.css`).
-- **Tests** : `src/content/traits.test.ts` (14 tests) : chaque trait sur les espèces d'où il vient, les lignes des seuils, les noms ignorés, les ébauches, les espèces générées et fusionnées, la pureté.
+- **Tests** : `src/content/traits.test.ts` (12 tests) : chaque trait sur les espèces d'où il vient, les lignes des seuils, les noms ignorés, les ébauches, les espèces générées et fusionnées, la pureté.
 - **Doc** : la table de `docs/mecaniques.md` dit maintenant la règle exacte et les seuils.
 
 ![La larve de départ : aucun trait](img/atelier-firstAncestor.jpg)
