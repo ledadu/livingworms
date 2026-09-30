@@ -16,6 +16,7 @@ Les profondeurs sont indicatives : le monde est une descente continue, pas une c
 - Deux à quatre lignes au maximum.
 - La voix est celle de la lignée, un « nous », comme si les ancêtres parlaient.
 - **Dans le jeu** (`src/monde/textes.ts`, affichage dans `narration.ts`) : les textes sont lus dans ce document même, au build. Sous le titre `## N. Nom` d'un chapitre, la citation (`> …`) qui suit une ligne « Ouverture : », « Adieu … : », « Le retournement : » (l'ouverture de la Remontée) ou « Texte final : » ou « Devant l'obstacle : » (dit la première fois que l'obstacle du chapitre nous retient) devient ce texte ; pour en changer un, il suffit de l'écrire ici. Une phrase par ligne ; une phrase seule et longue se coupe à la virgule la plus proche de son milieu ; quatre lignes au plus. L'ouverture s'écrit la première fois qu'on entre dans le chapitre, ligne après ligne, sous son nom en petites capitales, puis s'efface ; en y revenant, seul le nom passe. Elle attend qu'aucun panneau (Nouveautés, Atelier) ne couvre la mer. L'adieu se dit pendant la scène de l'adieu au parent ([mécaniques](mecaniques.md#ladieu)) ; tant qu'il est à l'écran, une ouverture attend qu'il s'efface et rien d'autre ne se dit.
+- « La rencontre : » donne le texte dit la première fois qu'on croise la cousine de la lignée rivale, à la Carcasse (voir le chapitre 5).
 
 ## Vue d'ensemble
 
@@ -121,10 +122,19 @@ Adieu (proposition) :
 - **Note** : « le souvenir ».
 - **Dans le monde** (`src/monde/carcasse.ts`) : le squelette couché sur le fond, tête à gauche, sur 1 200 px environ. Crâne, deux mâchoires, colonne en quatre tronçons qui suivent le sable, treize paires de côtes (debout, brisées ou tombées), nageoires ; tapis blancs et jaunes de bactéries, duvet rouge des vers mangeurs d'os. Un rai de lumière pâle tombe sur les côtes, les os luisent un peu dans le noir. Crabes, vers plumeaux, ophiures, crevettes, homard, anguilles et un banc de poissons argentés y vivent. Les os sont derrière le plan de nage : on nage devant et entre eux.
 - **Les fresques naturelles** : trois, des coquilles posées en motif sur les os plats, listées dans `CARCASSE.fresques` (`id`, `motif`, position) pour servir de traces à l'étape 4 : une **spirale** sur l'omoplate (debout derrière les côtes), des **anneaux** sur le crâne, des **rayons** sur une vertèbre de la queue roulée à l'écart. Des tas de coquilles sont semés autour.
+- **La lignée rivale** (`src/monde/rivale.ts`, dans le monde par `rivale-jeu.ts`) : une autre lignée est partie de la même larve que nous, mais a fait d'autres rencontres. Dans chaque chapitre avant la Carcasse, elle a choisi un partenaire (`PARTNERS`) qui franchit l'obstacle avec le trait que notre corps n'a pas : si nous avons des nageoires, elle a battu comme la méduse-boîte ; si nous avons des pinces, elle s'est faite fine comme le dragon feuillu ; à la Nurserie, un partenaire presque au hasard. Elle ne prend jamais le partenaire que notre lignée a eu dans ce chapitre (la sauvegarde le garde depuis l'arbre de la lignée, `ourPartners`), sauf s'il est le seul à franchir l'obstacle. Ses portées sont faites par `brood`, comme les nôtres, et elle a gardé chaque fois l'enfant qui franchit l'obstacle, le plus loin de son parent : une créature étrange, de notre génération, dont le nom commence comme le nôtre.
+  - Elle est faite la première fois qu'on entre dans la Carcasse, à partir de la créature de notre lignée qui y est arrivée (celle qui y a donné naissance ou plus bas, sinon celle qu'on joue) et de nos partenaires : c'est la même cousine à chaque visite, sans rien de plus dans la sauvegarde, même quand l'arbre de la lignée renomme notre créature (`cousinSeed` ne lit pas son nom).
+  - Seule, elle va et vient le long du squelette. Quand on approche (560 px), une lueur de sa couleur s'allume, jamais l'or des partenaires ; elle se tourne vers nous et vient nager à côté, un peu au-dessus. Elle nous suit autour des os, sans jamais nous toucher, et y retourne quand on s'en éloigne (760 px). Ce n'est pas une partenaire : elle ne danse pas.
+  - La première fois qu'on la croise (320 px), le texte de « La rencontre » (ci-dessous) se dit, dès qu'aucun autre texte n'est à l'écran.
+  - Pour les tests : `monde.rivale` (`rival` : sa définition et les partenaires qu'elle a choisis ; `cr`, `met`, `make()`).
 
 Ouverture :
 
 > Même finie, elle nourrit. Nous avons compris ce jour-là que rien ne s'arrête vraiment.
+
+La rencontre (la première fois qu'on croise la cousine de la lignée rivale) :
+
+> D'autres étaient partis de la même lumière que nous. Ils avaient fait d'autres rencontres, pris d'autres corps. Nous nous sommes reconnus quand même.
 
 Adieu (proposition) :
 
