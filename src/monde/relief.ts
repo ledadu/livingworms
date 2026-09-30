@@ -415,22 +415,19 @@ interface Plan { kind: ReliefKind | 'faille'; every: number; lane: number; front
 const PLANS: Record<string, Plan[]> = {
   // the nursery stays open: a few low arches far away
   nurserie: [{ kind: 'arche', every: 1500, lane: 0, front: 0, back: 1 }],
-  // the kelp forest: columns of rock among the kelp, like a cathedral
-  kelp: [{ kind: 'pilier', every: 300, lane: 0.25, front: 0.2, back: 0.55 }],
   // the reef: arches to swim through, grown over with coral
   recif: [{ kind: 'arche', every: 480, lane: 0.4, front: 0.15, back: 0.45 }],
-  // the drop-off: ledges and overhangs to shelter under
-  tombant: [{ kind: 'surplomb', every: 560, lane: 0.55, front: 0, back: 0.45 }],
-  // the twilight: the floor cracks open
-  crepuscule: [{ kind: 'faille', every: 1300, lane: 1, front: 0, back: 0 }, { kind: 'pilier', every: 1300, lane: 0, front: 0, back: 1 }],
-  // the abyss: basalt columns far away, among the chimneys
-  abysses: [{ kind: 'pilier', every: 1100, lane: 0, front: 0.1, back: 0.9 }],
-  // the chapters of docs/chapitres.md, when their biome exists (the Grotte has its own vault, the Jardin no floor)
+  // the forest: columns of rock among the kelp, like a cathedral
   foret: [{ kind: 'pilier', every: 300, lane: 0.25, front: 0.2, back: 0.55 }],
+  // (the Grotte has its own vault and pillars: grotte.ts)
+  // the whale fall lies in a hollow of ledges and overhangs
   carcasse: [{ kind: 'surplomb', every: 700, lane: 0.4, front: 0, back: 0.6 }],
+  // basalt columns far away among the chimneys
   sources: [{ kind: 'pilier', every: 1000, lane: 0, front: 0.1, back: 0.9 }],
   // crevasses and ledges of ice
   glacier: [{ kind: 'faille', every: 1100, lane: 1, front: 0, back: 0 }, { kind: 'surplomb', every: 800, lane: 0.4, front: 0, back: 0.6 }],
+  // (the Jardin has no floor in sight)
+  // the trench: the floor cracks open in the dark
   fosse: [{ kind: 'faille', every: 1000, lane: 1, front: 0, back: 0 }]
 };
 
@@ -469,7 +466,7 @@ function build(kind: ReliefKind, slot: Slot, x: number, R: R01, floor: Floor, en
   }
   const zf = r(400, 1200), s = r(1.1, 1.6);
   const H = Math.min(r(240, 340) * s, floor(x, zf) - 40);
-  return H < 200 ? null : overhang(x, zf, zf + r(200, 420), H, r(110, 190) * s, r(140, 230) * s, r(60, 90) * s, dir, floor, encrust, seed);
+  return H < 200 ? null : overhang(x, zf, zf + r(200, 420), H, r(160, 240) * s, r(140, 220) * s, r(70, 100) * s, dir, floor, encrust, seed);
 }
 
 /**
