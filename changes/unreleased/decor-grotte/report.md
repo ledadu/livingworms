@@ -24,6 +24,12 @@
 - Docs : le tableau des chapitres de `docs/chapitres.md` décrit le vrai décor de la Grotte au lieu du provisoire, et `docs/direction-artistique.md` ne la compte plus parmi les décors à faire.
 - Captures refaites dans le vrai chapitre ; 60 img/s en WebGL dans les salles, la galerie et le noir.
 
+### Deuxième fusion (après le décor de la Carcasse)
+
+- Conflit dans `docs/chapitres.md` seulement, sur le tableau des chapitres : la ligne 4 (la Grotte) vient de ce chantier, la ligne 5 (la Carcasse) de `decor-carcasse`.
+- `main.ts` a fusionné sans conflit (les habitants, le banc et les lueurs de la Carcasse). La baleine est couchée à x ≈ 14 110 à 15 290, après la fin du noir de la Grotte (13 970) : rien ne se recouvre. Le banc de la Carcasse naît hors de la grotte, et `caveRepel` ne le touche pas.
+- Le correctif de `foreground.test.ts` est le même des deux côtés.
+
 ## Choix retenus
 
 Aucune question posée à l'utilisateur ; tout est tranché seul (option recommandée).
