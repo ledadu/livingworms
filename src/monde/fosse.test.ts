@@ -1,19 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { BIOMES, biomeIndex, floorAt, moodAt, X1 } from './biomes';
-import { FOSSE, darkStops, glowOf, lightReach, pitchOf, snowLit } from './fosse';
+import { BIOMES, chapterIndex, floorAt, moodAt, span } from './biomes';
+import { darkStops, glowOf, lightReach, pitchOf, snowLit } from './fosse';
 
 describe('La Fosse', () => {
-  it('is the last biome, deeper than the Abysses, and pitch dark', () => {
-    expect(BIOMES[BIOMES.length - 1]).toBe(FOSSE);
-    expect(biomeIndex(23500)).toBe(BIOMES.length - 1);
-    expect(floorAt(24000, 0)).toBeGreaterThan(floorAt(20000, 0) + 300);
-    expect(Number.isFinite(floorAt(X1 - 10, 500))).toBe(true);
-    expect(pitchOf(moodAt(24000).dark)).toBe(1);
+  const [a, b] = span('fosse');
+  it('is pitch dark, and the only chapter that is', () => {
+    expect(pitchOf(moodAt((a + b) / 2).dark)).toBe(1);
+    BIOMES.forEach((c, i) => { if (i !== chapterIndex('fosse')) expect(pitchOf(c.dark)).toBe(0); });
+    expect(floorAt((a + b) / 2, 0)).toBeGreaterThan(floorAt(a - 3000, 0));
   });
 
-  it('leaves the Abysses as they were and closes in across the border', () => {
-    expect(pitchOf(moodAt(20000).dark)).toBe(0);
-    const mid = pitchOf(moodAt(FOSSE.x0 + 100).dark);
+  it('closes in across its borders', () => {
+    expect(pitchOf(moodAt(a - 2000).dark)).toBe(0);
+    const mid = pitchOf(moodAt(a + 400).dark);
     expect(mid).toBeGreaterThan(0);
     expect(mid).toBeLessThan(1);
   });

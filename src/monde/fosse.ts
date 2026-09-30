@@ -5,23 +5,6 @@
 // draws.
 
 import { clamp, lerp } from '../engine';
-import type { Biome } from './biomes';
-
-export const FOSSE: Biome = {
-  id: 'fosse', name: 'La Fosse', sub: 'le noir et le silence', x0: 21800,
-  top: { h: 228, s: 45, l: 5 }, deep: { h: 226, s: 60, l: 1.5 }, sky: { h: 205, s: 95, l: 55 },
-  sand: { h: 220, s: 10, l: 16 }, rock: { h: 225, s: 12, l: 12 },
-  accents: [{ h: 205, s: 95, l: 58 }, { h: 190, s: 80, l: 70 }, { h: 250, s: 60, l: 55 }],
-  blades: [{ h: 205, s: 40, l: 40 }, { h: 230, s: 30, l: 35 }],
-  rays: 0, caustics: 0, plankton: { h: 205, s: 40, l: 90 },
-  dark: 1, snow: 1, encrust: 0,
-  rocks: { every: 260, r: [20, 50] },
-  flora: { every: 90, kinds: [['crinoide', 2], ['seapen', 2], ['eponge', 1]], front: [['seapen', 0.5]] },
-  fauna: [['baudroie', 'swim', 2, 0.8], ['dragonAbyssal', 'swim', 1.5, 0.8], ['nautile', 'swim', 1.5, 0.8], ['ctenophore', 'swim', 1.5, 0.8],
-    ['siphonophore', 'swim', 1, 0.8], ['meduseBoite', 'swim', 1, 0.8], ['ophiure', 'floor', 1, 0.8]],
-  pop: 18,
-  schools: [{ body: { h: 225, s: 20, l: 18 }, belly: { h: 220, s: 20, l: 30 }, n: 30, size: 0.9, glow: true }]
-};
 
 /** how far toward the total dark the water is, from the mood's dark (the Abysses, at 0.86, stay as they were) */
 export function pitchOf(dark: number): number {

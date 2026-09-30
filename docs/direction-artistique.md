@@ -18,16 +18,24 @@ Le Grand Monde (`src/monde/`) a déjà :
 - un fond, des rochers, des plantes simulées de près et figées en images au loin, des décors (épave, cheminées) ;
 - des rayons, des caustiques, la surface vue de dessous, le plancton et la neige marine ;
 - des bancs de poissons qui s'écartent du nageur, et de grands visiteurs lointains (tortue, raie manta, requin-baleine, calmar, dragon abyssal) ;
-- 6 biomes : la Nurserie, la Forêt de kelp, le Récif, le Tombant, le Crépuscule, les Abysses ;
+- les 10 chapitres dans l'ordre de la trame, chacun avec sa palette (tableau ci-dessous) : voir [chapitres.md](chapitres.md#dans-le-monde) ;
 - un rendu WebGL2 avec niveaux de détail et budget par image, et le canvas en repli.
 
 Il manque, pour le plan :
 
-- les 10 chapitres dans le bon ordre ;
 - les reliefs composés (arches, grottes, failles, surplombs, piliers) ;
 - le premier plan sombre et flou ;
-- les décors propres à la Grotte, la Carcasse, le Glacier, le Jardin de méduses et la Fosse ;
-- les palettes du plan, chapitre par chapitre.
+- les décors propres à la Grotte, la Carcasse, le Glacier, le Jardin de méduses et la Fosse (ils ont aujourd'hui un décor provisoire tiré de l'existant) ;
+- le puits de lumière de la Remontée.
+
+### Le premier plan
+
+Entre l'œil et le plan de nage (`src/monde/foreground.ts`) : des silhouettes sombres et floues, plus proches de l'œil que tout le reste, donc qui défilent plus vite (la perspective s'en charge : environ deux fois la vitesse du plan de nage).
+
+- **Ce qu'on y voit** : ce qui pousse dans le chapitre (kelp, herbes, coraux, gorgones, tubes, tiges), plus des roches, en groupes et en clairières. Moins dense là où le noir se referme.
+- **Sombre et flou** : chaque silhouette est cuite une fois, petite et floutée, d'une seule couleur (l'eau autour, très assombrie), puis agrandie ; elle ondule doucement depuis son pied.
+- **Le plan de nage reste lisible** : les silhouettes montent du bas de l'écran (ou de leur sol quand il est visible) et s'effacent presque en approchant du nageur.
+- **Coût** : quelques images par trame, en WebGL comme en canvas. Couche `front` de `monde.skip` pour la comparer.
 
 ## Une palette par chapitre
 
@@ -46,13 +54,13 @@ Il manque, pour le plan :
 
 ## La Fosse : le noir total
 
-Après les Abysses, qui assombrissent déjà l'écran sans jamais le noircir, la Fosse (`src/monde/fosse.ts`) ferme tout : on ne voit que ce que sa propre lumière éclaire.
+Les chapitres profonds (Grotte, Sources, Remontée) assombrissent l'écran sans jamais le noircir ; la Fosse (`src/monde/fosse.ts`, `dark: 1`, le seul chapitre au-delà de 0.88) ferme tout : on ne voit que ce que sa propre lumière éclaire.
 
 - **Sa lumière** : un cercle clair autour du nageur, dont la taille vient de ce qu'il porte de lumineux (les lueurs de ses parties, une lanterne comptant triple). Sans rien qui brille, on se voit à peine ; avec une lanterne ou un corps de cténophore, le fond apparaît autour de soi.
 - **Ce qui brille** reste visible au loin, par-dessus le noir : animaux lumineux, poissons-lanternes.
 - **La neige marine** ne se voit que dans la lumière, blanche, plus forte près du nageur.
-- **Les grandes silhouettes** (un dragon abyssal et un calmar géant) passent au loin : des corps noirs devant une faible lueur bleu électrique, avec leurs propres photophores.
-- Le passage des Abysses à la Fosse se fait en fondu, sur la frontière entre les deux.
+- **Les grandes silhouettes** (un dragon abyssal ×7 et un calmar géant ×9, les visiteurs du chapitre) passent au loin : des corps noirs devant une faible lueur bleu électrique, avec leurs propres photophores.
+- Le passage du Jardin de méduses à la Fosse, puis de la Fosse à la Remontée, se fait en fondu sur les frontières.
 
 ## Le son
 
