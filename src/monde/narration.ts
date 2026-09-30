@@ -25,6 +25,8 @@ export function createNarrator(el: HTMLElement, chapters: { name: string }[]): N
   let timers: number[] = [];
   const later = (ms: number, f: () => void) => timers.push(window.setTimeout(f, ms));
   let waitTimer = 0;
+  /** a farewell is being said until then (ms): an opening waits for it */
+  let farewellUntil = 0;
 
   function show(name: string, lines: string[], kind: TextKind | 'name'): void {
     for (const id of timers) clearTimeout(id);
@@ -44,6 +46,7 @@ export function createNarrator(el: HTMLElement, chapters: { name: string }[]): N
     el.classList.add('show');
     ps.forEach((p, k) => later(FIRST + k * STEP, () => p.classList.add('on')));
     const end = lines.length ? FIRST + (lines.length - 1) * STEP + LINE_IN + holdTime(lines) : 3600;
+    farewellUntil = kind === 'farewell' ? performance.now() + end + FADE / 2 : 0;
     later(end, () => el.classList.remove('show'));
     later(end + FADE, () => { el.innerHTML = ''; });
   }
@@ -62,7 +65,7 @@ export function createNarrator(el: HTMLElement, chapters: { name: string }[]): N
     chapter(i) {
       if (!chapters[i]) return;
       clearTimeout(waitTimer);
-      if (narrator.quiet()) {
+      if (narrator.quiet() || performance.now() < farewellUntil) {
         // told when the sea shows again, if we are still there
         waitTimer = window.setTimeout(() => narrator.chapter(i), 600);
         return;

@@ -1,0 +1,8 @@
+/* The farewell (adieu-jeu.ts): the edges of the sea darken and the buttons step back while the words are said */
+#vig, #hud, #gear, #atBtn, #hint { transition: opacity 2.4s ease; }
+#vig::after {
+  content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 2.4s ease;
+  background: radial-gradient(ellipse at 50% 50%, rgba(0,10,18,0) 38%, rgba(0,10,18,0.6) 100%);
+}
+body.adieu #vig::after { opacity: 1; }
+body.adieu #hud, body.adieu #gear, body.adieu #atBtn, body.adieu #hint { opacity: 0; pointer-events: none; }

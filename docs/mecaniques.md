@@ -43,6 +43,14 @@ La Nurserie et la Carcasse n'ont pas d'obstacle : on y trouve quand même un par
 
 - Un texte de deux à quatre lignes, dans la voix du « nous » (voir [chapitres.md](chapitres.md)).
 - Le parent reste dans le monde, là où tu l'as quitté (voir « Les ancêtres »).
+- **Dans le jeu** (`src/monde/adieu.ts`, branché par `adieu-jeu.ts` et `farewell` dans `main.ts`) : une scène d'une dizaine de secondes, sans rien à faire.
+  - L'enfant naît à côté du parent et fait une fois le tour de lui, pendant que le parent le suit de la tête. La caméra se rapproche des deux, les bords de la mer s'assombrissent et les boutons s'effacent (`adieu.css`).
+  - Le texte d'adieu du chapitre arrive (une ouverture de chapitre attend qu'il s'efface).
+  - L'enfant s'en va vers la suite de la descente, de plus en plus vite ; le parent l'accompagne un peu, s'arrête et le regarde partir. La caméra s'élargit, puis suit l'enfant.
+  - On reprend la main quand l'enfant est à environ 700 px, ou au bout de 11 s.
+  - Le parent reste là où on l'a quitté (pour la session) : il y dérive doucement, et quand on revient il se tourne vers nous et vient un peu à notre rencontre. Les larves-sœurs de la première génération restent avec lui.
+  - La naissance est enregistrée dans la partie (`partie.born`).
+  - Pour l'essayer : `monde.farewell(enfant)` ; sans enfant, un enfant d'essai est fait par `fuse` avec la première espèce du chapitre. La portée appellera `monde.farewell` avec l'enfant choisi.
 
 ## L'hérédité : les traits
 
@@ -105,4 +113,4 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
 - Durée visée : environ 1 h 30 à 2 h, soit 9 à 12 minutes par chapitre sur 10 chapitres, avec une fin qu'on n'a pas envie de rater.
 - Sauvegarde automatique dans le stockage du navigateur (`lignee.partie`, `src/monde/partie.ts`) : le chapitre atteint, la créature jouée et la lignée (les parents, chacun avec le chapitre où il a donné naissance). La partie est sauvée à chaque naissance, à chaque nouveau chapitre et quand l'Atelier change la créature.
 - À l'ouverture de la page, on reprend au début du chapitre sauvé, avec sa créature ; une ancienne sauvegarde (`lignee.player`, la créature seule) est reprise à la Nurserie. Le panneau ⚙ a un bouton « Recommencer depuis la Nurserie » (deux touches), et `?nouvelle` fait de même pour les tests.
-- Les naissances n'existent pas encore : l'hérédité appellera `monde.partie.born(enfant)`, qui range le parent dans la lignée. Les portraits, s'ils sont gardés, iront plutôt dans IndexedDB ([décisions](decisions.md)).
+- La naissance est enregistrée par la scène de l'adieu (`farewell`, `main.ts`), qui appelle `partie.born(enfant)` : le parent est rangé dans la lignée. Les portraits, s'ils sont gardés, iront plutôt dans IndexedDB ([décisions](decisions.md)).

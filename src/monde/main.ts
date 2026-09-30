@@ -39,6 +39,7 @@ import { CARCASSE, boneLight, carcasseDwellers, carcasseSchool } from './carcass
 import { initNouveautes } from './nouveautes';
 import { createNarrator } from './narration';
 import { initPartie } from './partie-jeu';
+import { initAdieu, testChild } from './adieu-jeu';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -114,7 +115,7 @@ const causticCv = causticTile(256, 7, 5);
 const caustic = ctx.createPattern(causticCv, 'repeat')!;
 
 interface Actor {
-  cr: Creature3; kind: 'player' | 'swim' | 'floor' | 'surface' | 'sib';
+  cr: Creature3; kind: 'player' | 'swim' | 'floor' | 'surface' | 'sib' | 'parent';
   z: number; hx: number; hy: number; tx: number; ty: number; next: number;
   buf: HTMLCanvasElement | null;
   /** last baked image and the frame it was made (far animals are re-baked only every few frames) */
@@ -319,8 +320,9 @@ const counts = { near: 0, live: 0, plants: 0, items: 0 };
 
 function update(): void {
   t += STEP;
-  const p = player.cr, r = p.root, f = input.follow, kd = input.keyDir();
-  if (auto.on) {
+  const p = player.cr, r = p.root, f = input.follow, kd = input.keyDir(), lead = adieu.lead(t);
+  if (lead) steer(player, lead.x, lead.y, 0.06);
+  else if (auto.on) {
     // autopilot (tests): swim along a line through the world
     const dx = auto.x - r.x[0], dy = auto.y - r.y[0], d = Math.hypot(dx, dy) || 1, sp = 2.6 * Math.min(1, d / 70);
     steer(player, (dx / d) * sp, (dy / d) * sp, 0.08);
@@ -349,6 +351,12 @@ function update(): void {
     if (a.kind === 'player' || !near(a.cr.root.x[0])) continue;
     nNear++;
     const c = a.cr, cr = c.root, x = cr.x[0], y = cr.y[0];
+    if (a.kind === 'parent') {
+      const v = adieu.parentGoal(c, t, { x: px, y: py });
+      steer(a, v.x, v.y, 0.04);
+      collide(c);
+      continue;
+    }
     if (a.kind === 'sib') {
       if (t > a.next) { a.next = t + rand(1.5, 4); a.tx = rand(-90, 90); a.ty = rand(-60, 60); }
       const gx = px + a.tx - x, gy = py + a.ty - y, g = Math.hypot(gx, gy) || 1, d = Math.hypot(px - x, py - y);
@@ -1023,6 +1031,26 @@ const narrator = createNarrator(chapterEl, BIOMES);
 /** entering a chapter: its opening, told once (narration.ts) */
 function showChapter(i: number): void { narrator.chapter(i); }
 
+// ----- the farewell to the parent (adieu.ts) ----- //
+
+const adieu = initAdieu(narrator);
+/** a child is born: it is played from now on, the parent stays where it is (without a child: one for the tests) */
+function farewell(child?: Spec): void {
+  if (adieu.on) return;
+  const old = player.cr, x = old.root.x[0], y = old.root.y[0], bi = biomeIndex(x);
+  const sp = child ?? testChild(old.spec, SPECIES[BIOMES[bi].fauna[0][0]]());
+  // the siblings stay with it
+  for (const a of actors) if (a.kind === 'sib') { a.kind = 'swim'; a.hx = x; a.hy = y; }
+  actors.push({ cr: old, kind: 'parent', z: 0, hx: x, hy: y, tx: x, ty: y, next: 0, buf: null, spr: null, bakedAt: -99 });
+  const cr = new Creature3(sp, x - 60, Math.min(y + 40, floorAt(x - 60, 0) - 30), 0, { dir: { x: 1, y: 0, z: 0 }, scale: 0.8 });
+  for (let i = 0; i < 60; i++) cr.update(i * STEP, 0, 0, 0, 0.1);
+  player.cr = cr;
+  adieu.start(old, cr, t, bi, floorAt(x + 1000, 0));
+  // a new game has not saved its first creature yet: it is the parent all the same
+  if (!partie.creature) partie.becomes(old.spec);
+  partie.born(sp, BIOMES[bi].id);
+}
+
 // ----- loop ----- //
 
 let last = performance.now(), acc = 0, fn = 0, fsum = 0;
@@ -1046,9 +1074,12 @@ function frame(now: number): void {
   const ut = performance.now() - u0;
   stats.update = stats.update * 0.9 + ut * 0.1;
   if (steps === 3) acc = 0;
-  const r = player.cr.root, dist = 900 / input.zoomMul, pitch = (settings.angle * Math.PI) / 180;
-  cam.x += (r.x[0] + player.cr.vx * 20 - cam.x) * 0.07;
-  cam.y += (r.y[0] + player.cr.vy * 20 - cam.y) * 0.07;
+  const r = player.cr.root, shot = adieu.camera(900 / input.zoomMul, W, H), dist = shot.dist, pitch = (settings.angle * Math.PI) / 180;
+  if (shot.focus) { cam.x += (shot.focus.x - cam.x) * 0.04; cam.y += (shot.focus.y - cam.y) * 0.04; }
+  else {
+    cam.x += (r.x[0] + player.cr.vx * 20 - cam.x) * 0.07;
+    cam.y += (r.y[0] + player.cr.vy * 20 - cam.y) * 0.07;
+  }
   const ty = Math.max(cam.y, 30 + dist * Math.sin(pitch));
   view.aim(cam.x, ty, dist, pitch);
   const r0 = performance.now();
@@ -1115,7 +1146,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
+  biomes: BIOMES, narrator, limits, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, farewell, adieu,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
