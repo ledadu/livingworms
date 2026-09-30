@@ -41,9 +41,9 @@ function toward(from: Pt, to: Pt, speed: number, ease = 60): Pt {
   const dx = to.x - from.x, dy = to.y - from.y, d = Math.hypot(dx, dy) || 1, s = speed * Math.min(1, d / ease);
   return { x: (dx / d) * s, y: (dy / d) * s };
 }
-/** barely moving, but facing `to` (the engine turns the head toward the wished velocity) */
-function face(from: Pt, to: Pt): Pt {
-  const v = toward(from, to, 0.35, 1);
+/** barely moving, but facing `to` (the engine turns the head toward the wished velocity, and keeps it when still) */
+function face(from: Pt, to: Pt, speed = 0.35): Pt {
+  const v = toward(from, to, speed, 1);
   return { x: v.x, y: v.y * 0.3 };
 }
 
@@ -94,6 +94,9 @@ export class Farewell {
   }
 }
 
+/** the room a parent left behind leaves us when it comes to meet us (px, from body to body's middle) */
+export const ROOM = 90;
+
 /**
  * A parent left behind: it keeps near where it was left, drifting slowly, and when we come
  * back it turns to us and comes a little way to meet us (never onto us).
@@ -101,7 +104,7 @@ export class Farewell {
 export function stayGoal(parent: Pt, home: Pt, swimmer: Pt, time: number, seed = 0): Pt {
   const dx = swimmer.x - parent.x, dy = swimmer.y - parent.y, d = Math.hypot(dx, dy);
   const off = Math.hypot(parent.x - home.x, parent.y - home.y);
-  if (d < 520 && off < 260) return d < 150 ? face(parent, swimmer) : toward(parent, swimmer, 0.7, 120);
+  if (d < 520 && off < 260) return d < 150 ? face(parent, swimmer, 0.35 * Math.min(1, Math.max(0, (d - ROOM) / 60))) : toward(parent, swimmer, 0.7, 120);
   const drift = { x: home.x + Math.sin(time * 0.21 + seed) * 90, y: home.y + Math.cos(time * 0.29 + seed * 1.7) * 45 };
   return toward(parent, drift, 0.55, 80);
 }

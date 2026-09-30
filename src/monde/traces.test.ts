@@ -82,6 +82,12 @@ describe('les traces de la lignée', () => {
     expect(JSON.stringify(tracesOf(lineage('fosse'), places))).toBe(JSON.stringify(after));
   });
 
+  it('keeps each trace where it was when an ancestor is renamed, or saved with its partner and its place', () => {
+    const plain = lineage('glacier');
+    const full = plain.map((a, i) => ({ ...a, creature: { name: i === 1 ? 'Nommée' : 'x' }, partner: { id: 'crabe', name: 'Crabe' }, at: { x: 400, y: 300 } }));
+    expect(tracesOf(full, places)).toEqual(tracesOf(plain, places));
+  });
+
   it('moves along a little where a relief stands', () => {
     const one: Place[] = [{ id: 'nurserie', x0: 0, x1: 1000, floor: true }, { id: 'recif', x0: 1000, x1: 2000, floor: true }, { id: 'foret', x0: 2000, x1: 3000, floor: true }];
     const [plain] = tracesOf([{ chapter: 'nurserie' }], one);

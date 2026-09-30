@@ -36,7 +36,7 @@ Fichiers :
 **Pour le voir** : il faut une lignée. Dans la console : `monde.partie.becomes(sp)`, puis `monde.partie.born(enfant, 'nurserie')`, `…born(enfant2, 'recif')`, etc. (des enfants faits par `fuse`). Ensuite, `monde.traces.list` donne chaque trace et sa position, et `monde.teleport(x - 170, y - 110)` y mène. `monde.skip.add('trace')` les cache, pour des captures avant / après.
 
 ![Les Sources : les œufs non éclos d'une génération, près des vers tubicoles, et les mots de la lignée](img/sources-oeufs.jpg)
-![La Grotte : la mue d'un ancêtre, pâle, sur un rocher](img/grotte-mue.jpg)
+![La Grotte : la mue d'un ancêtre, pâle, sur un rocher, et les mots sous le nom qu'on lui a donné dans l'arbre](img/grotte-mue.jpg)
 ![La Carcasse, avant : les os de la baleine](img/carcasse-avant.jpg)
 ![La Carcasse, après : au pied de la baleine, le corps d'un ancêtre devenu récif](img/carcasse-recif.jpg)
 ![La Fosse : des œufs non éclos dans la lumière d'une baudroie](img/fosse-oeufs.jpg)
@@ -92,14 +92,32 @@ Aucune question posée (consigne : trancher avec l'option recommandée). Un reto
 ## Reste à faire / limites
 
 - **Les textes** sont des propositions, à relire comme les adieux.
-- **Le nom** affiché est celui de l'espèce de l'ancêtre (`spec.name`). Si « L'arbre de la lignée » permet de nommer une génération, il faudra le lire dans `traces-jeu.ts` : c'est une ligne, `say(p.spec.name, …)`.
-- **Avec « Les ancêtres restent dans le monde »** : un grand-parent vit là-haut et sa trace est plus bas. C'est voulu par le plan (« en arrière » / « plus bas »), mais à relire ensemble une fois les deux fusionnés.
+- **Avec « Les ancêtres restent dans le monde »** (fusionné) : un grand-parent vit là-haut, à sa place, et sa trace est deux chapitres plus bas. C'est voulu par le plan (« en arrière » / « plus bas »), à relire en jouant une vraie descente.
 - **Plusieurs traces peuvent tomber dans la Fosse** (les ancêtres du Glacier, du Jardin, et les naissances multiples) ; elles s'y écartent de 40 px au moins.
 - **Mots redits à chaque session**, comme les ouvertures.
 - **La Remontée** (étape 5) pourrait allumer les traces au passage ; rien n'est fait pour elle.
 - **Pas de test automatique du dessin** (canvas) : vérifié en captures dans le Chrome Windows (GPU). La logique pure est testée.
 - **Pas mesuré sur un vrai téléphone** : sur PC, 3 à 13 ms une fois par trace et par session.
 - **Hors chantier** : le test `src/monde/nouveautes/plugin.test.ts` (« embeds the published versions only… », ligne 71) échoue déjà sans mes changements. Depuis la version 0.4.0, le budget de 400 Ko des images embarquées ne couvre plus celles de la 0.2, qui passent après les versions récentes. Je ne l'ai pas touché : c'est `make check` qui le signale.
+
+## Fusion avec backlog (l'arbre de la lignée, les ancêtres qui restent dans le monde)
+
+Un seul fichier en conflit, `src/monde/main.ts`, réglé en gardant les deux côtés :
+
+- **Les imports** : ceux de l'arbre et des ancêtres (`mateFor`, `initArbre`, `ancestorsIn`, `placeOf`), puis celui des traces.
+- **Autour de `farewell`** : ma ligne `const traces = initTraces(…)` est gardée juste avant la fonction. La signature est celle de `backlog`, `farewell(child?, mate?)`, qui range le partenaire et la place dans la lignée.
+- **`api`** : `arbre` et `traces`, l'un après l'autre.
+
+Relu sans conflit, et ce qui en découle pour les traces :
+
+- **`docs/mecaniques.md`** : les deux textes sous « Les ancêtres » se suivent (les ancêtres à leur place, puis les traces), sans rien retirer.
+- **`partie.ts`, `partie-jeu.ts`** : chaque ancêtre garde maintenant son partenaire (`partner`) et sa place (`at`), et l'arbre peut le renommer (`renameAncestor`, qui refait la lignée avec le nouveau nom dans `creature.name`).
+  - Les traces ne dépendent que du chapitre : leur place ne bouge pas. Un test le vérifie (ancêtres renommés, avec partenaire et place).
+  - **Changé pour cet ordre** : une trace déjà dessinée garde son dessin quand la lignée change, mais reprend le nouveau nom de l'ancêtre (`name` dans `traces-jeu.ts`). Les mots d'une trace se disent donc sous le nom donné dans l'arbre (capture de la Grotte, « Aube »).
+- **L'arbre ouvert** met la mer en pause, et `narrator.quiet` le compte : aucune trace ne parle par-dessus l'arbre.
+- **`adieu-jeu.ts`** : `adieu.on`, que les traces lisent pour se taire pendant un adieu, existe toujours.
+
+Vérifié en jeu après la fusion (Chrome Windows) : les traces, les mots, le bouton de l'arbre.
 
 ## Risques de fusion
 
@@ -114,5 +132,5 @@ Aucune question posée (consigne : trancher avec l'option recommandée). Un reto
   - la condition de `farewellUntil`, qui compte aussi les mots d'une trace.
 - `docs/chapitres.md` : une nouvelle section « Les traces de la lignée », avant « Dans le monde ».
 - `docs/mecaniques.md` : des puces sous « Les ancêtres ». Le voisin « Les ancêtres restent dans le monde » écrira probablement dans la même section : garder les deux.
-- `partie.ts` n'est pas touché : je ne lis que `creature` et `chapter` de chaque ancêtre, ce qui reste compatible si un voisin ajoute des champs (position, nom, partenaire).
+- `partie.ts` n'est pas touché : je lis `creature` et `chapter` de chaque ancêtre (et le nom dans `creature.name`) ; les champs ajoutés depuis (`partner`, `at`) ne changent rien aux traces (testé).
 - **La lignée rivale de la Carcasse** : le récif de la 3ᵉ génération se pose à la Carcasse (x ≈ 14 640, z 8 à 20, devant les côtes). Si la lignée rivale y met un décor fixe, vérifier qu'ils ne se couvrent pas.

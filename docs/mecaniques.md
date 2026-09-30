@@ -58,7 +58,7 @@ La Nurserie et la Carcasse n'ont pas d'obstacle : on y trouve quand même un par
   - Le texte d'adieu du chapitre arrive (une ouverture de chapitre attend qu'il s'efface).
   - L'enfant s'en va vers la suite de la descente, de plus en plus vite ; le parent l'accompagne un peu, s'arrête et le regarde partir. La caméra s'élargit, puis suit l'enfant.
   - On reprend la main quand l'enfant est à environ 700 px, ou au bout de 11 s.
-  - Le parent reste là où on l'a quitté (pour la session) : il y dérive doucement, et quand on revient il se tourne vers nous et vient un peu à notre rencontre. Les larves-sœurs de la première génération restent avec lui.
+  - Le parent reste là où on l'a quitté, d'une visite à l'autre (voir « Les ancêtres ») : il y dérive doucement, et quand on revient il se tourne vers nous et vient un peu à notre rencontre, jusqu'à 90 px de nous (`ROOM`). Les larves-sœurs de la première génération restent avec lui.
   - La naissance est enregistrée dans la partie (`partie.born`).
   - Pour l'essayer : `monde.farewell(enfant)` ; sans enfant, un enfant d'essai est fait par `fuse` avec la première espèce du chapitre. En jeu, le choix d'un enfant de la portée la lance ; la parade ne commence pas pendant la scène, et aucun autre texte (celui d'un obstacle, une ouverture) ne passe par-dessus l'adieu.
 
@@ -104,17 +104,28 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
 - Un écran accessible à tout moment montre l'arbre des générations, avec le portrait de chaque ancêtre, son nom, le partenaire et le lieu de naissance.
 - Tu peux nommer chaque génération.
 - À la fin, cet arbre devient une image souvenir exportable (sauf dans le lien Artifact, où les téléchargements sont bloqués).
+- **Dans le jeu** (`src/monde/arbre-ecran.ts`, la logique pure dans `arbre.ts`) : un bouton rond en haut à gauche (à droite de ✎ quand l'Atelier est là), caché pendant l'adieu et la portée.
+  - Les générations descendent comme la lignée, de la première larve (en haut) à celle qu'on joue (en bas, cerclée d'or, « aujourd'hui ») ; l'écran s'ouvre centré sur elle.
+  - Pour chacune : son portrait (`snapshot3`) dans un médaillon, « Troisième génération » (en toutes lettres, pas de chiffres), son nom, « née au Récif ». Le lieu de naissance n'est pas gardé à part : c'est le chapitre où la génération d'avant a donné naissance, la Nurserie pour la première.
+  - Entre un parent et son enfant, sur le fil d'or, le partenaire : son petit portrait (l'espèce du bestiaire) et « avec Méduse lune », en bleu pâle comme dans la portée. Les naissances sauvées avant l'arbre n'ont pas de partenaire : le fil continue sans lui.
+  - **Nommer** : on touche un nom, on l'écrit (24 lettres au plus), Entrée ou toucher ailleurs le garde, Échap l'annule. Le nom est celui de la créature (`name` de sa définition) : celui de la génération jouée compte donc pour ses enfants, dont le nom commence comme celui du parent.
+  - Le jeu s'arrête pendant que l'arbre est ouvert, et les textes attendent. On le ferme par ×, Échap ou en touchant à côté.
+  - Pour les tests : `monde.arbre.open()`, `close()`, `rename(rang, nom)` (1 : la première génération), `isOpen`.
 
 ## Les ancêtres
 
 - Chaque parent laissé derrière toi reste dans le monde. En revenant en arrière, tu le retrouves qui nage là où tu l'as quitté.
+  - **Dans le jeu** : la scène de l'adieu range le parent dans la lignée avec sa place (`at`, `partie.born`) : x compté depuis le début de son chapitre, pour qu'elle survive à un déplacement des chapitres sur la carte, et y la profondeur. À l'ouverture de la page, chaque ancêtre de la sauvegarde revient à sa place (`homesOf`, `src/monde/ancetres.ts`, avec la carte du jeu dans `ancetres-jeu.ts`), gardée dans l'étendue de son chapitre et dans l'eau libre ; il y nage comme le parent qu'on vient de quitter (`stayGoal`, `adieu.ts`). Les larves-sœurs restent avec la première génération.
+  - Un ancêtre d'une sauvegarde plus ancienne, sans place, est posé dans son chapitre, là où l'on rencontre les partenaires, à mi-eau ; plusieurs dans un même chapitre sont écartés. Un ancêtre dont le chapitre n'existe plus, ou dont la créature ne se lit plus, reste dans la lignée mais pas dans le monde.
+  - Revenir en arrière ne fait pas reculer la partie : la sauvegarde garde le chapitre le plus avancé (`reachChapter`), pour qu'un rechargement ne nous remette pas avant un obstacle déjà franchi.
+  - Pour le voir : `monde.ancestors()` (les acteurs `parent`), `monde.partie.lineage` (avec `at`) ; deux `monde.farewell()` dans deux chapitres, rechargement, puis `monde.teleport` et la nage en arrière.
 - Plus bas, tu trouves des traces de ta lignée : une carcasse de parent devenue récif, une mue, des œufs non éclos.
 - **Les traces dans le jeu** (`src/monde/traces.ts`, pures et testées ; dessin `traces-draw.ts`, jeu `traces-jeu.ts`) :
   - Chaque ancêtre de la sauvegarde (`partie.lineage`) laisse une trace **deux chapitres plus bas** que celui où il a donné naissance : le parent qu'on vient de quitter nage encore là où on l'a laissé, c'est plus loin qu'on retrouve sa trace. Rien avant la première naissance ; rien sous le fond de la Fosse. Le Jardin n'a pas de fond : ce qui devait s'y poser tombe jusqu'à la Fosse.
   - Les traces viennent **à tour de rôle** : les œufs non éclos (la première génération), la mue, le corps devenu récif, puis de nouveau les œufs. Trois générations montrent donc les trois : avec une naissance par chapitre, les œufs de la larve sont dans la Forêt, une mue dans la Grotte, un corps devenu récif au pied de la baleine de la Carcasse.
   - Chacune est faite du **corps même de l'ancêtre**, pour qu'on le reconnaisse : la mue est sa forme exacte, pâle et vide, fendue sur le dos ; le récif est son corps couché, blanchi comme les os de la baleine, couvert de coraux, d'anémones et d'éponges aux couleurs du Récif et du chapitre, à moitié pris dans le sable ; les œufs sont un amas d'œufs clairs à ses couleurs, chacun avec sa petite forme recroquevillée dedans. La mue et le récif sont un peu plus grands que la lignée ne nage, pour qu'on les voie de loin.
   - Elles reposent sur le fond, juste derrière le plan de nage (devant les os de la Carcasse), à une place fixe de leur chapitre, à l'écart des reliefs ; une petite lueur les signale dans le noir de la Grotte et de la Fosse.
-  - La première fois qu'on s'en approche (dans la session), la lignée dit le texte de cette trace ([chapitres.md](chapitres.md#les-traces-de-la-lignée)), sous le nom de l'ancêtre, et la lueur de la trace s'avive le temps des mots. Rien ne se dit pendant un adieu ni par-dessus d'autres mots ; une ouverture de chapitre attend la fin de ceux d'une trace.
+  - La première fois qu'on s'en approche (dans la session), la lignée dit le texte de cette trace ([chapitres.md](chapitres.md#les-traces-de-la-lignée)), sous le nom de l'ancêtre (celui qu'on lui a donné dans l'arbre, s'il a été renommé), et la lueur de la trace s'avive le temps des mots. Rien ne se dit pendant un adieu ni par-dessus d'autres mots ; une ouverture de chapitre attend la fin de ceux d'une trace.
   - Chaque trace est dessinée une seule fois, à la première approche (quelques millisecondes), puis seulement relavée par l'eau.
   - Pour les tests : `monde.traces.list` (les traces, avec leur position), `monde.skip.add('trace')` (sans elles, pour des captures avant / après).
 - À la Remontée, tous les ancêtres remontent avec toi, en formation.
@@ -124,13 +135,13 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
 - **Un doigt** : nager en suivant le doigt (en place).
 - **Deux doigts** : zoomer (en place).
 - **Chanter** : un bouton en bas, qui ouvre le cercle de notes.
-- **Écran de la lignée** : l'arbre, accessible à tout moment.
+- **Écran de la lignée** : l'arbre, accessible à tout moment par le bouton en haut à gauche (voir « L'arbre de la lignée »).
 - **Interface minimale** : pas de chiffres. Le texte narratif est la seule vraie interface.
 - **L'Atelier** n'est pas dans l'histoire : il est débloqué après la fin, dans la « Balade libre » (décision validée). Son bouton ✎ est caché pendant l'histoire ; il revient quand `lignee.balade` vaut `1` dans le stockage du navigateur (`unlockBalade()`, `src/monde/atelier-access.ts`, à appeler à la fin de l'histoire). Pour le développement, `?atelier` ou `?dev` (qui montre aussi le voyage du panneau ⚙) dans l'adresse le montre toujours ; `monde.unlockBalade()` débloque la Balade dans la console.
 
 ## Durée et sauvegarde
 
 - Durée visée : environ 1 h 30 à 2 h, soit 9 à 12 minutes par chapitre sur 10 chapitres, avec une fin qu'on n'a pas envie de rater.
-- Sauvegarde automatique dans le stockage du navigateur (`lignee.partie`, `src/monde/partie.ts`) : le chapitre atteint, la créature jouée et la lignée (les parents, chacun avec le chapitre où il a donné naissance). La partie est sauvée à chaque naissance, à chaque nouveau chapitre et quand l'Atelier change la créature.
+- Sauvegarde automatique dans le stockage du navigateur (`lignee.partie`, `src/monde/partie.ts`) : le chapitre atteint (le plus avancé : revenir en arrière ne le fait pas reculer), la créature jouée et la lignée (les parents, chacun avec le chapitre où il a donné naissance, son partenaire, `{ id, name }`, l'id du bestiaire servant au portrait de l'arbre, et l'endroit où on l'a quitté, `at`). La partie est sauvée à chaque naissance, à chaque nouveau chapitre et quand l'Atelier change la créature.
 - À l'ouverture de la page, on reprend au début du chapitre sauvé, avec sa créature ; une ancienne sauvegarde (`lignee.player`, la créature seule) est reprise à la Nurserie. Le panneau ⚙ a un bouton « Recommencer depuis la Nurserie » (deux touches), et `?nouvelle` fait de même pour les tests.
-- À chaque naissance (le choix d'un enfant de la portée), la scène de l'adieu (`farewell`, `main.ts`) appelle `monde.partie.born(enfant)`, qui range le parent dans la lignée. Les portraits, s'ils sont gardés, iront plutôt dans IndexedDB ([décisions](decisions.md)).
+- À chaque naissance (le choix d'un enfant de la portée), la scène de l'adieu (`farewell`, `main.ts`) appelle `monde.partie.born(enfant, chapitre, partenaire, place)`, qui range le parent dans la lignée avec son partenaire et l'endroit où on l'a quitté. Les portraits, s'ils sont gardés, iront plutôt dans IndexedDB ([décisions](decisions.md)).

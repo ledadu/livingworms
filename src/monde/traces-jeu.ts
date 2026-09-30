@@ -24,6 +24,8 @@ export interface PlacedTrace extends Trace {
   /** the floor under it */
   y: number;
   spec: Spec;
+  /** the ancestor's name, as the lineage tree may have changed it */
+  name: string;
   /** as baked, and as washed by the water at `fog` */
   base: Sprite | null; sprite: Sprite | null; fog: number;
   /** when its words were said (performance.now(), this session), 0 before */
@@ -55,11 +57,11 @@ export function initTraces(lineage: () => readonly Ancestor[], say: (name: strin
     const old = new Map(list.map((p) => [`${p.gen}:${p.chapter}:${p.x}`, p]));
     list = [];
     for (const t of tracesOf(l, places, free)) {
-      const kept = old.get(`${t.gen}:${t.chapter}:${t.x}`);
-      if (kept) { list.push(kept); continue; }
+      const kept = old.get(`${t.gen}:${t.chapter}:${t.x}`), name = l[t.gen].creature.name;
+      if (kept) { if (typeof name === 'string') kept.name = name; list.push(kept); continue; }
       let sp: Spec;
       try { sp = makeSpec(l[t.gen].creature as Parameters<typeof makeSpec>[0]); } catch { continue; }
-      list.push({ ...t, y: floorAt(t.x, t.z), spec: sp, base: null, sprite: null, fog: -1, toldAt: 0 });
+      list.push({ ...t, y: floorAt(t.x, t.z), spec: sp, name: sp.name, base: null, sprite: null, fog: -1, toldAt: 0 });
     }
     return list;
   }
@@ -81,7 +83,7 @@ export function initTraces(lineage: () => readonly Ancestor[], say: (name: strin
       for (const p of sync()) {
         if (p.toldAt || Math.abs(p.x - px) > NEAR_X || p.y - py > NEAR_Y || py > p.y + 60) continue;
         const lines = TEXTS[p.kind];
-        if (!lines || say(p.spec.name, lines)) p.toldAt = performance.now();
+        if (!lines || say(p.name, lines)) p.toldAt = performance.now();
       }
     },
     /** each frame: the traces near the camera as depth-sorted pieces, and their lights */

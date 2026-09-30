@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import doc from '../../docs/chapitres.md?raw';
 import { BIOMES } from './biomes';
-import { APART, Farewell, T, stayGoal, type Pt, type Shot } from './adieu';
+import { APART, Farewell, ROOM, T, stayGoal, type Pt, type Shot } from './adieu';
 import { parseChapterTexts, textsOf } from './textes';
 
 const STEP = 1 / 60;
@@ -78,6 +78,18 @@ describe('le parent qui reste', () => {
     const close = stayGoal(home, home, { x: 100, y: 300 }, 0);
     expect(close.x).toBeGreaterThan(0);
     expect(Math.hypot(close.x, close.y)).toBeLessThan(0.4);
+  });
+
+  it('stops a little way from us when we stay still', () => {
+    let p = { ...home }, near = Infinity;
+    const us = { x: home.x + 300, y: home.y + 20 };
+    for (let s = 0; s < 30; s += STEP) {
+      const v = stayGoal(p, home, us, s);
+      p = { x: p.x + v.x, y: p.y + v.y };
+      near = Math.min(near, dist(p, us));
+    }
+    expect(near).toBeGreaterThanOrEqual(ROOM - 1);
+    expect(dist(p, us)).toBeLessThan(160);
   });
 
   it('does not follow us far from where it was left', () => {
