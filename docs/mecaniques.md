@@ -35,9 +35,25 @@ La Nurserie et la Carcasse n'ont pas d'obstacle : on y trouve quand même un par
 - **Le début** : on reste un moment (1,2 s) à moins de 130 d'un partenaire (`actor.partner`, voir « Les espèces compatibles ») ; il nous remarque (quelques lueurs montent de lui), puis mène la danse. Rien ne commence pendant qu'un texte est à l'écran ou que la portée est ouverte.
 - **La danse** : le partenaire dessine un grand huit (240 × 95 de demi-axes) autour de l'endroit de la rencontre, en partant du côté opposé à nous, pour qu'on se retrouve derrière lui. Il avance à son aise (selon sa vitesse de nage), attend quand il prend du retard et ralentit quand on s'éloigne : on peut toujours le rattraper. Un marcheur (crabe, homard) fait l'aller-retour sur le fond.
 - **La qualité**, mesurée à chaque instant puis moyennée sur les 20 s : **le suivre** (près de lui : plein jusqu'à 120, nul au-delà de 360, 40 %), **son sillage** (passer là où il était il y a 0,3 à 1,5 s, 30 %), **tourner avec lui** (aller dans la même direction que lui, 30 %). Le suivre du doigt donne environ 0,95 ; rester à côté sans bouger, 0,3 à 0,4 ; s'en aller, presque 0.
-- **Ce qu'on voit** (pas de chiffres) : son sillage brille de sa couleur ; le nôtre s'allume de la même couleur quand on danse en rythme ; à la fin, un éclat de lumière d'autant plus grand que la parade était belle.
-- **Le résultat** : `monde.parade.last` (`partner` : l'id de l'espèce, `spec` : sa définition, `chapter`, `quality` de 0 à 1, `parts` : les trois mesures), et `monde.parade.onEnd(f)` appelé à la fin de chaque parade. Le jeu y ouvre la portée avec le partenaire et cette qualité, 1,6 s après la fin (le temps de l'éclat).
+- **Ce qu'on voit** (pas de chiffres) : son sillage brille de ses couleurs ; le nôtre s'allume des mêmes couleurs quand on danse en rythme ; à la fin, une figure de lumière entre les deux danseurs, d'autant plus riche que la parade était belle. Ces lumières changent d'une parade à l'autre (voir « La lueur de l'accouplement »).
+- **Le résultat** : `monde.parade.last` (`partner` : l'id de l'espèce, `spec` : sa définition, `chapter`, `quality` de 0 à 1, `parts` : les trois mesures), et `monde.parade.onEnd(f)` appelé à la fin de chaque parade. Le jeu y ouvre la portée avec le partenaire et cette qualité, 1,6 s après la fin (le temps de la figure).
 - Dans le code : les règles dans `src/monde/parade.ts` (pures, testées), le jeu dans `src/monde/parade-jeu.ts`. Seuls les animaux marqués partenaires dansent. Pour les tests : `monde.parade.start(animal, monde.player.cr)`, `monde.parade.state`, `monde.parade.quiet = () => false`.
+
+### La lueur de l'accouplement
+
+Les lumières de la parade ne sont jamais tout à fait les mêmes : chacune tire les siennes des gènes des deux danseurs, avec un peu de hasard. Elles restent douces : jamais de tache blanche qui cache les créatures.
+
+- **Les gènes d'un danseur** (`genesOf`) : ses couleurs (celles de ses parties lumineuses d'abord, puis les deux premières de sa palette), ses traits (`traitsOf`), sa façon de nager (`swim.mode`), s'il a des parties qui brillent, et sa symétrie (le nombre de bras d'une étoile, de tentacules d'une cloche, de 3 à 8).
+- **La lumière d'une parade** (`lueurOf`), tirée à son début :
+  - **ses couleurs** : celle du partenaire d'abord, puis la nôtre, puis les autres des deux, un peu nuancées ;
+  - **le sillage** : poussière (les lueurs qui montent doucement), bulles, étincelles, ruban (une ligne qui dessine le huit), volutes, pouls (des anneaux qui partent du partenaire) ou lucioles qui clignotent ;
+  - **la figure finale** : corolle (des pétales, autant que sa symétrie), spirale (deux bras, sa couleur et la nôtre), pluie de lumière, lucioles, anneaux qui s'élargissent, hélice (deux brins qui montent en tournant) ou fontaine ;
+  - parfois (une fois sur deux), **un écho** : une seconde figure, plus petite, tirée de nos seuls gènes ;
+  - le sens où tout tourne, la taille des lumières et leur rythme (plus vif chez ceux qui nagent par jets ou par élans).
+- **Les gènes pèsent sans décider** : chaque sillage et chaque figure a ses gènes (`WAKES`, `BURSTS`) ; chacun de ces gènes compte double chez le partenaire, simple chez nous, et le hasard fait le reste. Une méduse appelle les anneaux et le pouls ; un crabe, la fontaine et les étincelles ; une lanterne, les lucioles ; un corps fin, le ruban et l'hélice. La figure de la parade précédente revient rarement (son poids tombe à 15 %).
+- **La richesse, pas l'éclat** : une parade réussie donne une figure avec plus de lumières, jamais plus forte (de ×0,5 à ×1,5 lumières).
+- **Jamais éblouissant** : chaque lumière a au plus 0,7 d'opacité ; là où elles se rassemblent, celles d'une même case de 32 px ne dépassent pas 1,8 à elles toutes (`CELL_CAP`) et se partagent leur force. Les figures s'étalent sur 100 à 150 px autour des danseurs. Pendant la danse et juste après, le halo doré du partenaire baisse à 30 % : ses lumières parlent pour lui. En eau claire, où une lumière ajoutée se voit moins, elles brillent un peu plus (jusqu'à ×1,5), sans dépasser ces deux limites.
+- Dans le code : `src/monde/lueur.ts` (pur, testé), branché dans `parade-jeu.ts`. Pour les captures : `monde.parade.forceLight({ wake, burst, echo })` impose la lumière de la parade suivante ; `monde.parade.light` donne celle de la parade en cours, ou de la dernière.
 
 ### La portée
 
