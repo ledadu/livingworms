@@ -24,7 +24,7 @@ Le Grand Monde (`src/monde/`) a déjà :
 Il manque, pour le plan :
 
 - le premier plan sombre et flou ;
-- les décors propres à la Grotte, la Carcasse, le Glacier, le Jardin de méduses et la Fosse (ils ont aujourd'hui un décor provisoire tiré de l'existant) ;
+- les décors propres à la Carcasse, le Glacier, le Jardin de méduses et la Fosse (ils ont aujourd'hui un décor provisoire tiré de l'existant) ;
 - le puits de lumière de la Remontée.
 
 ### Le premier plan
