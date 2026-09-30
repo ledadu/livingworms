@@ -44,13 +44,27 @@ body { font-family: 'Cormorant Garamond', Georgia, serif; color: #f4efe2; -webki
 #atBtn:focus-visible { outline: 2px solid #f6d98a; outline-offset: 2px; }
 /* Le Grand Monde: chapter titles, depth gauge, bench results */
 #chapter {
-  position: fixed; left: 16px; right: 16px; top: 22%; text-align: center; pointer-events: none;
-  opacity: 0; transform: translateY(8px); transition: opacity 1.4s ease, transform 1.4s ease;
-  text-shadow: 0 2px 18px rgba(0,20,30,0.85);
+  position: fixed; left: 20px; right: 20px; top: 20%; text-align: center; pointer-events: none;
+  opacity: 0; transition: opacity 2.4s ease;
+  text-shadow: 0 1px 14px rgba(0,20,30,0.9), 0 0 3px rgba(0,20,30,0.75);
 }
-#chapter.show { opacity: 1; transform: none; }
-#chapter strong { display: block; font-family: 'Syne', sans-serif; font-weight: 800; font-size: clamp(26px, 7vw, 46px); letter-spacing: 0.02em; }
-#chapter span { display: block; font-style: italic; font-size: clamp(17px, 4.4vw, 23px); opacity: 0.85; }
+/* a soft shade behind the words, for the bright water near the surface */
+#chapter::before {
+  content: ''; position: absolute; inset: -40px -10px; z-index: -1;
+  background: radial-gradient(ellipse closest-side, rgba(0,22,34,0.55), rgba(0,22,34,0));
+}
+#chapter.show { opacity: 1; }
+/* the words of the lineage: fine letters, one line after the other (narration.ts) */
+#chapter small {
+  display: block; margin-bottom: 14px; font-size: clamp(12px, 3vw, 14px); font-weight: 500;
+  letter-spacing: 0.32em; text-transform: uppercase; opacity: 0.55;
+}
+#chapter p {
+  margin: 0 auto; max-width: 30em; font-weight: 300; font-size: clamp(19px, 5vw, 28px); line-height: 1.45; letter-spacing: 0.015em;
+  opacity: 0; filter: blur(3px); transform: translateY(6px); transition: opacity 2.6s ease, filter 2.6s ease, transform 2.6s ease;
+}
+#chapter p.on { opacity: 0.94; filter: none; transform: none; }
+#chapter.name small { font-size: clamp(13px, 3.4vw, 16px); opacity: 0.7; }
 #hud {
   position: fixed; left: 16px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); pointer-events: none;
   font-family: 'Chakra Petch', system-ui, sans-serif; font-size: 13px; letter-spacing: 0.04em; opacity: 0.75;
@@ -58,7 +72,8 @@ body { font-family: 'Cormorant Garamond', Georgia, serif; color: #f4efe2; -webki
 }
 #panel { max-height: calc(100vh - 90px); overflow-y: auto; }
 #panel #trip button { flex: 1 1 30%; }
-#benchBtn { flex: none !important; padding: 10px !important; background: rgba(246,217,138,0.16) !important; border-color: rgba(246,217,138,0.5) !important; }
+#benchBtn, #newGame { flex: none !important; padding: 10px !important; background: rgba(246,217,138,0.16) !important; border-color: rgba(246,217,138,0.5) !important; }
+#newGame { width: 100%; background: rgba(255,255,255,0.06) !important; border-color: rgba(244,239,226,0.3) !important; }
 
 #benchOut {
   position: fixed; inset: calc(12px + env(safe-area-inset-top, 0px)) 12px 12px 12px; overflow: auto; padding: 16px;
