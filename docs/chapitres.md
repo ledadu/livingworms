@@ -55,7 +55,7 @@ Adieu :
 
 - **Décor** : coraux ramifiés, gorgones, anémones avec poissons-clowns, sable clair.
 - **Obstacle** : un courant de passe entre deux barrières de corail ; il faut des nageoires.
-- **Partenaires** : poisson-clown, rascasse volante, hippocampe (`poissonClown`, `poissonLion`, `hippocampe`).
+- **Partenaires** : poisson-clown, rascasse volante, hippocampe (`poissonClown`, `poissonLion`, `hippocampe`), qui ont des nageoires, et une méduse-boîte (`meduseBoite`), qui vit dans les récifs et apporte la pulsation.
 - **Moment fort** : une tortue passe au-dessus, immense, et projette son ombre.
 - **Note** : « le battement ».
 
@@ -110,7 +110,7 @@ Ouverture :
 
 - **Décor** : cheminées fumantes, eau trouble et chaude, vers tubicoles rouges, crevettes blanches.
 - **Obstacle** : un couloir brûlant ; il faut une carapace, ou des cils pour passer par la vase.
-- **Partenaires** : ver de feu, crevette-mante, homard (`verDeFeu`, `crevetteMante`, `homard`).
+- **Partenaires** : ver de feu, crevette-mante, homard (`verDeFeu`, `crevetteMante`, `homard`), qui ont une carapace, et le serpent cilié (`serpentCilie`), qui apporte les cils : le ver de feu a des soies, pas des cils.
 - **Moment fort** : une éruption illumine toute la vallée en orange.
 - **Note** : « la braise ».
 
