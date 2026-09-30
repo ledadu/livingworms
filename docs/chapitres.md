@@ -208,6 +208,23 @@ Adieu (proposition) :
 - **Partenaires** : baudroie, dragon abyssal, nautile (`baudroie`, `dragonAbyssal`, `nautile`).
 - **Moment fort** : tu joues les notes déjà apprises et, une à une, des lumières répondent dans le noir, celles des ancêtres des autres lignées.
 - **Note** : « le silence ».
+- **Les lumières qui répondent** (`src/monde/lumieres.ts`, pures et testées ; dans le jeu `lumieres-jeu.ts`, dessin `lumieres-draw.ts`) :
+  - Dans la Fosse, chaque note apprise qu'on chante fait répondre une lumière, une à une : après un silence (1,1 s), et jamais moins de 1,8 s après la précédente, même si l'on chante vite. Les notes apprises : une par chapitre de la descente où l'on est entré, jusqu'à la Fosse ; le chant les tiendra lui-même.
+  - Chaque lumière est **l'ancêtre d'une autre lignée**, celui qui a appris cette note. Cette lignée part d'une première larve d'une autre couleur que la nôtre. Dans chaque chapitre, elle a choisi un partenaire qui franchit l'obstacle et gardé un enfant qui le franchit, jusqu'au chapitre de la note.
+    - Chaque note a sa lignée, la même d'une visite à l'autre tant que notre lignée ne change pas.
+    - La note de la Carcasse fait exception : si on l'a croisée, c'est la cousine de la lignée rivale qui répond (voir le chapitre 5).
+    - Ces lignées se font en approchant de la Fosse, une naissance par pas de simulation, pour ne jamais faire attendre une image.
+  - La lumière répond de loin, au bord de ce qu'on voit : 520 px au plus, moins sur les côtés d'un téléphone tenu droit. Elle vient d'au-dessus ou des côtés, jamais d'en dessous.
+    - D'abord trois éclats de sa couleur ; puis elle vient, sans se presser, nager à sa place autour de nous (de 170 à 226 px, en trois rangs), et nous suit dans la Fosse.
+    - Son corps se voit par sa propre lumière, teinté de sa couleur, par-dessus le noir.
+  - Rechanter une note qui a déjà répondu fait briller sa lumière de nouveau.
+  - Chaque lumière arrivée près de nous ajoute à notre lumière : ensemble, elles éclairent autour de nous plus qu'une lanterne.
+  - Quand chaque note apprise a eu sa lumière et que toutes sont arrivées, **le chant a franchi le noir** :
+    - l'obstacle de la Fosse s'ouvre (le noir ne se referme plus devant sa borne) ;
+    - toutes les lumières brillent ensemble, en vague ;
+    - la lignée dit « Les lumières qui répondent » (ci-dessous).
+    - Le fond reste la fin du monde tant que la Remontée n'est pas là.
+  - Pour les tests : on chante avec le chant (son bouton et son cercle de notes) ; sans lui, `monde.lumieres.sing()` chante toutes les notes apprises, une toutes les 0,9 s, et `monde.lumieres.hear('recif')` une seule. `monde.lumieres.answers` et `done` disent où on en est, `onDone(f)` est appelé quand le chant a franchi le noir, et `monde.skip.add('answer')` cache les lumières.
 
 Ouverture :
 
@@ -297,7 +314,7 @@ Chaque obstacle barre la descente tant que le corps qu'on joue n'a pas l'un des 
 
 - **Avec le trait**, l'obstacle se sent encore un peu (le courant tire, l'eau épaisse freine) mais on passe ; le noir ne se referme plus.
 - **La première fois qu'un obstacle retient** (à mi-chemin de son approche), la lignée dit ce qu'il aurait fallu : la citation « Devant l'obstacle : » du chapitre, dans ce document.
-- **La Fosse** garde la fin du monde : même avec une lanterne, on n'y va pas plus loin tant que la Remontée n'existe pas. Le chant (étape 5) n'est pas un trait du corps.
+- **La Fosse** garde la fin du monde : même avec une lanterne, on n'y va pas plus loin tant que la Remontée n'existe pas. Le chant n'est pas un trait du corps : il ouvre l'obstacle de la Fosse quand chaque note apprise a eu sa lumière (voir « Les lumières qui répondent », chapitre 9).
 - **Les traits du corps** sont lus sur l'arbre de parties (`traitsOf`). En attendant la fonction des traits de l'étape 3, `obstacles-traits.ts` en donne une version approchée, avec les mêmes noms. La larve de départ n'a aucun trait : sans naissance, elle s'arrête au courant du Récif.
 - **Pour les tests** : `monde.keys.traits` (les traits du corps joué), `monde.keys.force = ['nageoires']` (jouer comme si on les avait, `null` pour revenir), `monde.becomes(…)`.
 

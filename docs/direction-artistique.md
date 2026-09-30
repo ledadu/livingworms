@@ -81,6 +81,7 @@ Les chapitres profonds (Sources, Remontée) assombrissent l'écran sans jamais l
 - **Ce qui brille** reste visible au loin, par-dessus le noir : animaux lumineux, poissons-lanternes.
 - **La neige marine** ne se voit que dans la lumière, blanche, plus forte près du nageur.
 - **Les grandes silhouettes** (un dragon abyssal ×7 et un calmar géant ×9, les visiteurs du chapitre) passent au loin : des corps noirs devant une faible lueur bleu électrique, avec leurs propres photophores.
+- **Les lumières qui répondent au chant** (`lumieres-jeu.ts`) : chacune a la couleur de sa lignée, jamais l'or des partenaires. Elle répond par trois éclats au loin, au bord de l'écran, puis vient nager autour de nous. Son corps, teinté de sa couleur, est dessiné par-dessus le noir, comme s'il s'éclairait lui-même.
 - Le passage du Jardin de méduses à la Fosse, puis de la Fosse à la Remontée, se fait en fondu sur les frontières.
 
 ## Le son

@@ -127,7 +127,7 @@ export function initLumieres(deps: Deps) {
         const at = { x: a.cr.root.x[0], y: a.cr.root.y[0] }, spot = within(spotOf(a.k, p, t));
         if (!a.settled && t - a.start > ECHO && Math.hypot(at.x - spot.x, at.y - spot.y) < SETTLED) a.settled = true;
       }
-      if (!done && answered(deps.learned(), new Set(answers.filter((a) => a.settled).map((a) => a.note)))) {
+      if (!done && answers.length && answered(deps.learned(), new Set(answers.filter((a) => a.settled).map((a) => a.note)))) {
         done = true; bloom = t;
         deps.open();
         for (const f of doneFns) f();
@@ -177,8 +177,7 @@ export function initLumieres(deps: Deps) {
     walks: walks as ReadonlyMap<ChapterId, Walk>,
     /** every note learned has had its answer: the Fosse is open */
     get done() { return done; },
-    get told() { return told; },
-    isAnswer: (cr: Creature3) => byCr.has(cr)
+    get told() { return told; }
   };
   return api;
 }
