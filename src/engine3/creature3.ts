@@ -12,7 +12,7 @@
 
 import type { AttDef, NodeDef, PaletteSlot, Spec, SwimMode } from '../engine/types';
 import { ROOT_SLOT, SHAPES, expand, palette, type Slot } from '../engine/defs';
-import { STEP, TAU, clamp, hsla, lerp, rand } from '../engine/util';
+import { STEP, TAU, clamp, hsla, lerp, rand, wrapAngle } from '../engine/util';
 
 // ----- tiny vector helpers on scalars (no allocation in the hot path) ----- //
 
@@ -446,10 +446,13 @@ export class Creature3 {
   side: V = v3(0, 0, 1);
   /**
    * Heading of the head. yaw is the angle about the vertical axis: 0 faces
-   * right, pi faces left, and turning between them always goes through pi/2,
-   * i.e. away from the eye. pitch is the nose up/down (positive = down).
+   * right, +-pi faces left, and a half turn between them goes one way round or
+   * the other, at random (see turnError): through pi/2, its back to the eye,
+   * or through -pi/2, its face to the eye. pitch is the nose up/down (positive = down).
    */
   yaw = 0; pitch = 0; yawGoal = 0; private yawVel = 0; private pitchVel = 0;
+  /** the half turn under way: which way round (+1: yaw grows, -1: it falls, 0: none), toward which goal */
+  private turnWay = 0; private turnGoal = 0;
   /** how quickly the heading follows (rad/s of a critically damped spring): about 0.35 s for a half turn */
   turnW = 13;
   private heading3 = v3(1, 0, 0);
@@ -571,6 +574,25 @@ export class Creature3 {
     return [x + vel * STEP, vel];
   }
 
+  /**
+   * The yaw follows yawGoal on a spring. A half turn started at rest (from
+   * right to left, or back) draws which way round it goes and keeps to it until
+   * it is past the side, unless it is told somewhere else; one started while
+   * turning goes the shortest way. Returns the angle left to turn.
+   */
+  private turnYaw(w: number): number {
+    if (this.turnWay && Math.abs(wrapAngle(this.yawGoal - this.turnGoal)) > 1) this.turnWay = 0;
+    if (!this.turnWay && Math.abs(this.yawVel) < 1 && Math.abs(wrapAngle(this.yawGoal - this.yaw)) > HALF_TURN) {
+      this.turnWay = Math.random() < 0.5 ? 1 : -1;
+      this.turnGoal = this.yawGoal;
+    }
+    const err = turnError(this.yaw, this.yawGoal, this.turnWay);
+    if (Math.abs(err) < HALF_TURN) this.turnWay = 0;
+    this.yawVel += (w * w * err - 2 * w * this.yawVel) * STEP;
+    this.yaw = wrapAngle(this.yaw + this.yawVel * STEP);
+    return err;
+  }
+
   private aim(h: V, pitch: number, yaw: number): void {
     const cp = Math.cos(pitch);
     h.x = cp * Math.cos(yaw); h.y = Math.sin(pitch); h.z = cp * Math.sin(yaw);
@@ -620,8 +642,7 @@ export class Creature3 {
       if (Math.abs(dvx) > 0.2 * sp) this.yawGoal = (dvx > 0) !== this.rear ? 0.3 : Math.PI - 0.3;
     }
     const w = this.turnW * 0.7;
-    [this.yaw, this.yawVel] = this.spring(this.yaw, this.yawGoal, this.yawVel, w);
-    this.yaw = clamp(this.yaw, 0, Math.PI);
+    this.turnYaw(w);
     [this.pitch, this.pitchVel] = this.spring(this.pitch, pitchGoal, this.pitchVel, w * 0.8);
     const h = this.heading3;
     this.aim(h, this.pitch, this.yaw);
@@ -645,11 +666,7 @@ export class Creature3 {
       this.yawGoal = Math.atan2(gz, dvx) + (sw.rear ? Math.PI : 0);
     }
     const w = this.turnW * 0.6;
-    let err = this.yawGoal - this.yaw;
-    err = Math.atan2(Math.sin(err), Math.cos(err));
-    this.yawVel += (w * w * err - 2 * w * this.yawVel) * STEP;
-    this.yaw += this.yawVel * STEP;
-    this.yaw = Math.atan2(Math.sin(this.yaw), Math.cos(this.yaw));
+    const err = this.turnYaw(w);
     [this.pitch, this.pitchVel] = this.spring(this.pitch, sw.posture || 0, this.pitchVel, w);
     this.aim(this.heading3, this.pitch, this.yaw);
     const face = Math.max(0, Math.cos(err));
@@ -671,9 +688,7 @@ export class Creature3 {
     }
     else if (this.spec.swim.posture !== undefined) pitchGoal = this.spec.swim.posture;
     const w = this.turnW;
-    this.yawVel += (w * w * (this.yawGoal - this.yaw) - 2 * w * this.yawVel) * STEP;
-    this.yaw += this.yawVel * STEP;
-    if (this.yaw < 0) { this.yaw = 0; this.yawVel = 0; } else if (this.yaw > Math.PI) { this.yaw = Math.PI; this.yawVel = 0; }
+    this.turnYaw(w);
     this.pitchVel += (w * 0.8 * w * 0.8 * (pitchGoal - this.pitch) - 2 * w * 0.8 * this.pitchVel) * STEP;
     this.pitch += this.pitchVel * STEP;
     const cp = Math.cos(this.pitch), h = this.heading3;
@@ -701,6 +716,18 @@ export class Creature3 {
       }
     }
   }
+}
+
+/** a change of heading larger than this (a little more than a quarter turn) is a half turn, which may go either way round */
+export const HALF_TURN = 1.6;
+
+/**
+ * The angle to turn from yaw to goal: the shortest, or, when a half turn is
+ * under way (way = +1 or -1), the one that goes that way round.
+ */
+export function turnError(yaw: number, goal: number, way: number): number {
+  const e = wrapAngle(goal - yaw);
+  return way && e * way < 0 ? e + way * TAU : e;
 }
 
 /** speed multiplier given by the way the species swims */

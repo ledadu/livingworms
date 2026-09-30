@@ -160,7 +160,7 @@ function rebuild(now) {
   ed.rebuildQueued = false;
   var old = ed.cr, x = 0, y = 0, phase = 0, yaw = 0;
   if (old) { x = old.root.x[0]; y = old.root.y[0]; phase = old.phase; yaw = old.yaw; }
-  ed.cr = new Creature3(ed.spec, x, y, 0, { dir: { x: yaw > 1.57 ? -1 : 1, y: 0, z: 0 }, phase: phase });
+  ed.cr = new Creature3(ed.spec, x, y, 0, { dir: { x: Math.cos(yaw) < 0 ? -1 : 1, y: 0, z: 0 }, phase: phase });
   if (old) { ed.cr.vx = old.vx; ed.cr.vy = old.vy; ed.cr.yaw = ed.cr.yawGoal = old.yaw; }
   // a few steps so that a fresh body is not a straight stick
   for (var i = 0; i < 24; i++) ed.cr.steer(ed.t + i * STEP, old ? old.vx : 0.6, old ? old.vy : 0, 0, 0.2);
