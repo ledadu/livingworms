@@ -94,8 +94,8 @@ agent-dashboard: ## Live view of every agent worktree on http://localhost:7800 (
 agent-dashboard-token: ## The dashboard's token, for a visit from another machine: <address>/?token=<it> once (a cookie keeps it)
 	@node $(AGENTS_DIR)/agent/access.mjs
 
-agent-mirror: ## Snapshot of the dashboard for its mirror on claude.ai (agent/mirror.html): .git/agents/mirror.json, that Claude sends to the page
-	@node $(AGENTS_DIR)/agent/mirror.mjs
+agent-mirror: ## Snapshot of the dashboard for its mirror on claude.ai (agent/mirror.html): .git/agents/mirror.json, that Claude sends to the page (PORT=... of the dashboard)
+	@node $(AGENTS_DIR)/agent/mirror.mjs --port $(or $(PORT),7800)
 
 agent-ask: ## An agent asks the user through the dashboard: make agent-ask ARGS='choice --title "…" --option "*A" --option B' (ARGS=--help)
 	@node $(AGENTS_DIR)/agent/ask.mjs $(or $(ARGS),--help)
