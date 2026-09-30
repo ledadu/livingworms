@@ -33,6 +33,7 @@ import { caveCover, caveDark, caveKeeps, caveRepel, ceilAt } from './grotte';
 import { pushCave } from './grotte-draw';
 import { drawFront, frontColour, frontCount, frontPainter, makeFront } from './foreground';
 import { CARCASSE, boneLight, carcasseDwellers, carcasseSchool } from './carcasse';
+import { initNouveautes } from './nouveautes';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -1143,6 +1144,7 @@ for (const el of [panel, gear, benchOut, document.getElementById('atBtn')!]) for
 const hint = document.getElementById('hint')!;
 setTimeout(() => hint.classList.add('gone'), 6000);
 document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).closest('#panel, #atelier, #benchOut')) e.preventDefault(); }, { passive: false });
+initNouveautes(() => !Atelier.isOpen && benchOut.hidden === true);
 
 setTimeout(() => showChapter(0), 400);
 requestAnimationFrame(frame);
