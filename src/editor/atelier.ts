@@ -10,6 +10,7 @@ import { PARTS, part, SPECIES, INFO, CATS, generate, fuse, FAMILIES, MOODS, FUSI
 import { Creature3, swimFactor3 } from '../engine3/creature3';
 import { draw3, drawSkeleton3, eachGlow3, pick3 } from '../engine3/render3';
 import { snapshot3 } from '../engine3/snapshot3';
+import { TRAIT_LABELS, traitsOf } from '../content/traits';
 import { View } from '../engine3/view';
 import { glowSprite } from '../monde/sprites';
 
@@ -173,6 +174,8 @@ function renderMeter() {
   var m = $('atMeter');
   m.textContent = chains + ' chaînes · ' + nodes + ' nœuds · ' + (depth + 1) + ' niveaux' + (heavy ? ' · lourd pour le jeu' : '');
   m.classList.toggle('warn', heavy);
+  var tr = traitsOf(ed.spec);
+  $('atTraits').textContent = tr.length ? 'Traits : ' + tr.map(function (t) { return TRAIT_LABELS[t]; }).join(' · ') : 'Aucun trait';
 }
 
 // ----- controls ----- //
