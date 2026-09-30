@@ -157,7 +157,7 @@ const player = addActor(savedPlayer() || firstAncestor(), 420, 180, 'player', 0.
 /** the swimmer becomes this species: changed in the Atelier, or a child chosen in a brood (born) */
 function becomes(sp: Spec, born = false): void {
   const old = player.cr, r = old.root;
-  const cr = new Creature3(sp, r.x[0], r.y[0], 0, { dir: { x: old.yaw > 1.57 ? -1 : 1, y: 0, z: 0 }, scale: 0.8 });
+  const cr = new Creature3(sp, r.x[0], r.y[0], 0, { dir: { x: Math.cos(old.yaw) < 0 ? -1 : 1, y: 0, z: 0 }, scale: 0.8 });
   cr.yaw = cr.yawGoal = old.yaw;
   for (let i = 0; i < 60; i++) cr.steer(i * STEP, old.vx, old.vy, 0, 0.2);
   player.cr = cr;
