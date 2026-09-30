@@ -121,7 +121,7 @@ export function initArbre(d: ArbreDeps): Arbre {
     input.select();
   }
 
-  /** a portrait: a copy of the one drawn before, else drawn a bit later (two per frame, the newest first) */
+  /** a portrait: a copy of the one drawn before, else drawn a bit later (drawSome, the newest first) */
   function portrait<K>(cache: Cache<K>, key: K, cls: string, sp: () => Spec | null): HTMLCanvasElement {
     const cv = document.createElement('canvas');
     cv.className = cls;
@@ -201,9 +201,11 @@ export function initArbre(d: ArbreDeps): Arbre {
     return current;
   }
 
+  /** a portrait costs about 10 ms on a computer, more on a phone: a few per frame, at least one */
   function drawSome(): void {
     raf = 0;
-    for (let n = 0; n < 2 && jobs.length; n++) jobs.pop()!();
+    const t0 = performance.now();
+    while (jobs.length) { jobs.pop()!(); if (performance.now() - t0 > 12) break; }
     if (jobs.length) raf = requestAnimationFrame(drawSome);
   }
 
@@ -217,9 +219,10 @@ export function initArbre(d: ArbreDeps): Arbre {
       root.hidden = false;
       void root.offsetWidth;
       root.classList.add('show');
-      current?.scrollIntoView({ block: 'center' });
+      // on the one played (by hand: scrollIntoView could move the page under the sea)
+      if (current) root.scrollTop += current.getBoundingClientRect().top - (root.clientHeight - current.offsetHeight) / 2;
       root.focus({ preventScroll: true });
-      if (!raf) raf = requestAnimationFrame(drawSome);
+      if (!raf && jobs.length) raf = requestAnimationFrame(drawSome);
     },
     close() {
       if (!arbre.isOpen) return;
