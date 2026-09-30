@@ -92,3 +92,14 @@ Aucune question n'a été posée à l'utilisateur : tout a été tranché seul (
 - `world.ts` : conflit sur l'import de `biomes` et sur `makeDecor`. J'ai gardé les imports des deux côtés et les décors placés par chapitre (`at(id, u)`), et ajouté `glacierDecor()` à la suite.
 - `glacier.ts` : branché sur `span('glacier')`. `GLACIER_MOOD` et l'aperçu `?glacier=` sont retirés, car la carte a maintenant son Glacier.
 - `foreground.test.ts` (venu de `backlog`) : deux tests visaient les anciens biomes `kelp` et `abysses`. Ils visent maintenant `foret` et `fosse`, sans rien changer à ce qu'ils vérifient.
+
+## Deuxième fusion avec `backlog` (la Grotte, la Carcasse)
+
+- `main.ts` : deux conflits.
+  - Imports : les deux gardés (`glacier` avec `grotte` et `grotte-draw`).
+  - Dans `render()` : les tronçons du courant froid sont poussés comme avant. Les rayons prennent la version de `backlog`, atténuée sous la voûte (`m.rays * open`), et `pushCave` suit.
+- `world.ts` : trois conflits.
+  - Imports : les deux gardés (`glacier` et `carcasse`).
+  - `Decor` : le type reprend la forme de `backlog` (`part?`, `k?`) et son `kind` réunit `'bone'`, `'ice'` et `'frost'`.
+  - `bakeDecor` : les os de la Carcasse d'abord (`bakeBone`), puis `bakeIce` pour le reste.
+- L'image du Glacier est inchangée après la fusion (vérifiée en jeu) ; les captures restent valables.

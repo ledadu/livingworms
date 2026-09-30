@@ -75,6 +75,7 @@ Ouverture :
 - **Partenaires** : anguille (corps fin), serpent cilié, et un cténophore égaré, qui apporte la lumière (`anguille`, `serpentCilie`, `ctenophore`).
 - **Moment fort** : tout le banc de poissons qui te suivait fait demi-tour à l'entrée ; tu entres seul, et ta propre nage se met à résonner.
 - **Note** : « l'écho ».
+- **Dans le jeu** (`src/monde/grotte.ts`, dessin dans `grotte-draw.ts`) : une voûte ocre s'ouvre en arche dans la falaise et se referme sur le sol au fond. Des stalactites y pendent, des stalagmites poussent du sol, des piliers se dressent hors du plan de nage, et le jour tombe en rais par des puits. Aux deux tiers de la grotte, la lumière renonce : le noir se referme autour de nous, et seules brillent de petites vies accrochées à la roche. Les bancs de poissons font demi-tour à l'entrée, le kelp ne pousse pas sous la voûte, et rien ne passe à travers la voûte. La grotte suit l'étendue du chapitre `grotte` de la carte (de x = 10 850 à 13 450, les entrées comprises) ; si la carte n'en avait plus, elle se replierait sur la fin de la Forêt.
 
 Ouverture :
 
@@ -91,6 +92,8 @@ Adieu (proposition, les autres adieux sont à écrire) :
 - **Partenaires** : ver plumeau, crabe (`plumeau`, `crabe`).
 - **Moment fort** : une lignée « rivale » est là, avec des choix différents des tiens. Une créature étrange, cousine lointaine.
 - **Note** : « le souvenir ».
+- **Dans le monde** (`src/monde/carcasse.ts`) : le squelette couché sur le fond, tête à gauche, sur 1 200 px environ. Crâne, deux mâchoires, colonne en quatre tronçons qui suivent le sable, treize paires de côtes (debout, brisées ou tombées), nageoires ; tapis blancs et jaunes de bactéries, duvet rouge des vers mangeurs d'os. Un rai de lumière pâle tombe sur les côtes, les os luisent un peu dans le noir. Crabes, vers plumeaux, ophiures, crevettes, homard, anguilles et un banc de poissons argentés y vivent. Les os sont derrière le plan de nage : on nage devant et entre eux.
+- **Les fresques naturelles** : trois, des coquilles posées en motif sur les os plats, listées dans `CARCASSE.fresques` (`id`, `motif`, position) pour servir de traces à l'étape 4 : une **spirale** sur l'omoplate (debout derrière les côtes), des **anneaux** sur le crâne, des **rayons** sur une vertèbre de la queue roulée à l'écart. Des tas de coquilles sont semés autour.
 
 Ouverture :
 
@@ -171,8 +174,8 @@ La carte du Grand Monde (`src/monde/biomes.ts`) suit la trame : les 10 chapitres
 | 1 | La Nurserie | −800 à 3 400 | 30–40 m | herbiers, sargasses sous la surface, rayons et caustiques | raie manta |
 | 2 | Le Récif | 3 400 à 7 000 | 40–90 m | coraux, gorgones, coraux mous, rochers encroûtés | tortue, au-dessus du récif |
 | 3 | La Forêt | 7 000 à 10 600 | 90–200 m | kelp géant, épave | requin-baleine, lent, au loin |
-| 4 | La Grotte | 10 600 à 13 600 | 200–250 m | *provisoire* : la falaise sous le kelp, un chaos de blocs ocre, éponges, lueurs | — |
-| 5 | La Carcasse | 13 600 à 15 800 | 250–280 m | *provisoire* : la baleine couchée sur une plaine de sédiment ivoire | — |
+| 4 | La Grotte | 10 600 à 13 600 | 200–250 m | la falaise s'ouvre en arche : voûte ocre, stalactites, stalagmites, piliers, rais de jour par des puits, puis le noir et les lueurs de la roche ; blocs ocre, éponges | — |
+| 5 | La Carcasse | 13 600 à 15 800 | 250–280 m | le squelette d'une baleine couché sur une plaine de sédiment ivoire, un rai de lumière, trois fresques de coquilles (voir le chapitre 5) | — |
 | 6 | Les Sources | 15 800 à 19 000 | 280–340 m | fumeurs noirs, riftias, fumée et bulles | — |
 | 7 | Le Glacier | 19 000 à 22 000 | 340–400 m | *provisoire* : fond de glace pâle, blocs de glace bleue, éponges blanches, suintements froids, cristaux qui tombent | calmar géant |
 | 8 | Le Jardin de méduses | 22 000 à 25 200 | 400–500 m (pleine eau) | *provisoire* : le fond tombe hors de vue, méduses partout, la vie reste en pleine eau | siphonophore géant |
