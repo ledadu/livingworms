@@ -408,7 +408,7 @@ export function bump(cr: Body): void {
 // ----- where they stand, chapter by chapter ----- //
 
 type Slot = 'lane' | 'front' | 'back';
-/** a kind of relief in a chapter: its mean spacing along x, and how often it stands in the swimming plane, in front of it, behind it */
+/** a kind of relief in a chapter: its mean spacing along x, and how much of it stands in the swimming plane, in front of it, behind it */
 interface Plan { kind: ReliefKind | 'faille'; every: number; lane: number; front: number; back: number; }
 
 /** what sets each chapter apart, by biome id */
@@ -433,11 +433,6 @@ const PLANS: Record<string, Plan[]> = {
   glacier: [{ kind: 'faille', every: 1100, lane: 1, front: 0, back: 0 }, { kind: 'surplomb', every: 800, lane: 0.4, front: 0, back: 0.6 }],
   fosse: [{ kind: 'faille', every: 1000, lane: 1, front: 0, back: 0 }]
 };
-
-function slotOf(R: R01, p: Plan): Slot {
-  const u = R() * (p.lane + p.front + p.back);
-  return u < p.lane ? 'lane' : u < p.lane + p.front ? 'front' : 'back';
-}
 
 /** one relief of a kind at x in a slot, or null when it does not fit there */
 function build(kind: ReliefKind, slot: Slot, x: number, R: R01, floor: Floor, encrust: number): Relief | null {
@@ -498,21 +493,30 @@ export function initReliefs(biomes: readonly { id: string; x0: number; encrust: 
     }
   });
   const inFault = (x: number) => faults.some((f) => Math.abs(f.x - x) < f.w + 160);
+  const free = (x: number) => clear(x, 320, big) && clear(x, 140) && !inFault(x);
   biomes.forEach((b, i) => {
     const [a, e] = span(i);
     for (const p of PLANS[b.id] || []) {
       if (p.kind === 'faille') continue;
-      let lastLane = -Infinity;
-      for (let x = a + 300 + R() * p.every * 0.5; x < e - 300; x += p.every * (0.6 + 0.8 * R())) {
-        let slot = slotOf(R, p);
-        // nothing in the way of the swimmer on a steep slope or next to another one
-        if (slot === 'lane' && (Math.abs(floor(x - 180, 0) - floor(x + 180, 0)) > 120 || x - lastLane < 480)) slot = p.back > 0 ? 'back' : 'front';
-        if (slot !== 'back' && (!clear(x, 320) || inFault(x))) continue;
-        if (slot === 'front' && p.front === 0) continue;
+      // in the swimming plane, one every so often, where it fits: on a gentle slope, away from the set pieces
+      const gap = Math.max(700, p.every / (p.lane + p.front + p.back) / (p.lane || 1));
+      if (p.lane > 0) {
+        for (let x = a + 400 + R() * gap * 0.5; x < e - 400; x += gap * (0.75 + 0.5 * R())) {
+          for (let k = 0; k < 6; k++) {
+            const xx = x + k * 90;
+            if (xx > e - 400 || Math.abs(floor(xx - 150, 0) - floor(xx + 150, 0)) > 150 || !free(xx)) continue;
+            const r = build(p.kind, 'lane', xx, R, floor, b.encrust);
+            if (r) { reliefs.push(r); x = xx; break; }
+          }
+        }
+      }
+      // in front of it and behind it
+      if (p.front + p.back <= 0) continue;
+      for (let x = a + 300 + R() * p.every; x < e - 300; x += (p.every / (p.front + p.back)) * (0.6 + 0.8 * R())) {
+        const slot: Slot = R() * (p.front + p.back) < p.front ? 'front' : 'back';
+        if (slot === 'front' && !free(x)) continue;
         const r = build(p.kind, slot, x, R, floor, b.encrust);
-        if (!r) continue;
-        reliefs.push(r);
-        if (slot === 'lane') lastLane = x;
+        if (r) reliefs.push(r);
       }
     }
   });
