@@ -48,6 +48,8 @@ import { initParade } from './parade-jeu';
 import { initAdieu, testChild } from './adieu-jeu';
 import { mateFor } from './arbre';
 import { initArbre } from './arbre-ecran';
+import { ancestorsIn } from './ancetres-jeu';
+import { placeOf } from './ancetres';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -1113,7 +1115,15 @@ function farewell(child?: Spec, mate?: Spec): void {
   adieu.start(old, cr, t, bi, floorAt(x + 1000, 0));
   // a new game has not saved its first creature yet: it is the parent all the same
   if (!partie.creature) partie.becomes(old.spec);
-  partie.born(sp, BIOMES[bi].id, mate && mateFor(mate));
+  partie.born(sp, BIOMES[bi].id, mate && mateFor(mate), placeOf(x, y, BIOMES[bi].x0));
+}
+// the parents left in earlier visits swim where they were left (ancetres.ts); the first one's siblings stay with it
+for (const { spec, home, k } of ancestorsIn(partie.lineage)) {
+  adieu.stay(addActor(spec, home.x, home.y, 'parent', 0.8).cr, home);
+  if (k === 0) for (const a of actors) if (a.kind === 'sib') {
+    a.kind = 'swim'; a.hx = home.x; a.hy = home.y;
+    a.cr.translate(home.x + rand(-80, 80) - a.cr.root.x[0], home.y + rand(-50, 50) - a.cr.root.y[0], 0);
+  }
 }
 
 // ----- loop ----- //
@@ -1218,7 +1228,8 @@ export const api = {
   get size() { return [W, H, canvas.width, canvas.height]; },
   setFrameHook: (f: typeof onFrame) => { onFrame = f; },
   unlockBalade: () => { unlockBalade(); applyAtelierAccess(atBtn); },
-  partners: () => actors.filter((a) => a.partner !== undefined)
+  partners: () => actors.filter((a) => a.partner !== undefined),
+  ancestors: () => actors.filter((a) => a.kind === 'parent')
 };
 (window as unknown as { monde: typeof api }).monde = api;
 
