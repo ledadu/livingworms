@@ -27,12 +27,15 @@ export function createNarrator(el: HTMLElement, chapters: { name: string }[]): N
   let waitTimer = 0;
   /** a farewell is being said until then (ms): an opening waits for it */
   let farewellUntil = 0;
+  /** the chapter whose opening is on the screen now, else -1 */
+  let opening = -1;
 
   function show(name: string, lines: string[], kind: TextKind | 'name'): void {
     for (const id of timers) clearTimeout(id);
     timers = [];
     el.innerHTML = '';
     el.className = 'tell ' + kind;
+    opening = -1;
     const label = document.createElement('small');
     label.textContent = name;
     el.append(label);
@@ -47,7 +50,7 @@ export function createNarrator(el: HTMLElement, chapters: { name: string }[]): N
     ps.forEach((p, k) => later(FIRST + k * STEP, () => p.classList.add('on')));
     const end = lines.length ? FIRST + (lines.length - 1) * STEP + LINE_IN + holdTime(lines) : 3600;
     farewellUntil = kind === 'farewell' ? performance.now() + end + FADE / 2 : 0;
-    later(end, () => el.classList.remove('show'));
+    later(end, () => { el.classList.remove('show'); opening = -1; });
     later(end + FADE, () => { el.innerHTML = ''; });
   }
 
@@ -71,7 +74,9 @@ export function createNarrator(el: HTMLElement, chapters: { name: string }[]): N
         waitTimer = window.setTimeout(() => narrator.chapter(i), 600);
         return;
       }
-      if (!told.has(i) && tell(i, 'opening')) { told.add(i); return; }
+      // (an opening still being told is not cut short by its own chapter's name)
+      if (i === opening) return;
+      if (!told.has(i) && tell(i, 'opening')) { told.add(i); opening = i; return; }
       show(chapters[i].name, [], 'name');
     }
   };
