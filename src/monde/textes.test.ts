@@ -29,7 +29,7 @@ describe('les textes de la lignée', () => {
     expect(textsOf(all, 'La Grotte', 3)!.farewell?.[0]).toMatch(/^Tu resteras à l’entrée/);
     expect(remontee.opening?.[0]).toMatch(/^Nous pensions descendre/);
     expect(remontee.final?.[0]).toBe('Nous sommes remontés.');
-    expect(textsOf(all, 'Le Récif', 1)!.farewell).toBeUndefined();
+    expect(textsOf(all, 'Le Récif', 1)!.farewell?.[0]).toMatch(/^Tu nous as appris/);
   });
 
   it('breaks a lone long sentence at the comma nearest its middle', () => {

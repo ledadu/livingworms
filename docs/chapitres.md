@@ -15,7 +15,7 @@ Les profondeurs sont indicatives : le monde est une descente continue, pas une c
 - Ils s'affichent en lettres fines, lentement, au début de chaque chapitre (ouverture) et au moment de l'adieu.
 - Deux à quatre lignes au maximum.
 - La voix est celle de la lignée, un « nous », comme si les ancêtres parlaient.
-- **Dans le jeu** (`src/monde/textes.ts`, affichage dans `narration.ts`) : les textes sont lus dans ce document même, au build. Sous le titre `## N. Nom` d'un chapitre, la citation (`> …`) qui suit une ligne « Ouverture : », « Adieu … : », « Le retournement : » (l'ouverture de la Remontée) ou « Texte final : » ou « Devant l'obstacle : » (dit la première fois que l'obstacle du chapitre nous retient) devient ce texte ; pour en changer un, il suffit de l'écrire ici. Une phrase par ligne ; une phrase seule et longue se coupe à la virgule la plus proche de son milieu ; quatre lignes au plus. L'ouverture s'écrit la première fois qu'on entre dans le chapitre, ligne après ligne, sous son nom en petites capitales, puis s'efface ; en y revenant, seul le nom passe. Elle attend qu'aucun panneau (Nouveautés, Atelier) ne couvre la mer. L'adieu est prêt (`monde.narrator.tell(i, 'farewell')`) mais rien ne le déclenche encore : il viendra avec les générations.
+- **Dans le jeu** (`src/monde/textes.ts`, affichage dans `narration.ts`) : les textes sont lus dans ce document même, au build. Sous le titre `## N. Nom` d'un chapitre, la citation (`> …`) qui suit une ligne « Ouverture : », « Adieu … : », « Le retournement : » (l'ouverture de la Remontée) ou « Texte final : » ou « Devant l'obstacle : » (dit la première fois que l'obstacle du chapitre nous retient) devient ce texte ; pour en changer un, il suffit de l'écrire ici. Une phrase par ligne ; une phrase seule et longue se coupe à la virgule la plus proche de son milieu ; quatre lignes au plus. L'ouverture s'écrit la première fois qu'on entre dans le chapitre, ligne après ligne, sous son nom en petites capitales, puis s'efface ; en y revenant, seul le nom passe. Elle attend qu'aucun panneau (Nouveautés, Atelier) ne couvre la mer. L'adieu se dit pendant la scène de l'adieu au parent ([mécaniques](mecaniques.md#ladieu)) ; tant qu'il est à l'écran, une ouverture attend qu'il s'efface et rien d'autre ne se dit.
 
 ## Vue d'ensemble
 
@@ -67,6 +67,10 @@ Devant l'obstacle :
 
 > Le courant de la passe nous renvoyait vers le récif. Il fallait des nageoires pour le remonter, ou battre comme les méduses.
 
+Adieu (proposition) :
+
+> Tu nous as appris à passer sans nous retourner. Pour toi, une seule fois, nous nous sommes retournés.
+
 ## 3. La Forêt (90–200 m)
 
 - **Décor** : kelp géant jusqu'à la surface, lumière verte filtrée, épaisseur, silence.
@@ -83,6 +87,10 @@ Devant l'obstacle :
 
 > Les algues se serraient en un mur. Il fallait des pinces pour l'ouvrir, ou un corps assez fin pour s'y glisser.
 
+Adieu (proposition) :
+
+> Tu resteras dans la lumière verte. Nous descendons. Comme la forêt, nous pousserons toujours un peu vers toi.
+
 ## 4. La Grotte (200–250 m) *— nouveau chapitre, tout est proposition*
 
 - **Décor** : sous la forêt, la falaise s'ouvre sur un réseau de galeries. Voûtes, piliers, stalactites de calcaire, rais de lumière qui tombent par des puits. Plus loin, le noir complet où brillent quelques animaux.
@@ -96,13 +104,13 @@ Ouverture :
 
 > Il y avait sous la forêt un chemin que la lumière ne prenait pas. Nous l'avons pris pour elle.
 
-Adieu (proposition, les autres adieux sont à écrire) :
-
-> Tu resteras à l'entrée, là où il fait encore un peu jour. Nous emportons le reste.
-
 Devant l'obstacle :
 
 > La galerie s'enfonçait dans un noir sans bord. Il fallait un corps fin pour s'y faufiler, ou une lueur pour voir le passage.
+
+Adieu (proposition) :
+
+> Tu resteras à l'entrée, là où il fait encore un peu jour. Nous emportons le reste.
 
 ## 5. La Carcasse (250 m)
 
@@ -117,6 +125,10 @@ Devant l'obstacle :
 Ouverture :
 
 > Même finie, elle nourrit. Nous avons compris ce jour-là que rien ne s'arrête vraiment.
+
+Adieu (proposition) :
+
+> Tu restes près des grands os, là où rien ne se perd. Ce que tu nous as donné, nous l'emportons.
 
 ## 6. Les Sources (280–340 m)
 
@@ -133,6 +145,10 @@ Ouverture :
 Devant l'obstacle :
 
 > L'eau brûlait et nous faisait reculer. Il fallait une carapace pour la supporter, ou des cils pour passer par la vase.
+
+Adieu (proposition) :
+
+> Tu restes près des feux du fond. Nous emportons un peu de ta chaleur, pour le froid qui vient.
 
 ## 7. Le Glacier (340–400 m) *— nouveau chapitre, tout est proposition*
 
@@ -151,6 +167,10 @@ Devant l'obstacle :
 
 > Le froid figeait tout ce qu'il touchait. Il fallait une carapace contre lui, ou des filaments pour s'y laisser porter.
 
+Adieu (proposition) :
+
+> Le froid descend encore, et nous avec lui. Toi, tu restes au bord de la glace. Nous n'aurons pas froid : tu viens un peu avec nous.
+
 ## 8. Le Jardin de méduses (400–500 m)
 
 - **Décor** : plus de fond visible, des milliers de méduses qui pulsent et s'éclairent, des siphonophores géants.
@@ -167,6 +187,10 @@ Devant l'obstacle :
 
 > Plus rien sous nous, rien où s'appuyer. Il fallait battre comme les méduses, ou des filaments pour se laisser porter.
 
+Adieu (proposition) :
+
+> Tu restes parmi les lumières qui ne touchent jamais le sol. Nous, nous nous laissons tomber, sans peur. C'est toi qui nous l'as appris.
+
 ## 9. La Fosse (500–650 m)
 
 - **Décor** : noir total, seulement ta propre lumière. Des silhouettes immenses passent. La neige marine tombe.
@@ -182,6 +206,10 @@ Ouverture :
 Devant l'obstacle :
 
 > Le noir, et rien pour lui répondre. Il nous faudrait une lumière à nous, ou un chant.
+
+Adieu (proposition) :
+
+> Tu as porté la lumière plus bas que personne. Laisse-la-nous. Nous reviendrons te la montrer.
 
 ## 10. La Remontée (du fond à la surface)
 
@@ -245,5 +273,5 @@ Chaque obstacle barre la descente tant que le corps qu'on joue n'a pas l'un des 
 
 ## À écrire
 
-- Les adieux des chapitres 2 à 9 (le plan v1 n'a que celui de la Nurserie ; celui de la Grotte est une proposition).
+- Les adieux des chapitres 2 à 9 sont des propositions (le plan v1 n'avait que celui de la Nurserie) : à relire et à valider.
 - Les textes de la Grotte et du Glacier, s'ils ne conviennent pas.
