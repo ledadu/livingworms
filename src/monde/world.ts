@@ -8,6 +8,7 @@ import { css, type HSL, type Mood } from './palette';
 import { plantSpec } from './plants';
 import { makeCanvas, type Plant, type Rock, type Sprite } from './sprites';
 import { BIOMES, X0, X1, biomeIndex, chapterIndex, floorAt, presence, span, type ChapterId } from './biomes';
+import { CARCASSE, bakeBone, underCarcasse } from './carcasse';
 
 type R01 = () => number;
 const pick = <T>(R: R01, l: T[]): T => l[Math.floor(R() * l.length)];
@@ -103,6 +104,7 @@ export function makeRocks(): RockX[] {
     let r = b.rocks.r[0] + R() * (b.rocks.r[1] - b.rocks.r[0]);
     if (R() < 0.15 + b.encrust * 0.2) r *= 1.9;
     if (z < 30) r = Math.min(r, 16); // nothing big between the eye and the swimmer
+    if (underCarcasse(x, z)) r = Math.min(r, 12);
     const seed = seedOf(Math.round(x), Math.round(z));
     out.push({ x, z, r, seed, sprite: null, spriteD: 0, encrust: b.encrust });
     if (b.encrust > 0.5 && R() < 0.5) out.push({ x: x + 30, z: z + 40, r: r * 0.7, seed: seed + 7, sprite: null, spriteD: 0, encrust: b.encrust });
@@ -153,7 +155,11 @@ export function makePlants(vents: Decor[]): Plant[] {
 
 // ----- set pieces ----- //
 
-export interface Decor { kind: 'vent' | 'whale' | 'wreck' | 'seep'; x: number; z: number; seed: number; h: number; sprite: Sprite | null; spriteD: number; }
+export interface Decor {
+  kind: 'vent' | 'whale' | 'wreck' | 'seep' | 'bone'; x: number; z: number; seed: number; h: number; sprite: Sprite | null; spriteD: number;
+  /** a bone of the Carcasse: which one, and its variant (carcasse.ts) */
+  part?: string; k?: number;
+}
 
 export function makeDecor(): Decor[] {
   const out: Decor[] = [];
@@ -163,7 +169,8 @@ export function makeDecor(): Decor[] {
   // black smokers: a field of chimneys at several depths, in the Sources
   const R = rng(2024);
   for (const [u, z] of [[0.18, 90], [0.28, 420], [0.4, 160], [0.52, 700], [0.64, 60], [0.74, 300], [0.84, 900]] as const) add('vent', at('sources', u), z, 180 + R() * 180);
-  add('whale', at('carcasse', 0.5), 150);
+  // the whale of the Carcasse, bone by bone (carcasse.ts)
+  out.push(...CARCASSE.pieces);
   // a wreck in the kelp
   add('wreck', at('foret', 0.62), 330);
   // seeps: streams of bubbles from the sand, warm in the shallows, brine under the Glacier
@@ -173,7 +180,7 @@ export function makeDecor(): Decor[] {
 }
 
 /** pull a baked image toward the water colour */
-function tint(ctx: CanvasRenderingContext2D, c: HTMLCanvasElement, fog: number, col: HSL): void {
+export function tint(ctx: CanvasRenderingContext2D, c: HTMLCanvasElement, fog: number, col: HSL): void {
   if (fog <= 0.01) return;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalCompositeOperation = 'source-atop';
@@ -349,6 +356,7 @@ export function bakeDecor(d: Decor, m: Mood, fog: number, fogCol: HSL, res: numb
   if (d.kind === 'vent') return bakeVent(d, m, fog, fogCol, res);
   if (d.kind === 'whale') return bakeWhale(d, m, fog, fogCol, res);
   if (d.kind === 'wreck') return bakeWreck(d, m, fog, fogCol, res);
+  if (d.kind === 'bone') return bakeBone(d, m, fog, fogCol, res);
   return null;
 }
 

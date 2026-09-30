@@ -25,7 +25,7 @@ Il manque, pour le plan :
 
 - les reliefs composés (arches, grottes, failles, surplombs, piliers) ;
 - le premier plan sombre et flou ;
-- les décors propres à la Grotte, la Carcasse, le Glacier et la Fosse (ils ont aujourd'hui un décor provisoire tiré de l'existant) ;
+- les décors propres au Glacier et à la Fosse (ils ont aujourd'hui un décor provisoire tiré de l'existant) ;
 - le puits de lumière de la Remontée.
 
 ### Le premier plan

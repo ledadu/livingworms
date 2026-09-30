@@ -31,6 +31,7 @@
 - **Conflits** : `biomes.ts` (la carte des 10 chapitres gardée entière ; `abyss`, `jellies`, `openFloor` rebranchés dessus ; `arrival` passe par `openFloor`), `main.ts` (imports combinés, visiteurs par chapitre de `backlog`, `arrival` dans `gotoBiome`, `jardin` et `front` dans l'API), `world.ts` et `bench.ts` (côté `backlog` : décors placés par chapitre, `arrival` ; mon décalage des Abysses n'a plus lieu d'être).
 - **Relu hors conflits** : les bancs de poissons (`Shoal`) prennent `openFloor` ; le premier plan sombre (`foreground.ts`) ne fait plus surgir de silhouettes dans un chapitre sans fond ; les tests de `foreground.test.ts` qui visaient les anciens biomes (`kelp`, `abysses`) visent `foret` et `fosse` ; celui de la jauge (`biomes.test.ts`) lit la profondeur de la vie sur `openFloor`.
 - Mesure après fusion (PC, 1280×800) : ≈ 520 méduses et 3 siphonophores dessinés, 1,5 ms pour le champ, 59 img/s.
+- **Seconde fusion (Grotte, Carcasse)** : `main.ts` (imports de `grotte`, `grotte-draw`, `carcasse` gardés ; `jardin.collect` posé avant les rayons atténués par la grotte et `pushCave` ; `jardin` et `carcasse` tous deux dans l'API), `foreground.test.ts` (ma vérification « aucun premier plan dans le Jardin » gardée à côté des nouveaux identifiants), `direction-artistique.md` (il ne reste que les décors du Glacier et de la Fosse : Grotte, Carcasse et Jardin sont faits). Rendu du Jardin inchangé : ≈ 370 méduses, 1,4 ms, 57 img/s.
 
 ## Choix retenus
 
