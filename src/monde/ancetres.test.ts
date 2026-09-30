@@ -3,7 +3,7 @@ import { firstAncestor } from '../content';
 import { homesOf, placeOf, type Chapter, type Sea } from './ancetres';
 import { CHAPTERS, SEA, ancestorsIn } from './ancetres-jeu';
 import { BIOMES, biomeIndex } from './biomes';
-import { birth, newPartie, parsePartie, reachChapter, type Ancestor } from './partie';
+import { birth, newPartie, parsePartie, reachChapter, renameAncestor, type Ancestor } from './partie';
 
 const MAP: Chapter[] = [
   { id: 'nurserie', x0: -800, span: [-600, 3400], meet: [-450, 2900] },
@@ -53,11 +53,17 @@ describe('les ancêtres restent dans le monde', () => {
   });
 
   it('saves the place at the birth, and reads it back', () => {
-    const p = birth({ ...newPartie('recif'), creature: larva }, fish, 'recif', { x: 1600, y: 620 });
+    const p = birth({ ...newPartie('recif'), creature: larva }, fish, 'recif', undefined, { x: 1600, y: 620 });
     expect(p.lineage).toEqual([{ creature: larva, chapter: 'recif', at: { x: 1600, y: 620 } }]);
     expect(parsePartie(JSON.stringify(p), ['nurserie', 'recif'])?.lineage).toEqual(p.lineage);
     // a birth without a place, as before
     expect(birth({ ...newPartie('recif'), creature: larva }, fish, 'recif').lineage).toEqual([{ creature: larva, chapter: 'recif' }]);
+  });
+
+  it('keeps the place beside the partner, and through a new name (the lineage tree)', () => {
+    const mate = { id: 'meduse', name: 'Méduse lune' }, at = { x: 1600, y: 620 };
+    const p = renameAncestor(birth({ ...newPartie('recif'), creature: larva }, fish, 'recif', mate, at), 0, 'Aube');
+    expect(p.lineage).toEqual([{ creature: { name: 'Aube' }, chapter: 'recif', partner: mate, at }]);
   });
 });
 

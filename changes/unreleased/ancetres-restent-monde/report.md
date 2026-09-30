@@ -11,7 +11,7 @@ Chaque parent quitté reste là où on l'a quitté, **d'une visite à l'autre** 
 - **Rencontre sans bousculade** (correction) : le parent resté venait jusque sur nous quand on s'arrêtait près de lui (`face` avançait toujours) ; il s'arrête maintenant à 90 px (`ROOM`, `adieu.ts`), toujours tourné vers nous.
 - **Revenir en arrière ne fait plus reculer la partie** (correction, validée par l'utilisateur) : la sauvegarde gardait le dernier chapitre montré, même en remontant. Après une visite à la Nurserie, un rechargement nous y remettait, les obstacles déjà franchis ne l'étaient plus, et un enfant sans le trait restait bloqué avant le Récif. `reachChapter` ne compte plus qu'un chapitre plus profond (`partie-jeu.ts` lui donne l'ordre des chapitres).
 
-Tests : `src/monde/ancetres.test.ts` (10 : la place retrouvée, la carte qui bouge, les bornes, les anciennes sauvegardes, les chapitres disparus, la sauvegarde aller-retour, le chapitre qui ne recule pas, et sur la carte du jeu : chaque chapitre rend son parent à sa place), `adieu.test.ts` (le parent s'arrête à distance).
+Tests : `src/monde/ancetres.test.ts` (11 : la place retrouvée, la carte qui bouge, les bornes, les anciennes sauvegardes, les chapitres disparus, la sauvegarde aller-retour, la place gardée à côté du partenaire et après un changement de nom, le chapitre qui ne recule pas, et sur la carte du jeu : chaque chapitre rend son parent à sa place), `adieu.test.ts` (le parent s'arrête à distance).
 
 **Pour le voir** : `?dev&nouvelle`, `monde.teleport(1300, 250)` puis `monde.farewell()` (la larve reste à la Nurserie) ; `monde.gotoBiome(1)` puis `monde.farewell()` (un parent au Récif) ; recharger la page (sans `?nouvelle`) : on reprend au Récif, le parent est là. Nager en arrière jusqu'à la Nurserie : la larve et ses sœurs y sont. Dans la console : `monde.ancestors()` (les acteurs `parent`), `monde.partie.lineage` (avec `at`).
 
@@ -56,8 +56,19 @@ Deux questions posées à l'utilisateur, toutes deux tranchées par lui ; un ret
 
 ## Risques de fusion
 
-- `src/monde/partie.ts` : le type `Place` et le champ `at?` d'`Ancestor` ; un 4e paramètre `at` à `birth` ; un paramètre `order` à `reachChapter`. **L'arbre de la lignée** (partenaire, nom) touchera probablement les mêmes lignes : garder les deux (par exemple `birth(p, child, chapter, at, partner)`).
-- `src/monde/partie-jeu.ts` : `born(sp, chapter, at)`, et `reach` qui passe l'ordre des chapitres.
-- `src/monde/main.ts` : deux imports, l'appel `partie.born(…, placeOf(x, y, BIOMES[bi].x0))` dans `farewell`, un bloc de 8 lignes juste après `farewell` (les ancêtres de la sauvegarde), et `ancestors` à la fin d'`api` (virgule ajoutée après `partners`).
+- `src/monde/partie.ts` : le type `Place` et le champ `at?` d'`Ancestor` ; un 5e paramètre `at` à `birth` (après le `partner` de l'arbre de la lignée) ; un paramètre `order` à `reachChapter`.
+- `src/monde/partie-jeu.ts` : `born(sp, chapter, partner, at)`, et `reach` qui passe l'ordre des chapitres.
+- `src/monde/main.ts` : deux imports, l'appel `partie.born(sp, chapitre, mate && mateFor(mate), placeOf(x, y, BIOMES[bi].x0))` dans `farewell`, un bloc de 8 lignes juste après `farewell` (les ancêtres de la sauvegarde), et `ancestors` à la fin d'`api` (virgule ajoutée après `partners`).
 - `src/monde/adieu.ts` : `face` prend une vitesse, `ROOM`, la ligne de `stayGoal` ; `adieu-jeu.ts` : la méthode `stay`.
-- `docs/mecaniques.md` : une ligne de « L'adieu », la section « Les ancêtres » (4 points), la ligne de la sauvegarde dans « Durée et sauvegarde ».
+- `docs/mecaniques.md` : une ligne de « L'adieu », la section « Les ancêtres » (4 points), deux lignes de « Durée et sauvegarde » (la sauvegarde, l'appel de `partie.born`).
+
+## Fusion avec backlog (l'arbre de la lignée)
+
+`backlog` a reçu l'arbre de la lignée, qui sauve le partenaire de chaque naissance (`Mate`, `partner`) et permet de renommer un ancêtre (`renameAncestor`, `partie.rename`). Conflits et règlement, en gardant les deux côtés :
+
+- `src/monde/partie.ts` : les deux types (`Mate`, `Place`) ; `Ancestor` avec `partner?` puis `at?` ; `birth(p, child, chapter, partner?, at?)`, qui range l'un et l'autre. La place vient en 5e pour que les appels de l'arbre (`birth(…, partner)`) et ses tests restent tels quels. `renameAncestor` recopie l'ancêtre (`...a`) : la place survit à un changement de nom (testé).
+- `src/monde/partie-jeu.ts` : l'import réunit les deux listes ; `born(sp, chapter, partner, at)`, `rename` de l'arbre gardé, et `reach` avec l'ordre des chapitres (le mien).
+- `src/monde/main.ts` : les imports de l'arbre (`mateFor`, `initArbre`) et les miens ; dans `farewell`, `partie.born(sp, chapitre, mate && mateFor(mate), placeOf(…))` ; le bloc des ancêtres de la sauvegarde gardé après `farewell`. Sans conflit mais relu : `farewell(child, mate)` a pris le partenaire, la portée le lui passe, `ancestors` et `arbre` sont tous deux dans `api`.
+- `docs/mecaniques.md` : la ligne de la sauvegarde dit les deux (le partenaire `{ id, name }` et l'endroit `at`, et le chapitre le plus avancé) ; l'appel devient `monde.partie.born(enfant, chapitre, partenaire, place)`.
+- Mon test (`ancetres.test.ts`) passe la place en 5e argument.
+- Vérifié en jeu après la fusion : deux adieux (Nurserie, Récif) sauvent chacun `partner` et `at` ; après rechargement, on reprend au Récif, les deux parents sont à leur place et les larves-sœurs autour de la première. Rien ne change à l'écran par rapport aux captures ci-dessus.

@@ -36,7 +36,7 @@ export interface Portee {
   close(): void;
 }
 
-export function createPortee(onChoose: (child: Spec, all: Child[]) => void): Portee {
+export function createPortee(onChoose: (child: Spec, all: Child[], partner: Spec) => void): Portee {
   const root = document.createElement('div');
   root.id = 'portee';
   root.hidden = true;
@@ -46,7 +46,7 @@ export function createPortee(onChoose: (child: Spec, all: Child[]) => void): Por
   for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'touchmove']) root.addEventListener(ev, (e) => e.stopPropagation());
   document.body.append(root);
 
-  let kids: Child[] = [], picked = -1;
+  let kids: Child[] = [], picked = -1, mate: Spec | null = null;
   let ok: HTMLButtonElement | null = null;
   const cards: HTMLButtonElement[] = [];
 
@@ -61,6 +61,7 @@ export function createPortee(onChoose: (child: Spec, all: Child[]) => void): Por
     get children() { return kids; },
     open(parent, partner, o = {}) {
       kids = brood(parent, partner, o);
+      mate = partner;
       picked = -1;
       root.innerHTML = '';
       cards.length = 0;
@@ -118,7 +119,7 @@ export function createPortee(onChoose: (child: Spec, all: Child[]) => void): Por
       const c = kids[i];
       if (!c || root.hidden) return;
       portee.close();
-      onChoose(c.spec, kids);
+      onChoose(c.spec, kids, mate!);
     },
     close() {
       root.classList.remove('show', 'hatched');

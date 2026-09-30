@@ -1,6 +1,6 @@
 // The saved game in the page: loaded when it opens, saved at each birth and each new chapter, and forgotten by the
 // « Recommencer » button of the settings panel (or ?nouvelle, for the tests).
-import { birth, clearPartie, loadPartie, openStore, reachChapter, replaceCreature, savePartie, type Partie, type Place, type SavedCreature } from './partie';
+import { birth, clearPartie, loadPartie, openStore, reachChapter, renameAncestor, replaceCreature, savePartie, type Mate, type Partie, type Place, type SavedCreature } from './partie';
 
 const plain = (sp: object): SavedCreature => JSON.parse(JSON.stringify(sp)) as SavedCreature;
 
@@ -34,8 +34,10 @@ export function initPartie(chapters: readonly string[]) {
     get saved() { return p; },
     /** the creature changed in the Atelier */
     becomes(sp: object) { keep(replaceCreature(p, plain(sp))); },
-    /** a child is born and played from now on, its parent left at a place of the chapter (the farewell) */
-    born(sp: object, chapter = p.chapter, at?: Place) { keep(birth(p, plain(sp), chapter, at)); },
+    /** a child is born and played from now on, the parent had it with this partner and is left at a place of the chapter (the farewell) */
+    born(sp: object, chapter = p.chapter, partner?: Mate, at?: Place) { keep(birth(p, plain(sp), chapter, partner, at)); },
+    /** the i-th ancestor gets a name (the lineage tree) */
+    rename(i: number, name: string) { keep(renameAncestor(p, i, name)); },
     reach(chapter: string) { if (reachChapter(p, chapter, chapters)) savePartie(store, p); }
   };
 }

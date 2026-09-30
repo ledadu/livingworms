@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LEGACY_PLAYER_KEY, PARTIE_KEY, type Partie, birth, clearPartie, loadPartie, newPartie, parsePartie, reachChapter, replaceCreature, savePartie } from './partie';
+import { LEGACY_PLAYER_KEY, PARTIE_KEY, type Partie, birth, clearPartie, loadPartie, newPartie, parsePartie, reachChapter, renameAncestor, replaceCreature, savePartie } from './partie';
 
 const CHAPTERS = ['nurserie', 'recif', 'foret'];
 const larva = { name: 'Larve' }, fish = { name: 'Poisson' }, crab = { name: 'Crabe' };
@@ -71,6 +71,22 @@ describe('births and chapters', () => {
     expect(p.creature).toEqual(crab);
     expect(p.chapter).toBe('foret');
     expect(p.lineage).toEqual([{ creature: larva, chapter: 'recif' }, { creature: fish, chapter: 'foret' }]);
+  });
+
+  it('keeps the partner of each birth, through a save', () => {
+    const store = fakeStore();
+    let p: Partie = { ...newPartie('nurserie'), creature: larva };
+    p = birth(p, fish, 'recif', { id: 'meduse', name: 'Méduse lune' });
+    savePartie(store, p);
+    expect(loadPartie(store, CHAPTERS).lineage).toEqual([{ creature: larva, chapter: 'recif', partner: { id: 'meduse', name: 'Méduse lune' } }]);
+  });
+
+  it('renames an ancestor without touching the saved game it came from', () => {
+    const p = birth(birth({ ...newPartie('nurserie'), creature: larva }, fish, 'recif'), crab, 'foret');
+    const q = renameAncestor(p, 1, 'Aube');
+    expect(q.lineage.map((a) => a.creature.name)).toEqual(['Larve', 'Aube']);
+    expect(p.lineage[1].creature.name).toBe('Poisson');
+    expect(renameAncestor(p, 5, 'Aube')).toBe(p);
   });
 
   it('does not count a creature changed in the Atelier as a birth', () => {
