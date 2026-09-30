@@ -2,6 +2,20 @@
 
 Le changelog de La Lignée, version après version. Généré depuis [`changes/`](changes/) par `make whats-new` : ne pas modifier à la main.
 
+## Version 0.3 (v0.3.0, 2026-09-30)
+
+### ✨ Nouveautés
+
+- **La mer se souvient de toi** : Ferme la page, reviens demain : tu repars du chapitre où tu t'étais arrêté, avec ta créature 🐚 — [rapport](changes/v0.3.0/sauvegarde-automatique/report.md)
+- **Les ancêtres prennent la parole** : À l'entrée de chaque chapitre, quelques lignes fines apparaissent lentement dans l'eau, dites par ceux qui sont passés avant toi 🌊 — [rapport](changes/v0.3.0/textes-narratifs/report.md)
+- **Les nouveautés, dans le jeu** : Un petit ✦ près de la roue ouvre tout ce qui a changé dans la mer, version après version, en images — [rapport](changes/v0.3.0/nouveautes-jeu/report.md)
+
+### 🔧 Améliorations
+
+- **D'un chapitre à l'autre, en douceur** : Les animaux d'un chapitre débordent sur le suivant, et le titre attend que la nouvelle lumière soit là — [rapport](changes/v0.3.0/transitions-entre/report.md)
+- **L'Atelier attend la fin du voyage** : Pendant l'histoire, c'est l'hérédité seule qui change ta créature ; l'Atelier reviendra dans la Balade libre 🐚 — [rapport](changes/v0.3.0/atelier-hors-histoire/report.md)
+- **Un monde qui a un commencement et une fin** : La descente commence à la surface de la Nurserie et s'arrête au fond de la Fosse ; plus de voyage magique d'un chapitre à l'autre — [rapport](changes/v0.3.0/monde-fini-debut/report.md)
+
 ## Version 0.2 (v0.2.0, 2026-09-30)
 
 ### ✨ Nouveautés
