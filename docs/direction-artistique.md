@@ -18,16 +18,15 @@ Le Grand Monde (`src/monde/`) a déjà :
 - un fond, des rochers, des plantes simulées de près et figées en images au loin, des décors (épave, cheminées) ;
 - des rayons, des caustiques, la surface vue de dessous, le plancton et la neige marine ;
 - des bancs de poissons qui s'écartent du nageur, et de grands visiteurs lointains (tortue, raie manta, requin-baleine, calmar, dragon abyssal) ;
-- 6 biomes : la Nurserie, la Forêt de kelp, le Récif, le Tombant, le Crépuscule, les Abysses ;
+- les 10 chapitres dans l'ordre de la trame, chacun avec sa palette (tableau ci-dessous) : voir [chapitres.md](chapitres.md#dans-le-monde) ;
 - un rendu WebGL2 avec niveaux de détail et budget par image, et le canvas en repli.
 
 Il manque, pour le plan :
 
-- les 10 chapitres dans le bon ordre ;
 - les reliefs composés (arches, grottes, failles, surplombs, piliers) ;
 - le premier plan sombre et flou ;
-- les décors propres à la Grotte, la Carcasse, le Glacier, le Jardin de méduses et la Fosse ;
-- les palettes du plan, chapitre par chapitre.
+- les décors propres à la Grotte, la Carcasse, le Glacier, le Jardin de méduses et la Fosse (ils ont aujourd'hui un décor provisoire tiré de l'existant) ;
+- le puits de lumière de la Remontée.
 
 ## Une palette par chapitre
 

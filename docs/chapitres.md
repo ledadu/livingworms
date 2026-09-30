@@ -161,6 +161,23 @@ Texte final :
 
 **Générique** : l'arbre complet de ta lignée, génération par génération.
 
+## Dans le monde
+
+La carte du Grand Monde (`src/monde/biomes.ts`) suit la trame : les 10 chapitres se succèdent le long de x, de x = −800 à x = 30 000, et le fond descend de l'un à l'autre. Chaque chapitre a son identifiant (`ChapterId`), son étendue (`span(id)`), sa palette, son relief, ses plantes, sa faune (les partenaires d'abord) et ses grands visiteurs. La jauge de profondeur lit la profondeur du chapitre sur son fond : en pleine eau, plus haut, elle affiche moins.
+
+| # | Chapitre | x | Fond | Décor aujourd'hui | Visiteurs |
+| --- | --- | --- | --- | --- | --- |
+| 1 | La Nurserie | −800 à 3 400 | 30–40 m | herbiers, sargasses sous la surface, rayons et caustiques | raie manta |
+| 2 | Le Récif | 3 400 à 7 000 | 40–90 m | coraux, gorgones, coraux mous, rochers encroûtés | tortue, au-dessus du récif |
+| 3 | La Forêt | 7 000 à 10 600 | 90–200 m | kelp géant, épave | requin-baleine, lent, au loin |
+| 4 | La Grotte | 10 600 à 13 600 | 200–250 m | *provisoire* : la falaise sous le kelp, un chaos de blocs ocre, éponges, lueurs | — |
+| 5 | La Carcasse | 13 600 à 15 800 | 250–280 m | *provisoire* : la baleine couchée sur une plaine de sédiment ivoire | — |
+| 6 | Les Sources | 15 800 à 19 000 | 280–340 m | fumeurs noirs, riftias, fumée et bulles | — |
+| 7 | Le Glacier | 19 000 à 22 000 | 340–400 m | *provisoire* : fond de glace pâle, blocs de glace bleue, éponges blanches, suintements froids, cristaux qui tombent | calmar géant |
+| 8 | Le Jardin de méduses | 22 000 à 25 200 | 400–500 m (pleine eau) | *provisoire* : le fond tombe hors de vue, méduses partout, la vie reste en pleine eau | siphonophore géant |
+| 9 | La Fosse | 25 200 à 28 400 | 500–650 m | *provisoire* : le noir, les lueurs, la neige marine | dragon abyssal, calmar |
+| 10 | La Remontée | 28 400 à 30 000 | 650 m et plus | le fond, d'où part la Remontée (le puits de lumière est à faire) | — |
+
 ## À écrire
 
 - Les adieux des chapitres 2 à 9 (le plan v1 n'a que celui de la Nurserie ; celui de la Grotte est une proposition).
