@@ -22,7 +22,7 @@ import { causticsGL, fishAtlas, fishGL, glowsGL, hcol, raysGL, rings, rowGL, scr
 import { bakeCreature, bakeRock, causticTile, env, fishSprites, fogOf, glowSprite, makeCanvas, type Plant, type Sprite } from './sprites';
 import { ChapterWatch, faunaX } from './transitions';
 import { holdBack, newLimits, pass, reach, travel, travelShown } from './limites';
-import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, floorAt, liftAt, metres, moodAt, openFloor } from './biomes';
+import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, chapterIndex, floorAt, liftAt, metres, moodAt, openFloor } from './biomes';
 import { Jardin } from './jardin';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
 import { compareSpecies, runBench } from './bench';
@@ -37,6 +37,7 @@ import { drawFront, frontColour, frontCount, frontPainter, makeFront } from './f
 import { CARCASSE, boneLight, carcasseDwellers, carcasseSchool } from './carcasse';
 import { initNouveautes } from './nouveautes';
 import { createNarrator } from './narration';
+import { initPartie } from './partie-jeu';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -130,8 +131,10 @@ function addActor(sp: Spec, x: number, y: number, kind: Actor['kind'], scale = 1
   return a;
 }
 
+// the saved game (partie-jeu.ts): its creature now, its chapter once the world is ready
+const partie = initPartie(BIOMES.map((b) => b.id));
 function savedPlayer(): Spec | null {
-  try { const j = localStorage.getItem('lignee.player'); return j ? makeSpec(JSON.parse(j)) : null; } catch { return null; }
+  try { return partie.creature ? makeSpec(partie.creature as Parameters<typeof makeSpec>[0]) : null; } catch { return null; }
 }
 const player = addActor(savedPlayer() || firstAncestor(), 420, 180, 'player', 0.8);
 
@@ -141,7 +144,7 @@ function becomes(sp: Spec): void {
   cr.yaw = cr.yawGoal = old.yaw;
   for (let i = 0; i < 60; i++) cr.steer(i * STEP, old.vx, old.vy, 0, 0.2);
   player.cr = cr;
-  try { localStorage.setItem('lignee.player', JSON.stringify(sp)); } catch { /* private mode */ }
+  partie.becomes(sp);
 }
 let paused = false;
 document.getElementById('atBtn')?.addEventListener('click', () => {
@@ -409,6 +412,7 @@ function update(): void {
   // entering a biome
   const bi = chapters.step(px);
   if (bi >= 0) showChapter(bi);
+  if (chapters.shown >= 0) partie.reach(BIOMES[chapters.shown].id);
 }
 
 // ----- drawing ----- //
@@ -1108,7 +1112,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
+  biomes: BIOMES, narrator, limits, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
@@ -1151,6 +1155,9 @@ document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).c
 const nouveautes = initNouveautes(() => !Atelier.isOpen && benchOut.hidden === true);
 narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen;
 
+// back where the game was left: the start of its chapter, the obstacles before it crossed (teleport)
+const resumeAt = chapterIndex(partie.chapter as (typeof BIOMES)[number]['id']);
+if (resumeAt > 0) { const { x, y } = arrival(resumeAt); teleport(x, y); }
 setTimeout(() => showChapter(chapters.jump(player.cr.root.x[0])), 400);
 requestAnimationFrame(frame);
 // ?lod=0: without the levels of detail (to compare)

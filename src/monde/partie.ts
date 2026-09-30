@@ -1,0 +1,97 @@
+// The game this browser remembers: the chapter reached, the creature played and, once there are births, the lineage
+// before it. Saved at each birth and at each new chapter, read back when the page opens: the swimmer comes back at the
+// start of that chapter. Chapters are kept by id, so the save outlives a change of the map.
+
+export const PARTIE_KEY = 'lignee.partie';
+/** the creature alone, as the game kept it before the saved game existed */
+export const LEGACY_PLAYER_KEY = 'lignee.player';
+
+/** a creature as stored: the JSON of its species definition */
+export type SavedCreature = Record<string, unknown>;
+
+export interface Ancestor {
+  creature: SavedCreature;
+  /** the chapter where it gave birth */
+  chapter: string;
+}
+
+export interface Partie {
+  v: 1;
+  chapter: string;
+  creature: SavedCreature | null;
+  /** the generations before the one played, the oldest first */
+  lineage: Ancestor[];
+  savedAt: number;
+}
+
+type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+
+export function newPartie(chapter: string): Partie {
+  return { v: 1, chapter, creature: null, lineage: [], savedAt: 0 };
+}
+
+const isObject = (o: unknown): o is SavedCreature => typeof o === 'object' && o !== null && !Array.isArray(o);
+
+/** a saved game read back, or null; an unknown chapter becomes the first one */
+export function parsePartie(json: string | null, chapters: readonly string[]): Partie | null {
+  if (!json || !chapters.length) return null;
+  let o: unknown;
+  try { o = JSON.parse(json); } catch { return null; }
+  if (!isObject(o) || o.v !== 1) return null;
+  const chapter = typeof o.chapter === 'string' && chapters.includes(o.chapter) ? o.chapter : chapters[0];
+  const lineage = Array.isArray(o.lineage)
+    ? o.lineage.filter((a): a is Ancestor => isObject(a) && isObject(a.creature) && typeof a.chapter === 'string')
+    : [];
+  return {
+    v: 1, chapter, lineage,
+    creature: isObject(o.creature) ? o.creature : null,
+    savedAt: typeof o.savedAt === 'number' ? o.savedAt : 0
+  };
+}
+
+/** the saved game, else the creature kept alone by an older version (at the first chapter), else a new game */
+export function loadPartie(store: Store | null, chapters: readonly string[]): Partie {
+  const fresh = newPartie(chapters[0]);
+  if (!store) return fresh;
+  try {
+    const saved = parsePartie(store.getItem(PARTIE_KEY), chapters);
+    if (saved) return saved;
+    const legacy = JSON.parse(store.getItem(LEGACY_PLAYER_KEY) || 'null') as unknown;
+    return isObject(legacy) ? { ...fresh, creature: legacy } : fresh;
+  } catch {
+    return fresh;
+  }
+}
+
+export function savePartie(store: Store | null, p: Partie, now = Date.now()): void {
+  p.savedAt = now;
+  try { store?.setItem(PARTIE_KEY, JSON.stringify(p)); } catch { /* full or blocked: the game goes on unsaved */ }
+}
+
+/** forget the game (and the creature kept by older versions) */
+export function clearPartie(store: Store | null): void {
+  try { store?.removeItem(PARTIE_KEY); store?.removeItem(LEGACY_PLAYER_KEY); } catch { /* blocked */ }
+}
+
+/** a birth: the parent joins the lineage where it gave birth, and the child is played from now on */
+export function birth(p: Partie, child: SavedCreature, chapter: string): Partie {
+  const lineage = p.creature ? [...p.lineage, { creature: p.creature, chapter }] : p.lineage;
+  return { ...p, chapter, creature: child, lineage };
+}
+
+/** the creature changes without a birth (the Atelier): the lineage stays as it is */
+export function replaceCreature(p: Partie, creature: SavedCreature): Partie {
+  return { ...p, creature };
+}
+
+/** a new chapter reached; true when it changed */
+export function reachChapter(p: Partie, chapter: string): boolean {
+  if (p.chapter === chapter) return false;
+  p.chapter = chapter;
+  return true;
+}
+
+/** localStorage, or null when the browser blocks it */
+export function openStore(): Store | null {
+  try { localStorage.getItem(PARTIE_KEY); return localStorage; } catch { return null; }
+}
