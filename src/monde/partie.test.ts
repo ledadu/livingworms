@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LEGACY_PLAYER_KEY, PARTIE_KEY, type Partie, birth, clearPartie, loadPartie, newPartie, parsePartie, reachChapter, renameAncestor, replaceCreature, savePartie } from './partie';
+import { LEGACY_PLAYER_KEY, PARTIE_KEY, type Partie, birth, clearPartie, learnNote, loadPartie, newPartie, parsePartie, reachChapter, renameAncestor, replaceCreature, savePartie } from './partie';
 
 const CHAPTERS = ['nurserie', 'recif', 'foret'];
 const larva = { name: 'Larve' }, fish = { name: 'Poisson' }, crab = { name: 'Crabe' };
@@ -100,5 +100,18 @@ describe('births and chapters', () => {
     expect(reachChapter(p, 'nurserie')).toBe(false);
     expect(reachChapter(p, 'recif')).toBe(true);
     expect(p.chapter).toBe('recif');
+  });
+
+  it('keeps the notes of the song, each with the generation that learned it', () => {
+    let p = learnNote({ ...newPartie('nurserie'), creature: larva }, 'nurserie');
+    p = birth(p, fish, 'recif');
+    p = learnNote(learnNote(p, 'recif'), 'nurserie');
+    expect(p.notes).toEqual([{ chapter: 'nurserie', gen: 1 }, { chapter: 'recif', gen: 2 }]);
+    const store = fakeStore();
+    savePartie(store, p);
+    expect(loadPartie(store, CHAPTERS).notes).toEqual(p.notes);
+    // a game saved before the song has none, and a bad entry is dropped
+    expect(loadPartie(fakeStore({ [PARTIE_KEY]: JSON.stringify({ v: 1, chapter: 'recif' }) }), CHAPTERS).notes).toBeUndefined();
+    expect(parsePartie(JSON.stringify({ v: 1, chapter: 'recif', notes: [{ chapter: 'recif' }, 3, { gen: 1 }] }), CHAPTERS)?.notes).toEqual([{ chapter: 'recif' }]);
   });
 });

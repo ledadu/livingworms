@@ -90,5 +90,7 @@ Tout est généré dans le code, sans fichier audio (Web Audio API, voir [decisi
 
 - **Une ambiance musicale par chapitre** : nappes et harmoniques qui changent avec la profondeur.
 - **Le chant** : chaque note a son timbre ; joué en entier, il forme une mélodie.
+  - Dans le jeu (`src/monde/chant-son.ts`) : des oscillateurs et leurs harmoniques, sur une réverbération faite dans le code. L'éclat est une cloche claire, le battement bat comme des nageoires, le frôlement souffle, l'écho revient des parois, le souvenir est chaud et doublé, la braise grésille, le givre scintille comme du verre, la pulsation enfle et ondule, le silence est un souffle grave. Les notes descendent avec les chapitres (la gamme pentatonique de ré), et les animaux qui répondent reprennent la note une octave plus haut.
+  - Le navigateur ne laisse sonner une page qu'après un premier toucher ou une touche : avant, les notes sont muettes.
 - **Les bruits** : des bulles, le courant, des cris lointains de baleine.
 - Proposition pour les nouveaux chapitres : la Grotte résonne (réverbération longue, gouttes), le Glacier craque et tinte (glace qui se fend, cristaux).

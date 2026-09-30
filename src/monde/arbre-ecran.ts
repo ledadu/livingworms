@@ -7,6 +7,7 @@ import { snapshot3 } from '../engine3/snapshot3';
 import { SPECIES } from '../content/species';
 import { NAME_MAX, bornWords, cleanName, generationLabel, generations, type Generation } from './arbre';
 import type { Ancestor } from './partie';
+import { wordsOf } from './chant';
 import './arbre.css';
 
 export interface ArbreDeps {
@@ -14,6 +15,8 @@ export interface ArbreDeps {
   chapters: readonly { id: string; name: string }[];
   /** the creature played now */
   live(): Spec;
+  /** the names of the notes of the song this generation learned (chant.ts) */
+  notes?(rank: number): string[];
   /** the tree covers the sea: the game waits */
   onOpen?(): void;
   onClose?(): void;
@@ -170,6 +173,8 @@ export function initArbre(d: ArbreDeps): Arbre {
       born.className = 'ar-born';
       born.textContent = bornWords(chapterName(g.bornIn));
       text.append(label, nameButton(g), born);
+      const notes = d.notes?.(g.rank);
+      if (notes?.length) text.append(Object.assign(document.createElement('span'), { className: 'ar-notes', textContent: `a appris ${wordsOf(notes)}` }));
       if (g.current) {
         const now = document.createElement('small');
         now.className = 'ar-today';
