@@ -5,9 +5,9 @@ import { glacierDecor, glacierSpan, makeTongue } from './glacier';
 const span: [number, number] = [11400, 14600];
 
 describe('the Glacier', () => {
-  it('has no decor while the map has no glacier biome', () => {
-    if (glacierSpan()) return;
-    expect(glacierDecor()).toEqual([]);
+  it('lies in the Glacier chapter of the map', () => {
+    const [a, b] = glacierSpan();
+    for (const q of glacierDecor()) { expect(q.x).toBeGreaterThan(a - 200); expect(q.x).toBeLessThan(b + 200); }
   });
 
   it('dives: the tongue falls from high in the water, then runs on the floor down the slope', () => {

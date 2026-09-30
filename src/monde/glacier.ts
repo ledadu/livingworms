@@ -7,47 +7,16 @@
 import { TAU, clamp, lerp, noise1, rng, seedOf } from '../engine';
 import type { Gfx } from '../engine3/gfx';
 import type { Proj, View } from '../engine3/view';
-import { BIOMES, X1, floorAt, presence, type Biome } from './biomes';
+import { chapterIndex, floorAt, presence, span } from './biomes';
 import { css, type HSL, type Mood } from './palette';
 import { fogOf, makeCanvas, type Sprite } from './sprites';
 import type { Decor } from './world';
 
-/** the biome of the map that gets this decor */
-export const GLACIER_ID = 'glacier';
-
-/** the light and the life proposed for the Glacier's entry of the map: glacier blue and pearly white, cold and diffuse */
-export const GLACIER_MOOD: Partial<Biome> = {
-  top: { h: 194, s: 55, l: 42 }, deep: { h: 214, s: 62, l: 9 }, sky: { h: 188, s: 45, l: 90 },
-  sand: { h: 200, s: 16, l: 64 }, rock: { h: 208, s: 24, l: 38 },
-  accents: [{ h: 190, s: 55, l: 80 }, { h: 200, s: 25, l: 92 }, { h: 222, s: 35, l: 66 }],
-  blades: [{ h: 192, s: 28, l: 72 }, { h: 210, s: 18, l: 82 }],
-  rays: 0.25, caustics: 0, plankton: { h: 188, s: 60, l: 94 },
-  dark: 0.35, snow: 0.2, encrust: 0,
-  rocks: { every: 260, r: [14, 34] },
-  flora: { every: 90, kinds: [['eponge', 1], ['crinoide', 1]], front: [['eponge', 0.5]] },
-  fauna: [['clione', 'swim', 3, 0.8], ['krill', 'swim', 3, 0.8], ['chrysaora', 'swim', 1.5, 0.8]],
-  pop: 22
-};
-
-/** ?glacier=<biome id> shows the Glacier in another biome (a preview while the map has none) */
-const PREVIEW = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('glacier') : null;
-if (PREVIEW && !BIOMES.some((b) => b.id === GLACIER_ID)) {
-  const b = BIOMES.find((q) => q.id === PREVIEW);
-  if (b) Object.assign(b, GLACIER_MOOD, { id: GLACIER_ID });
-}
-
-/** where the Glacier lies along x, or null when the map has none */
-export function glacierSpan(): [number, number] | null {
-  const i = BIOMES.findIndex((b) => b.id === GLACIER_ID);
-  if (i < 0) return null;
-  return [BIOMES[i].x0, i + 1 < BIOMES.length ? BIOMES[i + 1].x0 : X1];
-}
+/** where the Glacier lies along x */
+export const glacierSpan = (): [number, number] => span('glacier');
 
 /** how much of the Glacier is at x (0..1) */
-export function glacierAt(x: number): number {
-  const i = BIOMES.findIndex((b) => b.id === GLACIER_ID);
-  return i < 0 ? 0 : presence(x, i);
-}
+export const glacierAt = (x: number): number => presence(x, chapterIndex('glacier'));
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
@@ -80,16 +49,15 @@ function along(tg: Tongue, u: number, out: { x: number; y: number; z: number }):
 // ----- set pieces: walls of ice and frost needles ----- //
 
 /** the walls and the needles of the Glacier, as decor of the world */
-export function glacierDecor(span: [number, number] | null = glacierSpan()): Decor[] {
-  if (!span) return [];
-  const [a, b] = span, R = rng(4471), out: Decor[] = [];
+export function glacierDecor(sp: [number, number] = glacierSpan()): Decor[] {
+  const [a, b] = sp, R = rng(4471), out: Decor[] = [];
   const add = (kind: Decor['kind'], x: number, z: number, h: number) =>
     out.push({ kind, x, z, seed: seedOf(Math.round(x), Math.round(z)), h, sprite: null, spriteD: 0 });
   // cliffs of blue ice at the back, a lower row in the middle distance
   for (let x = a - 150; x < b + 150; x += 220 + R() * 220) add('ice', x, 520 + R() * 1000, 300 + R() * 460);
   for (let x = a + 200; x < b - 200; x += 500 + R() * 500) add('ice', x, 220 + R() * 200, 130 + R() * 140);
   // frost grows on both banks of the stream, thicker where it lands
-  const tg = makeTongue(span), p = { x: 0, y: 0, z: 0 };
+  const tg = makeTongue(sp), p = { x: 0, y: 0, z: 0 };
   for (let u = 0.26; u < 0.97; u += 0.03 + R() * 0.03) {
     along(tg, u, p);
     const big = u < 0.45 ? 1.4 : 1;
@@ -286,16 +254,13 @@ const SEGS = 8, FLOW = 70;
 /** wisps of the stream: u0, offset across, offset in z, size; every third is a wide haze, every fifth a bright thread */
 const wisps = (() => { const R = rng(3301), out: number[][] = []; for (let i = 0; i < 420; i++) out.push([R(), R() * 2 - 1, (R() - 0.5) * 70, R()]); return out; })();
 
-let tongue: Tongue | null | undefined;
-function theTongue(): Tongue | null {
-  if (tongue === undefined) { const sp = glacierSpan(); tongue = sp ? makeTongue(sp) : null; }
-  return tongue;
-}
+let tongue: Tongue | null = null;
+const theTongue = (): Tongue => (tongue ??= makeTongue(glacierSpan()));
 
 /** the stream as depth-sorted pieces, near the camera: push(depth, draw) */
 export function glacierItems(s: GlacierScene, camX: number, push: (d: number, fn: () => void) => void): void {
   const tg = theTongue();
-  if (!tg || camX < tg.x[0] - 2400 || camX > tg.x[tg.n - 1] + 2400) return;
+  if (camX < tg.x[0] - 2400 || camX > tg.x[tg.n - 1] + 2400) return;
   for (let k = 0; k < SEGS; k++) {
     along(tg, (k + 0.5) / SEGS, A);
     if (Math.abs(A.x - camX) > 2600) continue;

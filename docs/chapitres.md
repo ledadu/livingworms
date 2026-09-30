@@ -111,7 +111,7 @@ Ouverture :
 ## 7. Le Glacier (340–400 m) *— nouveau chapitre, tout est proposition*
 
 - **Décor** : juste après la chaleur des Sources, une langue d'eau glacée et salée descend d'une banquise lointaine et plonge vers le fond. Parois de glace bleue, aiguilles de givre qui poussent autour du courant froid, cristaux en suspension, lumière froide et diffuse.
-  - Fait (`src/monde/glacier.ts`) : le courant froid, un ruban laiteux qui tombe d'en haut puis coule sur le fond en suivant la pente ; des falaises et des blocs de glace bleue en arrière-plan (crête éclairée, cannelures, fissures, stalactites sous les corniches) ; des touffes d'aiguilles de givre sur les deux rives du courant ; des cristaux qui scintillent autour de soi. Le décor se place dans le biome `glacier` de la carte ; `?glacier=<biome>` le montre dans un autre en attendant, avec la lumière proposée (`GLACIER_MOOD`).
+  - Fait (`src/monde/glacier.ts`) : le courant froid, un ruban laiteux qui tombe d'en haut puis coule sur le fond en suivant la pente ; des falaises et des blocs de glace bleue en arrière-plan (crête éclairée, cannelures, fissures, stalactites sous les corniches) ; des touffes d'aiguilles de givre sur les deux rives du courant ; des cristaux qui scintillent autour de soi. Il se place dans l'étendue du chapitre `glacier` de la carte, par-dessus son décor provisoire (blocs, éponges pâles, suintements).
 - **Obstacle** : l'eau glacée fige ce qu'elle touche et ralentit tout. Il faut une carapace, qui protège du froid, ou des filaments pour se laisser emporter par le courant froid qui plonge.
 - **Partenaires** : ange de mer, krill, et une méduse des eaux froides (`clione`, `krill`, `chrysaora`). L'ange de mer et le krill vivent vraiment dans les eaux polaires.
 - **Moment fort** : une aiguille de glace descend lentement le long du courant et fige tout sur son passage ; on la regarde tomber, puis on plonge dans le chemin qu'elle a ouvert.
@@ -161,6 +161,23 @@ Texte final :
 > Nous sommes remontés. Pas un seul d'entre nous n'avait fait tout le chemin. Et pourtant, nous l'avions fait ensemble.
 
 **Générique** : l'arbre complet de ta lignée, génération par génération.
+
+## Dans le monde
+
+La carte du Grand Monde (`src/monde/biomes.ts`) suit la trame : les 10 chapitres se succèdent le long de x, de x = −800 à x = 30 000, et le fond descend de l'un à l'autre. Chaque chapitre a son identifiant (`ChapterId`), son étendue (`span(id)`), sa palette, son relief, ses plantes, sa faune (les partenaires d'abord) et ses grands visiteurs. La jauge de profondeur lit la profondeur du chapitre sur son fond : en pleine eau, plus haut, elle affiche moins.
+
+| # | Chapitre | x | Fond | Décor aujourd'hui | Visiteurs |
+| --- | --- | --- | --- | --- | --- |
+| 1 | La Nurserie | −800 à 3 400 | 30–40 m | herbiers, sargasses sous la surface, rayons et caustiques | raie manta |
+| 2 | Le Récif | 3 400 à 7 000 | 40–90 m | coraux, gorgones, coraux mous, rochers encroûtés | tortue, au-dessus du récif |
+| 3 | La Forêt | 7 000 à 10 600 | 90–200 m | kelp géant, épave | requin-baleine, lent, au loin |
+| 4 | La Grotte | 10 600 à 13 600 | 200–250 m | *provisoire* : la falaise sous le kelp, un chaos de blocs ocre, éponges, lueurs | — |
+| 5 | La Carcasse | 13 600 à 15 800 | 250–280 m | *provisoire* : la baleine couchée sur une plaine de sédiment ivoire | — |
+| 6 | Les Sources | 15 800 à 19 000 | 280–340 m | fumeurs noirs, riftias, fumée et bulles | — |
+| 7 | Le Glacier | 19 000 à 22 000 | 340–400 m | *provisoire* : fond de glace pâle, blocs de glace bleue, éponges blanches, suintements froids, cristaux qui tombent | calmar géant |
+| 8 | Le Jardin de méduses | 22 000 à 25 200 | 400–500 m (pleine eau) | *provisoire* : le fond tombe hors de vue, méduses partout, la vie reste en pleine eau | siphonophore géant |
+| 9 | La Fosse | 25 200 à 28 400 | 500–650 m | *provisoire* : le noir, les lueurs, la neige marine | dragon abyssal, calmar |
+| 10 | La Remontée | 28 400 à 30 000 | 650 m et plus | le fond, d'où part la Remontée (le puits de lumière est à faire) | — |
 
 ## À écrire
 

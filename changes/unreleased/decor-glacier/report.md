@@ -19,18 +19,10 @@
     - Elles scintillent chacune à son rythme, dérivent avec le courant et coulent lentement.
     - Elles sont dessinées par-dessus la pénombre, comme le plancton, avec une intensité égale à la présence du Glacier à l'endroit de la caméra.
 - **Le rendu** : WebGL2 et canvas 2D (`?gl=0`) donnent la même image. Le temps de rendu mesuré est inchangé (~5 ms dans les deux cas, sur une machine chargée par les autres agents).
-- **Le placement** : le décor se place dans l'étendue du biome dont l'id est **`glacier`** (`GLACIER_ID`). La carte actuelle n'en a pas : sans lui, rien ne change en jeu.
-  - Aperçu : `?glacier=<id>` habille un biome existant avec la lumière proposée. Par exemple `http://localhost:<port>/?glacier=tombant`, puis `monde.teleport(12250, 1250)` pour la chute, ou `monde.teleport(13100, 1700)` pour le fond.
-- **La lumière proposée pour l'entrée de la carte** : `GLACIER_MOOD`, bleu glacier et blanc nacré.
-  - Eau 194/55/42 vers 214/62/9, sable givré, roche bleu-gris.
-  - Pénombre 0,35, rayons 0,25, sans caustiques.
-  - Faune : `clione`, `krill`, `chrysaora`.
+- **Le placement** : le décor se place dans l'étendue du chapitre `glacier` de la carte (`span('glacier')`, x 19000 à 22000). Il s'ajoute au décor provisoire du chapitre, venu du chantier des 10 chapitres, et garde sa lumière.
+  - Pour le voir : `monde.gotoBiome(6)`, ou `monde.teleport(19750, 1450)` pour la chute et `monde.teleport(20600, 1700)` pour le fond.
 - **Tests** : `src/monde/glacier.test.ts` vérifie que la langue tombe puis longe le fond sans le traverser, et que le placement des parois et du givre est déterministe et reste hors du premier plan.
 - **Doc** : une ligne « Fait » sous le décor du Glacier dans `docs/chapitres.md`.
-
-Avant (le Tombant, sans le Glacier) :
-
-![avant](img/avant.jpg)
 
 La langue froide plonge le long de la pente, entre les parois de glace :
 
@@ -46,11 +38,11 @@ Aucune question n'a été posée à l'utilisateur : tout a été tranché seul (
 
 | Question | Choix retenu | Pourquoi |
 | --- | --- | --- |
-| Où brancher le décor, alors que la carte n'a pas encore de Glacier ? | Sur le biome d'id `glacier`, avec l'aperçu `?glacier=<id>` | Aucun conflit avec le chantier 10-chapitres-monde, qui refait `biomes.ts`. Le décor apparaît de lui-même quand la carte a son Glacier. |
+| Où brancher le décor ? | Sur le chapitre `glacier` de la carte (`span`, `chapterIndex`) | Aucun conflit avec le chantier 10-chapitres-monde, qui a refait `biomes.ts` ; depuis la fusion, le décor apparaît dans le vrai Glacier. |
 | Parois et aiguilles : quelle technique ? | Nouveaux genres de `Decor` (`ice`, `frost`), cuits en image par `bakeDecor` | Même chemin que l'épave et les fumeurs : tri, brouillard, recuisson selon la distance, quasi gratuit à chaque image, trois lignes dans `world.ts`. |
 | Langue d'eau froide : quelle technique ? | Des volutes analytiques (position = f(t), sans état) le long d'un chemin, 8 tronçons triés | Mouvement continu sans simulation, rendu identique en canvas et en WebGL, coût borné (420 images par image). |
 | Cristaux | Des étoiles additives autour de la caméra, par-dessus la pénombre | Ils brillent même dans le sombre, et le code reprend le modèle du plancton. |
-| La lumière du Glacier | Proposée dans `GLACIER_MOOD`, appliquée seulement en aperçu | L'entrée de la carte appartient au chantier des 10 chapitres ; il peut la reprendre telle quelle. |
+| La lumière du Glacier | Celle de l'entrée de la carte (chantier des 10 chapitres) | Elle est déjà bleu glacier et blanc nacré ; ma proposition `GLACIER_MOOD` et l'aperçu `?glacier=` ont été retirés à la fusion. |
 | Forme de la langue | Chute raide sur le premier tiers, puis écoulement sur le fond | C'est ce que fait une eau froide et salée, plus dense (« qui plonge »). Cela rappelle aussi les « doigts de glace » (brinicles). |
 
 ## Options non retenues
@@ -69,16 +61,15 @@ Aucune question n'a été posée à l'utilisateur : tout a été tranché seul (
 - **Cristaux**
   - Réutiliser le plancton du biome (couleur et nombre) : gratuit, mais sans scintillement ni forme de cristal.
   - Cristaux fixes dans le monde : plus réalistes à la parallaxe, mais invisibles quand on bouge vite.
-- **Lumière** : ne rien proposer et laisser le chantier des 10 chapitres choisir, au risque d'un Glacier teinté comme un autre biome.
+- **Lumière** : garder `GLACIER_MOOD` (sable plus sombre, sans caustiques) à la place de celle de la carte ; retiré, pour n'avoir qu'une source.
 
 ## Reste à faire / limites
 
-- **Le biome `glacier` dans la carte** (chantier 10-chapitres-monde). Il faut reprendre `GLACIER_MOOD` et placer le Glacier sur une pente, pour que la langue « plonge » vraiment ; elle suit `floorAt` quelle que soit la pente.
+- Le fond du Glacier est presque plat dans la nouvelle carte : la langue plonge d'environ 900 px sur son premier tiers, puis suit `floorAt`. Une pente plus marquée rendrait la plongée plus lisible.
 - **Le moment fort** : l'aiguille de glace qui descend le courant et fige tout, puis le chemin qu'elle ouvre. Ce n'est pas fait ; il dépend de la mécanique de l'obstacle (l'eau qui fige et ralentit).
 - **L'obstacle** : le courant ne ralentit ni ne fige encore rien ; il est purement visuel.
 - **Le son** (craquements, tintements) : chantier « son ».
 - Les stalactites des corniches se ressemblent d'une paroi à l'autre ; des variantes (surplombs, arches de glace) iraient avec les reliefs composés.
-- Sans biome `glacier`, les captures ont été faites en aperçu dans le Tombant : le nom affiché y reste « Le Tombant ».
 
 ## Risques de fusion
 
@@ -93,4 +84,11 @@ Aucune question n'a été posée à l'utilisateur : tout a été tranché seul (
   - `makeDecor` ajoute `glacierDecor()`.
   - `bakeDecor` renvoie `bakeIce(…)` au lieu de `null`.
 - `docs/chapitres.md` : une ligne ajoutée sous le décor du Glacier.
-- Aucun changement dans `biomes.ts`. `glacier.ts` lit `BIOMES`, `X1`, `presence` et `floorAt` : si le chantier 10-chapitres les renomme, il faudra adapter les imports.
+- Aucun changement dans `biomes.ts` : `glacier.ts` lit `span`, `chapterIndex`, `presence` et `floorAt`.
+
+## Fusion avec `backlog` (10 chapitres, premier plan sombre)
+
+- `main.ts` : conflit sur les imports, les deux gardés (`glacier` et `foreground`).
+- `world.ts` : conflit sur l'import de `biomes` et sur `makeDecor`. J'ai gardé les imports des deux côtés et les décors placés par chapitre (`at(id, u)`), et ajouté `glacierDecor()` à la suite.
+- `glacier.ts` : branché sur `span('glacier')`. `GLACIER_MOOD` et l'aperçu `?glacier=` sont retirés, car la carte a maintenant son Glacier.
+- `foreground.test.ts` (venu de `backlog`) : deux tests visaient les anciens biomes `kelp` et `abysses`. Ils visent maintenant `foret` et `fosse`, sans rien changer à ce qu'ils vérifient.
