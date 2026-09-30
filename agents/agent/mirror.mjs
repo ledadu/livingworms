@@ -1,18 +1,19 @@
 // A snapshot of the dashboard for its mirror on claude.ai (mirror.html, a private Artifact page), readable from a
 // phone where the dashboard itself is out of reach. It asks the dashboard running on this machine (a local request:
 // no token) and writes one compact JSON document: the agents and what they do now, the questions waiting for the
-// user, the queue and the backlog, the releases. Claude then sends the file as it is to the page's database (the
-// ArtifactData tool, `set` with `file_path`, document mirror/state), so the snapshot never goes through a
-// conversation.
+// user, the queue and the backlog, the releases, and what the page needs to act (ids, proposed names, the efforts
+// and models; the page's actions come back through mirror-act.mjs, whose results the snapshot carries too). Claude
+// then sends the file as it is to the page's database (the ArtifactData tool, `set` with `file_path`, document
+// mirror/state), so the snapshot never goes through a conversation.
 //
 //   node agent/mirror.mjs [out.json] [--port 7800]   default out: <registry>/mirror.json; prints its path and size
 //
 // Nothing here writes to the dashboard. Prompts, logs, reports and paths stay out of the snapshot.
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { project } from '../config.mjs';
+import { EFFORTS, project } from '../config.mjs';
 
 const ACTIVE_MS = 5 * 60 * 1000;
 const cut = (text, max) => {
@@ -34,7 +35,7 @@ export function agentStatus(agent, now) {
 }
 
 /** The snapshot, from the answers of the dashboard's API (pure: tested with made-up answers). */
-export function buildSnapshot({ agents = {}, questions = {}, roadmap = {}, versions = {}, hub = {} }, now = Date.now()) {
+export function buildSnapshot({ agents = {}, questions = {}, roadmap = {}, versions = {}, hub = {}, actions = [] }, now = Date.now()) {
   const list = (agents.agents ?? []).map((agent) => {
     const events = agent.progress?.events ?? [];
     const last = events[events.length - 1];
@@ -67,11 +68,17 @@ export function buildSnapshot({ agents = {}, questions = {}, roadmap = {}, versi
   const count = (status) => items.filter((item) => item.status === status).length;
   const released = versions.released ?? [];
 
+  const sections = (roadmap.items ?? []).filter((item) => item.kind === 'section' && item.title !== project.paths.delivered).map((item) => cut(item.title, 120));
+
   return {
-    version: 1,
+    version: 2,
     project: project.name,
     word: project.release.word,
     takenAt: new Date(now).toISOString(),
+    // What the page's controls offer (mirror-act.mjs checks them again).
+    options: { efforts: EFFORTS, models: project.models ?? [], integration: project.branches.integration, main: project.branches.main },
+    // The last actions asked from the page, newest first: the page matches its requests by id.
+    actions: actions.slice(-8).reverse().map((one) => ({ id: one.id, label: cut(one.label, 120), ok: Boolean(one.ok), message: cut(one.message, 300), at: one.at ?? null })),
     summary: {
       working: list.filter((agent) => agent.status === 'working').length,
       agents: list.filter((agent) => agent.status !== 'archived').length,
@@ -99,6 +106,7 @@ export function buildSnapshot({ agents = {}, questions = {}, roadmap = {}, versi
     },
     queue: (roadmap.queue ?? []).map((entry) => ({
       name: entry.name,
+      id: entry.id ?? null,
       title: cut(entry.title, 160),
       status: entry.status,
       run: entry.run?.state ?? null,
@@ -108,8 +116,9 @@ export function buildSnapshot({ agents = {}, questions = {}, roadmap = {}, versi
     })),
     backlog: {
       counts: { todo: count('new'), active: count('active'), merged: count('archived'), done: count('done'), paused: count('paused') },
-      active: items.filter((item) => item.status === 'active' || item.status === 'archived').map((item) => ({ title: cut(item.title, 140), label: item.label, agent: item.agent ?? null })),
-      todo: items.filter((item) => item.status === 'new').slice(0, 60).map((item) => ({ title: cut(item.title, 140), section: item.section })),
+      active: items.filter((item) => item.status === 'active' || item.status === 'archived').map((item) => ({ id: item.id ?? null, title: cut(item.title, 140), label: item.label, agent: item.agent ?? null })),
+      todo: items.filter((item) => item.status === 'new').slice(0, 60).map((item) => ({ id: item.id ?? null, title: cut(item.title, 140), section: item.section, name: item.proposedName ?? null, effort: item.suggested?.effort ?? null })),
+      sections,
     },
     versions: {
       current: versions.current ?? null,
@@ -121,13 +130,25 @@ export function buildSnapshot({ agents = {}, questions = {}, roadmap = {}, versi
   };
 }
 
-async function main() {
-  const args = process.argv.slice(2);
-  const portAt = args.indexOf('--port');
-  const port = portAt >= 0 ? Number(args[portAt + 1]) : 7800;
+/** Where the agents' registry lives (.git/agents of the main checkout), from this folder or a worktree's. */
+export function registryDir() {
   const here = dirname(fileURLToPath(import.meta.url));
   const common = execFileSync('git', ['-C', here, 'rev-parse', '--git-common-dir'], { encoding: 'utf8' }).trim();
-  const out = resolve(args.find((arg, index) => !arg.startsWith('--') && args[index - 1] !== '--port') ?? join(resolve(here, common), 'agents', 'mirror.json'));
+  return join(resolve(here, common), 'agents');
+}
+
+/** The results of the page's last actions (mirror-act.mjs), oldest first. */
+export function readActions(file = join(registryDir(), 'mirror-actions.json')) {
+  try {
+    const list = JSON.parse(readFileSync(file, 'utf8'));
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Asks the dashboard running on `port` and writes the snapshot to `out`; throws when the dashboard does not answer. */
+export async function takeSnapshot({ port = 7800, out = join(registryDir(), 'mirror.json') } = {}) {
   const get = async (path) => {
     const response = await fetch(`http://127.0.0.1:${port}${path}`);
     if (!response.ok) throw new Error(`${path} : ${response.status}`);
@@ -136,14 +157,27 @@ async function main() {
   let answers;
   try {
     const [agents, questions, roadmap, versions, hub] = await Promise.all(['/api/agents', '/api/questions', '/api/roadmap', '/api/versions', '/api/hub?state=1'].map(get));
-    answers = { agents, questions, roadmap, versions, hub };
+    answers = { agents, questions, roadmap, versions, hub, actions: readActions() };
   } catch (error) {
-    console.error(`mirror: le tableau de bord ne répond pas sur ${port} (${error.message}) ; make agent-dashboard`);
-    process.exit(1);
+    throw new Error(`le tableau de bord ne répond pas sur ${port} (${error.message}) ; make agent-dashboard`);
   }
   const text = JSON.stringify(buildSnapshot(answers));
   writeFileSync(out, text);
-  console.log(`${out} ${Math.round(text.length / 1024)} Kio`);
+  return { out, size: text.length };
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  const portAt = args.indexOf('--port');
+  const port = portAt >= 0 ? Number(args[portAt + 1]) : 7800;
+  const target = args.find((arg, index) => !arg.startsWith('--') && args[index - 1] !== '--port');
+  try {
+    const { out, size } = await takeSnapshot({ port, ...(target ? { out: resolve(target) } : {}) });
+    console.log(`${out} ${Math.round(size / 1024)} Kio`);
+  } catch (error) {
+    console.error(`mirror: ${error.message}`);
+    process.exit(1);
+  }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

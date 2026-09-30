@@ -30,6 +30,10 @@ export interface Biome extends Mood {
   pale?: boolean;
   /** swimmers and schools live this much higher above the floor (open water, where the floor is out of sight) */
   lift?: number;
+  /** how far the floor falls away out of sight (px), for the open water with no bottom; the animals keep to openFloor */
+  abyss?: number;
+  /** far jellyfish drawn as images around the swimmer at full presence (jardin.ts) */
+  jellies?: number;
   /** relief of the floor: long hills, boulder bumps, sand ripples */
   ground: { hills: number; bumps: number; dunes: number };
   /** rocks: mean spacing along x, radius range */
@@ -186,14 +190,14 @@ export const BIOMES: Biome[] = [
     visitors: [['calmar', 1500, 1300, 3.5]]
   },
   {
-    // violet and pink (provisional set: the floor falls away out of sight, jellyfish everywhere, a giant siphonophore)
+    // violet and pink: no floor in sight, thousands of far jellies and giant siphonophores (jardin.ts)
     id: 'jardin', name: 'Le Jardin de méduses', sub: 'sans fond, des milliers de lueurs', x0: 22000, depth: [400, 500],
     top: { h: 272, s: 40, l: 20 }, deep: { h: 282, s: 50, l: 5 }, sky: { h: 300, s: 50, l: 60 },
     sand: { h: 270, s: 15, l: 20 }, rock: { h: 275, s: 12, l: 16 },
     accents: [{ h: 325, s: 70, l: 62 }, { h: 275, s: 60, l: 60 }, { h: 300, s: 50, l: 70 }],
     blades: [{ h: 300, s: 30, l: 40 }, { h: 320, s: 40, l: 50 }],
     rays: 0, caustics: 0, plankton: { h: 320, s: 60, l: 85 },
-    dark: 0.55, snow: 0.5, encrust: 0, pale: true, lift: 800,
+    dark: 0.3, snow: 0.5, encrust: 0, pale: true, lift: 800, abyss: 2800, jellies: 2400,
     ground: { hills: 150, bumps: 40, dunes: 0 },
     rocks: { every: 300, r: [16, 40] },
     flora: { every: 90, kinds: [['crinoide', 2], ['seapen', 1]], front: [['seapen', 0.4]] },
@@ -335,7 +339,7 @@ function baseDepth(x: number): number {
 }
 
 const HILLS = BIOMES.map((b) => b.ground.hills), BUMPS = BIOMES.map((b) => b.ground.bumps), DUNES = BIOMES.map((b) => b.ground.dunes);
-const LIFTS = BIOMES.map((b) => b.lift ?? 0);
+const LIFTS = BIOMES.map((b) => b.lift ?? 0), ABYSS = BIOMES.map((b) => b.abyss ?? 0);
 
 /** a per-biome value at x, blended across the borders so that nothing steps */
 export function blendOf(x: number, v: number[]): number {
@@ -347,6 +351,26 @@ export function blendOf(x: number, v: number[]): number {
 
 /** depth of the floor (y down) at x and at depth z */
 export function floorAt(x: number, z: number): number {
+  return openFloor(x, z) + abyssAt(x);
+}
+
+/** how far the floor has fallen away at x: blended over a longer stretch than the rest, so that it slopes rather than steps (a table every 50 px) */
+let abyssTable: Float32Array | null = null;
+function abyssAt(x: number): number {
+  if (!abyssTable) {
+    abyssTable = new Float32Array(Math.ceil((X1 - X0) / 50) + 2);
+    for (let k = 0; k < abyssTable.length; k++) {
+      let s = 0;
+      for (let j = -3; j <= 3; j++) s += blendOf(X0 + k * 50 + j * 400, ABYSS);
+      abyssTable[k] = s / 7;
+    }
+  }
+  const u = clamp((x - X0) / 50, 0, abyssTable.length - 1.001), k = Math.floor(u);
+  return abyssTable[k] + (abyssTable[k + 1] - abyssTable[k]) * (u - k);
+}
+
+/** the floor as if nothing fell away: where the animals of the open water keep their depth */
+export function openFloor(x: number, z: number): number {
   const hills = (noise1(x / 1300, 1789) - 0.5) * blendOf(x, HILLS) * 2;
   const mid = (noise1(x / 330, 1790) - 0.5) * blendOf(x, BUMPS) * 2;
   // sand ripples in the shallows
@@ -365,7 +389,7 @@ export function liftAt(x: number): number {
 /** where the swimmer arrives in a chapter (the travel of the settings panel, the bench): its middle, at mid water */
 export function arrival(i: number): { x: number; y: number } {
   const x = biomeMid(i);
-  return { x, y: Math.max(120, floorAt(x, 0) - 260 - liftAt(x)) };
+  return { x, y: Math.max(120, openFloor(x, 0) - 260 - liftAt(x)) };
 }
 
 /**

@@ -59,7 +59,22 @@ Le tableau de bord lance des agents, fusionne, publie et retire des worktrees : 
 Quand la machine n'est pas joignable (pas de Tailscale, par exemple), une page Artifact privée sur claude.ai montre le tableau de bord **tel qu'il était au dernier envoi**, depuis n'importe quel appareil connecté au compte : les agents et leur tâche du moment, les questions et retours en attente, la file, le backlog et les versions. Elle est en lecture seule et n'expose rien de la machine.
 
 - **La page** : [`mirror.html`](../agent/mirror.html), publiée une fois avec l'outil `Artifact` et les capacités `db` (règle sur `mirror` : lecture `view`, écriture `owner`) et `comments` (`{}`). Elle lit en direct le document `mirror/state` de sa base.
-- **Le bouton « ↻ Rafraîchir »** : il poste le commentaire « miroir : rafraîchis cet instantané… » et l'envoie à Claude (`sendToClaude`), toujours dans le même fil (son identifiant est gardé dans `mirror/refresh`). La session Claude Code qui suit la page le reçoit, refait l'instantané et l'envoie, puis répond dans le fil ; la page repasse « À jour » dès que l'instantané change. Le bouton ne s'active que si une session suit la page (`canSendToClaude`), et pour les éditeurs de la page ; sinon il dit pourquoi. La première fois, claude.ai demande l'autorisation de commenter au nom du lecteur.
+- **Agir depuis la page** : les boutons du tableau de bord y sont aussi.
+  - **Agents** : fusionner, arrêter, reprendre, rebaser, faire corriger les conflits, démarrer ou couper ses serveurs, donner un ordre, régler l'effort et le modèle, archiver.
+  - **Questions** : répondre, marquer lu, « Décider seul ».
+  - **File** : lancer, tout lancer, arrêter, annuler, retirer.
+  - **Backlog** : mettre en file les chantiers cochés, ajouter un chantier.
+  - **Versions** : affecter, publier, déplanifier.
+  - **Autres** : nettoyer les terminés, « ↻ Rafraîchir ».
+
+  Les actions lourdes (fusionner, publier, archiver, nettoyer, arrêter, annuler) demandent un second appui.
+- **Le chemin d'une action** :
+  1. La page n'atteint pas la machine : chaque bouton poste un commentaire envoyé à Claude (capacité `comments`, `sendToClaude`), toujours dans le même fil (son identifiant est gardé dans `mirror/refresh`). Le commentaire contient `miroir · <quoi>`, puis l'action en JSON : `{ id, action, label, args }`.
+  2. La session Claude Code qui suit la page enregistre le texte du commentaire dans un fichier, puis lance `make agent-mirror-act FILE=<fichier>` ([`mirror-act.mjs`](../agent/mirror-act.mjs), testé).
+  3. Le script vérifie l'action : seules les actions de sa liste `ACTIONS` passent, et chaque argument doit suivre son format. Un commentaire ne peut donc faire que ce que fait un bouton du tableau de bord.
+  4. Le script appelle la route du tableau de bord correspondante, garde le résultat (`.git/agents/mirror-actions.json`) et reprend un instantané.
+  5. Claude envoie cet instantané à la page. La page y retrouve sa demande par son `id` et affiche « ✓ … » ou « ✗ … ».
+- **Ce qu'il faut pour que ça marche** : une session doit suivre la page (`canSendToClaude`), et le lecteur doit être éditeur de la page. Sinon les boutons sont grisés, et la page dit pourquoi. La première fois, claude.ai demande l'autorisation de commenter au nom du lecteur.
 - **L'instantané** : `make agent-mirror` ([`mirror.mjs`](../agent/mirror.mjs), testé) interroge le tableau de bord local et écrit `.git/agents/mirror.json` (quelques Kio). Il laisse de côté les prompts, les journaux, les rapports et les chemins.
 - **L'envoi** : Claude envoie ce fichier tel quel à la page (`ArtifactData`, `set` avec `file_path`, `if_version` = la version du dernier envoi), sans le recopier dans la conversation.
 - **Le coût** : aucun en fond. Chaque envoi est un petit tour de la session qui le fait : une commande et une écriture. On le fait à la demande (« miroir ») et après les actions de l'orchestrateur (lancer, fusionner, publier). Une page de plus de 1 h le signale.

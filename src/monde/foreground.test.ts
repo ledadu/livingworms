@@ -40,6 +40,8 @@ describe('the dark foreground', () => {
       return inBiome(l, id).length / ((BIOMES[i + 1]?.x0 ?? X1) - BIOMES[i].x0 - 1400);
     };
     expect(per('fosse')).toBeLessThan(per('recif'));
+    // and none where the floor has fallen out of sight
+    expect(inBiome(l, 'jardin')).toEqual([]);
   });
 
   it('passes faster than the swimming plane', () => {

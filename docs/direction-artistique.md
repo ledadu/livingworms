@@ -24,7 +24,7 @@ Le Grand Monde (`src/monde/`) a déjà :
 Il manque, pour le plan :
 
 - le premier plan sombre et flou ;
-- les décors propres à la Carcasse, le Glacier, le Jardin de méduses et la Fosse (ils ont aujourd'hui un décor provisoire tiré de l'existant) ;
+- le décor propre à la Fosse (elle a aujourd'hui un décor provisoire tiré de l'existant) ;
 - le puits de lumière de la Remontée.
 
 ### Le premier plan
@@ -46,6 +46,17 @@ Les formes de terrain qu'une ligne de fond ne sait pas faire (`src/monde/relief.
 - **La vie dessus** : une plante dont le pied tombe dans un relief pousse sur son sommet, un rocher n'y est pas posé. Là où le chapitre est couvert de vie (`encrust`), des plaques de polypes couvrent le haut des reliefs : les arches du Récif.
 - **Par chapitre** (`PLANS`, par id de chapitre) : la Nurserie reste ouverte (quelques arches au loin) ; le Récif a ses arches à traverser ; la Forêt ses piliers, comme une cathédrale ; la Carcasse repose dans un creux de surplombs ; les Sources ont des colonnes de basalte au loin ; le Glacier des corniches de glace entre ses falaises ; la Fosse ses failles, qu'on ne voit que dans sa propre lumière. La Grotte a sa propre voûte (`grotte.ts`), le Jardin n'a pas de fond.
 - **Coût** : une fraction de milliseconde par image en WebGL, quelques millisecondes en canvas (le repli). Couche `relief` de `monde.skip` pour comparer.
+
+### Le Jardin de méduses
+
+Réalisé dans `src/monde/jardin.ts` (chapitre `jardin` de `biomes.ts`, entre le Glacier et la Fosse) :
+
+- **Sans fond** : le champ `abyss` d'un biome fait tomber le fond hors de vue (`floorAt`) ; les animaux de pleine eau gardent leur profondeur d'avant (`openFloor`, relevée de `lift`), comme l'arrivée (`arrival`).
+- **Des milliers de méduses lointaines**, bon marché : une image par méduse, tirée d'un petit atlas (trois teintes, quatre temps de pulsation, un point lumineux pour les plus petites), en neuf plans de profondeur entre lesquels passent les animaux simulés. Le champ se répète autour de la caméra : il n'a de bord ni en haut, ni en bas, ni sur les côtés. Sa densité suit le champ `jellies` des biomes et s'éclaircit aux frontières.
+- **Elles pulsent et montent** : chaque battement les soulève un peu, et le jardin entier monte lentement.
+- **Elles s'éclairent par vagues** : toutes les quelques secondes, une onde de lumière part d'un point et traverse le jardin.
+- **Des siphonophores géants** : de longues chaînes lumineuses au loin, avec leurs cloches nageuses en tête et une lumière qui court le long du corps.
+- **Les proches** sont les créatures simulées de la faune du biome (méduse lune, cténophore, siphonophore, chrysaora, cuboméduse, hydre, clione) et un siphonophore géant simulé qui passe au loin (visiteur du chapitre).
 
 ## Une palette par chapitre
 

@@ -72,11 +72,25 @@
   .empty { background: var(--panel); border: 1px dashed var(--line); border-radius: 12px; padding: 18px; color: var(--muted); }
   .empty b { color: var(--fg); }
   .hint { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
+  /* Acting from the page: every button sends one action to Claude, who runs it on the machine. */
   .refresh { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 8px; }
-  .refresh button { font: 600 13px var(--sans); color: var(--bg); background: var(--accent); border: 0; border-radius: 999px; padding: 6px 14px; min-height: 32px; cursor: pointer; }
-  .refresh button:disabled { color: var(--muted); background: var(--panel2); cursor: default; }
-  .refresh button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .refresh span { color: var(--muted); font-size: 13px; }
+  .btn { font: 600 13px var(--sans); color: var(--fg); background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; min-height: 32px; cursor: pointer; }
+  .btn.primary { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+  .btn.danger { color: var(--err); border-color: color-mix(in srgb, var(--err) 50%, var(--line)); }
+  .btn[data-armed="1"] { color: var(--bg); background: var(--warn); border-color: var(--warn); }
+  .btn:disabled { color: var(--muted); background: var(--panel2); border-color: var(--line); cursor: default; }
+  .btn:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .form { display: grid; gap: 6px; margin-top: 6px; }
+  select, input[type="text"], textarea { font: 14px var(--sans); color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; min-width: 0; }
+  textarea { min-height: 64px; resize: vertical; width: 100%; box-sizing: border-box; }
+  input[type="text"] { width: 100%; box-sizing: border-box; }
+  label.pick { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; overflow-wrap: anywhere; }
+  label.pick input { margin-top: 3px; flex: none; }
+  .activity { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 3px; font-size: 13px; }
+  .activity li { overflow-wrap: anywhere; }
+  .activity .ok { color: var(--ok); } .activity .ko { color: var(--err); } .activity .wait { color: var(--accent); }
   @media (prefers-reduced-motion: no-preference) { .pill.s-working::before { animation: pulse 1.6s ease-in-out infinite; } }
   @keyframes pulse { 50% { opacity: .35; } }
 </style>
@@ -85,7 +99,7 @@
   <header>
     <h1>Agents <span class="project" id="project"></span></h1>
     <div class="taken" id="taken">Chargement…</div>
-    <div class="refresh" id="refresh-row" hidden><button type="button" id="refresh">↻ Rafraîchir</button><span id="refresh-note" aria-live="polite"></span></div>
+    <div class="refresh" id="refresh-row" hidden><button type="button" class="btn primary" id="refresh" data-act="refresh" data-label="Rafraîchir">↻ Rafraîchir</button><span id="refresh-note" aria-live="polite"></span></div>
     <nav id="nav" hidden>
       <a href="#agents">Agents <b id="n-agents"></b></a>
       <a href="#questions">Questions <b id="n-questions"></b></a>
@@ -93,6 +107,7 @@
       <a href="#versions">Versions <b id="n-versions"></b></a>
     </nav>
   </header>
+  <ul class="activity" id="activity" aria-live="polite"></ul>
   <main id="main">
     <div class="empty" style="margin-top:18px"><b>Aucun instantané pour l'instant.</b><br>Cette page montre le tableau de bord des agents tel qu'il était au dernier envoi : les agents et leur tâche du moment, les questions en attente, la file, le backlog et les versions. Touche « ↻ Rafraîchir », ou écris « miroir » dans la conversation Claude Code, pour l'envoyer ici.</div>
   </main>
@@ -100,7 +115,10 @@
 
 <script>
 // The snapshot lives in the page's database (document mirror/state), written by Claude from the machine
-// (agent/mirror.mjs, then ArtifactData set); the page only reads it, live.
+// (agent/mirror.mjs, then ArtifactData set). The page acts through Claude: every button posts a comment sent to
+// Claude (the comments capability), « miroir · <what> » followed by the action as JSON; the Claude Code session
+// watching the page runs it on the machine (agent/mirror-act.mjs, which accepts only the dashboard's own actions)
+// and sends back a snapshot whose `actions` carry the result, matched here by the request's id.
 const $ = (id) => document.getElementById(id);
 const esc = (text) => String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -119,6 +137,19 @@ function ago(ms) {
   return `il y a ${Math.round(s / 86400)} j`;
 }
 const time = (value) => (value ? new Date(value).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
+
+// ----- the controls -----
+
+// can: whether this view may send to Claude (comments.canSendToClaude); every control is off otherwise.
+let can = 'off';
+const live = () => can === 'available';
+/** A button that sends `action` (args as data): `confirm` asks a second tap, `collect` reads a form first. */
+function btn(label, action, args = {}, { kind = '', confirm = false, collect = '', text = label } = {}) {
+  return `<button type="button" class="btn ${kind}" data-act="${esc(action)}" data-label="${esc(label)}" data-args="${esc(JSON.stringify(args))}"${confirm ? ' data-confirm="1"' : ''}${collect ? ` data-collect="${esc(collect)}"` : ''}${live() ? '' : ' disabled'}>${esc(text)}</button>`;
+}
+const select = (key, values, current, empty) =>
+  `<select data-key="${esc(key)}"${live() ? '' : ' disabled'}>${empty ? `<option value="">${esc(empty)}</option>` : ''}${values.map((value) => `<option${value === current ? ' selected' : ''}>${esc(value)}</option>`).join('')}</select>`;
+const opts = () => snap?.options ?? { efforts: ['low', 'medium', 'high', 'xhigh', 'max'], models: [], integration: 'backlog', main: 'main' };
 
 function header() {
   if (!snap) return;
@@ -142,6 +173,29 @@ function figures() {
   return `<div class="figures">${figs.map((f) => `<div class="fig${f.alert ? ' alert' : ''}"><b>${esc(f.value)}</b><span>${esc(f.text)}</span></div>`).join('')}</div>${integration}`;
 }
 
+function agentActions(agent) {
+  const n = agent.name, o = opts();
+  const run = agent.run?.state;
+  const main = [];
+  if (agent.status === 'archived') main.push(btn('Désarchiver', 'unarchive', { name: n }));
+  else {
+    if (agent.status === 'done') main.push(btn(`Fusionner ${n}`, 'accept', { name: n }, { kind: 'primary', confirm: true, text: 'Fusionner' }));
+    if (run === 'running') main.push(btn(`Arrêter ${n}`, 'stop', { name: n }, { kind: 'danger', confirm: true, text: 'Arrêter' }));
+    if (run === 'error' || run === 'stopped' || run === 'lost') main.push(btn(`Reprendre ${n}`, 'resume', { name: n }, { text: 'Reprendre' }));
+    if (agent.deliverables?.behind) {
+      main.push(btn(`Rebaser ${n} sur ${agent.deliverables.base ?? o.integration}`, 'rebase', { name: n, base: agent.deliverables.base ?? o.integration }, { text: 'Rebaser' }));
+      main.push(btn(`Faire corriger les conflits à ${n}`, 'fixConflicts', { name: n }, { text: 'Corriger les conflits' }));
+    }
+  }
+  const more = agent.status === 'archived' ? '' : `<details data-key="more:${esc(n)}"><summary>Plus d'actions</summary><div class="form">
+      <div class="actions">${btn(`Tester ${n}`, 'up', { name: n }, { text: 'Démarrer ses serveurs' })}${btn(`Couper les serveurs de ${n}`, 'down', { name: n }, { text: 'Couper ses serveurs' })}${btn(`Rebaser ${n} sur ${o.integration}`, 'rebase', { name: n, base: o.integration }, { text: `Rebaser sur ${o.integration}` })}${btn(`Archiver ${n}`, 'archive', { name: n }, { kind: 'danger', confirm: true, text: 'Archiver' })}</div>
+      <textarea data-key="order:${esc(n)}" maxlength="3000" placeholder="Un ordre pour ${esc(n)} (il le reçoit à sa prochaine étape)"${live() ? '' : ' disabled'}></textarea>
+      <div class="actions">${btn(`Ordre à ${n}`, 'order', { name: n }, { collect: 'order', text: 'Envoyer l’ordre' })}</div>
+      <div class="actions">${select(`effort:${n}`, o.efforts, agent.effort, 'effort par défaut')}${select(`model:${n}`, o.models, agent.model, 'modèle par défaut')}${btn(`Réglages de ${n}`, 'settings', { name: n }, { collect: 'settings', text: 'Appliquer' })}</div>
+    </div></details>`;
+  return `${main.length ? `<div class="actions">${main.join('')}</div>` : ''}${more}`;
+}
+
 function agentCard(agent) {
   const settings = [agent.effort ? `effort ${agent.effort}` : '', agent.model ?? ''].filter(Boolean);
   const d = agent.deliverables;
@@ -160,59 +214,119 @@ function agentCard(agent) {
     ${checks.length ? `<div class="checks">${checks.map(([on, label]) => `<span class="check${on ? ' on' : ''}">${on ? '✓' : '○'} ${esc(label)}</span>`).join('')}</div>` : ''}
     ${agent.lastCommit ? `<div class="muted">Dernier commit : ${esc(agent.lastCommit)}${agent.diffstat ? ` · ${esc(agent.diffstat)}` : ''}</div>` : ''}
     ${agent.dirty ? `<div class="muted">${plural(agent.dirty, 'fichier')} en cours</div>` : ''}
-    ${agent.events?.length ? `<details><summary>Dernières étapes</summary><ol class="steps">${agent.events.map((event) => `<li class="k-${esc(event.kind)}"><span>${KIND[event.kind] ?? '·'}</span><span>${esc(event.text)}</span></li>`).join('')}</ol></details>` : ''}
+    ${agent.events?.length ? `<details data-key="steps:${esc(agent.name)}"><summary>Dernières étapes</summary><ol class="steps">${agent.events.map((event) => `<li class="k-${esc(event.kind)}"><span>${KIND[event.kind] ?? '·'}</span><span>${esc(event.text)}</span></li>`).join('')}</ol></details>` : ''}
+    ${agentActions(agent)}
   </article>`;
 }
 
 function agents() {
   const list = snap.agents ?? [];
-  if (!list.length) return '<div class="empty">Aucun agent dans le registre.</div>';
-  return `<div class="cards">${list.map(agentCard).join('')}</div>`;
+  const clean = `<div class="actions" style="margin-top:10px">${btn('Voir les terminés à nettoyer', 'clean', { dry: true }, { text: 'Voir les terminés' })}${btn('Nettoyer les terminés', 'clean', {}, { kind: 'danger', confirm: true, text: '🧹 Nettoyer les terminés' })}</div>`;
+  if (!list.length) return `<div class="empty">Aucun agent dans le registre.</div>`;
+  return `<div class="cards">${list.map(agentCard).join('')}</div>${clean}`;
+}
+
+function questionForm(one) {
+  const id = one.id;
+  if (one.type === 'feedback') {
+    return `<div class="form"><textarea data-key="comment:${esc(id)}" maxlength="2000" placeholder="Un mot pour l'agent (facultatif)"${live() ? '' : ' disabled'}></textarea>
+      <div class="actions">${btn(`Lu : ${one.title}`, 'read', { id }, { collect: 'comment', text: 'Marquer lu' })}</div></div>`;
+  }
+  if (one.type === 'validation') {
+    return `<div class="form"><textarea data-key="comment:${esc(id)}" maxlength="2000" placeholder="Une précision (facultatif)"${live() ? '' : ' disabled'}></textarea>
+      <div class="actions">${btn(`Oui : ${one.title}`, 'answer', { id, approved: true }, { kind: 'primary', collect: 'comment', text: 'Oui' })}${btn(`Non : ${one.title}`, 'answer', { id, approved: false }, { kind: 'danger', collect: 'comment', text: 'Non' })}</div></div>`;
+  }
+  const picks = (one.options ?? []).map((option, index) => `<label class="pick"><input type="radio" name="opt-${esc(id)}" data-key="option:${esc(id)}" value="${index}"${option.recommended ? ' checked' : ''}${live() ? '' : ' disabled'}><span class="${option.recommended ? 'rec' : ''}">${esc(option.label)}${option.recommended ? ' ★' : ''}${option.why ? `<span class="muted"> · ${esc(option.why)}</span>` : ''}</span></label>`).join('');
+  return `<div class="form">${picks}<textarea data-key="comment:${esc(id)}" maxlength="2000" placeholder="Ou ta réponse à toi / une précision"${live() ? '' : ' disabled'}></textarea>
+    <div class="actions">${btn(`Réponse : ${one.title}`, 'answer', { id }, { kind: 'primary', collect: 'choice', text: 'Répondre' })}</div></div>`;
 }
 
 function questions() {
   const q = snap.questions ?? {};
-  const mode = q.autonomous === null || q.autonomous === undefined ? '' : `<p class="hint">« Décider seul » : ${q.autonomous ? 'activé, les agents prennent l\'option recommandée' : 'désactivé, les agents attendent ta réponse'}.</p>`;
+  const toggle = q.autonomous === null || q.autonomous === undefined ? '' : btn(q.autonomous ? 'Désactiver « Décider seul »' : 'Activer « Décider seul »', 'autonomous', { on: !q.autonomous }, { text: q.autonomous ? 'Désactiver' : 'Activer' });
+  const mode = q.autonomous === null || q.autonomous === undefined ? '' : `<div class="row hint">« Décider seul » : ${q.autonomous ? 'activé, les agents prennent l\'option recommandée' : 'désactivé, les agents attendent ta réponse'}. ${toggle}</div>`;
   const waiting = q.waiting ?? [];
   if (!waiting.length) return `<div class="empty">Aucune question en attente.</div>${mode}`;
   return `<div class="cards">${waiting.map((one) => `<article class="card">
     <div class="row"><span class="pill ${one.type === 'feedback' ? 's-calm' : 's-queued'}">${esc(TYPE[one.type] ?? one.type)}${one.severity ? ` · ${esc(one.severity)}` : ''}</span><span class="name">${esc(one.agent)}</span><span class="spacer"></span><span class="muted">${esc(ago(Date.parse(one.createdAt)))}</span></div>
     <div class="goal">${esc(one.title)}</div>
     ${one.context ? `<div>${esc(one.context)}</div>` : ''}
-    ${one.options?.length ? `<ol class="options">${one.options.map((option) => `<li class="${option.recommended ? 'rec' : ''}">${esc(option.label)}${option.why ? `<div class="muted">${esc(option.why)}</div>` : ''}</li>`).join('')}</ol>` : ''}
     ${one.impact ? `<div class="muted">Impact : ${esc(one.impact)}</div>` : ''}
-  </article>`).join('')}</div>${mode}<p class="hint">Pour répondre, écris ta réponse dans la conversation Claude Code : je la transmets à l'agent.</p>`;
+    ${questionForm(one)}
+  </article>`).join('')}</div>${mode}`;
+}
+
+function queueActions(entry) {
+  const n = entry.name;
+  if (entry.run === 'running') return btn(`Arrêter ${n}`, 'stop', { name: n }, { kind: 'danger', confirm: true, text: 'Arrêter' });
+  if (entry.status === 'queued') return `${btn(`Lancer ${n}`, 'launch', { name: n }, { kind: 'primary', text: 'Lancer' })}${btn(`Annuler ${n}`, 'cancel', { name: n, worktree: true }, { kind: 'danger', confirm: true, text: 'Annuler' })}`;
+  if (entry.run === 'error' || entry.run === 'stopped' || entry.run === 'lost') return `${btn(`Reprendre ${n}`, 'resume', { name: n }, { text: 'Reprendre' })}${btn(`Retirer ${n} de la liste`, 'forget', { name: n }, { text: 'Retirer' })}`;
+  return btn(`Retirer ${n} de la liste`, 'forget', { name: n }, { text: 'Retirer' });
 }
 
 function queueAndBacklog() {
   const queue = snap.queue ?? [];
   const b = snap.backlog ?? { counts: {} };
   const c = b.counts ?? {};
+  const o = opts();
   const total = ['todo', 'active', 'merged', 'done', 'paused'].reduce((sum, key) => sum + (c[key] ?? 0), 0) || 1;
   const parts = [['done', 'livrés', 'var(--ok)'], ['merged', 'fusionnés', 'var(--warn)'], ['active', 'en cours', 'var(--accent)'], ['paused', 'en pause', 'var(--muted)'], ['todo', 'à faire', 'var(--line)']];
+  const queued = queue.filter((entry) => entry.status === 'queued').length;
   const queueHtml = queue.length
-    ? `<ul class="plain">${queue.map((entry) => `<li><div class="row"><span class="name">${esc(entry.name)}</span><span class="pill s-${entry.run === 'running' ? 'working' : entry.status === 'queued' ? 'queued' : entry.run === 'error' ? 'error' : 'done'}">${esc(entry.run === 'running' ? 'au travail' : QUEUE[entry.status] ?? entry.status)}</span>${entry.effort ? `<span class="chip">effort ${esc(entry.effort)}</span>` : ''}${entry.model ? `<span class="chip">${esc(entry.model)}</span>` : ''}</div><div class="muted">${esc(entry.title)}</div></li>`).join('')}</ul>`
+    ? `<ul class="plain">${queue.map((entry) => `<li><div class="row"><span class="name">${esc(entry.name)}</span><span class="pill s-${entry.run === 'running' ? 'working' : entry.status === 'queued' ? 'queued' : entry.run === 'error' ? 'error' : 'done'}">${esc(entry.run === 'running' ? 'au travail' : QUEUE[entry.status] ?? entry.status)}</span>${entry.effort ? `<span class="chip">effort ${esc(entry.effort)}</span>` : ''}${entry.model ? `<span class="chip">${esc(entry.model)}</span>` : ''}</div><div class="muted">${esc(entry.title)}</div><div class="actions" style="margin-top:6px">${queueActions(entry)}</div></li>`).join('')}</ul>${queued > 1 ? `<div class="actions" style="margin-top:8px">${btn(`Lancer les ${queued} tâches en file`, 'launchAll', {}, { kind: 'primary', confirm: true, text: `Tout lancer (${queued})` })}</div>` : ''}`
     : '<div class="empty">File vide.</div>';
   const sections = new Map();
-  for (const item of b.todo ?? []) sections.set(item.section, [...(sections.get(item.section) ?? []), item.title]);
+  for (const item of b.todo ?? []) sections.set(item.section, [...(sections.get(item.section) ?? []), item]);
+  const todo = sections.size
+    ? `<details data-key="todo" style="margin-top:10px"><summary>${plural(c.todo ?? 0, 'chantier')} à faire : choisis, puis mets en file</summary>${[...sections].map(([section, items]) => `<p class="muted" style="margin:10px 0 4px">${esc(section)}</p><ul class="plain">${items.map((item) => `<li><label class="pick"><input type="checkbox" data-key="pick:${esc(item.id)}" data-task="${esc(JSON.stringify({ id: item.id, name: item.name, effort: item.effort }))}"${live() && item.id ? '' : ' disabled'}><span>${esc(item.title)}${item.name ? ` <span class="chip">${esc(item.name)}</span>` : ''}${item.effort ? ` <span class="chip">effort ${esc(item.effort)}</span>` : ''}</span></label></li>`).join('')}</ul>`).join('')}
+      <div class="actions" style="margin-top:10px">${select('enqueue-effort', o.efforts, '', 'effort proposé')}${select('enqueue-model', o.models, '', 'modèle par défaut')}${btn('Mettre en file', 'enqueue', {}, { kind: 'primary', collect: 'enqueue', text: 'Mettre en file' })}</div>
+      <p class="hint">Chaque chantier coché part sur sa branche, depuis ${esc(o.integration)}, avec le nom d'agent proposé.</p></details>`
+    : '';
+  const newTask = (b.sections ?? []).length
+    ? `<details data-key="new-task" style="margin-top:10px"><summary>Nouveau chantier</summary><div class="form">${select('new-section', b.sections, b.sections[0])}
+        <input type="text" data-key="new-title" maxlength="160" placeholder="Titre du chantier"${live() ? '' : ' disabled'}>
+        <textarea data-key="new-text" maxlength="3000" placeholder="Ce qu'il faut faire, en Markdown"${live() ? '' : ' disabled'}></textarea>
+        <div class="actions">${btn('Nouveau chantier', 'newTask', {}, { kind: 'primary', collect: 'newTask', text: 'Ajouter au backlog' })}</div></div></details>`
+    : '';
   return `${queueHtml}
     <h2>Backlog</h2>
     <div class="bar" role="img" aria-label="Chantiers du backlog par état">${parts.map(([key, , color]) => (c[key] ? `<span style="width:${(c[key] / total) * 100}%;background:${color}"></span>` : '')).join('')}</div>
     <div class="legend">${parts.map(([key, label, color]) => `<span><i style="background:${color}"></i>${c[key] ?? 0} ${label}</span>`).join('')}</div>
     ${b.active?.length ? `<ul class="plain" style="margin-top:10px">${b.active.map((item) => `<li>${esc(item.title)}<div class="muted">${esc(item.label)}${item.agent ? ` · ${esc(item.agent)}` : ''}</div></li>`).join('')}</ul>` : ''}
-    ${sections.size ? `<details style="margin-top:10px"><summary>${plural(c.todo ?? 0, 'chantier')} à faire</summary>${[...sections].map(([section, titles]) => `<p class="muted" style="margin:10px 0 4px">${esc(section)}</p><ul class="plain">${titles.map((title) => `<li>${esc(title)}</li>`).join('')}</ul>`).join('')}</details>` : ''}`;
+    ${todo}${newTask}`;
 }
 
 function versions() {
   const v = snap.versions ?? {};
   const word = snap.word ?? 'version';
-  const pending = v.pending?.length ? `<ul class="plain">${v.pending.map((entry) => `<li>${esc(entry.title)} <span class="chip">${esc(entry.type ?? '')}</span></li>`).join('')}</ul>` : `<div class="empty">Toutes les entrées ont leur ${esc(word)}.</div>`;
-  const planned = (v.planned ?? []).map((one) => `<li><b>${esc(one.name ?? one.version)}</b>${one.title ? ` · ${esc(one.title)}` : ''}<div class="muted">${esc(plural(one.entries.length, 'entrée'))} : ${esc(one.entries.join(', '))}</div></li>`).join('');
+  const next = v.proposal;
+  const slugs = (v.pending ?? []).map((entry) => entry.slug);
+  const pending = v.pending?.length
+    ? `<ul class="plain">${v.pending.map((entry) => `<li><div class="row"><span>${esc(entry.title)}</span><span class="chip">${esc(entry.type ?? '')}</span><span class="spacer"></span>${next ? btn(`${entry.title} → ${word} ${next}`, 'assign', { slug: entry.slug, version: next }, { text: `→ v${next}` }) : ''}</div></li>`).join('')}</ul>
+      ${next ? `<div class="actions" style="margin-top:8px">${btn(`Tout affecter à la ${word} ${next}`, 'assignMany', { slugs, version: next }, { text: `Tout en v${next}` })}${(v.planned ?? []).length ? '' : btn(`Publier la ${word} ${next}`, 'publish', { version: next }, { kind: 'primary', confirm: true, text: `Publier v${next}` })}</div>` : ''}`
+    : `<div class="empty">Toutes les entrées ont leur ${esc(word)}.</div>`;
+  const planned = (v.planned ?? []).map((one) => `<li><b>${esc(one.name ?? one.version)}</b>${one.title ? ` · ${esc(one.title)}` : ''}<div class="muted">${esc(plural(one.entries.length, 'entrée'))} : ${esc(one.entries.join(', '))}</div><div class="actions" style="margin-top:6px">${btn(`Publier la ${word} ${one.version}`, 'publish', { version: one.version }, { kind: 'primary', confirm: true, text: `Publier v${one.version}` })}${btn(`Déplanifier la ${word} ${one.version}`, 'unplan', { version: one.version }, { text: 'Déplanifier' })}</div></li>`).join('');
   const released = (v.released ?? []).map((one) => `<li><b>${esc(one.name ?? one.version)}</b>${one.title ? ` · ${esc(one.title)}` : ''}<div class="muted">${esc(one.date ?? '')} · ${esc(plural(one.entries, 'entrée'))}</div></li>`).join('');
-  return `<p class="hint" style="margin-top:0">Version actuelle <span class="chip">v${esc(v.current ?? '?')}</span>${v.proposal ? ` · prochaine proposée <span class="chip">v${esc(v.proposal)}</span>` : ''}</p>
+  return `<p class="hint" style="margin-top:0">Version actuelle <span class="chip">v${esc(v.current ?? '?')}</span>${next ? ` · prochaine proposée <span class="chip">v${esc(next)}</span>` : ''}</p>
     <h2>À publier</h2>${pending}
     <h2>En préparation</h2>${planned ? `<ul class="plain">${planned}</ul>` : `<div class="empty">Aucune ${esc(word)} en préparation.</div>`}
     <h2>Publiées</h2>${released ? `<ul class="plain">${released}</ul>` : '<div class="empty">Rien de publié.</div>'}`;
+}
+
+// A new snapshot redraws everything: what the viewer was typing, ticking or had opened is kept (data-key).
+const draftKey = (el) => (el.type === 'radio' ? `${el.dataset.key}=${el.value}` : el.dataset.key);
+const draftOf = (el) => (el.tagName === 'DETAILS' ? el.open : el.type === 'checkbox' || el.type === 'radio' ? el.checked : el.value);
+function keepDrafts() {
+  return new Map([...document.querySelectorAll('#main [data-key]')].map((el) => [draftKey(el), draftOf(el)]));
+}
+function restoreDrafts(kept) {
+  for (const el of document.querySelectorAll('#main [data-key]')) {
+    if (!kept.has(draftKey(el))) continue;
+    const value = kept.get(draftKey(el));
+    if (el.tagName === 'DETAILS') el.open = value;
+    else if (el.type === 'checkbox' || el.type === 'radio') el.checked = value;
+    else el.value = value;
+  }
 }
 
 function render() {
@@ -224,77 +338,144 @@ function render() {
   $('n-questions').textContent = (s.questions ?? 0) + (s.unread ?? 0) || '';
   $('n-file').textContent = (snap.queue ?? []).length || '';
   $('n-versions').textContent = s.pending || '';
+  const kept = keepDrafts();
   $('main').innerHTML = `${figures()}
     <h2 id="agents">Agents</h2>${agents()}
     <h2 id="questions">Questions et retours</h2>${questions()}
     <h2 id="file">File</h2>${queueAndBacklog()}
     <h2 id="versions">Versions</h2>${versions()}`;
+  restoreDrafts(kept);
+  paintActivity();
 }
 
-// Refreshing from the page: a comment sent to Claude (the comments capability, sendToClaude), which the Claude Code
-// session watching the page answers with a new snapshot (make agent-mirror, then ArtifactData set). Every request goes
-// to one thread, whose id the page keeps in mirror/refresh.
-const REQUEST = 'miroir : rafraîchis cet instantané depuis la machine (make agent-mirror, puis ArtifactData set sur mirror/state).';
-const WAIT_MS = 3 * 60 * 1000;
-// askedAt: when the request left (this device's clock); askedFrom: the snapshot shown then, so that any newer one
-// ends the wait whatever the machine's clock says.
-let db = null, comments = null, can = 'off', thread = null, askedAt = 0, askedFrom = null;
-let status = { kind: 'idle', text: '' };
+// ----- sending the actions -----
 
-function paintRefresh() {
-  const button = $('refresh');
-  $('refresh-row').hidden = !comments || can === 'off';
-  const busy = status.kind === 'sending' || status.kind === 'asked';
-  button.disabled = busy || can !== 'available';
-  button.textContent = status.kind === 'sending' ? 'Envoi…' : status.kind === 'asked' ? 'Demandé…' : '↻ Rafraîchir';
+const WAIT_MS = 4 * 60 * 1000;
+let db = null, comments = null, thread = null, sendError = '';
+// requests sent from this view, by id: { label, at }; their results come back in snap.actions
+const pending = new Map();
+const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+
+function paintActivity() {
   const reason = can === 'no_session' ? 'Aucune session Claude Code ne suit la page : écris « miroir » dans la conversation.'
-    : can === 'writers_only' ? 'Seuls les éditeurs de la page peuvent demander un instantané.' : '';
-  $('refresh-note').textContent = status.text || reason;
+    : can === 'writers_only' ? 'Seuls les éditeurs de la page peuvent agir d\'ici.' : '';
+  $('refresh-row').hidden = !comments || can === 'off';
+  $('refresh').disabled = !live();
+  const waiting = pending.size ? `⏳ ${plural(pending.size, 'demande')} en cours` : '';
+  $('refresh-note').textContent = sendError || [waiting, reason].filter(Boolean).join(' · ');
+  const done = new Map((snap?.actions ?? []).map((one) => [one.id, one]));
+  for (const [id] of pending) if (done.has(id)) pending.delete(id);
+  const rows = [
+    ...[...pending].map(([, one]) => `<li class="wait">⏳ ${esc(one.label)} · ${Date.now() - one.at > WAIT_MS ? 'toujours sans réponse : la session est peut-être occupée ou fermée' : 'demandé, en cours sur la machine'}</li>`),
+    ...(snap?.actions ?? []).slice(0, 4).map((one) => `<li class="${one.ok ? 'ok' : 'ko'}">${one.ok ? '✓' : '✗'} ${esc(one.label)} : ${esc(one.message)}${one.at ? ` <span class="muted">${esc(ago(Date.parse(one.at)))}</span>` : ''}</li>`),
+  ];
+  $('activity').innerHTML = rows.join('');
 }
-const setStatus = (kind, text = '') => { status = { kind, text }; paintRefresh(); };
 
-async function checkRefresh() {
-  if (!comments) return;
-  try { can = await comments.canSendToClaude(); } catch { can = 'off'; }
-  if (status.kind === 'asked' && Date.now() - askedAt > WAIT_MS) setStatus('error', 'Pas de réponse en 3 min : la session Claude Code est peut-être occupée ou fermée.');
-  else paintRefresh();
+async function checkCan() {
+  const before = can;
+  if (!comments) can = 'off';
+  else {
+    try { can = await comments.canSendToClaude(); } catch { can = 'off'; }
+  }
+  if (can !== before && snap) render();
+  else paintActivity();
 }
 
-$('refresh').addEventListener('click', async () => {
-  if (!comments || $('refresh').disabled) return;
-  setStatus('sending');
+/** What a form adds to its button's action, or a reason not to send. */
+const COLLECT = {
+  order: (button, args) => {
+    const order = document.querySelector(`[data-key="order:${CSS.escape(args.name)}"]`)?.value.trim();
+    return order ? { args: { order } } : { error: 'Écris l\'ordre d\'abord.' };
+  },
+  settings: (button, args) => ({
+    args: { effort: document.querySelector(`[data-key="effort:${CSS.escape(args.name)}"]`)?.value || null, model: document.querySelector(`[data-key="model:${CSS.escape(args.name)}"]`)?.value || null },
+  }),
+  comment: (button, args) => ({ args: { comment: document.querySelector(`[data-key="comment:${CSS.escape(args.id)}"]`)?.value.trim() ?? '' } }),
+  choice: (button, args) => {
+    const picked = document.querySelector(`[data-key="option:${CSS.escape(args.id)}"]:checked`);
+    const comment = document.querySelector(`[data-key="comment:${CSS.escape(args.id)}"]`)?.value.trim() ?? '';
+    if (!picked && !comment) return { error: 'Choisis une option ou écris ta réponse.' };
+    return { args: { option: picked ? Number(picked.value) : null, comment } };
+  },
+  enqueue: () => {
+    const effort = document.querySelector('[data-key="enqueue-effort"]')?.value || null;
+    const model = document.querySelector('[data-key="enqueue-model"]')?.value || null;
+    const tasks = [...document.querySelectorAll('[data-task]:checked')].map((box) => JSON.parse(box.dataset.task)).map((task) => ({ id: task.id, name: task.name || task.id.slice(0, 40), effort: effort || task.effort || null, model }));
+    if (!tasks.length) return { error: 'Coche au moins un chantier.' };
+    if (tasks.length > 20) return { error: '20 chantiers au plus d\'un coup.' };
+    return { args: { tasks }, label: `Mettre en file : ${tasks.map((task) => task.name).join(', ')}` };
+  },
+  newTask: () => {
+    const section = document.querySelector('[data-key="new-section"]')?.value;
+    const title = document.querySelector('[data-key="new-title"]')?.value.trim();
+    const body = document.querySelector('[data-key="new-text"]')?.value.trim() ?? '';
+    if (!title) return { error: 'Donne un titre au chantier.' };
+    return { args: { section, text: `### ${title}\n\n${body}` }, label: `Nouveau chantier : ${title}` };
+  },
+};
+
+async function send(action, args, label) {
+  const id = newId();
+  const text = `miroir · ${label}\n${JSON.stringify({ id, action, label, args })}`;
+  if (new TextEncoder().encode(text).length > 4000) { sendError = 'Trop long pour une demande : raccourcis le texte.'; paintActivity(); return; }
+  sendError = '';
   try {
     let sent = null;
     if (thread) {
-      try { sent = await comments.sendToClaude({ threadId: thread, text: REQUEST }); }
+      try { sent = await comments.sendToClaude({ threadId: thread, text }); }
       catch (error) { if (error?.code !== 'not_found') throw error; thread = null; }
     }
     if (!sent) {
-      sent = await comments.sendToClaude({ anchor: await comments.anchorFor($('refresh')), text: REQUEST });
+      sent = await comments.sendToClaude({ anchor: await comments.anchorFor($('refresh')), text });
       thread = sent.threadId;
-      // only a convenience (next requests reuse the thread): its failure must not look like a failed request
+      // only a convenience (the next requests reuse the thread): its failure must not look like a failed request
       try { db?.doc('mirror/refresh').set({ thread }).catch(() => {}); } catch { /* read-only view */ }
     }
-    askedAt = Date.now();
-    askedFrom = snap?.takenAt ?? null;
-    setStatus('asked', 'Demandé à Claude : le nouvel instantané arrive d\'ici une minute ou deux.');
+    pending.set(id, { label, at: Date.now() });
   } catch (error) {
     const code = error?.code;
     if (code === 'forbidden') can = 'off';
-    setStatus('error', code === 'consent_required' ? 'Pas envoyé : autorise la page à commenter en ton nom, puis réessaie.'
+    sendError = code === 'consent_required' ? 'Pas envoyé : autorise la page à commenter en ton nom, puis réessaie.'
       : code === 'claude_unavailable' ? 'Aucune session Claude Code ne peut recevoir la demande : écris « miroir » dans la conversation.'
       : code === 'rate_limited' ? 'Trop de demandes d\'un coup : attends un peu.'
-      : code === 'forbidden' ? 'Les commentaires depuis la page sont désactivés ici.'
-      : `Pas envoyé (${code ?? 'erreur'}).`);
+      : code === 'forbidden' ? 'Agir depuis la page est désactivé ici.'
+      : `Pas envoyé (${code ?? 'erreur'}).`;
   }
+  paintActivity();
+}
+
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-act]');
+  if (!button || button.disabled || !comments) return;
+  let args = {};
+  try { args = JSON.parse(button.dataset.args || '{}'); } catch { args = {}; }
+  let label = button.dataset.label || button.dataset.act;
+  const collect = COLLECT[button.dataset.collect];
+  if (collect) {
+    const extra = collect(button, args);
+    if (extra.error) { sendError = extra.error; paintActivity(); return; }
+    args = { ...args, ...extra.args };
+    if (extra.label) label = extra.label;
+  }
+  // a heavy action asks a second tap within 4 s
+  if (button.dataset.confirm && button.dataset.armed !== '1') {
+    const text = button.textContent;
+    button.dataset.armed = '1';
+    button.textContent = `Confirmer : ${text} ?`;
+    setTimeout(() => { if (button.isConnected) { button.dataset.armed = ''; button.textContent = text; } }, 4000);
+    return;
+  }
+  button.disabled = true;
+  send(button.dataset.act, args, label).finally(() => { if (button.isConnected) button.disabled = !live(); });
 });
 
-setInterval(() => { header(); checkRefresh(); }, 30_000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) checkRefresh(); });
+setInterval(() => { header(); checkCan(); }, 30_000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkCan(); });
 
 (async () => {
   comments = window.claude?.use ? await window.claude.use('comments') : null;
-  checkRefresh();
+  checkCan();
 })();
 
 (async () => {
@@ -308,7 +489,6 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) chec
       snap = doc.exists ? doc.data() : null;
       if (snap) render();
       else $('taken').textContent = 'Pas encore d\'instantané.';
-      if (snap && askedAt && snap.takenAt !== askedFrom) { askedAt = 0; setStatus('done', 'À jour.'); }
     },
     (error) => ($('taken').textContent = `Lecture impossible (${error.code}).`),
   );

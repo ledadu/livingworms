@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SPECIES } from '../content';
-import { BIOMES, X0, X1, arrival, biomeIndex, chapterIndex, floorAt, liftAt, metres, span, type ChapterId } from './biomes';
+import { BIOMES, X0, X1, arrival, biomeIndex, chapterIndex, floorAt, liftAt, metres, openFloor, span, type ChapterId } from './biomes';
 
 /** the partners of each chapter, from docs/chapitres.md */
 const PARTNERS: Record<ChapterId, string[]> = {
@@ -45,7 +45,7 @@ describe('the map of the world', () => {
       prev = m0;
       // at the heart of the chapter, in the swimming plane: its floor, or the open water above a floor out of sight
       const mid = Math.max(a, X0 + 400) + (e - Math.max(a, X0 + 400)) / 2;
-      const m = metres(floorAt(mid, 0) - liftAt(mid));
+      const m = metres(openFloor(mid, 0) - liftAt(mid));
       expect(m, b.id).toBeGreaterThanOrEqual(m0 - 25);
       expect(m, b.id).toBeLessThanOrEqual(m1 + 25);
     }

@@ -60,4 +60,19 @@ describe('the mirror of the dashboard', () => {
     const text = JSON.stringify(snap);
     for (const secret of ['/secret/', 'SECRET PROMPT', 'xxxxx', '"log"']) expect(text).not.toContain(secret);
   });
+
+  it('carries what the page needs to act: ids, proposed names, choices, and the last results newest first', () => {
+    const snap = buildSnapshot({
+      roadmap: { queue: [{ name: 'parade', id: 'la-parade', status: 'queued' }], items: [
+        { kind: 'section', title: 'Étape 3' }, { kind: 'section', title: 'Livré' },
+        { kind: 'task', id: 'la-parade', title: 'La parade', status: 'new', section: 'Étape 3', proposedName: 'parade', suggested: { effort: 'high' } },
+      ] },
+      actions: [{ id: 'a1xxxx', label: 'Un', ok: true, message: 'fait' }, { id: 'a2xxxx', label: 'Deux', ok: false, message: 'non' }],
+    }, NOW);
+    expect(snap.options).toMatchObject({ efforts: ['low', 'medium', 'high', 'xhigh', 'max'], integration: 'backlog' });
+    expect(snap.backlog.todo[0]).toEqual({ id: 'la-parade', title: 'La parade', section: 'Étape 3', name: 'parade', effort: 'high' });
+    expect(snap.backlog.sections).toEqual(['Étape 3']);
+    expect(snap.queue[0]).toMatchObject({ name: 'parade', id: 'la-parade' });
+    expect(snap.actions.map((one: { id: string }) => one.id)).toEqual(['a2xxxx', 'a1xxxx']);
+  });
 });
