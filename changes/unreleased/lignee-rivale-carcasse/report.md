@@ -62,9 +62,23 @@ Aucune question posée à l'utilisateur (le chantier ne demandait aucun choix st
 - L'arbre met le jeu en pause (`paused`) et fait taire le narrateur (`narrator.quiet`) : la cousine s'arrête et le texte de la rencontre attend, sans rien à changer. Les ancêtres remis dans le monde sont des acteurs `'parent'`, à côté de la branche `'rival'` de la boucle.
 - Vérifié en jeu (Chrome Windows) : une lignée sauvée avec le poisson-clown, le homard et l'anguille donne une cousine qui a pris la méduse-boîte, le dragon feuillu et le serpent cilié. Après un rechargement, c'est la même cousine (même graine, même nom). Rien de neuf à l'écran : pas de nouvelle capture.
 
+## Seconde fusion avec backlog (les traces de la lignée)
+
+- **Conflit dans `src/monde/main.ts`**, réglé en gardant les deux côtés : l'import (`initTraces`, puis `initRivale`) ; l'`api` (`arbre, traces, rivale`).
+- **Relu sans conflit** : `narration.ts` a maintenant `say(name, lines)`, pour les mots dits devant une trace. Ces mots bloquent aussi les autres textes tant qu'ils sont à l'écran (`farewellUntil`), et `say` n'interrompt rien de ce qui est affiché. Mon texte de la rencontre attend déjà tant qu'un texte est à l'écran (`quiet`, classe `show`) : les deux se suivent sans se couper la parole. Rien à changer dans mon code. `docs/chapitres.md` s'est fusionné seul : sa nouvelle section « Les traces de la lignée » est un titre sans numéro, que `parseChapterTexts` ne lit pas comme un chapitre, donc « La rencontre » de la Carcasse ne bouge pas.
+- **Vérifié en jeu** (Chrome Windows) avec une lignée sauvée de quatre générations (copépode, poisson-clown, homard, anguille) :
+  - l'ancêtre de la Forêt laisse son corps devenu récif au milieu du squelette, à côté de chez la cousine ;
+  - en approchant, la lignée dit d'abord les mots de la trace, puis, une fois qu'ils se sont effacés, ceux de la rencontre ;
+  - la cousine a pris la larve à la Nurserie (nous, le copépode), puis la méduse-boîte, le dragon feuillu et le serpent cilié.
+- Juste après, `backlog` a encore reçu des changements du système d'agents (`agents/`, `docs/backlog.md`) : ils se sont fusionnés sans conflit, sans rien toucher au jeu.
+- L'entrée pour les joueurs ne change pas : rien de neuf pour eux dans ces fusions.
+
+![Devant la trace d'un ancêtre, la cousine au-dessus : les mots de la trace d'abord](img/trace-puis-cousine.jpg)
+![Puis ceux de la rencontre](img/rencontre-apres-trace.jpg)
+
 ## Risques de fusion
 
-- `src/monde/main.ts` (branchements courts) : un import ; `'rival'` ajouté à `Actor.kind` ; `rivale.step(…)` après `parade.step` dans `update()` ; une branche `a.kind === 'rival'` avant celle du parent dans la boucle des acteurs ; `rivale.lights(…)` après `parade.lights` dans `render()` ; la création `initRivale({…})` juste avant `// ----- loop -----` ; `rivale` dans `api`. Conflit probable avec « Les ancêtres restent dans le monde » sur `Actor.kind` et la boucle des acteurs : garder les deux branches.
+- `src/monde/main.ts` (branchements courts) : un import (après celui des traces) ; `'rival'` ajouté à `Actor.kind` ; `rivale.step(…)` après `parade.step` dans `update()` ; une branche `a.kind === 'rival'` avant celle du parent dans la boucle des acteurs ; `rivale.lights(…)` après `parade.lights` dans `render()` ; la création `initRivale({…})` juste avant `// ----- loop -----` ; `rivale` dans `api`. Conflit probable avec « Les ancêtres restent dans le monde » sur `Actor.kind` et la boucle des acteurs : garder les deux branches.
 - `src/monde/textes.ts` : un type de texte de plus (`meeting`) et son libellé ; additif.
 - `docs/chapitres.md` : une ligne dans « Les textes », un paragraphe et le texte « La rencontre » au chapitre 5 ; additif.
 - Nouveaux fichiers : `src/monde/rivale.ts`, `rivale-jeu.ts`, `rivale.test.ts`.
