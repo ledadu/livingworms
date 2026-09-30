@@ -4,6 +4,12 @@ La descente de la surface au fond de la fosse, puis la remontée. Chapitres du [
 
 Les profondeurs sont indicatives : le monde est une descente continue, pas une carte réaliste.
 
+## Le passage d'un chapitre à l'autre
+
+- La lumière, la couleur de l'eau, le sable et la roche passent d'un chapitre au suivant sur une bande de 1 400 px autour de la frontière (`moodAt`, `BLEND` dans `biomes.ts`).
+- Les plantes, les décors et les animaux se mêlent sur la même bande : un animal d'un chapitre peut vivre jusqu'à 700 px au-delà de sa frontière, de moins en moins à mesure que l'autre lumière gagne (`faunaX`, `transitions.ts`).
+- Le titre d'ouverture attend que la nouvelle lumière ait gagné à 85 % (environ 500 px après la frontière), et ne revient pas quand on fait l'aller-retour sur une frontière (`ChapterWatch`). Un saut (voyage, nouvelle partie) l'annonce tout de suite.
+
 ## Les textes
 
 - Ils s'affichent en lettres fines, lentement, au début de chaque chapitre (ouverture) et au moment de l'adieu.
