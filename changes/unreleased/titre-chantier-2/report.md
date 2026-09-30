@@ -81,6 +81,7 @@ Aucune question posée à l'utilisateur (consigne : trancher avec l'option recom
 
 ## Risques de fusion
 
+- **Déjà fusionné avec le chant** (`chant-note-chapitre`, dans `backlog`) : conflits de voisinage seulement (imports, l'API, une ligne de `chapitres.md`), les deux côtés gardés ; les œufs et le fil attendent aussi pendant que le cercle de notes est ouvert (`chant.isOpen`).
 - `src/monde/main.ts` : branchements courts. La création de la portée (`createPortee` avec un second rappel), `broodOf` / `openPortee` (qui passent par la ponte), `initPonte` et `initIndices` après la parade, deux appels dans `update` (`ponte.step`, `indices.step`), deux dans `render` (`indices.lights`, `ponte.items`), `ponte, indices` dans l'API, et `OBSTACLE, crosses` importés.
 - `src/monde/parade-jeu.ts` : `leave()`, le temps passé loin (`away`), `at` dans le résultat (même ligne que `last = …`). Le chantier voisin « lueur de l'accouplement » touche sans doute l'éclat de `finish()` : garder les deux.
 - `src/monde/parade.ts` : `START_HOLD` passe à 2, `LEAVE_FAR`, `LEAVE_TIME`, `away` ajoutés.
