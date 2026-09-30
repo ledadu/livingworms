@@ -39,6 +39,7 @@ import { CARCASSE, boneLight, carcasseDwellers, carcasseSchool } from './carcass
 import { initNouveautes } from './nouveautes';
 import { createNarrator } from './narration';
 import { initPartie } from './partie-jeu';
+import { initParade } from './parade-jeu';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -315,6 +316,16 @@ function collide(cr: Creature3): void {
 const limits = newLimits();
 let bounds = reach(limits);
 
+// the parade with a partner of the chapter (parade-jeu.ts): it leads, we follow
+const parade = initParade({
+  chapter: () => BIOMES[biomeIndex(player.cr.root.x[0])].id,
+  quiet: () => paused || !!document.getElementById('chapter')?.classList.contains('show'),
+  keep: (x, y, floor) => {
+    x = clamp(x, bounds[0] + 40, bounds[1] - 40);
+    return { x, y: floor ? floorAt(x, 0) - 12 : clamp(y, Math.max(40, ceilAt(x, 0) + 50), floorAt(x, 0) - 70) };
+  }
+});
+
 const counts = { near: 0, live: 0, plants: 0, items: 0 };
 
 function update(): void {
@@ -339,6 +350,7 @@ function update(): void {
   r.x[0] = clamp(r.x[0], bounds[0], bounds[1]);
   collide(p);
   const px = r.x[0], py = r.y[0];
+  parade.step(p, actors);
 
   flow.clear();
   const near = (x: number) => Math.abs(x - px) < 1100;
@@ -349,6 +361,7 @@ function update(): void {
     if (a.kind === 'player' || !near(a.cr.root.x[0])) continue;
     nNear++;
     const c = a.cr, cr = c.root, x = cr.x[0], y = cr.y[0];
+    if (parade.leads(a)) { steer(a, parade.goal.x, parade.goal.y, 0.06); collide(c); continue; }
     if (a.kind === 'sib') {
       if (t > a.next) { a.next = t + rand(1.5, 4); a.tx = rand(-90, 90); a.ty = rand(-60, 60); }
       const gx = px + a.tx - x, gy = py + a.ty - y, g = Math.hypot(gx, gy) || 1, d = Math.hypot(px - x, py - y);
@@ -451,6 +464,7 @@ function render(): void {
   const m = moodAt(cam.x), pr = player.cr.root, plane = settings.dist;
   env.water = clamp((waterAt(m, cam.y).l - 28) / 30, 0, 1);
   lights.length = 0;
+  parade.lights(view, lights, P);
   if (gx) {
     const [r, g, b] = hsl01(m.deep.h, m.deep.s, m.deep.l);
     gx.begin(r, g, b);
@@ -1115,7 +1129,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
+  biomes: BIOMES, narrator, limits, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
