@@ -16,7 +16,9 @@ La naissance est enregistrée dans la partie (`partie.born`) ; une nouvelle part
 
 Fichiers : `src/monde/adieu.ts` (la scène, pure : positions en entrée, vitesses voulues et cadrage en sortie ; `stayGoal` pour le parent resté), `adieu-jeu.ts` (branchement : qui mène le nageur, le parent, la caméra, le texte), `adieu.css`, `adieu.test.ts` (10 tests), `farewell` dans `main.ts`.
 
-**Pour le voir** : `?dev`, puis dans la console `monde.farewell()` (un enfant d'essai : le parent fusionné avec la première espèce du chapitre, `fuse`, 40 % du partenaire), ou `monde.farewell(spec)` avec un enfant donné.
+**En jeu** (depuis la fusion avec `backlog`) : la parade mène à la portée, et le choix d'un enfant (« Continuer avec … ») lance la scène (`createPortee((sp) => farewell(sp))`, `main.ts`). Pendant la scène, la parade ne commence pas (`adieu.on` dans son `quiet`), et aucun autre texte (celui d'un obstacle, une ouverture) ne passe par-dessus l'adieu (`narration.ts`).
+
+**Pour le voir** : `?dev`, le bouton de la portée d'essai du panneau ⚙, ou dans la console `monde.openPortee('seiche')`, ou directement dans la console `monde.farewell()` (un enfant d'essai : le parent fusionné avec la première espèce du chapitre, `fuse`, 40 % du partenaire), ou `monde.farewell(spec)` avec un enfant donné.
 
 ![Ensemble : l'enfant tourne autour du parent, les premiers mots](img/ensemble.jpg)
 ![La Forêt, une seiche et son enfant](img/foret-ensemble.jpg)
@@ -46,12 +48,24 @@ Aucune question posée à l'utilisateur ; un retour (feedback) signale à la por
 - **Mise en scène** : bandes noires de cinéma — signal fort mais cliché et coûteux en hauteur sur téléphone ; ralenti du temps — joli mais fausse la nage des autres animaux ; lueur ou bulles du parent au départ — à essayer ensuite, demande du dessin dans le rendu ; enfant plus petit que le parent — le moteur fixe l'échelle à la création, il faudrait une croissance.
 - **Son** : une note ou un souffle au moment de l'adieu — pas de son dans le jeu aujourd'hui.
 
+## Fusion avec backlog (traits, obstacles-clés, partenaires, parade, portée)
+
+Fichiers en conflit et règlement :
+
+- `src/monde/main.ts` : imports (les quatre de `backlog` et celui de l'adieu, gardés ensemble) ; boucle des acteurs (la branche de la parade `parade.leads(a)` puis celle du parent) ; `api` (la liste de `backlog` avec `keys`, `parade`, `portee`, `openPortee`, plus `farewell` et `adieu`). Sans conflit mais relu : la portée appelait `becomes(sp, true)`, qui faisait la naissance sans scène ; son choix appelle maintenant `farewell(sp)`, qui fait la naissance (et range la larve d'une nouvelle partie, comme le faisait la portée). `becomes(sp, born)` est gardé tel quel.
+- `docs/chapitres.md` : chaque chapitre garde ses deux textes, dans l'ordre de l'histoire : « Devant l'obstacle : » (de `backlog`) puis « Adieu : » (le mien), la Grotte remise dans le même ordre ; le paragraphe « Les textes » combine les deux (le texte d'obstacle et l'adieu en jeu).
+- `docs/mecaniques.md` : la ligne des naissances combine « le choix d'un enfant de la portée » et « la scène de l'adieu appelle `partie.born` ».
+- Ajouté à la fusion : la parade attend la fin de la scène ; un texte d'obstacle (`keys.onBarred`) ne remplace plus l'adieu à l'écran.
+- Vérifié en jeu (Forêt, une seiche, portée avec le dragon feuillu) : le choix d'un enfant ferme la portée et lance la scène ; la lignée compte un seul parent.
+
+![La portée : on choisit un enfant](img/portee.jpg)
+![Juste après le choix : l'enfant tourne autour de la seiche, les premiers mots](img/apres-portee.jpg)
+
 ## Reste à faire / limites
 
-- Rien ne déclenche la scène en jouant tant que la portée n'est pas fusionnée : elle doit appeler `farewell(enfant)` à la fin du choix.
 - Le parent ne reste que pour la session (perdu au rechargement) : étape 4, « Les ancêtres restent dans le monde ».
 - Les adieux des chapitres 2 à 9 sont à relire ; celui de la Grotte l'était déjà.
-- L'enfant naît à côté du parent ; si la portée montre des œufs, le faire naître à la place de l'œuf choisi (paramètre de position à ajouter).
+- L'enfant naît à côté du parent, sans œuf dans le monde (la portée montre ses œufs dans un écran à part) : une éclosion dans la mer serait une suite possible.
 - Pas vérifié sur un vrai téléphone (captures sur le Chrome Windows, fenêtre 900 × 900).
 
 ## Risques de fusion
@@ -60,4 +74,4 @@ Aucune question posée à l'utilisateur ; un retour (feedback) signale à la por
 - `src/monde/narration.ts` : 3 lignes (une ouverture attend la fin d'un adieu).
 - `docs/chapitres.md` : les adieux ajoutés sous chaque ouverture, et deux phrases de « Les textes » / « À écrire ».
 - `docs/mecaniques.md` : section « L'adieu » et une ligne de « Durée et sauvegarde ».
-- Avec la portée (`portee-4-enfants`) : elle ne doit pas appeler `partie.born` elle-même.
+- Avec la portée : son choix passe par `farewell` ; un autre appel à `partie.born` ferait entrer le parent deux fois dans la lignée.
