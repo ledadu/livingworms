@@ -6,46 +6,6 @@ Les documents de conception : [vision](vision.md), [chapitres](chapitres.md), [m
 
 ## Étape 1 — Décors
 
-### Les 10 chapitres dans le monde
-
-Refaire la carte du monde (`src/monde/biomes.ts`) pour suivre la trame : la Nurserie, le Récif, la Forêt, la Grotte, la Carcasse, les Sources, le Glacier, le Jardin de méduses, la Fosse, et le fond d'où part la Remontée. Aujourd'hui : 6 biomes dans un autre ordre (la Forêt de kelp avant le Récif, puis le Tombant, le Crépuscule, les Abysses).
-
-- Pour chaque chapitre : son étendue, sa profondeur, sa palette ([direction-artistique.md](direction-artistique.md#une-palette-par-chapitre)), sa faune avec les partenaires de [chapitres.md](chapitres.md), ses plantes et décors.
-- Les chapitres dont le décor propre n'existe pas encore (Grotte, Carcasse, Glacier, Jardin, Fosse) reçoivent d'abord un décor provisoire tiré de l'existant ; leur vrai décor est un chantier à part.
-- Fini quand on traverse les 10 chapitres dans l'ordre, chacun avec son titre, sa palette et sa faune.
-
-### Reliefs composés : arches, grottes, failles, surplombs, piliers
-
-Donner à chaque chapitre sa forme de terrain au lieu d'un fond qui ondule seulement ([direction-artistique.md](direction-artistique.md#les-décors)). Le moteur de terrain est dans `src/monde/world.ts` et `floorAt` (`src/monde/biomes.ts`).
-
-- Des formes qui passent devant et derrière le plan de nage (une arche qu'on traverse, un pilier qui cache).
-- Les collisions du nageur avec ces formes (aujourd'hui : le fond et les rochers ronds, `collide` dans `src/monde/main.ts`).
-- Fini quand au moins trois types de relief existent et que deux chapitres en ont un qui les distingue.
-
-### Premier plan sombre et flou
-
-Un plan entre la caméra et le nageur, sombre et flou, qui défile plus vite que le reste : algues, roches, coraux en silhouette. Il donne de la profondeur sans gêner la lecture du plan de nage (le laisser clair autour du nageur).
-
-### Le décor de la Carcasse
-
-Le squelette d'une baleine devenu oasis : côtes et vertèbres couchées sur le fond, vers, crabes, poissons, lumière sur les os ([chapitres.md](chapitres.md)). Les « fresques naturelles » (coquilles, motifs) sont posées ici ; elles serviront de traces à l'étape 4.
-
-### Le décor de la Grotte
-
-Voûtes, piliers, galeries, rais de lumière par des puits, puis le noir ([chapitres.md](chapitres.md)). Dépend des reliefs composés.
-
-### Le décor du Glacier
-
-Parois de glace bleue, aiguilles de givre autour d'une langue d'eau froide qui plonge, cristaux en suspension ([chapitres.md](chapitres.md)).
-
-### Le Jardin de méduses : sans fond, des milliers de méduses
-
-Plus de fond visible ; des milliers de méduses qui pulsent et s'éclairent, des siphonophores géants. Les méduses lointaines sont bon marché (images ou points animés), seules les proches sont des créatures simulées. Le budget par image doit tenir sur téléphone (`?bench`).
-
-### La Fosse : noir total et ta propre lumière
-
-Le noir complet, sauf la lumière du nageur (et de ce qui brille), de grandes silhouettes qui passent, la neige marine. Aujourd'hui les Abysses assombrissent déjà l'écran ; la Fosse va plus loin : on ne voit que ce que sa lumière éclaire.
-
 ## Étape 2 — Structure
 
 ### Un monde fini, du début à la fin
@@ -147,3 +107,76 @@ Tenir un rythme fluide sur un téléphone moyen dans tous les chapitres, notamme
 ### La Balade libre
 
 Après la fin : le monde entier ouvert, l'Atelier disponible, sans histoire.
+
+## Autour du jeu
+
+### Les nouveautés dans le jeu
+
+Montrer dans le jeu ce que racontent les entrées de `changes/` : chaque version publiée, avec ses nouveautés, leurs captures et leur texte. Aujourd'hui elles n'existent que dans `CHANGELOG.md` et le tableau de bord des agents, alors que la version 0.2 est publiée (8 nouveautés). Le cadriciel fournit les données sans rien dessiner : `whatsNew(loadChanges(), { base, includeUnreleased })` (`agents/release/changes.mjs`, types dans `changes.d.mts`, voir `agents/docs/changes.md`, section « Dans le jeu »).
+
+- **Le modèle** : Allèle fait déjà tout ça (`/home/ldadu/Allèle/apps/client`).
+  - `whatsNewPlugin.ts` : un plugin Vite qui sert `/whats-new/whats-new.json` et les images de `changes/` en dev, avec la version en préparation, et qui n'écrit au build que les versions publiées.
+  - `src/whatsNew/` : `panel.ts`, `layout.ts`, `markdown.ts`, `seen.ts`, `types.ts`, `page.ts`.
+  - Reprendre ce qui sert, dans le ton de La Lignée ; `tree.ts` est propre à Allèle.
+- **Le panneau** : « Nouveautés », ouvert par un bouton discret à côté de ✎ et ⚙.
+  - Il s'ouvre tout seul une fois quand une version publiée est plus récente que la dernière vue (stockage du navigateur).
+  - Il se lit sur téléphone d'abord : captures en grand, texte court, et une version à la fois, la plus récente en tête.
+- **La contrainte du fichier unique** : la page jouable (`play/lignee-monde.html`, `npm run play`) est un seul fichier, sans serveur, ouvert aussi par `file://` et dans le lien Artifact. Les versions publiées et leurs images doivent y être embarquées sans l'alourdir de plusieurs Mo. Par exemple : la première image de chaque entrée, réduite et en JPEG, ou un autre choix mesuré et justifié dans le rapport.
+- **En dev** (`make dev`) : la version en préparation apparaît aussi, marquée comme telle, pour se relire avant de publier.
+- **Tests** : la logique pure (quelle version est nouvelle, mise en forme des entrées) dans `src/**/*.test.ts`.
+- **Fini quand** :
+  - la version 0.2 s'affiche avec ses 8 nouveautés et leurs images, en dev et dans la page jouable reconstruite ;
+  - le panneau s'ouvre tout seul une seule fois après une nouvelle version ;
+  - le bouton le rouvre à tout moment.
+
+## Livré
+
+Les chantiers publiés, du plus récent au plus ancien.
+
+### Les 10 chapitres dans le monde
+> 🟢 livré · v0.2.0 · agent 10-chapitres-monde
+
+Refaire la carte du monde (`src/monde/biomes.ts`) pour suivre la trame : la Nurserie, le Récif, la Forêt, la Grotte, la Carcasse, les Sources, le Glacier, le Jardin de méduses, la Fosse, et le fond d'où part la Remontée. Aujourd'hui : 6 biomes dans un autre ordre (la Forêt de kelp avant le Récif, puis le Tombant, le Crépuscule, les Abysses).
+
+- Pour chaque chapitre : son étendue, sa profondeur, sa palette ([direction-artistique.md](direction-artistique.md#une-palette-par-chapitre)), sa faune avec les partenaires de [chapitres.md](chapitres.md), ses plantes et décors.
+- Les chapitres dont le décor propre n'existe pas encore (Grotte, Carcasse, Glacier, Jardin, Fosse) reçoivent d'abord un décor provisoire tiré de l'existant ; leur vrai décor est un chantier à part.
+- Fini quand on traverse les 10 chapitres dans l'ordre, chacun avec son titre, sa palette et sa faune.
+
+### Reliefs composés : arches, grottes, failles, surplombs, piliers
+> 🟢 livré · v0.2.0 · agent reliefs-composes-arches
+
+Donner à chaque chapitre sa forme de terrain au lieu d'un fond qui ondule seulement ([direction-artistique.md](direction-artistique.md#les-décors)). Le moteur de terrain est dans `src/monde/world.ts` et `floorAt` (`src/monde/biomes.ts`).
+
+- Des formes qui passent devant et derrière le plan de nage (une arche qu'on traverse, un pilier qui cache).
+- Les collisions du nageur avec ces formes (aujourd'hui : le fond et les rochers ronds, `collide` dans `src/monde/main.ts`).
+- Fini quand au moins trois types de relief existent et que deux chapitres en ont un qui les distingue.
+
+### Premier plan sombre et flou
+> 🟢 livré · v0.2.0 · agent premier-plan-sombre
+
+Un plan entre la caméra et le nageur, sombre et flou, qui défile plus vite que le reste : algues, roches, coraux en silhouette. Il donne de la profondeur sans gêner la lecture du plan de nage (le laisser clair autour du nageur).
+
+### Le décor de la Carcasse
+> 🟢 livré · v0.2.0 · agent decor-carcasse
+
+Le squelette d'une baleine devenu oasis : côtes et vertèbres couchées sur le fond, vers, crabes, poissons, lumière sur les os ([chapitres.md](chapitres.md)). Les « fresques naturelles » (coquilles, motifs) sont posées ici ; elles serviront de traces à l'étape 4.
+
+### Le décor de la Grotte
+> 🟢 livré · v0.2.0 · agent decor-grotte
+
+Voûtes, piliers, galeries, rais de lumière par des puits, puis le noir ([chapitres.md](chapitres.md)). Dépend des reliefs composés.
+
+### Le décor du Glacier
+> 🟢 livré · v0.2.0 · agent decor-glacier
+
+Parois de glace bleue, aiguilles de givre autour d'une langue d'eau froide qui plonge, cristaux en suspension ([chapitres.md](chapitres.md)).
+
+### Le Jardin de méduses : sans fond, des milliers de méduses
+> 🟢 livré · v0.2.0 · agent jardin-meduses-sans
+
+Plus de fond visible ; des milliers de méduses qui pulsent et s'éclairent, des siphonophores géants. Les méduses lointaines sont bon marché (images ou points animés), seules les proches sont des créatures simulées. Le budget par image doit tenir sur téléphone (`?bench`).
+
+### La Fosse : noir total et ta propre lumière
+> 🟢 livré · v0.2.0 · agent fosse-noir-total
+
+Le noir complet, sauf la lumière du nageur (et de ce qui brille), de grandes silhouettes qui passent, la neige marine. Aujourd'hui les Abysses assombrissent déjà l'écran ; la Fosse va plus loin : on ne voit que ce que sa lumière éclaire.
