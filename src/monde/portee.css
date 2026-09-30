@@ -1,0 +1,59 @@
+/* The brood: four eggs hatch over the dimmed sea (portee-ecran.ts) */
+#portee {
+  position: fixed; inset: 0; z-index: 20; box-sizing: border-box; overflow-y: auto;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) 14px calc(18px + env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: radial-gradient(ellipse at 50% 45%, rgba(4,28,42,0.72), rgba(2,14,24,0.9));
+  opacity: 0; transition: opacity 1.2s ease;
+}
+#portee.show { opacity: 1; }
+#portee header { text-align: center; text-shadow: 0 1px 12px rgba(0,20,30,0.9); }
+#portee header small { display: block; font-size: 13px; font-weight: 500; letter-spacing: 0.32em; text-transform: uppercase; opacity: 0.55; }
+#portee header h2 { margin: 6px 0 2px; font-weight: 300; font-size: clamp(24px, 6.4vw, 34px); }
+#portee header p { margin: 0; font-style: italic; font-size: clamp(16px, 4.2vw, 19px); opacity: 0.8; }
+#portee .brood { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: min(560px, 100%); }
+@media (min-aspect-ratio: 4/3) { #portee .brood { grid-template-columns: repeat(4, minmax(0, 1fr)); width: min(980px, 100%); } }
+#portee .child {
+  position: relative; display: grid; grid-template-rows: auto auto 1fr; gap: 4px; padding: 8px 8px 10px; min-width: 0;
+  border-radius: 16px; border: 1px solid rgba(244,239,226,0.16); background: rgba(255,255,255,0.04);
+  color: inherit; font: inherit; text-align: left; cursor: pointer; transition: border-color 0.4s ease, background 0.4s ease, box-shadow 0.4s ease;
+}
+#portee .child:focus-visible { outline: 2px solid #f6d98a; outline-offset: 2px; }
+#portee .child.picked { border-color: rgba(246,217,138,0.85); background: rgba(246,217,138,0.1); box-shadow: 0 0 22px rgba(246,217,138,0.25); }
+#portee canvas {
+  width: 100%; aspect-ratio: 4 / 3; display: block;
+  opacity: 0; transform: scale(0.6); transition: opacity 1s ease calc(var(--delay) + 700ms), transform 1.2s cubic-bezier(.2,.9,.3,1.2) calc(var(--delay) + 700ms);
+}
+#portee.show canvas { opacity: 1; transform: none; animation: portee-float 5s ease-in-out calc(var(--delay) + 1.9s) infinite; }
+@keyframes portee-float { 50% { transform: translateY(-4px); } }
+/* the egg: a pale glowing oval that trembles, then melts away (HATCH in portee-ecran.ts) */
+#portee .egg {
+  position: absolute; left: 50%; top: 8px; width: 42%; aspect-ratio: 3 / 4; transform: translateX(-50%); pointer-events: none;
+  border-radius: 50% 50% 48% 48% / 58% 58% 42% 42%;
+  background: radial-gradient(ellipse at 38% 30%, rgba(255,250,235,0.85), rgba(246,217,138,0.35) 45%, rgba(246,217,138,0.08) 75%);
+  box-shadow: 0 0 26px rgba(246,217,138,0.35);
+}
+#portee.show .egg { animation: portee-hatch 1.4s ease-in var(--delay) forwards; }
+@keyframes portee-hatch {
+  0% { opacity: 1; transform: translateX(-50%) rotate(0); }
+  25% { transform: translateX(-50%) rotate(-7deg); }
+  45% { transform: translateX(-50%) rotate(6deg); }
+  60% { opacity: 1; transform: translateX(-50%) rotate(-3deg) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) scale(1.5); filter: blur(6px); }
+}
+#portee .child b, #portee .child dl { opacity: 0; transition: opacity 1s ease calc(var(--delay) + 1.2s); }
+#portee.show .child b, #portee.show .child dl { opacity: 1; }
+#portee .child b { font-weight: 500; font-size: clamp(18px, 4.6vw, 21px); text-align: center; }
+#portee dl { margin: 0; display: grid; gap: 1px; font-family: system-ui, sans-serif; font-size: 12px; line-height: 1.35; }
+#portee dt { font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic; font-size: 14px; margin-top: 3px; }
+#portee dt::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+#portee dt.parent::before { background: #f6d98a; }
+#portee dt.partner::before { background: #8fd8e8; }
+#portee dd { margin: 0; opacity: 0.8; }
+#portee .go {
+  min-width: min(320px, 100%); padding: 12px 18px; border-radius: 24px; font: inherit; font-size: 19px; cursor: pointer; color: inherit;
+  border: 1px solid rgba(246,217,138,0.6); background: rgba(246,217,138,0.18); transition: opacity 0.4s ease;
+}
+#portee .go:disabled { opacity: 0.45; cursor: default; font-style: italic; }
+#portee .go:focus-visible { outline: 2px solid #f6d98a; outline-offset: 2px; }
+#panel #porteeBtn { flex: none; padding: 10px; }

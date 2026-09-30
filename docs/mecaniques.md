@@ -37,7 +37,10 @@ La Nurserie et la Carcasse n'ont pas d'obstacle : on y trouve quand même un par
 - 4 œufs éclosent, avec 4 enfants générés par la fusion du parent et du partenaire.
 - L'écran montre ce que chacun a hérité du parent et du partenaire.
 - Tu choisis 1 enfant parmi 4 : c'est lui que tu joues ensuite.
-- Appui dans le code : la fusion de deux espèces existe (`fuse`, `src/content/generate.ts`, modes et part de B) et sert à l'onglet « Inventer » de l'Atelier. Les portraits se font avec `snapshot3` (`src/engine3/snapshot3.ts`).
+- Dans le code : `brood` (`src/content/portee.ts`) fait les 4 enfants avec `fuse` en mode « mélange », une part du partenaire de 30, 37, 43 et 50 % (40 % en moyenne), et note d'où vient chaque membre et à qui ressemble le corps. Chaque enfant reçoit au moins un membre du côté qui ne lui a pas donné son corps.
+- Les **traits voulus** (les membres du partenaire qu'on est venu chercher ; par défaut, ceux d'un rôle que le parent n'a pas, en attendant les traits des obstacles) vont à 1 enfant après une parade ratée, 2 à mi-chemin, 3 après une parade parfaite (`carriers`) : jamais à aucun, jamais aux 4, pour qu'il reste un choix.
+- L'écran (`src/monde/portee-ecran.ts`) : quatre œufs qui tremblent puis fondent, chacun sur son portrait (`snapshot3`), son nom (le début du nom du parent, la fin de celui du partenaire) et « de Première : Corps, Cil… / de Méduse lune : Filament… ». On touche un enfant, puis « Continuer avec … » : il devient la créature jouée, et le parent rejoint la lignée de la sauvegarde (`partie.born`).
+- Pour l'ouvrir : `monde.openPortee(partenaire, qualité)` (un id du bestiaire ou une espèce, qualité de 0 à 1), ou, avec `?dev`, le bouton « Une portée avec un animal d'ici » du panneau ⚙. La parade l'appellera à sa fin.
 
 ### L'adieu
 
@@ -105,4 +108,4 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
 - Durée visée : environ 1 h 30 à 2 h, soit 9 à 12 minutes par chapitre sur 10 chapitres, avec une fin qu'on n'a pas envie de rater.
 - Sauvegarde automatique dans le stockage du navigateur (`lignee.partie`, `src/monde/partie.ts`) : le chapitre atteint, la créature jouée et la lignée (les parents, chacun avec le chapitre où il a donné naissance). La partie est sauvée à chaque naissance, à chaque nouveau chapitre et quand l'Atelier change la créature.
 - À l'ouverture de la page, on reprend au début du chapitre sauvé, avec sa créature ; une ancienne sauvegarde (`lignee.player`, la créature seule) est reprise à la Nurserie. Le panneau ⚙ a un bouton « Recommencer depuis la Nurserie » (deux touches), et `?nouvelle` fait de même pour les tests.
-- Les naissances n'existent pas encore : l'hérédité appellera `monde.partie.born(enfant)`, qui range le parent dans la lignée. Les portraits, s'ils sont gardés, iront plutôt dans IndexedDB ([décisions](decisions.md)).
+- À chaque naissance (le choix d'un enfant de la portée), `monde.partie.born(enfant)` range le parent dans la lignée. Les portraits, s'ils sont gardés, iront plutôt dans IndexedDB ([décisions](decisions.md)).
