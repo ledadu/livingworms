@@ -39,6 +39,7 @@ import { CARCASSE, boneLight, carcasseDwellers, carcasseSchool } from './carcass
 import { initNouveautes } from './nouveautes';
 import { createNarrator } from './narration';
 import { initPartie } from './partie-jeu';
+import { GLOW_HUE, marksPartner, partnerGlow, partnerSpawns } from './partenaires';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -121,6 +122,8 @@ interface Actor {
   spr: Sprite | null; bakedAt: number;
   /** added by a test */
   temp?: boolean;
+  /** a compatible species of this chapter index (partenaires.ts): it glows when the swimmer comes near */
+  partner?: number;
 }
 const actors: Actor[] = [];
 function addActor(sp: Spec, x: number, y: number, kind: Actor['kind'], scale = 1, z = 0): Actor {
@@ -169,7 +172,13 @@ function homeY(kind: Actor['kind'], x: number, z: number, R: () => number): numb
 
 // the animals of every biome: each species of its list at least once, then by weight
 {
-  const R = rng(3);
+  const R = rng(3), met = new Map<string, number>();
+  /** the actors of a chapter's compatible species, in the plane where they can be met, are its partners */
+  const mark = (a: Actor, bi: number, id: string, x: number, z: number) => {
+    if (!marksPartner(bi, id, x, z)) return;
+    a.partner = bi;
+    met.set(bi + id, (met.get(bi + id) || 0) + 1);
+  };
   for (let i = 0; i < 5; i++) addActor(firstAncestor(), 420 + rand(-200, 200), rand(120, 260), 'sib', 0.45 + R() * 0.15, rand(-40, 60));
   BIOMES.forEach((b, bi) => {
     let total = 0;
@@ -179,10 +188,16 @@ function homeY(kind: Actor['kind'], x: number, z: number, R: () => number): numb
       if (!f) { let u = R() * total; f = b.fauna.find((g) => (u -= g[2]) <= 0) || b.fauna[0]; }
       const [id, kind, , scale] = f;
       const x = faunaX(bi, R), z = [0, 0, 0, 70, 150, 260, 400][Math.floor(R() * 7)];
-      addActor(SPECIES[id](), x, homeY(kind, x, z, R), kind, scale, z);
+      const a = addActor(SPECIES[id](), x, homeY(kind, x, z, R), kind, scale, z);
+      mark(a, bi, id, x, z);
     }
   });
-  for (const [id, kind, x, z, scale] of carcasseDwellers()) addActor(SPECIES[id](), x, homeY(kind, x, z, R), kind, scale, z);
+  for (const [id, kind, x, z, scale] of carcasseDwellers()) {
+    const a = addActor(SPECIES[id](), x, homeY(kind, x, z, R), kind, scale, z);
+    mark(a, biomeIndex(x), id, x, z);
+  }
+  // the partners of each chapter, always there in the swimming plane
+  for (const [bi, q, x] of partnerSpawns(R, (bi, id) => met.get(bi + id) || 0)) addActor(SPECIES[q.id](), x, homeY(q.kind, x, 0, R), q.kind, q.scale).partner = bi;
 }
 
 // big animals passing far away, across their chapter
@@ -447,6 +462,16 @@ const glowPts: number[] = [];
 const lights: number[] = [];
 const glacier: GlacierScene = { view, ctx, gx, dpr, t: 0, plane: 0 };
 
+/** a partner glows softly around the middle of its body when the swimmer comes near */
+function pushPartnerLight(a: Actor): void {
+  const r = a.cr.root, pr = player.cr.root, k = r.x.length >> 1;
+  const al = partnerGlow(Math.hypot(r.x[k] - pr.x[0], r.y[k] - pr.y[0]), t, a.cr.root.x.length + a.hx * 0.01);
+  if (al < 0.01) return;
+  view.project(r.x[k], r.y[k], r.z[k], P);
+  // clear bright water swallows an added light: it glows a little more there
+  lights.push(P.x, P.y, (80 * P.s + 16) * (0.85 + 0.15 * al), GLOW_HUE, 0.5 * al * (1 + env.water));
+}
+
 function render(): void {
   const m = moodAt(cam.x), pr = player.cr.root, plane = settings.dist;
   env.water = clamp((waterAt(m, cam.y).l - 28) / 30, 0, 1);
@@ -539,6 +564,7 @@ function render(): void {
     if (x < x0 || x > x1) continue;
     const rz = a.cr.root.z[0];
     items.push({ d: view.depth(a.cr.root.y[0], rz) - 0.2, fn: () => drawActor(a, plane), k: 'actor' });
+    if (a.partner !== undefined && !skip.has('partner')) pushPartnerLight(a);
     const fy = floorAt(x, rz), h = fy - a.cr.root.y[0];
     if (h < 260 && h > -8 && rz < 900 && m.dark < 0.6) items.push({ d: view.depth(fy, rz) + 0.3, fn: () => drawShadow(a, fy, h), k: 'shadow' });
   }
@@ -1121,7 +1147,8 @@ export const api = {
   get dpr() { return dpr; },
   get size() { return [W, H, canvas.width, canvas.height]; },
   setFrameHook: (f: typeof onFrame) => { onFrame = f; },
-  unlockBalade: () => { unlockBalade(); applyAtelierAccess(atBtn); }
+  unlockBalade: () => { unlockBalade(); applyAtelierAccess(atBtn); },
+  partners: () => actors.filter((a) => a.partner !== undefined)
 };
 (window as unknown as { monde: typeof api }).monde = api;
 
