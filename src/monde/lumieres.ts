@@ -7,7 +7,8 @@ import { clamp, rng, type Spec } from '../engine';
 import { SPECIES, firstAncestor } from '../content/species';
 import { brood } from '../content/portee';
 import { traitsOf } from '../content/traits';
-import { BIOMES, type ChapterId } from './biomes';
+import type { ChapterId } from './biomes';
+import { NOTE_CHAPTERS } from './chant';
 import { KEYS, crosses } from './obstacles';
 import { PARTNERS } from './partenaires';
 import { hashOf } from './rivale';
@@ -15,14 +16,8 @@ import { toLines } from './textes';
 
 export interface Pt { x: number; y: number }
 
-/** the chapters of the descent, each with its note; the Remontée has none */
-export const DESCENT: ChapterId[] = BIOMES.map((b) => b.id).filter((id) => id !== 'remontee');
-
-/** the notes learned by a lineage that got down to `here`: one per chapter entered (until the chant keeps them itself) */
-export function notesTo(here: string): ChapterId[] {
-  const i = DESCENT.indexOf(here as ChapterId);
-  return i < 0 ? [] : DESCENT.slice(0, i + 1);
-}
+/** the chapters of the descent, each with its note of the song (chant.ts); the Remontée has none */
+export const DESCENT: readonly ChapterId[] = NOTE_CHAPTERS;
 
 // ----- the other lineages ----- //
 

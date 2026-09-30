@@ -5,7 +5,7 @@
 Dans la Fosse, **chaque note apprise qu'on chante fait répondre une lumière**, une à une : c'est l'ancêtre d'une autre lignée, celui qui a appris cette note. Il répond de loin, vient nager à nos côtés, et quand toutes les notes ont eu leur réponse, **le chant a franchi le noir** : l'obstacle de la Fosse (« le noir et le silence », clés lanterne ou chant) s'ouvre.
 
 - **Les règles** (`src/monde/lumieres.ts`, pures, 22 tests dans `lumieres.test.ts`) :
-  - **Les notes apprises** : `notesTo(chapitre)` donne une note par chapitre de la descente, jusqu'à celui qu'on a atteint. C'est un bouche-trou en attendant le chant, qui les tiendra (`chant.learned`, même résultat dans une partie normale).
+  - **Les notes** : celles du chant (`NOTE_CHAPTERS`, `chant.ts`) ; les notes apprises sont `chant.learned`, qu'on donne au module de jeu.
   - **Les autres lignées** (`startWalk`, `walkStep`, `otherAncestor`) : une lignée par note, partie d'une première larve d'une autre couleur. Dans chaque chapitre, elle choisit un partenaire (`PARTNERS`) qui franchit l'obstacle et fait sa portée avec `brood`, comme nous (parade à 0,8). Elle garde un enfant qui franchit l'obstacle, jusqu'au chapitre de la note. La graine vient de la note et de notre lignée sauvée (`gameSeed` : chapitres et partenaires, pas les noms) : les mêmes lumières d'une visite à l'autre, sans rien de plus dans la sauvegarde.
   - **Une à une** (`answerAt`) : une réponse vient 1,1 s après sa note, et jamais moins de 1,8 s après la précédente, même si l'on chante vite.
   - **D'où elles viennent** (`dirOf`, `farAlong`, `roomAlong`) : d'au-dessus ou des côtés, jamais d'en dessous, chacune de sa direction. Elles viennent du bord de l'écran visible : 520 px au plus, moins sur les côtés d'un téléphone tenu droit.
@@ -22,13 +22,15 @@ Dans la Fosse, **chaque note apprise qu'on chante fait répondre une lumière**,
 - **Le dessin** (`src/monde/lumieres-draw.ts`) :
   - leur corps est dessiné **après le noir**, teinté de sa couleur, comme éclairé par lui-même (WebGL et Canvas 2D) ;
   - leur halo passe avec les lumières du monde, dans leur couleur (`cousinHue` : jamais l'or des partenaires).
-- **Pour le voir** : `?dev`, voyage à la Fosse (⚙), puis dans la console `monde.lumieres.sing()`. Il chante toutes les notes apprises, une toutes les 0,9 s ; en 25 s environ, les neuf ont répondu. `monde.lumieres.hear('recif')` chante une seule note. Pour suivre où on en est : `monde.lumieres.answers`, `done` ; `monde.skip.add('answer')` cache les lumières.
+- **Branché sur le chant** : `chant.onNote((c) => lumieres.hear(c))` fait entendre ici chaque note au moment où le nageur la chante, et `learned: () => chant.learned` donne les notes apprises.
+- **Pour le voir** : `?dev`, voyage à la Fosse (⚙). On attend que la note du silence s'apprenne, puis on chante avec le bouton du chant, en traçant toutes les notes dans le cercle. Dans la console, `monde.chant.sing(monde.chant.learned)` fait la même chose ; en 25 s environ, les neuf ont répondu. `monde.lumieres.hear('recif')` fait entendre une note sans la chanter. Pour suivre où on en est : `monde.lumieres.answers`, `done` ; `monde.skip.add('answer')` cache les lumières.
 - **Doc** : `docs/chapitres.md`, chapitre 9 (« Les lumières qui répondent », le texte proposé, la Fosse dans « Les obstacles-clés ») ; `docs/direction-artistique.md`, « La Fosse : le noir total ».
 
 Téléphone (412 × 860, WebGL, Chrome Windows) :
 
 ![Avant : le noir de la Fosse, notre larve et ses sœurs](img/avant-noir.jpg)
-![La première réponse, au bord gauche de l'écran](img/premiere-reponse.jpg)
+![La première réponse, au bord gauche de l'écran (capture d'avant le chant)](img/premiere-reponse.jpg)
+![Le chant : les notes apprises partent en cercles de leur couleur](img/chant.jpg)
 ![Les réponses viennent nager autour de nous, chacune de sa couleur](img/reponses.jpg)
 ![Toutes ont répondu : leurs lumières ouvrent le noir, la lignée parle](img/mots.jpg)
 
@@ -47,7 +49,7 @@ Aucune question de choix posée à l'utilisateur : rien de structurant qui ne se
 | La note de la Carcasse | La cousine de la lignée rivale, si on l'a croisée | Sa génération a appris « le souvenir » à la Carcasse : on la retrouve, c'est un rappel qui touche, sans rien coûter |
 | Combien de lumières | Une par note apprise différente ; rechanter une note fait briller de nouveau sa lumière | Autant de lumières que de notes, soit neuf dans une partie normale ; chanter plus n'encombre pas le noir |
 | Une à une | Au moins 1,8 s entre deux réponses, 1,1 s de silence avant la première | Le « une à une » du chantier, quelle que soit la vitesse du chant |
-| Les notes apprises | `notesTo(chapitre atteint)`, remplacé par `chant.learned` à la fusion | Même résultat que la règle du chant dans une partie normale ; pas de doublon durable |
+| Les notes apprises | `chant.learned` (depuis la fusion du chant ; avant, un bouche-trou `notesTo`, retiré) | La règle du chant fait foi ; pas de doublon |
 | Ce que le chant ouvre | L'obstacle de la Fosse, quand chaque note apprise a eu sa lumière et qu'elle est arrivée | La doc donne « lanterne ou chant » ; tout le moment compte, pas une seule note |
 | D'où elles viennent | Du bord de l'écran visible, d'au-dessus ou des côtés | Dans le noir et au loin, mais toujours visibles, même sur un téléphone tenu droit |
 | Le rendu | Le corps dessiné par-dessus le noir, teinté de sa couleur, et un halo | On voit à la fois une lumière et un ancêtre ; sous le noir, le corps serait invisible hors de notre lumière |
@@ -55,7 +57,7 @@ Aucune question de choix posée à l'utilisateur : rien de structurant qui ne se
 | Le coût de génération | Une naissance par pas de simulation, en approchant de la Fosse | 36 naissances, environ 150 ms sur ordinateur : réparties, sans à-coup |
 | Les mots | Un texte « Les lumières qui répondent », lu sous la Fosse dans `chapitres.md`, avec mon propre petit lecteur | Le texte est la seule vraie interface ; `textes.ts` reste intact, sans conflit avec le chant |
 | Garder les réponses | Pour la session seulement | L'obstacle de la Fosse ne se garde pas non plus au rechargement (limites) ; pas de nouveau format de sauvegarde |
-| Chanter sans le chant | `monde.lumieres.sing()` et `hear()` pour les tests ; rien pour les joueurs | Le bouton et le cercle de notes sont le chantier du chant, lancé en même temps |
+| Chanter | Le chant (`chant.onNote`) ; `hear()` reste pour les tests. Mon `monde.lumieres.sing()` d'avant la fusion est retiré | Le bouton et le cercle de notes sont le chantier du chant ; `monde.chant.sing()` passe par le vrai chemin |
 
 ## Options non retenues
 
@@ -85,21 +87,19 @@ Aucune question de choix posée à l'utilisateur : rien de structurant qui ne se
 - **Coût** : tout faire d'un coup à la première note, un à-coup de 35 ms sur ordinateur et bien plus sur téléphone ; tout faire au chargement, qui retarde l'ouverture de la page ; un Web Worker, plus de code pour un gain faible.
 - **Les mots** : un nouveau type de texte dans `textes.ts` (comme `meeting`), plus uniforme mais un conflit probable avec le chant ; pas de texte, et le moment passerait sans mots.
 - **Garder les réponses** : les écrire dans la sauvegarde, un nouveau format durable pour un moment qu'on revit volontiers.
-- **Chanter sans le chant** : un bouton de dev dans ⚙, inutile dès la fusion du chant ; un chant minimal à moi, qui doublerait le chantier voisin.
+- **Chanter** : garder `monde.lumieres.sing()`, qui court-circuiterait la voix et les cercles du chant ; un bouton de dev dans ⚙, inutile avec le chant ; un chant minimal à moi, qui doublerait le chantier voisin.
+- **Les notes apprises** : garder mon `notesTo` (les chapitres atteints), qui doublerait la règle du chant et oublierait une note pas encore apprise dans le chapitre où l'on est.
 
 ## Reste à faire / limites
 
-- **Le branchement du chant**, à faire à la fusion (deux lignes dans `main.ts`) :
-  - `chant.onNote((c) => lumieres.hear(c))` ;
-  - dans `initLumieres`, `learned: () => chant.learned` à la place de `notesTo(partie.chapter)`.
-  - Sans le chant, les joueurs ne peuvent pas encore chanter : l'entrée pour les joueurs suppose que les deux chantiers sortent ensemble.
+- **Les animaux du chant** répondent aussi dans la Fosse, par leurs cercles de couleur, en même temps que les ancêtres des autres lignées ; les ancêtres eux-mêmes, étant des animaux de la mer, répondent aussi au chant par un cercle. C'est cohérent, et lisible sur téléphone ; à revoir seulement si la Fosse paraît trop chargée.
 - **Le son** : les lumières répondent sans bruit. Il faudrait un écho de la note (son timbre, plus doux et plus lointain), à brancher sur les timbres du chant ou sur « La musique générée ».
 - **La Remontée** : `onDone` et `answers` sont prêts pour que ces ancêtres remontent en formation ; le fond reste la fin du monde tant que la Remontée n'est pas là.
 - **Performance** : les neuf ancêtres (environ 300 chaînes en tout, comme une dizaine d'animaux) ajoutent environ 2,4 ms de simulation et 2 ms de dessin par image sur ordinateur (60 img/s tenues). Le chantier « La performance sur téléphone » pourra les simplifier au loin.
 - **Au rechargement**, il faut chanter de nouveau, comme l'obstacle de la Fosse qui ne se garde pas non plus.
 - Les animaux du chant, qui répondent partout, peuvent aussi répondre dans la Fosse : à regarder ensemble une fois les deux chantiers fusionnés.
 - Le texte « Les lumières qui répondent » est une proposition, à relire avec les autres.
-- **Test déjà rouge sur la base** : `src/monde/nouveautes/plugin.test.ts` (« embeds the published versions only… ») échoue sur `backlog` 865e30a sans aucun de mes changements. Les images des versions 0.3 à 0.5 prennent le budget de 400 Ko, et les entrées de la 0.2.0 n'ont plus leur image. Signalé au tableau de bord ; `make check` est rouge pour cette seule raison.
+- **Test déjà rouge sur la base** : `src/monde/nouveautes/plugin.test.ts` (« embeds the published versions only… ») échoue sur `backlog` (865e30a, et toujours sur 207c433) sans aucun de mes changements. Les images des versions 0.3 à 0.5 prennent le budget de 400 Ko, et les entrées de la 0.2.0 n'ont plus leur image. Signalé au tableau de bord ; `make check` est rouge pour cette seule raison.
 
 ## Risques de fusion
 
@@ -114,7 +114,23 @@ Aucune question de choix posée à l'utilisateur : rien de structurant qui ne se
   - une ligne en tête de `drawShapes` ;
   - le bloc `initLumieres` après `initRivale` ;
   - `lumieres` dans l'`api`.
-  - Conflits probables avec le chant et la Remontée sur la ligne de l'`api`, les imports et l'union des types d'acteurs : garder les deux côtés.
-- **`docs/chapitres.md`** : dans le chapitre 9 (La Fosse), une puce « Les lumières qui répondent » et un texte « Les lumières qui répondent : » avant l'adieu ; une phrase changée dans « Les obstacles-clés » (la Fosse et le chant). Le chant et la Remontée touchent sans doute aussi le chapitre 9 et le 10 : garder les deux côtés.
+  - Depuis la fusion du chant : `chant.onNote(…)` après `initChant`, et `learned: () => chant.learned`.
+  - Conflits probables avec la Remontée sur la ligne de l'`api`, les imports et l'union des types d'acteurs : garder les deux côtés.
+- **`docs/chapitres.md`** : dans le chapitre 9 (La Fosse), une puce « Les lumières qui répondent » et un texte « Les lumières qui répondent : » avant l'adieu ; une phrase changée dans « Les obstacles-clés » (la Fosse et le chant). La Remontée touche sans doute aussi le chapitre 10 : garder les deux côtés.
 - **`docs/direction-artistique.md`** : une puce dans « La Fosse : le noir total ».
 - Nouveaux fichiers seulement pour le reste : `lumieres.ts`, `lumieres.test.ts`, `lumieres-jeu.ts`, `lumieres-draw.ts`.
+
+## Fusion avec backlog (le chant)
+
+- **Conflits dans `src/monde/main.ts`**, deux, réglés en gardant les deux côtés :
+  - les imports : `initChant` et `notesOfGeneration` de `backlog`, puis les miens (`initLumieres`, `gameSeed`, `roomAlong`) ;
+  - la ligne `api` : `chant` de `backlog`, puis `lumieres`.
+- **Le branchement, fait dans la fusion** (prévu dans « Reste à faire ») :
+  - `chant.onNote((c) => lumieres.hear(c))`, juste après `initChant` ;
+  - `learned: () => chant.learned` dans `initLumieres`.
+- **Retiré de mon côté**, devenu doublon :
+  - le bouche-trou `notesTo` et son test ;
+  - `monde.lumieres.sing()`, que remplace `monde.chant.sing(…)` ;
+  - `DESCENT` reprend `NOTE_CHAPTERS` du chant au lieu de la recalculer.
+- **Relu sans conflit** : `narration.ts` (une ouverture n'est plus coupée par son propre nom : `say` ne change pas), `partie.ts` (les notes apprises dans la sauvegarde), `arbre-ecran.ts`, `mecaniques.md`. Sa section « Le chant » laisse déjà le passage de la Fosse aux lumières. `chapitres.md` et `direction-artistique.md` ont fusionné sans conflit. Le chapitre 9 est mis à jour : on chante avec le bouton du chant, et les notes apprises sont celles du chant.
+- Vérifié dans le Chrome Windows (téléphone, WebGL) : on chante les neuf notes par le chant, les neuf lumières répondent une à une, la cousine répond au souvenir, la Fosse s'ouvre et la lignée parle (captures `chant.jpg`, `reponses.jpg` et `mots.jpg` refaites).

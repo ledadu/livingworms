@@ -17,6 +17,7 @@ Les profondeurs sont indicatives : le monde est une descente continue, pas une c
 - La voix est celle de la lignée, un « nous », comme si les ancêtres parlaient.
 - **Dans le jeu** (`src/monde/textes.ts`, affichage dans `narration.ts`) : les textes sont lus dans ce document même, au build. Sous le titre `## N. Nom` d'un chapitre, la citation (`> …`) qui suit une ligne « Ouverture : », « Adieu … : », « Le retournement : » (l'ouverture de la Remontée) ou « Texte final : » ou « Devant l'obstacle : » (dit la première fois que l'obstacle du chapitre nous retient) devient ce texte ; pour en changer un, il suffit de l'écrire ici. Une phrase par ligne ; une phrase seule et longue se coupe à la virgule la plus proche de son milieu ; quatre lignes au plus. L'ouverture s'écrit la première fois qu'on entre dans le chapitre, ligne après ligne, sous son nom en petites capitales, puis s'efface ; en y revenant, seul le nom passe. Elle attend qu'aucun panneau (Nouveautés, Atelier) ne couvre la mer. L'adieu se dit pendant la scène de l'adieu au parent ([mécaniques](mecaniques.md#ladieu)) ; tant qu'il est à l'écran, une ouverture attend qu'il s'efface et rien d'autre ne se dit.
 - « La rencontre : » donne le texte dit la première fois qu'on croise la cousine de la lignée rivale, à la Carcasse (voir le chapitre 5).
+- La ligne « Note : « … » » de chaque chapitre donne son nom à la note du chant qu'on y apprend (`chant.ts`, voir [mécaniques](mecaniques.md#le-chant)).
 
 ## Vue d'ensemble
 
@@ -209,7 +210,7 @@ Adieu (proposition) :
 - **Moment fort** : tu joues les notes déjà apprises et, une à une, des lumières répondent dans le noir, celles des ancêtres des autres lignées.
 - **Note** : « le silence ».
 - **Les lumières qui répondent** (`src/monde/lumieres.ts`, pures et testées ; dans le jeu `lumieres-jeu.ts`, dessin `lumieres-draw.ts`) :
-  - Dans la Fosse, chaque note apprise qu'on chante fait répondre une lumière, une à une : après un silence (1,1 s), et jamais moins de 1,8 s après la précédente, même si l'on chante vite. Les notes apprises : une par chapitre de la descente où l'on est entré, jusqu'à la Fosse ; le chant les tiendra lui-même.
+  - Dans la Fosse, chaque note apprise qu'on chante fait répondre une lumière, une à une : après un silence (1,1 s), et jamais moins de 1,8 s après la précédente, même si l'on chante vite. On chante avec le bouton du chant et son cercle de notes ([mécaniques](mecaniques.md#le-chant)) ; chaque note, au moment où le nageur la chante (`chant.onNote`), est entendue ici. Les notes apprises sont celles du chant (`chant.learned`).
   - Chaque lumière est **l'ancêtre d'une autre lignée**, celui qui a appris cette note. Cette lignée part d'une première larve d'une autre couleur que la nôtre. Dans chaque chapitre, elle a choisi un partenaire qui franchit l'obstacle et gardé un enfant qui le franchit, jusqu'au chapitre de la note.
     - Chaque note a sa lignée, la même d'une visite à l'autre tant que notre lignée ne change pas.
     - La note de la Carcasse fait exception : si on l'a croisée, c'est la cousine de la lignée rivale qui répond (voir le chapitre 5).
@@ -224,7 +225,7 @@ Adieu (proposition) :
     - toutes les lumières brillent ensemble, en vague ;
     - la lignée dit « Les lumières qui répondent » (ci-dessous).
     - Le fond reste la fin du monde tant que la Remontée n'est pas là.
-  - Pour les tests : on chante avec le chant (son bouton et son cercle de notes) ; sans lui, `monde.lumieres.sing()` chante toutes les notes apprises, une toutes les 0,9 s, et `monde.lumieres.hear('recif')` une seule. `monde.lumieres.answers` et `done` disent où on en est, `onDone(f)` est appelé quand le chant a franchi le noir, et `monde.skip.add('answer')` cache les lumières.
+  - Pour les tests : `monde.chant.sing(monde.chant.learned)` chante toutes les notes apprises (une toutes les 0,5 s) ; `monde.lumieres.hear('recif')` fait entendre une note sans la chanter. `monde.lumieres.answers` et `done` disent où on en est, `onDone(f)` est appelé quand le chant a franchi le noir, et `monde.skip.add('answer')` cache les lumières.
 
 Ouverture :
 

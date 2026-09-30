@@ -20,8 +20,6 @@ const WORDS = parseAnswerText(doc);
 const FOSSE = chapterIndex('fosse');
 /** the other lineages start down when we are this far before the Fosse */
 const EARLY = 2500;
-/** the time between two notes of the song of the tests (s) */
-const TEMPO = 0.9;
 
 interface Deps {
   /** the notes our lineage has learned, in the order of the descent */
@@ -69,7 +67,6 @@ export function initLumieres(deps: Deps) {
   const walks = new Map<ChapterId, Walk>(), answers: Answer[] = [], byCr = new Map<Creature3, Answer>();
   const doneFns: (() => void)[] = [];
   let time = 0, swimmer: Pt = { x: 0, y: 0 }, last = -99, done = false, bloom = -1, told = false, retry = 0;
-  let song: ChapterId[] = [], nextNote = 0;
 
   const inFosse = (p: Pt) => biomeIndex(p.x) === FOSSE;
   /** within the Fosse and the open water */
@@ -115,12 +112,9 @@ export function initLumieres(deps: Deps) {
       answers.push({ note, k: answers.length, start: last, far: null, cr: null, hue: 0, settled: false, echo: -1, buf: null });
       return true;
     },
-    /** tests: sing these notes (by default all those learned), one after another */
-    sing(notes: readonly ChapterId[] = deps.learned()): void { song = [...notes]; nextNote = time; },
     /** each step, with the swimmer at p */
     step(p: Pt, t: number): void {
       time = t; swimmer = p;
-      if (song.length && t >= nextNote) { api.hear(song.shift()!); nextNote = t + TEMPO; }
       if (p.x > x0 - EARLY) prepare();
       for (const a of answers) {
         if (!a.cr) { if (t >= a.start) begin(a); continue; }

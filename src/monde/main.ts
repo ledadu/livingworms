@@ -52,8 +52,10 @@ import { ancestorsIn } from './ancetres-jeu';
 import { placeOf } from './ancetres';
 import { initTraces } from './traces-jeu';
 import { initRivale } from './rivale-jeu';
+import { initChant } from './chant-jeu';
+import { notesOfGeneration } from './chant';
 import { initLumieres } from './lumieres-jeu';
-import { gameSeed, notesTo, roomAlong } from './lumieres';
+import { gameSeed, roomAlong } from './lumieres';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -178,7 +180,7 @@ let paused = false;
 const atBtn = document.getElementById('atBtn');
 applyAtelierAccess(atBtn);
 // the lineage tree (arbre-ecran.ts), at any time: the sea waits while it is open
-const arbre = initArbre({ partie, chapters: BIOMES, live: () => player.cr.spec, onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); } });
+const arbre = initArbre({ partie, chapters: BIOMES, live: () => player.cr.spec, notes: (rank) => notesOfGeneration(partie.saved, rank), onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); } });
 atBtn?.addEventListener('click', () => {
   paused = true;
   Atelier.open(player.cr.spec, {
@@ -361,7 +363,7 @@ let bounds = keys.bounds();
 // the parade with a partner of the chapter (parade-jeu.ts): it leads, we follow
 const parade = initParade({
   chapter: () => BIOMES[biomeIndex(player.cr.root.x[0])].id,
-  quiet: () => paused || portee.isOpen || adieu.on || !!document.getElementById('chapter')?.classList.contains('show'),
+  quiet: () => paused || portee.isOpen || adieu.on || chant.isOpen || !!document.getElementById('chapter')?.classList.contains('show'),
   keep: (x, y, floor) => {
     x = clamp(x, bounds[0] + 40, bounds[1] - 40);
     return { x, y: floor ? floorAt(x, 0) - 12 : clamp(y, Math.max(40, ceilAt(x, 0) + 50), floorAt(x, 0) - 70) };
@@ -496,6 +498,7 @@ function update(): void {
   if (bi >= 0) showChapter(bi);
   if (chapters.shown >= 0) partie.reach(BIOMES[chapters.shown].id);
   traces.step(px, py);
+  chant.step(t, p, actors, chapters.shown);
 }
 
 // ----- drawing ----- //
@@ -1162,7 +1165,7 @@ const rivale = initRivale({
 // the lights that answer in the Fosse (lumieres-jeu.ts): each note sung there brings an ancestor of another lineage;
 // once every note learned has its answer, the song has crossed the dark
 const lumieres = initLumieres({
-  learned: () => notesTo(partie.chapter),
+  learned: () => chant.learned,
   seed: () => gameSeed(partie.lineage),
   cousin: () => rivale.rival?.spec ?? null,
   add: (sp, x, y, scale) => addActor(sp, x, y, 'answer', scale).cr,
@@ -1174,6 +1177,16 @@ const lumieres = initLumieres({
   open: () => { limits.crossed.add('fosse'); bounds = keys.bounds(); },
   say: (name, lines) => !adieu.on && narrator.say(name, lines)
 });
+
+// ----- the song (chant-jeu.ts) ----- //
+
+// each chapter's note, learned once its opening has been told; the circle of notes; the animals that answer
+const chant = initChant({
+  partie, order: BIOMES.map((b) => b.id), view,
+  busy: () => paused || adieu.on || narrator.quiet() || chapterEl.classList.contains('show') || !narrator.told.has(chapters.shown),
+  held: (a) => parade.leads(a as Actor)
+});
+chant.onNote((c) => lumieres.hear(c));
 
 // ----- loop ----- //
 
@@ -1208,6 +1221,7 @@ function frame(now: number): void {
   view.aim(cam.x, ty, dist, pitch);
   const r0 = performance.now();
   render();
+  chant.draw();
   const rt = performance.now() - r0;
   let ft = 0;
   if (opts.flush) { const f0 = performance.now(); if (gx) gx.finish(); else ctx.getImageData(0, 0, 1, 1); ft = performance.now() - f0; }
@@ -1270,7 +1284,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, traces, rivale, lumieres,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, traces, rivale, chant, lumieres,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
@@ -1322,7 +1336,7 @@ const hint = document.getElementById('hint')!;
 setTimeout(() => hint.classList.add('gone'), 6000);
 document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).closest('#panel, #atelier, #benchOut')) e.preventDefault(); }, { passive: false });
 const nouveautes = initNouveautes(() => !Atelier.isOpen && benchOut.hidden === true);
-narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen || portee.isOpen || arbre.isOpen;
+narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen || portee.isOpen || arbre.isOpen || chant.isOpen;
 
 // back where the game was left: the start of its chapter, the obstacles before it crossed (teleport)
 const resumeAt = chapterIndex(partie.chapter as (typeof BIOMES)[number]['id']);

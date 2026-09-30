@@ -1,6 +1,6 @@
 // The saved game in the page: loaded when it opens, saved at each birth and each new chapter, and forgotten by the
 // « Recommencer » button of the settings panel (or ?nouvelle, for the tests).
-import { birth, clearPartie, loadPartie, openStore, reachChapter, renameAncestor, replaceCreature, savePartie, type Mate, type Partie, type Place, type SavedCreature } from './partie';
+import { birth, clearPartie, learnNote, loadPartie, openStore, reachChapter, renameAncestor, replaceCreature, savePartie, type Mate, type Partie, type Place, type SavedCreature } from './partie';
 
 const plain = (sp: object): SavedCreature => JSON.parse(JSON.stringify(sp)) as SavedCreature;
 
@@ -38,6 +38,8 @@ export function initPartie(chapters: readonly string[]) {
     born(sp: object, chapter = p.chapter, partner?: Mate, at?: Place) { keep(birth(p, plain(sp), chapter, partner, at)); },
     /** the i-th ancestor gets a name (the lineage tree) */
     rename(i: number, name: string) { keep(renameAncestor(p, i, name)); },
-    reach(chapter: string) { if (reachChapter(p, chapter, chapters)) savePartie(store, p); }
+    reach(chapter: string) { if (reachChapter(p, chapter, chapters)) savePartie(store, p); },
+    /** the note of this chapter learned by the generation played (chant.ts) */
+    learn(chapter: string) { const next = learnNote(p, chapter); if (next !== p) keep(next); }
   };
 }

@@ -7,7 +7,7 @@ import { crosses } from './obstacles';
 import { PARTNERS } from './partenaires';
 import { parseChapterTexts, textsOf } from './textes';
 import {
-  DELAY, DESCENT, ECHO, FAR, GAP, RING, SETTLED, answerAt, farAlong, roomAlong, answerGlow, answerGoal, answerLight, answered, dirOf, notesTo,
+  DELAY, DESCENT, ECHO, FAR, GAP, RING, SETTLED, answerAt, farAlong, roomAlong, answerGlow, answerGoal, answerLight, answered, dirOf,
   otherAncestor, parseAnswerText, partnerIn, ringOf, seedOf, spotOf, startWalk, walkStep, walked
 } from './lumieres';
 
@@ -16,14 +16,6 @@ const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.
 describe('the notes of the descent', () => {
   it('one per chapter of the descent, the Remontée has none', () => {
     expect(DESCENT).toEqual(['nurserie', 'recif', 'foret', 'grotte', 'carcasse', 'sources', 'glacier', 'jardin', 'fosse']);
-  });
-
-  it('a lineage that got down to a chapter learned the notes of every chapter down to it', () => {
-    expect(notesTo('nurserie')).toEqual(['nurserie']);
-    expect(notesTo('carcasse')).toEqual(['nurserie', 'recif', 'foret', 'grotte', 'carcasse']);
-    expect(notesTo('fosse')).toHaveLength(9);
-    expect(notesTo('remontee')).toEqual([]);
-    expect(notesTo('ailleurs')).toEqual([]);
   });
 });
 
