@@ -15,7 +15,7 @@ import { Ortho } from '../engine3/view';
 import { Gfx } from '../engine3/gfx';
 import { paint3 } from '../engine3/paint-gl';
 import { makeCanvas } from './sprites';
-import { biomeMid, openFloor } from './biomes';
+import { arrival, chapterIndex } from './biomes';
 import type { FrameSample, api as Api } from './main';
 
 type A = typeof Api;
@@ -142,7 +142,7 @@ export async function runBench(api: A, out: HTMLElement): Promise<BenchResult | 
     const b = api.biomes[i];
     say(`Tour du monde : ${b.name}…`);
     api.gotoBiome(i);
-    const x = biomeMid(i), y = Math.max(120, openFloor(x, 0) - 260);
+    const { x, y } = arrival(i);
     api.auto.on = true; api.auto.x = x + 900; api.auto.y = y;
     await frames(api, 90);
     const rec = newRec();
@@ -155,7 +155,7 @@ export async function runBench(api: A, out: HTMLElement): Promise<BenchResult | 
 
   // 2. the load, on the reef
   if (only !== 'tour' && only !== 'lod' && only !== 'species') {
-    api.gotoBiome(2);
+    api.gotoBiome(chapterIndex('recif'));
     api.auto.on = false;
     for (const extra of [0, 25, 50, 100, 200]) {
       say(`Charge : ${extra} animaux en plus autour de la larve…`);
@@ -184,7 +184,7 @@ export async function runBench(api: A, out: HTMLElement): Promise<BenchResult | 
 
   if (only !== 'tour' && only !== 'species') {
     // levels of detail against the zoom, in the kelp forest (the heaviest place)
-    api.gotoBiome(1);
+    api.gotoBiome(chapterIndex('foret'));
     for (const [zoom, z] of [['éloigné', 0.5], ['normal', 1], ['rapproché', 2.2]] as const) {
       api.input.zoomMul = z;
       for (const [mode, lod] of [['sans LOD', false], ['LOD', true]] as const) {

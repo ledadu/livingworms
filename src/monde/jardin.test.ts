@@ -39,9 +39,10 @@ describe('the jellyfish garden', () => {
   it('has no floor in sight, but its animals keep to mid water', () => {
     const i = BIOMES.findIndex((b) => b.id === 'jardin'), x = biomeMid(i);
     expect(i).toBeGreaterThan(0);
-    expect(BIOMES[i + 1].id).toBe('abysses');
-    expect(floorAt(x, 0) - openFloor(x, 0)).toBeGreaterThan(3000);
-    // the neighbours keep their floor
-    expect(floorAt(biomeMid(i + 1), 0) - openFloor(biomeMid(i + 1), 0)).toBe(0);
+    expect(BIOMES[i + 1].id).toBe('fosse');
+    expect(floorAt(x, 0) - openFloor(x, 0)).toBeGreaterThan(2500);
+    // the neighbours keep their floor (the fall slopes over a long stretch, only a little of it reaches their heart)
+    expect(floorAt(biomeMid(i + 1), 0) - openFloor(biomeMid(i + 1), 0)).toBeLessThan(150);
+    expect(floorAt(biomeMid(i - 1), 0) - openFloor(biomeMid(i - 1), 0)).toBeLessThan(150);
   });
 });
