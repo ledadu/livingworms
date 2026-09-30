@@ -91,7 +91,8 @@ input.zoomMul = 900 / settings.dist;
 // ----- world ----- //
 
 const decor: Decor[] = makeDecor();
-initReliefs(BIOMES, X1, floorAt, decor.map((d) => d.x), decor.filter((d) => d.kind !== 'seep').map((d) => d.x));
+// the reliefs keep clear of the set pieces (a tuft of frost may end up under one)
+initReliefs(BIOMES, X1, floorAt, decor.filter((d) => d.kind !== 'frost').map((d) => ({ x: d.x, z: d.z, r: d.kind === 'seep' ? 40 : d.kind === 'ice' ? 120 : 220 })));
 const vents = decor.filter((d) => d.kind === 'vent');
 const rocks: RockX[] = makeRocks().sort((a, b) => a.x - b.x);
 /** first rock at or after x (the rocks are sorted along x) */

@@ -74,7 +74,7 @@ describe('the meshes', () => {
 });
 
 describe('the reliefs of the world', () => {
-  beforeAll(() => initReliefs(BIOMES, X1, floorAt, [], []));
+  beforeAll(() => initReliefs(BIOMES, X1, floorAt));
 
   it('gives the chapters at least three kinds of relief, and sets chapters apart by them', () => {
     const kinds = new Set<string>(reliefs.map((r) => r.kind));
@@ -90,7 +90,7 @@ describe('the reliefs of the world', () => {
 
   it('lays the same world every time', () => {
     const a = reliefs.map((r) => `${r.kind}${Math.round(r.x)}`).join();
-    initReliefs(BIOMES, X1, floorAt, [], []);
+    initReliefs(BIOMES, X1, floorAt);
     expect(reliefs.map((r) => `${r.kind}${Math.round(r.x)}`).join()).toBe(a);
   });
 

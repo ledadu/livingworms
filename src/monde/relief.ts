@@ -424,8 +424,8 @@ const PLANS: Record<string, Plan[]> = {
   carcasse: [{ kind: 'surplomb', every: 700, lane: 0.4, front: 0, back: 0.6 }],
   // basalt columns far away among the chimneys
   sources: [{ kind: 'pilier', every: 1000, lane: 0, front: 0.1, back: 0.9 }],
-  // crevasses and ledges of ice
-  glacier: [{ kind: 'faille', every: 1700, lane: 1, front: 0, back: 0 }, { kind: 'surplomb', every: 600, lane: 0.6, front: 0, back: 0.4 }],
+  // ledges of ice between the cliffs of glacier.ts
+  glacier: [{ kind: 'surplomb', every: 600, lane: 0.7, front: 0, back: 0.3 }],
   // (the Jardin has no floor in sight)
   // the trench: the floor cracks open in the dark
   fosse: [{ kind: 'faille', every: 1000, lane: 1, front: 0, back: 0 }]
@@ -469,51 +469,56 @@ function build(kind: ReliefKind, slot: Slot, x: number, R: R01, floor: Floor, en
   return H < 200 ? null : overhang(x, zf, zf + r(200, 420), H, r(160, 240) * s, r(140, 220) * s, r(70, 100) * s, dir, floor, encrust, seed);
 }
 
+/** a set piece to keep clear: where it stands, and the room it needs around it */
+export interface Keep { x: number; z: number; r: number; }
+
 /**
  * Lay out the reliefs of every chapter (biomes along x, the world ending at
- * xEnd), away from the set pieces at `avoid` (x), the faults away from the
- * `big` ones only. The faults come first: the other reliefs stand on the
- * carved floor.
+ * xEnd), clear of the set pieces. The faults come first (away from the big
+ * pieces: what is small may well stand at the bottom of one), the other
+ * reliefs stand on the carved floor.
  */
-export function initReliefs(biomes: readonly { id: string; x0: number; encrust: number }[], xEnd: number, floor: Floor, avoid: number[] = [], big: number[] = avoid): void {
+export function initReliefs(biomes: readonly { id: string; x0: number; encrust: number }[], xEnd: number, floor: Floor, keep: readonly Keep[] = []): void {
   faults = [];
   reliefs.length = 0;
   const R = rng(8123), span = (i: number): [number, number] => [biomes[i].x0, i + 1 < biomes.length ? biomes[i + 1].x0 : xEnd];
-  const clear = (x: number, m: number, l = avoid) => l.every((a) => Math.abs(a - x) > m);
+  // a box x0..x1, z0..z1 clear of every piece
+  const clear = (x0: number, x1: number, z0: number, z1: number, l: readonly Keep[] = keep) =>
+    l.every((k) => k.x < x0 - k.r || k.x > x1 + k.r || k.z < z0 - k.r || k.z > z1 + k.r);
+  const big = keep.filter((k) => k.r >= 100);
   biomes.forEach((b, i) => {
     const [a, e] = span(i);
     for (const p of PLANS[b.id] || []) {
       if (p.kind !== 'faille') continue;
       for (let x = a + 400 + R() * p.every * 0.5; x < e - 400; x += p.every * (0.6 + 0.8 * R())) {
-        if (clear(x, 450, big)) faults.push({ x, w: 280 + R() * 160, d: 380 + R() * 320, seed: seedOf(Math.round(x), 17) });
+        const w = 280 + R() * 160, d = 380 + R() * 320;
+        if (clear(x - w * 0.7, x + w * 0.7, -200, 1000, big)) faults.push({ x, w, d, seed: seedOf(Math.round(x), 17) });
       }
     }
   });
-  const inFault = (x: number) => faults.some((f) => Math.abs(f.x - x) < f.w + 160);
-  const free = (x: number) => clear(x, 320, big) && clear(x, 140) && !inFault(x);
+  const inFault = (r: Relief) => faults.some((f) => r.x1 > f.x - f.w * 0.7 - 60 && r.x0 < f.x + f.w * 0.7 + 60);
+  const fits = (r: Relief) => clear(r.x0, r.x1, r.z0, r.z1) && !inFault(r);
   biomes.forEach((b, i) => {
     const [a, e] = span(i);
     for (const p of PLANS[b.id] || []) {
       if (p.kind === 'faille') continue;
-      // in the swimming plane, one every so often, where it fits: on a gentle slope, away from the set pieces
+      // in the swimming plane, one every so often, where it fits: on a gentle slope, clear of the set pieces and the faults
       const gap = Math.max(700, p.every / (p.lane + p.front + p.back) / (p.lane || 1));
       if (p.lane > 0) {
         for (let x = a + 400 + R() * gap * 0.5; x < e - 400; x += gap * (0.75 + 0.5 * R())) {
           for (let k = 0; k < 6; k++) {
             const xx = x + k * 90;
-            if (xx > e - 400 || Math.abs(floor(xx - 150, 0) - floor(xx + 150, 0)) > 150 || !free(xx)) continue;
+            if (xx > e - 400 || Math.abs(floor(xx - 150, 0) - floor(xx + 150, 0)) > 150) continue;
             const r = build(p.kind, 'lane', xx, R, floor, b.encrust);
-            if (r) { reliefs.push(r); x = xx; break; }
+            if (r && fits(r)) { reliefs.push(r); x = xx; break; }
           }
         }
       }
       // in front of it and behind it
       if (p.front + p.back <= 0) continue;
       for (let x = a + 300 + R() * p.every; x < e - 300; x += (p.every / (p.front + p.back)) * (0.6 + 0.8 * R())) {
-        const slot: Slot = R() * (p.front + p.back) < p.front ? 'front' : 'back';
-        if (slot === 'front' && !free(x)) continue;
-        const r = build(p.kind, slot, x, R, floor, b.encrust);
-        if (r) reliefs.push(r);
+        const r = build(p.kind, R() * (p.front + p.back) < p.front ? 'front' : 'back', x, R, floor, b.encrust);
+        if (r && fits(r)) reliefs.push(r);
       }
     }
   });

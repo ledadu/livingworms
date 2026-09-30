@@ -11,23 +11,23 @@ Quatre types de relief, placés chapitre par chapitre, qui passent devant, en tr
   - les **failles** : des tranchées creusées dans le fond lui-même (`carve`, ajouté à `floorAt`), de l'avant jusqu'au loin, qui se referment au fond de la scène. On peut y plonger ;
   - les **collisions** : la coupe d'un relief par le plan z d'une créature (segments, en cache par 8 unités de z), dont on la repousse en gardant sa vitesse le long de la paroi (`pushOut`, `bump`, 1,75 µs par appel) ;
   - la **vie dessus** : `groundAt` fait pousser sur le sommet d'un relief une plante dont le pied tombe dedans, `solidAt` écarte les rochers qui tomberaient dedans ;
-  - la **disposition** (`initReliefs`, table `PLANS` par id de chapitre) : d'abord les failles, puis, dans le plan de nage, un relief à intervalles réguliers là où le fond est doux et loin des décors (cheminées, carcasse, épave, suintements), puis ceux de devant et de derrière. Le plan de nage n'est jamais fermé : il reste toujours au moins 90 unités de passage, dessus ou dessous (testé).
+  - la **disposition** (`initReliefs`, table `PLANS` par id de chapitre) : d'abord les failles, puis, dans le plan de nage, un relief à intervalles réguliers là où le fond est doux, puis ceux de devant et de derrière ; aucun ne prend la place d'un décor (une zone en x et en z par décor : large pour les cheminées, les os de la baleine et l'épave, plus petite pour la glace et les suintements, le givre ne compte pas) ni ne tombe dans une faille. Le plan de nage n'est jamais fermé : il reste toujours au moins 90 unités de passage, dessus ou dessous (testé).
 - **`src/monde/relief-draw.ts`** (dessin, WebGL et Canvas 2D) : chaque relief est projeté sommet par sommet ; les faces tournées vers l'œil sont peintes de loin en près, éclairées d'en haut (facettes, strates sur les piliers, plus sombres près du fond), avec un contour d'encre sur la silhouette et le brouillard de l'eau. Le relief est coupé en tranches le long de z (le plan de nage est toujours une limite) : chaque tranche est un élément de la liste triée de la scène. Là où le chapitre est couvert de vie (`encrust`), des plaques de polypes couvrent le haut des reliefs. Ce qui vient trop près de l'œil s'efface.
 - **Par chapitre** (nouvelle carte des 10 chapitres) :
 
   | Chapitre | Reliefs | Dans le plan de nage |
   | --- | --- | --- |
   | La Nurserie | quelques arches au loin | rien (le chapitre reste ouvert) |
-  | Le Récif | arches couvertes de polypes, derrière | arches à traverser (x ≈ 3960, 5310, 6510) |
-  | La Forêt | piliers, comme une cathédrale, devant et derrière | piliers (x ≈ 7940, 9600) |
+  | Le Récif | arches couvertes de polypes, devant et derrière | arches à traverser (x ≈ 4000, 5130, 6530) |
+  | La Forêt | piliers, comme une cathédrale, devant et derrière | piliers (x ≈ 7870, 9230) |
   | La Grotte | rien : elle a sa voûte et ses piliers (`grotte.ts`) | — |
   | La Carcasse | surplombs au loin, autour de la baleine | rien : la baleine (`carcasse.ts`) occupe le plan de nage |
   | Les Sources | colonnes de basalte au loin, entre les cheminées | rien |
-  | Le Glacier | crevasse, corniches de glace | une crevasse (x ≈ 20080), des corniches (x ≈ 19410, 21080) |
+  | Le Glacier | des corniches de glace, entre les falaises de `glacier.ts` | une corniche (x ≈ 20870) |
   | Le Jardin de méduses | rien : pas de fond | — |
-  | La Fosse | failles dans le noir | failles (x ≈ 26040, 27080, 27990) |
+  | La Fosse | failles, visibles seulement dans la lumière du nageur (le noir total du chapitre) | failles (x ≈ 26000, 27000, 27680) |
 
-- **Comment le voir** : ⚙ → Voyage → Récif, Forêt, Glacier ; ou `monde.teleport(4000, 520)` (arches du Récif), `monde.teleport(7818, 640)` (un pilier qui cache), `monde.teleport(20076, 1900)` (dans la crevasse du Glacier), `monde.teleport(19250, 1690)` (sous une corniche du Glacier), `monde.teleport(14700, 1350)` (la baleine de la Carcasse dans son creux de surplombs). La couche `relief` de `monde.skip` les retire pour comparer.
+- **Comment le voir** : ⚙ → Voyage → Récif, Forêt, Glacier ; ou `monde.teleport(4060, 520)` (les arches du Récif, une voûte en travers du chemin), `monde.teleport(8348, 660)` (un pilier qui cache), `monde.teleport(21040, 1790)` (sous la corniche du Glacier), `monde.teleport(27003, 3500)` (dans une faille de la Fosse), `monde.teleport(14700, 1350)` (la baleine de la Carcasse dans son creux de surplombs). La couche `relief` de `monde.skip` les retire pour comparer.
 - **Mesures** (Chrome Windows, 1280 × 760) : 60 img/s en WebGL avec ou sans reliefs, dans le Récif et la Forêt (écart de rendu sous le bruit de mesure, de 0,1 à 2 ms selon les essais). En Canvas 2D (`?gl=0`), 44 ms par image contre 39 sans reliefs dans le Récif.
 - **Branchements** : `floorAt` ajoute `carve(x, z)` (`biomes.ts`) ; `main.ts` appelle `initReliefs` après les décors, `bump(cr)` dans `collide`, `pushReliefs` dans le tri de la scène ; `world.ts` fait pousser les plantes sur les reliefs (`groundAt`) et n'y pose pas de rochers (`solidAt`).
 - **Doc** : section « Les reliefs composés » dans `docs/direction-artistique.md`.
@@ -37,7 +37,6 @@ Quatre types de relief, placés chapitre par chapitre, qui passent devant, en tr
 ![Après : les arches du Récif, au loin et en travers du chemin](img/recif-apres.jpg)
 ![La traversée : le poisson-clown passe sous la voûte, entre le pied avant et le pied arrière](img/traversee.jpg)
 ![La Forêt : un pilier du premier rang cache le nageur](img/pilier-cache.jpg)
-![Le Glacier : une crevasse, le nageur y plonge](img/glacier-crevasse.jpg)
 ![Le Glacier : à l'abri sous une corniche de glace](img/glacier-corniche.jpg)
 ![La Carcasse : la baleine repose dans un creux de surplombs](img/carcasse-creux.jpg)
 
@@ -54,7 +53,8 @@ Aucune question structurante posée à l'utilisateur : tout est tranché seul (o
 | Le tri avec la scène | Des tranches de 150 en z, le plan de nage toujours en limite ; une tranche qui touche le plan de nage se trie contre ce qui nage près de l'œil | Un seul élément par relief se trie mal (une arche est devant et derrière le nageur) ; une face par élément coûterait trop en canvas |
 | Le pied des reliefs | Posé sur le fond (4 unités dedans), sommet par sommet | Un pied enfoui se voyait par-dessus les rangées du sol proches (défaut de tri) |
 | Où placer les reliefs | Table `PLANS` par id de chapitre ; dans le plan de nage à intervalles réguliers là où ils tiennent, devant et derrière au hasard | Chaque chapitre a sûrement les siens (le hasard seul en privait parfois un chapitre) ; la table se règle sans toucher `biomes.ts` |
-| Quel relief pour quel chapitre | Récif : arches ; Forêt : piliers ; Carcasse : surplombs ; Sources : colonnes au loin ; Glacier : crevasses et corniches ; Fosse : failles ; Nurserie : arches lointaines ; rien dans la Grotte et le Jardin | Suit la trame (cathédrale d'algues, ville de corail, fosse) ; la Grotte a déjà sa voûte, le Jardin n'a pas de fond |
+| Quel relief pour quel chapitre | Récif : arches ; Forêt : piliers ; Carcasse : surplombs au loin ; Sources : colonnes au loin ; Glacier : corniches de glace ; Fosse : failles ; Nurserie : arches lointaines ; rien dans la Grotte et le Jardin | Suit la trame (cathédrale d'algues, ville de corail, fosse) ; la Grotte a déjà sa voûte, le Jardin n'a pas de fond, le Glacier ses falaises et sa langue froide (`glacier.ts`) |
+| La place des décors | Une zone réservée en x et en z par décor, d'un rayon selon son type ; le givre ne compte pas ; les failles n'évitent que les grands décors | Un filtre sur x seul excluait des chapitres entiers (le Glacier, couvert de givre et de falaises au fond) ; une touffe de givre sous une roche ne se voit pas |
 | La vie sur les reliefs | Une teinte légère de la couleur du chapitre et des polypes, sur ce qui fait face au ciel | Des faces entières colorées faisaient un damier ; les polypes se lisent comme une croûte de corail |
 | Le rendu | Facettes éclairées d'en haut, strates, contour d'encre sur la silhouette | Se lit comme de la roche taillée, reste cohérent avec l'encre des animaux ; pas de dégradé par sommet en canvas |
 | Un relief trop près de l'œil | Il s'efface selon sa profondeur | Un pilier du premier rang remplirait l'écran quand on zoome |
@@ -74,7 +74,8 @@ Aucune question structurante posée à l'utilisateur : tout est tranché seul (o
 - **Tri** : un élément par relief (faux pour l'arche en travers) ; un élément par face (exact, mais des centaines de tracés en canvas) ; une clé par tranche sans règle pour le plan de nage (le nageur passait derrière le pied arrière).
 - **Pied** : enfoui dans le fond (se voyait par-dessus les rangées proches) ; coupé exactement par la ligne du sol (plus juste, mais le sol est dessiné en lignes droites entre ses points : même résultat pour bien plus de calcul).
 - **Placement** : tirage au hasard du rang (dans le plan, devant, derrière) pour chaque relief (un chapitre pouvait n'en avoir aucun dans le plan de nage) ; positions écrites à la main (à refaire à chaque changement de carte) ; un champ `relief` dans chaque chapitre de `biomes.ts` (conflit avec la carte des 10 chapitres, refaite en même temps).
-- **Chapitres** : des voûtes et galeries dans la Grotte (déjà faites par le chantier de la Grotte, en double) ; des surplombs au Tombant et des failles au Crépuscule (ces chapitres n'existent plus dans la nouvelle carte) ; des failles aux Sources (les cheminées occupent tout le chapitre).
+- **Chapitres** : des voûtes et galeries dans la Grotte (déjà faites par le chantier de la Grotte, en double) ; des surplombs au Tombant et des failles au Crépuscule (ces chapitres n'existent plus dans la nouvelle carte) ; des failles aux Sources (les cheminées occupent tout le chapitre) ; une crevasse au Glacier (essayée : très belle, mais les falaises de glace du fond s'y enfonceraient) ; des surplombs autour de la baleine dans le plan de nage (ils la cacheraient).
+- **Place des décors** : un filtre sur x seul (excluait le Glacier entier) ; ignorer les décors (des roches à travers les cheminées et les os) ; une boîte exacte par décor (il faudrait la taille de chaque image, décidée dans le module de chaque décor).
 - **Vie** : des faces entières de la couleur du corail (un damier) ; des plantes simulées sur chaque relief (chères) ; rien (le Récif perdait son corail sur les arches).
 - **Rendu** : un dégradé par sommet en WebGL (plus lisse, mais différent du canvas) ; des textures cuites plaquées (détail, mais coût et mémoire) ; pas de contour (les reliefs se fondaient dans le fond).
 - **Près de l'œil** : les couper net (apparition brusque) ; ne jamais placer de relief devant le plan de nage (plus de « pilier qui cache »).
@@ -88,13 +89,14 @@ Aucune question structurante posée à l'utilisateur : tout est tranché seul (o
 - Seule la **racine** d'une créature bute (comme pour le fond et les rochers) : une queue peut passer dans la roche.
 - **Canvas 2D** : environ 5 ms de plus par image au Récif, et de fines coutures claires entre les facettes (l'anticrénelage du canvas entre deux tracés voisins) ; le WebGL (par défaut) n'a ni l'un ni l'autre. Un trait de la couleur des faces les couvrirait, pour un tracé de plus par couleur.
 - `drawRow` (`main.ts`) prend la couleur du sol à la verticale de la caméra : au-dessus d'une faille, elle vient du fond de la faille (un peu plus sombre au loin). Rien de visible aux essais ; à reprendre avec un fond non creusé si besoin.
-- La **Grotte** a sa propre voûte (`ceilAt`, `grotte.ts`) : elle pourrait devenir un relief, et ses piliers aussi. Le **Glacier** : crevasses et corniches à harmoniser avec les parois de glace du chantier `decor-glacier` quand il sera fusionné ; la **Carcasse** : les surplombs évitent les os de la baleine (`CARCASSE.pieces` dans les décors) et restent donc au loin ; les corniches à l'abri desquelles se glisser sont au Glacier.
+- La **Grotte** a sa propre voûte (`ceilAt`, `grotte.ts`) : elle pourrait devenir un relief, et ses piliers aussi. Au **Glacier**, une seule corniche trouve sa place entre les falaises et les suintements. À la **Carcasse**, les surplombs évitent les os de la baleine (`CARCASSE.pieces` dans les décors) et restent donc au loin.
+- Les **failles** de la Fosse ne se voient que dans la lumière du nageur : une faille bien visible manque depuis que le Crépuscule a quitté la carte (une crevasse au Glacier, si ses falaises s'en écartent, ou une faille en bord des Sources).
 - Les **grottes** comme type de relief (une galerie qu'on traverse) ne sont pas faites ici : la Grotte les a à sa façon. Les **failles** ne font pas encore d'obstacle (étape 3).
 - Pas de **son** pour les reliefs (écho sous une voûte, par exemple).
 
 ## Risques de fusion
 
-- `src/monde/main.ts` : deux imports, `initReliefs(...)` juste après `makeDecor()`, `bump(cr)` à la fin de la boucle des rochers de `collide` (la Grotte ajoute aussi deux lignes dans `collide` : garder les deux), `pushReliefs(...)` après la boucle des décors dans `render`.
+- `src/monde/main.ts` : deux imports, `initReliefs(...)` juste après `makeDecor()` (avec un rayon par type de décor : `seep`, `frost`, `ice`, les autres), `bump(cr)` à la fin de la boucle des rochers de `collide` (la Grotte ajoute aussi deux lignes dans `collide` : garder les deux), `pushReliefs(...)` après la boucle des décors dans `render`.
 - `src/monde/biomes.ts` : un import, `+ carve(x, z)` dans le `return` de `floorAt` (à garder si un voisin réécrit `floorAt`).
 - `src/monde/world.ts` : un import, `groundAt` dans `growPlant2`, deux conditions `solidAt` dans `makeRocks`.
 - `src/monde/foreground.test.ts` : deux ids de chapitre.
