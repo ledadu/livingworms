@@ -8,6 +8,7 @@ import { css, type HSL, type Mood } from './palette';
 import { plantSpec } from './plants';
 import { makeCanvas, type Plant, type Rock, type Sprite } from './sprites';
 import { BIOMES, X0, X1, biomeIndex, floorAt, presence } from './biomes';
+import { bakeIce, glacierDecor } from './glacier';
 
 type R01 = () => number;
 const pick = <T>(R: R01, l: T[]): T => l[Math.floor(R() * l.length)];
@@ -153,7 +154,7 @@ export function makePlants(vents: Decor[]): Plant[] {
 
 // ----- set pieces ----- //
 
-export interface Decor { kind: 'vent' | 'whale' | 'wreck' | 'seep'; x: number; z: number; seed: number; h: number; sprite: Sprite | null; spriteD: number; }
+export interface Decor { kind: 'vent' | 'whale' | 'wreck' | 'seep' | 'ice' | 'frost'; x: number; z: number; seed: number; h: number; sprite: Sprite | null; spriteD: number; }
 
 export function makeDecor(): Decor[] {
   const out: Decor[] = [];
@@ -165,6 +166,8 @@ export function makeDecor(): Decor[] {
   add('wreck', 13350, 330);
   // cold seeps: streams of bubbles from the sand
   for (const [x, z] of [[1250, 60], [2600, 240], [4900, 140], [6300, 30], [9100, 50], [10400, 260], [12000, 120]] as const) add('seep', x, z);
+  // the walls of ice and the frost of the Glacier
+  out.push(...glacierDecor());
   return out;
 }
 
@@ -345,7 +348,7 @@ export function bakeDecor(d: Decor, m: Mood, fog: number, fogCol: HSL, res: numb
   if (d.kind === 'vent') return bakeVent(d, m, fog, fogCol, res);
   if (d.kind === 'whale') return bakeWhale(d, m, fog, fogCol, res);
   if (d.kind === 'wreck') return bakeWreck(d, m, fog, fogCol, res);
-  return null;
+  return bakeIce(d, m, fog, fogCol, res);
 }
 
 // ----- particles: smoke from the chimneys, bubbles from the seeps ----- //

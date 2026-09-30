@@ -111,6 +111,7 @@ Ouverture :
 ## 7. Le Glacier (340–400 m) *— nouveau chapitre, tout est proposition*
 
 - **Décor** : juste après la chaleur des Sources, une langue d'eau glacée et salée descend d'une banquise lointaine et plonge vers le fond. Parois de glace bleue, aiguilles de givre qui poussent autour du courant froid, cristaux en suspension, lumière froide et diffuse.
+  - Fait (`src/monde/glacier.ts`) : le courant froid, un ruban laiteux qui tombe d'en haut puis coule sur le fond en suivant la pente ; des falaises et des blocs de glace bleue en arrière-plan (crête éclairée, cannelures, fissures, stalactites sous les corniches) ; des touffes d'aiguilles de givre sur les deux rives du courant ; des cristaux qui scintillent autour de soi. Le décor se place dans le biome `glacier` de la carte ; `?glacier=<biome>` le montre dans un autre en attendant, avec la lumière proposée (`GLACIER_MOOD`).
 - **Obstacle** : l'eau glacée fige ce qu'elle touche et ralentit tout. Il faut une carapace, qui protège du froid, ou des filaments pour se laisser emporter par le courant froid qui plonge.
 - **Partenaires** : ange de mer, krill, et une méduse des eaux froides (`clione`, `krill`, `chrysaora`). L'ange de mer et le krill vivent vraiment dans les eaux polaires.
 - **Moment fort** : une aiguille de glace descend lentement le long du courant et fige tout sur son passage ; on la regarde tomber, puis on plonge dans le chemin qu'elle a ouvert.
