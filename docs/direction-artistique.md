@@ -25,7 +25,7 @@ Il manque, pour le plan :
 
 - les reliefs composés (arches, grottes, failles, surplombs, piliers) ;
 - le premier plan sombre et flou ;
-- les décors propres à la Grotte, la Carcasse, le Glacier, le Jardin de méduses et la Fosse (ils ont aujourd'hui un décor provisoire tiré de l'existant) ;
+- les décors propres à la Carcasse, le Glacier, le Jardin de méduses et la Fosse (ils ont aujourd'hui un décor provisoire tiré de l'existant) ;
 - le puits de lumière de la Remontée.
 
 ### Le premier plan
@@ -54,7 +54,7 @@ Entre l'œil et le plan de nage (`src/monde/foreground.ts`) : des silhouettes so
 
 ## La Fosse : le noir total
 
-Les chapitres profonds (Grotte, Sources, Remontée) assombrissent l'écran sans jamais le noircir ; la Fosse (`src/monde/fosse.ts`, `dark: 1`, le seul chapitre au-delà de 0.88) ferme tout : on ne voit que ce que sa propre lumière éclaire.
+Les chapitres profonds (Sources, Remontée) assombrissent l'écran sans jamais le noircir, la Grotte a son propre noir au fond des galeries (`caveDark`, `grotte.ts`) ; la Fosse (`src/monde/fosse.ts`, `dark: 1`, le seul chapitre au-delà de 0.88) ferme tout : on ne voit que ce que sa propre lumière éclaire.
 
 - **Sa lumière** : un cercle clair autour du nageur, dont la taille vient de ce qu'il porte de lumineux (les lueurs de ses parties, une lanterne comptant triple). Sans rien qui brille, on se voit à peine ; avec une lanterne ou un corps de cténophore, le fond apparaît autour de soi.
 - **Ce qui brille** reste visible au loin, par-dessus le noir : animaux lumineux, poissons-lanternes.

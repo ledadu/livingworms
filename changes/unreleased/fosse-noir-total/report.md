@@ -30,6 +30,12 @@
 
 ![La Fosse dans la carte des 10 chapitres](img/fosse-dix-chapitres.jpg)
 
+### Deuxième fusion (décors de la Grotte et de la Carcasse)
+
+- `src/monde/main.ts` en conflit à trois endroits, les deux côtés gardés : imports (`fosse` et `grotte`), le noir (`dk` prend le maximum du noir du chapitre et de celui de la Grotte, `caveDark`, puis la lumière du nageur de la Fosse est calculée comme avant), `window.monde` (`carcasse` et `fosse`).
+- Les deux noirs restent indépendants : le noir total ne dépend que du `dark` du chapitre (Grotte 0.62), la Grotte garde le sien.
+- Doc : la section de la Fosse cite le noir de la Grotte.
+
 ## Choix retenus
 
 Aucune question posée sur le tableau de bord ; tout est tranché seul (option recommandée).
@@ -74,6 +80,6 @@ Aucune question posée sur le tableau de bord ; tout est tranché seul (option r
 ## Risques de fusion
 
 - `src/monde/biomes.ts` : seulement l'entrée `fosse` (`dark: 1`, deux espèces de plus, visiteurs géants).
-- `src/monde/main.ts` : imports, anneaux du noir par `darkStops` (canvas et WebGL), `drawShapes()` après le noir, `drawMotes` (neige dans la lumière), `fosse` dans `window.monde`.
+- `src/monde/main.ts` : imports (à côté de `grotte`), anneaux du noir par `darkStops` (canvas et WebGL), `drawShapes()` après le noir, `drawMotes` (neige dans la lumière), `fosse` dans `window.monde`.
 - `src/monde/foreground.test.ts` : deux identifiants de chapitre.
 - Nouveaux : `src/monde/fosse.ts`, `fosse-draw.ts`, `fosse.test.ts` ; docs `direction-artistique.md`, `chapitres.md`.
