@@ -23,6 +23,8 @@ import { bakeCreature, bakeRock, causticTile, env, fishSprites, fogOf, glowSprit
 import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, floorAt, liftAt, metres, moodAt } from './biomes';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
 import { compareSpecies, runBench } from './bench';
+import { caveCover, caveDark, caveKeeps, caveRepel, ceilAt } from './grotte';
+import { pushCave } from './grotte-draw';
 import { drawFront, frontColour, frontCount, frontPainter, makeFront } from './foreground';
 import { CARCASSE, boneLight, carcasseDwellers, carcasseSchool } from './carcasse';
 import './style.css';
@@ -92,7 +94,7 @@ function rockFrom(x: number): number {
   while (lo < hi) { const mid = (lo + hi) >> 1; if (rocks[mid].x < x) lo = mid + 1; else hi = mid; }
   return lo;
 }
-const plants: Plant[] = makePlants(vents);
+const plants: Plant[] = makePlants(vents).filter(caveKeeps);
 const front = makeFront();
 const causticCv = causticTile(256, 7, 5);
 const caustic = ctx.createPattern(causticCv, 'repeat')!;
@@ -211,11 +213,11 @@ class Shoal {
         const dx = X[i] - px, dy = Y[i] - py, d2 = dx * dx + dy * dy;
         if (d2 < 130 * 130) { const d = Math.sqrt(d2) + 0.1, k = (1 - d / 130) * 0.9; fx += (dx / d) * k; fy += (dy / d) * k; }
       }
-      let vx = VX[i] + fx, vy = VY[i] + fy;
+      let vx = VX[i] + fx + caveRepel(X[i]), vy = VY[i] + fy;
       const m = Math.hypot(vx, vy);
       if (m > 2.2) { vx *= 2.2 / m; vy *= 2.2 / m; } else if (m < 0.7) { vx *= 0.7 / (m || 1); vy *= 0.7 / (m || 1); }
       VX[i] = vx; VY[i] = vy * 0.95;
-      X[i] += vx; Y[i] = clamp(Y[i] + VY[i], 30, floorAt(X[i], this.z) - 40);
+      X[i] += vx; Y[i] = clamp(Y[i] + VY[i], Math.max(30, ceilAt(X[i], this.z) + 30), floorAt(X[i], this.z) - 40);
       this.ph[i] += 0.25 + m * 0.12;
     }
   }
@@ -279,6 +281,8 @@ function collide(cr: Creature3): void {
     const dx = r.x[0] - k.x, dy = (r.y[0] - cy) / 0.8, d = Math.hypot(dx, dy), m = rs + rad;
     if (d < m && d > 0.01) { r.x[0] = k.x + (dx / d) * m; r.y[0] = cy + (dy / d) * m * 0.8; }
   }
+  const cy = ceilAt(r.x[0], z) + rad;
+  if (r.y[0] < cy) { r.y[0] = cy; if (cr.vy < 0) cr.vy *= -0.3; }
   cr.stand(floorAt(r.x[0], z));
   const fy = floorAt(r.x[0], z) - rad;
   if (r.y[0] > fy) { r.y[0] = fy; if (cr.vy > 0) cr.vy *= -0.3; }
@@ -466,7 +470,8 @@ function render(): void {
   items.length = 0;
   computeProfiles();
   ROWS.forEach((z, r) => items.push({ d: view.depth(floorAt(cam.x, z), z) + 0.5, fn: () => drawRow(r, m, plane), k: 'row' }));
-  const causticA = 0.1 * m.caustics * clamp(1 - (floorAt(cam.x, 0) - 500) / 700, 0, 1);
+  const open = 1 - caveCover(cam.x);
+  const causticA = 0.1 * m.caustics * open * clamp(1 - (floorAt(cam.x, 0) - 500) / 700, 0, 1);
   if (causticA > 0.005) items.push({ d: view.depth(floorAt(cam.x, -20), -20) + 0.6, fn: () => drawCaustics(causticA), k: 'caustic' });
   for (let q = rockFrom(cam.x - 2200); q < rocks.length && rocks[q].x < cam.x + 2200; q++) {
     const k = rocks[q];
@@ -515,7 +520,8 @@ function render(): void {
     if (Math.abs(s.cx - cam.x) > 2000) continue;
     items.push({ d: view.depth(s.cy, s.z), fn: () => drawShoal(s), k: 'fish' });
   }
-  if (m.rays > 0.02 && cam.y < 1400) items.push({ d: view.depth(300, 700), fn: () => drawRays(m), k: 'rays' });
+  if (m.rays * open > 0.02 && cam.y < 1400) items.push({ d: view.depth(300, 700), fn: () => drawRays(open < 1 ? { ...m, rays: m.rays * open } : m), k: 'rays' });
+  pushCave(items, { view, ctx, gx, dpr, W, H, t, lights, px: pr.x[0], py: pr.y[0] }, m, cam.x, plane);
   items.sort((a, b) => b.d - a.d);
   counts.items = items.length;
   bakes = 0;
@@ -525,7 +531,7 @@ function render(): void {
   if (!skip.has('front')) drawFrontLayer(m);
 
   // the deep closes in around the swimmer: the dark is painted over everything, the lights come after
-  const dk = m.dark * clamp((cam.y - 250) / 900, 0, 1);
+  const dk = Math.max(m.dark * clamp((cam.y - 250) / 900, 0, 1), caveDark(cam.x));
   if (gx) { renderGLTop(m, dk); return; }
   if (dk > 0.02 && !skip.has('dark')) {
     view.project(pr.x[0], pr.y[0], 0, P);
