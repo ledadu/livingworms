@@ -217,6 +217,10 @@ Devant l'obstacle :
 
 > Le noir, et rien pour lui répondre. Il nous faudrait une lumière à nous, ou un chant.
 
+Les lumières qui répondent (quand chaque note apprise a eu sa réponse, *proposition*) :
+
+> Nous avons chanté ce que chacun de nous avait appris. Dans le noir, d'autres lignées ont répondu. Le silence n'était pas vide.
+
 Adieu (proposition) :
 
 > Tu as porté la lumière plus bas que personne. Laisse-la-nous. Nous reviendrons te la montrer.
