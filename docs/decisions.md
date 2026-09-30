@@ -37,6 +37,10 @@ Réponse proposée à la question : « Tu peux tout faire, même le son ? Avec q
   - chant par une note par chapitre, chacune avec son timbre.
   - Une bibliothèque comme Tone.js n'est utile que si la musique devient une vraie partition séquencée. Elle ajouterait du poids à la page : à décider seulement si le besoin apparaît.
 - **Sauvegarde** : le stockage du navigateur (`localStorage`, déjà utilisé pour la créature et les réglages), ou IndexedDB si la lignée devient lourde (portraits).
+- **Nouveautés** : ce que racontent les entrées de `changes/` se lit dans le jeu, par le bouton ✦ à côté de ⚙ (`src/monde/nouveautes/`). Le plugin Vite `whatsNewPlugin.mjs` écrit les données de `whatsNew()` dans la page, en un script JSON :
+  - en dev, avec la version en préparation (marquée comme telle) et les images servies depuis `changes/` ;
+  - dans la page publiée, un seul fichier ouvert aussi sans serveur : les versions publiées seulement, et pour chaque entrée sa première image, réduite par ImageMagick en JPEG de 720 px de large (qualité 70), embarquée dans un budget de 400 Ko, les versions les plus récentes d'abord (les plus anciennes gardent leur texte). Sans ImageMagick, les images sont embarquées telles quelles, dans le même budget.
+  - Le panneau s'ouvre tout seul une fois par version publiée (le stockage du navigateur retient la dernière vue), jamais à la toute première visite : on commence par la mer.
 - **Image souvenir** : dessin de l'arbre dans un canvas, puis `canvas.toBlob` pour le téléchargement (bloqué dans le lien Artifact, comme prévu).
 
 Changer de langage ou de moteur (Unity, Godot, Rust et WebAssembly…) ferait perdre le moteur de créatures, l'Atelier, les 43 espèces et le monde déjà construits, sans gain pour ce jeu.
