@@ -1,0 +1,83 @@
+/* The lineage tree (arbre-ecran.ts): its button in the corner, and the generations going down a thread of light,
+   the lineage in gold, the partners in pale blue (as in the brood, portee.css) */
+#arBtn {
+  position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: 12px; width: 44px; height: 44px; border-radius: 50%;
+  border: 1px solid rgba(244,239,226,0.35); background: rgba(6,40,56,0.45); color: #f6d98a; padding: 0;
+  display: grid; place-items: center; cursor: pointer; backdrop-filter: blur(6px); transition: opacity 2.4s ease;
+}
+#atBtn:not([hidden]) + #arBtn { left: 64px; }
+#arBtn:focus-visible { outline: 2px solid #f6d98a; outline-offset: 2px; }
+body.adieu #arBtn, body:has(#portee.show) #arBtn { opacity: 0; pointer-events: none; }
+/* the words of the chapter and the depth wait behind the tree */
+body:has(#arbre.show) :is(#chapter, #hud, #hint) { opacity: 0; }
+
+#arbre {
+  --gold: #f6d98a; --mate: #8fd8e8; --col: 116px;
+  position: fixed; inset: 0; z-index: 18; box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
+  padding: calc(22px + env(safe-area-inset-top, 0px)) 16px calc(26px + env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column; align-items: center;
+  background: radial-gradient(ellipse at 50% 30%, rgba(4,28,42,0.8), rgba(2,12,20,0.94));
+  opacity: 0; transition: opacity 0.7s ease; scrollbar-width: thin; scrollbar-color: rgba(244,239,226,0.25) transparent;
+}
+#arbre.show { opacity: 1; }
+#arbre:focus { outline: none; }
+#arbre header { text-align: center; text-shadow: 0 1px 12px rgba(0,20,30,0.9); margin: 4px 44px 18px; }
+#arbre header small { display: block; font-size: 13px; font-weight: 500; letter-spacing: 0.32em; text-transform: uppercase; opacity: 0.55; }
+#arbre header h2 { margin: 6px 0 0; font-weight: 300; font-size: clamp(26px, 7vw, 36px); }
+#arbre .ar-close {
+  position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: 12px; width: 44px; height: 44px; border-radius: 50%;
+  border: 1px solid rgba(244,239,226,0.3); background: rgba(6,40,56,0.6); color: inherit; font-size: 26px; line-height: 1; cursor: pointer;
+}
+#arbre button:focus-visible, #arbre input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* the thread, from the first portrait to the last */
+#arbre .ar-tree { position: relative; list-style: none; margin: 0; padding: 0; width: min(460px, 100%); }
+#arbre .ar-tree::before {
+  content: ''; position: absolute; left: calc(var(--col) / 2 - 1px); top: 44px; bottom: 44px; width: 2px; border-radius: 1px;
+  background: linear-gradient(rgba(246,217,138,0.25), rgba(246,217,138,0.7));
+  box-shadow: 0 0 10px rgba(246,217,138,0.35);
+}
+#arbre li { position: relative; opacity: 0; transform: translateY(8px); transition: opacity 0.9s ease, transform 0.9s ease; transition-delay: calc(var(--i) * 90ms + 150ms); }
+#arbre.show li { opacity: 1; transform: none; }
+#arbre .ar-gen { display: grid; grid-template-columns: var(--col) 1fr; align-items: center; gap: 14px; }
+#arbre .ar-portrait {
+  width: var(--col); height: 88px; display: block; border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 45%, rgba(40,90,110,0.95), rgba(6,34,48,0.98) 72%);
+  box-shadow: 0 0 0 1px rgba(246,217,138,0.35), 0 4px 18px rgba(0,10,16,0.5);
+}
+#arbre .ar-now .ar-portrait { box-shadow: 0 0 0 2px rgba(246,217,138,0.9), 0 0 26px rgba(246,217,138,0.4); }
+#arbre .ar-gen small { display: block; font-size: 12px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.6; }
+#arbre .ar-now small { opacity: 0.9; }
+#arbre .ar-gen .ar-today { margin-top: 3px; color: var(--gold); }
+#arbre .ar-name {
+  display: block; max-width: 100%; margin: 2px 0 1px; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: text;
+  font: inherit; font-weight: 500; font-size: clamp(24px, 6.4vw, 30px); line-height: 1.15; overflow-wrap: anywhere;
+  text-decoration: underline dotted rgba(244,239,226,0.3); text-underline-offset: 5px; text-decoration-thickness: 1px;
+}
+#arbre input.ar-name {
+  width: 100%; box-sizing: border-box; padding: 0 6px; margin-left: -6px; border-radius: 8px; outline: none; text-decoration: none;
+  background: rgba(255,255,255,0.08); box-shadow: 0 0 0 1px rgba(246,217,138,0.6); -webkit-user-select: text; user-select: text;
+}
+#arbre .ar-born { font-style: italic; font-size: 17px; opacity: 0.8; }
+
+/* the partner of a birth, joined to the thread between the parent and the child */
+#arbre .ar-mate {
+  display: grid; grid-template-columns: var(--col) auto 1fr; align-items: center; gap: 10px; margin: 6px 0;
+  font-style: italic; font-size: 17px; color: var(--mate);
+}
+#arbre .ar-mate::before {
+  content: ''; position: absolute; left: calc(var(--col) / 2); width: calc(var(--col) / 2 + 10px); top: 50%; height: 1px;
+  background: linear-gradient(90deg, rgba(143,216,232,0.7), rgba(143,216,232,0.2));
+}
+#arbre .ar-knot {
+  justify-self: center; width: 11px; height: 11px; border-radius: 50%; position: relative;
+  background: rgba(6,34,48,1); border: 1.5px solid var(--mate); box-shadow: 0 0 8px rgba(143,216,232,0.6);
+}
+#arbre .ar-mate:not(:has(canvas)) { grid-template-columns: var(--col) 1fr; }
+#arbre .ar-mini {
+  width: 64px; height: 46px; display: block; border-radius: 50%; position: relative;
+  background: radial-gradient(ellipse at 50% 45%, rgba(40,90,110,0.9), rgba(6,34,48,0.98) 72%);
+  box-shadow: 0 0 0 1px rgba(143,216,232,0.45);
+}
+#arbre .ar-foot { margin: 22px 0 0; max-width: 24em; text-align: center; font-style: italic; font-size: 16px; opacity: 0.55; }
+@media (prefers-reduced-motion: reduce) { #arbre li { transition: none; } }
