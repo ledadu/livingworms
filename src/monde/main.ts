@@ -22,6 +22,7 @@ import { bakeCreature, bakeRock, causticTile, env, fishSprites, fogOf, glowSprit
 import { BIOMES, X0, X1, biomeIndex, biomeMid, floorAt, metres, moodAt } from './biomes';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
 import { compareSpecies, runBench } from './bench';
+import { drawFront, frontColour, frontCount, frontPainter, makeFront } from './foreground';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -90,6 +91,7 @@ function rockFrom(x: number): number {
   return lo;
 }
 const plants: Plant[] = makePlants(vents);
+const front = makeFront();
 const causticCv = causticTile(256, 7, 5);
 const caustic = ctx.createPattern(causticCv, 'repeat')!;
 
@@ -516,6 +518,7 @@ function render(): void {
   lodTally.fill(0);
   for (const it of items) if (!it.k || !skip.has(it.k)) it.fn();
   for (let k = 0; k < 4; k++) lodCount[k] = lodTally[k];
+  if (!skip.has('front')) drawFrontLayer(m);
 
   // the deep closes in around the swimmer: the dark is painted over everything, the lights come after
   const dk = m.dark * clamp((cam.y - 250) / 900, 0, 1);
@@ -931,6 +934,18 @@ function drawRays(m: M): void {
   ctx.globalCompositeOperation = 'source-over';
 }
 
+/** the dark foreground between the eye and the swimmer (foreground.ts) */
+const frontPaint = frontPainter(gx, ctx, () => dpr);
+function drawFrontLayer(m: M): void {
+  const pr = player.cr.root;
+  view.project(pr.x[0], pr.y[0], 0, Q);
+  drawFront(front, {
+    project: (x, y, z) => view.project(x, y, z, P), xRange: (z, mg) => view.xRange(z, mg), floorAt,
+    W, H, px: Q.x, py: Q.y, clear: Math.max(110, Math.min(W, H) * 0.24), t, alpha: 0.92 * (1 - m.dark * 0.5),
+    colour: (x) => css(frontColour(waterAt(moodAt(x), floorAt(x, 0) * 0.6)))
+  }, frontPaint);
+}
+
 // ----- chapters and the depth gauge ----- //
 
 const here = { i: 0 };
@@ -1037,7 +1052,7 @@ function clearCrowd(): void {
 }
 
 export const api = {
-  settings, opts, detail, onlySp, player, stats, counts, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto,
+  settings, opts, detail, onlySp, player, stats, counts, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
   biomes: BIOMES, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
