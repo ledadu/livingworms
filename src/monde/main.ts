@@ -1156,7 +1156,7 @@ const rivale = initRivale({
 // each chapter's note, learned once its opening has been told; the circle of notes; the animals that answer
 const chant = initChant({
   partie, order: BIOMES.map((b) => b.id), view,
-  busy: () => paused || portee.isOpen || adieu.on || arbre.isOpen || Atelier.isOpen || chapterEl.classList.contains('show') || !narrator.told.has(chapters.shown),
+  busy: () => paused || adieu.on || narrator.quiet() || chapterEl.classList.contains('show') || !narrator.told.has(chapters.shown),
   held: (a) => parade.leads(a as Actor)
 });
 
