@@ -9,7 +9,7 @@
 
 import { STEP, TAU, clamp, detail, rand, rng, spec as makeSpec, type Spec } from '../engine';
 import { Atelier } from '../editor';
-import { applyAtelierAccess, unlockBalade } from './atelier-access';
+import { applyAtelierAccess, baladeUnlocked, unlockBalade } from './atelier-access';
 import { Creature3, swimFactor3 } from '../engine3/creature3';
 import { Flow } from '../engine3/flow';
 import { draw3, eachGlow3, lodOf, lodSize, prepare3 } from '../engine3/render3';
@@ -48,6 +48,7 @@ import { initParade } from './parade-jeu';
 import { initAdieu, testChild } from './adieu-jeu';
 import { mateFor } from './arbre';
 import { initArbre } from './arbre-ecran';
+import { initGenerique, souvenirButton } from './generique-ecran';
 import { ancestorsIn } from './ancetres-jeu';
 import { placeOf } from './ancetres';
 import { initTraces } from './traces-jeu';
@@ -56,6 +57,8 @@ import { initPonte } from './ponte-jeu';
 import { initIndices } from './indices-jeu';
 import { initChant } from './chant-jeu';
 import { notesOfGeneration } from './chant';
+import { initLumieres } from './lumieres-jeu';
+import { gameSeed, roomAlong } from './lumieres';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -131,7 +134,7 @@ const causticCv = causticTile(256, 7, 5);
 const caustic = ctx.createPattern(causticCv, 'repeat')!;
 
 interface Actor {
-  cr: Creature3; kind: 'player' | 'swim' | 'floor' | 'surface' | 'sib' | 'parent' | 'rival';
+  cr: Creature3; kind: 'player' | 'swim' | 'floor' | 'surface' | 'sib' | 'parent' | 'rival' | 'answer';
   z: number; hx: number; hy: number; tx: number; ty: number; next: number;
   buf: HTMLCanvasElement | null;
   /** last baked image and the frame it was made (far animals are re-baked only every few frames) */
@@ -188,6 +191,10 @@ const atBtn = document.getElementById('atBtn');
 applyAtelierAccess(atBtn);
 // the lineage tree (arbre-ecran.ts), at any time: the sea waits while it is open
 const arbre = initArbre({ partie, chapters: BIOMES, live: () => player.cr.spec, notes: (rank) => notesOfGeneration(partie.saved, rank), onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); } });
+// the credits and the keepsake image (generique-ecran.ts), at the end of the story: then the Balade opens, and the tree
+// shows the image again
+const generique = initGenerique({ partie, chapters: BIOMES, live: () => player.cr.spec, notes: (rank) => notesOfGeneration(partie.saved, rank), onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); }, onEnd: () => { unlockBalade(); applyAtelierAccess(atBtn); } });
+arbre.more = () => (baladeUnlocked() || travelShown(location.search) ? souvenirButton(() => { arbre.close(); generique.souvenir(); }) : null);
 atBtn?.addEventListener('click', () => {
   paused = true;
   Atelier.open(player.cr.spec, {
@@ -426,6 +433,7 @@ function update(): void {
   ponte.step(px, py, STEP);
   indices.step(px, py);
   rivale.step({ x: px, y: py }, t);
+  lumieres.step({ x: px, y: py }, t);
 
   flow.clear();
   const near = (x: number) => Math.abs(x - px) < 1100;
@@ -439,6 +447,12 @@ function update(): void {
     if (parade.leads(a)) { steer(a, parade.goal.x, parade.goal.y, 0.06); collide(c); continue; }
     if (a.kind === 'rival') {
       const v = rivale.goal(c, t, { x: px, y: py });
+      steer(a, v.x, v.y, 0.05);
+      collide(c);
+      continue;
+    }
+    if (a.kind === 'answer') {
+      const v = lumieres.goal(c, t, { x: px, y: py });
       steer(a, v.x, v.y, 0.05);
       collide(c);
       continue;
@@ -552,7 +566,8 @@ const glacier: GlacierScene = { view, ctx, gx, dpr, t: 0, plane: 0 };
 /** a partner glows softly around the middle of its body when the swimmer comes near */
 function pushPartnerLight(a: Actor): void {
   const r = a.cr.root, pr = player.cr.root, k = r.x.length >> 1;
-  const al = partnerGlow(Math.hypot(r.x[k] - pr.x[0], r.y[k] - pr.y[0]), t, a.cr.root.x.length + a.hx * 0.01);
+  // while it dances and just after, the lights of the parade speak for it (parade-jeu.ts)
+  const al = partnerGlow(Math.hypot(r.x[k] - pr.x[0], r.y[k] - pr.y[0]), t, a.cr.root.x.length + a.hx * 0.01) * (parade.danced(a) ? 0.3 : 1);
   if (al < 0.01) return;
   view.project(r.x[k], r.y[k], r.z[k], P);
   // clear bright water swallows an added light: it glows a little more there
@@ -566,6 +581,7 @@ function render(): void {
   parade.lights(view, lights, P);
   if (!skip.has('guide')) indices.lights(view, lights, P);
   rivale.lights(view, lights, P, t, { x: pr.x[0], y: pr.y[0] });
+  if (!skip.has('answer')) lumieres.lights(view, lights, P, t);
   if (gx) {
     const [r, g, b] = hsl01(m.deep.h, m.deep.s, m.deep.l);
     gx.begin(r, g, b);
@@ -653,7 +669,8 @@ function render(): void {
   for (const a of actors) {
     const [x0, x1] = view.xRange(a.z, 200);
     const x = a.cr.root.x[0];
-    if (x < x0 || x > x1) continue;
+    // the answers of the Fosse shine by themselves: drawn after the dark (drawShapes)
+    if (x < x0 || x > x1 || a.kind === 'answer') continue;
     const rz = a.cr.root.z[0];
     items.push({ d: view.depth(a.cr.root.y[0], rz) - 0.2, fn: () => drawActor(a, plane), k: 'actor' });
     if (a.partner !== undefined && !skip.has('partner')) pushPartnerLight(a);
@@ -688,8 +705,8 @@ function render(): void {
   // the deep closes in around the swimmer: the dark is painted over everything, the lights come after
   const dk = Math.max(m.dark * clamp((cam.y - 250) / 900, 0, 1), caveDark(cam.x), keys.dark(pr.x[0]));
   view.project(pr.x[0], pr.y[0], 0, P);
-  // in the Fosse only the swimmer's own light opens the dark
-  fosse.glow = glowOf(player.cr.list);
+  // in the Fosse only the swimmer's own light opens the dark, and the lights that answered its song
+  fosse.glow = glowOf(player.cr.list) + lumieres.glow({ x: pr.x[0], y: pr.y[0] });
   fosse.reach = lightReach(fosse.glow) * P.s;
   if (gx) { renderGLTop(m, dk); return; }
   if (dk > 0.02 && !skip.has('dark')) {
@@ -747,8 +764,9 @@ const deepEl = document.getElementById('deep');
 /** the total dark of the Fosse (0..1) and the reach of the swimmer's light on screen */
 const fosse = { pitch: 0, reach: 0, glow: 0 };
 
-/** the huge animals of the total dark, drawn after it */
+/** what shows in the total dark, drawn after it: the answers of the Fosse (lumieres-jeu.ts), the huge animals */
 function drawShapes(): void {
+  if (!skip.has('answer')) lumieres.draw(gx, ctx, view, dpr, t);
   if (fosse.pitch < 0.02 || skip.has('visitor')) return;
   for (const v of visitors) {
     const [x0, x1] = view.xRange(v.z, 400);
@@ -1180,6 +1198,21 @@ const rivale = initRivale({
   quiet: () => paused || portee.isOpen || adieu.on || narrator.quiet() || chapterEl.classList.contains('show'),
   aside: () => adieu.on || parade.active
 });
+// the lights that answer in the Fosse (lumieres-jeu.ts): each note sung there brings an ancestor of another lineage;
+// once every note learned has its answer, the song has crossed the dark
+const lumieres = initLumieres({
+  learned: () => chant.learned,
+  seed: () => gameSeed(partie.lineage),
+  cousin: () => rivale.rival?.spec ?? null,
+  add: (sp, x, y, scale) => addActor(sp, x, y, 'answer', scale).cr,
+  keep: (p) => {
+    const x = clamp(p.x, bounds[0] + 60, bounds[1] - 60);
+    return { x, y: clamp(p.y, Math.max(40, ceilAt(x, 0) + 50), floorAt(x, 0) - 70) };
+  },
+  room: (d) => { const r = player.cr.root, S = view.project(r.x[0], r.y[0], 0, { x: 0, y: 0, s: 1, d: 1 }); return roomAlong(S.x, S.y, d, W, H, S.s); },
+  open: () => { limits.crossed.add('fosse'); bounds = keys.bounds(); },
+  say: (name, lines) => !adieu.on && narrator.say(name, lines)
+});
 
 // ----- the song (chant-jeu.ts) ----- //
 
@@ -1189,6 +1222,7 @@ const chant = initChant({
   busy: () => paused || adieu.on || narrator.quiet() || chapterEl.classList.contains('show') || !narrator.told.has(chapters.shown),
   held: (a) => parade.leads(a as Actor)
 });
+chant.onNote((c) => lumieres.hear(c));
 
 // ----- loop ----- //
 
@@ -1286,7 +1320,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, traces, rivale, chant, ponte, indices,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, generique, traces, rivale, chant, lumieres, ponte, indices,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
@@ -1331,6 +1365,10 @@ porteeBtn.addEventListener('click', () => {
   panel.hidden = true;
   openPortee(ids[Math.floor(Math.random() * ids.length)], 0.7);
 });
+// the credits of the end, for the tests (?dev)
+const generiqueBtn = document.getElementById('generiqueBtn')!;
+generiqueBtn.hidden = !travelShown(location.search);
+generiqueBtn.addEventListener('click', () => { panel.hidden = true; generique.play(); });
 const benchOut = document.getElementById('benchOut')!;
 document.getElementById('benchBtn')!.addEventListener('click', () => { panel.hidden = true; void runBench(api, benchOut); });
 for (const el of [panel, gear, benchOut, document.getElementById('atBtn')!]) for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'wheel']) el.addEventListener(ev, (e) => e.stopPropagation());
@@ -1338,7 +1376,7 @@ const hint = document.getElementById('hint')!;
 setTimeout(() => hint.classList.add('gone'), 6000);
 document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).closest('#panel, #atelier, #benchOut')) e.preventDefault(); }, { passive: false });
 const nouveautes = initNouveautes(() => !Atelier.isOpen && benchOut.hidden === true);
-narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen || portee.isOpen || arbre.isOpen || chant.isOpen;
+narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen || portee.isOpen || arbre.isOpen || chant.isOpen || generique.isOpen;
 
 // back where the game was left: the start of its chapter, the obstacles before it crossed (teleport)
 const resumeAt = chapterIndex(partie.chapter as (typeof BIOMES)[number]['id']);

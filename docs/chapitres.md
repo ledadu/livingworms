@@ -234,6 +234,23 @@ Adieu (proposition) :
 - **Partenaires** : baudroie, dragon abyssal, nautile (`baudroie`, `dragonAbyssal`, `nautile`).
 - **Moment fort** : tu joues les notes déjà apprises et, une à une, des lumières répondent dans le noir, celles des ancêtres des autres lignées.
 - **Note** : « le silence ».
+- **Les lumières qui répondent** (`src/monde/lumieres.ts`, pures et testées ; dans le jeu `lumieres-jeu.ts`, dessin `lumieres-draw.ts`) :
+  - Dans la Fosse, chaque note apprise qu'on chante fait répondre une lumière, une à une : après un silence (1,1 s), et jamais moins de 1,8 s après la précédente, même si l'on chante vite. On chante avec le bouton du chant et son cercle de notes ([mécaniques](mecaniques.md#le-chant)) ; chaque note, au moment où le nageur la chante (`chant.onNote`), est entendue ici. Les notes apprises sont celles du chant (`chant.learned`).
+  - Chaque lumière est **l'ancêtre d'une autre lignée**, celui qui a appris cette note. Cette lignée part d'une première larve d'une autre couleur que la nôtre. Dans chaque chapitre, elle a choisi un partenaire qui franchit l'obstacle et gardé un enfant qui le franchit, jusqu'au chapitre de la note.
+    - Chaque note a sa lignée, la même d'une visite à l'autre tant que notre lignée ne change pas.
+    - La note de la Carcasse fait exception : si on l'a croisée, c'est la cousine de la lignée rivale qui répond (voir le chapitre 5).
+    - Ces lignées se font en approchant de la Fosse, une naissance par pas de simulation, pour ne jamais faire attendre une image.
+  - La lumière répond de loin, au bord de ce qu'on voit : 520 px au plus, moins sur les côtés d'un téléphone tenu droit. Elle vient d'au-dessus ou des côtés, jamais d'en dessous.
+    - D'abord trois éclats de sa couleur ; puis elle vient, sans se presser, nager à sa place autour de nous (de 170 à 226 px, en trois rangs), et nous suit dans la Fosse.
+    - Son corps se voit par sa propre lumière, teinté de sa couleur, par-dessus le noir.
+  - Rechanter une note qui a déjà répondu fait briller sa lumière de nouveau.
+  - Chaque lumière arrivée près de nous ajoute à notre lumière : ensemble, elles éclairent autour de nous plus qu'une lanterne.
+  - Quand chaque note apprise a eu sa lumière et que toutes sont arrivées, **le chant a franchi le noir** :
+    - l'obstacle de la Fosse s'ouvre (le noir ne se referme plus devant sa borne) ;
+    - toutes les lumières brillent ensemble, en vague ;
+    - la lignée dit « Les lumières qui répondent » (ci-dessous).
+    - Le fond reste la fin du monde tant que la Remontée n'est pas là.
+  - Pour les tests : `monde.chant.sing(monde.chant.learned)` chante toutes les notes apprises (une toutes les 0,5 s) ; `monde.lumieres.hear('recif')` fait entendre une note sans la chanter. `monde.lumieres.answers` et `done` disent où on en est, `onDone(f)` est appelé quand le chant a franchi le noir, et `monde.skip.add('answer')` cache les lumières.
 
 Ouverture :
 
@@ -245,7 +262,11 @@ Devant l'obstacle :
 
 L'indice (proposition) :
 
-> La baudroie et le dragon abyssal portaient leur propre lumière. Le nautile, lui, n'en avait pas.
+> La baudroie et le dragon abyssal portaient leur propre lumière. Le nautile, lui, n'en avait pas. Ou bien chanter ce que nous avions appris, et attendre qu'on nous réponde.
+
+Les lumières qui répondent (quand chaque note apprise a eu sa réponse, *proposition*) :
+
+> Nous avons chanté ce que chacun de nous avait appris. Dans le noir, d'autres lignées ont répondu. Le silence n'était pas vide.
 
 Adieu (proposition) :
 
@@ -266,7 +287,7 @@ Texte final :
 
 > Nous sommes remontés. Pas un seul d'entre nous n'avait fait tout le chemin. Et pourtant, nous l'avions fait ensemble.
 
-**Générique** : l'arbre complet de ta lignée, génération par génération.
+**Générique** : l'arbre complet de ta lignée, génération par génération. Puis l'arbre devient une image souvenir, à garder (voir [mécaniques](mecaniques.md#le-générique-et-limage-souvenir)).
 
 ## Les traces de la lignée
 
@@ -323,7 +344,7 @@ Chaque obstacle barre la descente tant que le corps qu'on joue n'a pas l'un des 
 
 - **Avec le trait**, l'obstacle se sent encore un peu (le courant tire, l'eau épaisse freine) mais on passe ; le noir ne se referme plus.
 - **La première fois qu'un obstacle retient** (à mi-chemin de son approche), la lignée dit ce qu'il aurait fallu : la citation « Devant l'obstacle : » du chapitre, dans ce document. Quand on s'en éloigne, elle dit qui l'avait (« L'indice : »), et un fil de lumière dorée mène au bon partenaire ([mécaniques](mecaniques.md#les-indices)).
-- **La Fosse** garde la fin du monde : même avec une lanterne, on n'y va pas plus loin tant que la Remontée n'existe pas. Le chant (étape 5) n'est pas un trait du corps.
+- **La Fosse** garde la fin du monde : même avec une lanterne, on n'y va pas plus loin tant que la Remontée n'existe pas. Le chant n'est pas un trait du corps : il ouvre l'obstacle de la Fosse quand chaque note apprise a eu sa lumière (voir « Les lumières qui répondent », chapitre 9).
 - **Les traits du corps** sont lus sur l'arbre de parties (`traitsOf` de `src/content/traits.ts`, la même fonction que la portée, qui marque en or ce qui franchit l'obstacle). La version approchée d'avant (`obstacles-traits.ts`) n'est plus lue par le jeu. La larve de départ n'a aucun trait : sans naissance, elle s'arrête au courant du Récif.
 - **Pour les tests** : `monde.keys.traits` (les traits du corps joué), `monde.keys.force = ['nageoires']` (jouer comme si on les avait, `null` pour revenir), `monde.becomes(…)`.
 

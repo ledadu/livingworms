@@ -7,10 +7,10 @@ Avant : rester 1,2 s près d'un partenaire lançait la parade ; s'en aller ne l'
 ## Livré
 
 - **La parade se quitte** (`parade.ts`, `parade-jeu.ts`) : à plus de 520 du partenaire pendant 2,5 s (`LEAVE_FAR`, `LEAVE_TIME`, `away`), il nous laisse partir avec quelques lueurs : pas d'œufs, rien qui s'ouvre plus tard. La danse ne l'écarte jamais de plus de 480 de nous, donc suivre de loin ne compte pas pour un départ. Le partenaire nous remarque après **2 s** près de lui (au lieu de 1,2) : le frôler en passant ne suffit plus. Un voyage de test en pleine parade la quitte au lieu de la finir. `monde.parade.leave()`.
-- **La ponte** (`ponte.ts` pur et testé, `ponte-jeu.ts`) : à la fin d'une parade, quatre œufs d'or pâle (ceux de l'écran de la portée) sont pondus là où était le partenaire, dans l'éclat (`ParadeResult.at`). Rester près d'eux (110, 1,6 s, après les 1,6 s de l'éclat) : ils tremblent et brillent de plus en plus, puis la portée s'ouvre. S'en aller : rien ne s'ouvre. Une ponte à la fois ; choisir un enfant la fait éclore. `monde.ponte`.
+- **La ponte** (`ponte.ts` pur et testé, `ponte-jeu.ts`) : à la fin d'une parade, quatre œufs d'or pâle (ceux de l'écran de la portée) sont pondus dans la figure de lumière qui ferme la danse, entre les deux danseurs (`ParadeResult.at`). Rester près d'eux (110, 1,6 s, après les 1,6 s de la figure) : ils tremblent et brillent de plus en plus, puis la portée s'ouvre. S'en aller : rien ne s'ouvre. Une ponte à la fois ; choisir un enfant la fait éclore. `monde.ponte`.
 
   ![Les œufs dans l'eau, dans la Forêt, le nageur qui revient vers eux](img/oeufs.jpg)
-  ![Pondus dans l'éclat de la parade (en haut à droite)](img/ponte-eclat.jpg)
+  ![Pondus dans la figure de lumière d'une parade avec le homard (en bas à droite, les lueurs « fontaine » au-dessus)](img/ponte-figure.jpg)
 
 - **« Plus tard »** (`portee-ecran.ts`, `portee.css`) : second bouton de la portée, « Plus tard : les œufs t'attendront ici » (ou Échap, `portee.later()`). Les œufs restent ; pour rouvrir, s'en éloigner (180) puis revenir près d'eux : ce sont les mêmes quatre enfants (la graine de `brood` est gardée). Vérifié en jeu : même noms à la réouverture, puis choix, adieu, œufs effacés.
 - **La portée dit ce qui passe** (`broodNote`) : « Les traits en or franchissent le mur d'algues. », ou « Aucun ne franchira le mur d'algues : tu peux laisser les œufs et chercher un autre partenaire. »
@@ -81,9 +81,14 @@ Aucune question posée à l'utilisateur (consigne : trancher avec l'option recom
 
 ## Risques de fusion
 
+- **Fusion avec `backlog` (lueur de l'accouplement, générique, lumières de la Fosse)** : quatre fichiers en conflit, les deux côtés gardés.
+  - `parade-jeu.ts` : repris de `backlog` (les lueurs de `lueur.ts` : `Motes`, `wake`, `burst`, `notice`), avec la sortie de parade remise dessus. `leave()` fait monter quatre lueurs `notice` de la couleur de la parade (l'ancien tableau de lueurs n'existe plus) ; `at` est maintenant le centre de la figure de lumière, entre les deux danseurs : les œufs y sont pondus.
+  - `main.ts` : la liste de l'API combine `generique`, `lumieres`, `ponte` et `indices`. Le chant ouvre la Fosse par `limits.crossed`, que les indices lisent déjà : le fil s'y tait une fois le noir franchi. Le générique met le jeu en pause : les œufs et le fil attendent sans rien de plus.
+  - `docs/chapitres.md` : à la Fosse, « L'indice » et « Les lumières qui répondent » gardés tous les deux ; l'indice dit aussi le chant (« Ou bien chanter ce que nous avions appris, et attendre qu'on nous réponde. »). Dans « Les obstacles-clés », la ligne de la Fosse de `backlog`, les deux autres de ce chantier.
+  - `docs/mecaniques.md` : « Ce qu'on voit » de `backlog`, « Le résultat » réécrit pour les deux (la figure et les œufs), « La ponte » rangée après « La lueur de l'accouplement ».
 - **Déjà fusionné avec le chant** (`chant-note-chapitre`, dans `backlog`) : conflits de voisinage seulement (imports, l'API, une ligne de `chapitres.md`), les deux côtés gardés ; les œufs et le fil attendent aussi pendant que le cercle de notes est ouvert (`chant.isOpen`).
 - `src/monde/main.ts` : branchements courts. La création de la portée (`createPortee` avec un second rappel), `broodOf` / `openPortee` (qui passent par la ponte), `initPonte` et `initIndices` après la parade, deux appels dans `update` (`ponte.step`, `indices.step`), deux dans `render` (`indices.lights`, `ponte.items`), `ponte, indices` dans l'API, et `OBSTACLE, crosses` importés.
-- `src/monde/parade-jeu.ts` : `leave()`, le temps passé loin (`away`), `at` dans le résultat (même ligne que `last = …`). Le chantier voisin « lueur de l'accouplement » touche sans doute l'éclat de `finish()` : garder les deux.
+- `src/monde/parade-jeu.ts` : `leave()`, le temps passé loin (`away`), `at` dans le résultat ; déjà fusionné avec la lueur de l'accouplement.
 - `src/monde/parade.ts` : `START_HOLD` passe à 2, `LEAVE_FAR`, `LEAVE_TIME`, `away` ajoutés.
 - `src/monde/portee-ecran.ts` et `portee.css` : second bouton, ligne `note`, `later()`, `PorteeOptions`.
 - `src/monde/textes.ts` : le type `hint` et son libellé (une ligne dans `LABELS`), à côté de ceux que d'autres chantiers ajoutent peut-être (chant, Remontée) : garder toutes les lignes.

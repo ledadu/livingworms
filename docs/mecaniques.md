@@ -37,16 +37,32 @@ La Nurserie et la Carcasse n'ont pas d'obstacle : on y trouve quand même un par
 - **La quitter** : on peut toujours s'en aller. À plus de 520 de lui pendant 2,5 s (`LEAVE_FAR`, `LEAVE_TIME`, `away`), il nous laisse partir, avec quelques lueurs, et retourne à sa vie : pas d'œufs, rien ne s'ouvre plus tard. Revenir rester près de lui, c'est recommencer. Le suivre de loin ne compte pas pour un départ : la danse ne l'écarte jamais de plus de 480 (son grand huit).
 - **La danse** : le partenaire dessine un grand huit (240 × 95 de demi-axes) autour de l'endroit de la rencontre, en partant du côté opposé à nous, pour qu'on se retrouve derrière lui. Il avance à son aise (selon sa vitesse de nage), attend quand il prend du retard et ralentit quand on s'éloigne : on peut toujours le rattraper. Un marcheur (crabe, homard) fait l'aller-retour sur le fond.
 - **La qualité**, mesurée à chaque instant puis moyennée sur les 20 s : **le suivre** (près de lui : plein jusqu'à 120, nul au-delà de 360, 40 %), **son sillage** (passer là où il était il y a 0,3 à 1,5 s, 30 %), **tourner avec lui** (aller dans la même direction que lui, 30 %). Le suivre du doigt donne environ 0,95 ; rester à côté sans bouger, 0,3 à 0,4 ; s'en aller, presque 0.
-- **Ce qu'on voit** (pas de chiffres) : son sillage brille de sa couleur ; le nôtre s'allume de la même couleur quand on danse en rythme ; à la fin, un éclat de lumière d'autant plus grand que la parade était belle.
-- **Le résultat** : `monde.parade.last` (`partner` : l'id de l'espèce, `spec` : sa définition, `chapter`, `at` : où était le partenaire à la fin, `quality` de 0 à 1, `parts` : les trois mesures), et `monde.parade.onEnd(f)` appelé à la fin de chaque parade (pas quand on la quitte). Le jeu y pond les œufs, là où était le partenaire, dans l'éclat (voir « La ponte »).
+- **Ce qu'on voit** (pas de chiffres) : son sillage brille de ses couleurs ; le nôtre s'allume des mêmes couleurs quand on danse en rythme ; à la fin, une figure de lumière entre les deux danseurs, d'autant plus riche que la parade était belle. Ces lumières changent d'une parade à l'autre (voir « La lueur de l'accouplement »).
+- **Le résultat** : `monde.parade.last` (`partner` : l'id de l'espèce, `spec` : sa définition, `chapter`, `at` : où la figure de lumière a fermé la danse, entre les deux danseurs, `quality` de 0 à 1, `parts` : les trois mesures), et `monde.parade.onEnd(f)` appelé à la fin de chaque parade (pas quand on la quitte). Le jeu y pond les œufs, dans la figure de lumière (voir « La ponte »).
 - Dans le code : les règles dans `src/monde/parade.ts` (pures, testées), le jeu dans `src/monde/parade-jeu.ts`. Seuls les animaux marqués partenaires dansent. Pour les tests : `monde.parade.start(animal, monde.player.cr)`, `monde.parade.state`, `monde.parade.finish()`, `monde.parade.leave()`, `monde.parade.quiet = () => false`.
+
+### La lueur de l'accouplement
+
+Les lumières de la parade ne sont jamais tout à fait les mêmes : chacune tire les siennes des gènes des deux danseurs, avec un peu de hasard. Elles restent douces : jamais de tache blanche qui cache les créatures.
+
+- **Les gènes d'un danseur** (`genesOf`) : ses couleurs (celles de ses parties lumineuses d'abord, puis les deux premières de sa palette), ses traits (`traitsOf`), sa façon de nager (`swim.mode`), s'il a des parties qui brillent, et sa symétrie (le nombre de bras d'une étoile, de tentacules d'une cloche, de 3 à 8).
+- **La lumière d'une parade** (`lueurOf`), tirée à son début :
+  - **ses couleurs** : celle du partenaire d'abord, puis la nôtre, puis les autres des deux, un peu nuancées ;
+  - **le sillage** : poussière (les lueurs qui montent doucement), bulles, étincelles, ruban (une ligne qui dessine le huit), volutes, pouls (des anneaux qui partent du partenaire) ou lucioles qui clignotent ;
+  - **la figure finale** : corolle (des pétales, autant que sa symétrie), spirale (deux bras, sa couleur et la nôtre), pluie de lumière, lucioles, anneaux qui s'élargissent, hélice (deux brins qui montent en tournant) ou fontaine ;
+  - parfois (une fois sur deux), **un écho** : une seconde figure, plus petite, tirée de nos seuls gènes ;
+  - le sens où tout tourne, la taille des lumières et leur rythme (plus vif chez ceux qui nagent par jets ou par élans).
+- **Les gènes pèsent sans décider** : chaque sillage et chaque figure a ses gènes (`WAKES`, `BURSTS`) ; chacun de ces gènes compte double chez le partenaire, simple chez nous, et le hasard fait le reste. Une méduse appelle les anneaux et le pouls ; un crabe, la fontaine et les étincelles ; une lanterne, les lucioles ; un corps fin, le ruban et l'hélice. La figure de la parade précédente revient rarement (son poids tombe à 15 %).
+- **La richesse, pas l'éclat** : une parade réussie donne une figure avec plus de lumières, jamais plus forte (de ×0,5 à ×1,5 lumières).
+- **Jamais éblouissant** : chaque lumière a au plus 0,7 d'opacité ; là où elles se rassemblent, celles d'une même case de 32 px ne dépassent pas 1,8 à elles toutes (`CELL_CAP`) et se partagent leur force. Les figures s'étalent sur 100 à 150 px autour des danseurs. Pendant la danse et juste après, le halo doré du partenaire baisse à 30 % : ses lumières parlent pour lui. En eau claire, où une lumière ajoutée se voit moins, elles brillent un peu plus (jusqu'à ×1,5), sans dépasser ces deux limites.
+- Dans le code : `src/monde/lueur.ts` (pur, testé), branché dans `parade-jeu.ts`. Pour les captures : `monde.parade.forceLight({ wake, burst, echo })` impose la lumière de la parade suivante ; `monde.parade.light` donne celle de la parade en cours, ou de la dernière.
 
 ### La ponte
 
 Rien n'est imposé : la portée ne se jette plus sur la mer à la fin de la parade.
 
-- **Les œufs dans l'eau** : quatre œufs d'or pâle, comme ceux de l'écran de la portée, sont pondus là où la parade a fini, dans son éclat de lumière. Ils flottent en petit tas, chacun se balançant à sa façon, et luisent doucement (on les voit aussi dans le noir).
-- **Les faire éclore** : on reste près d'eux (à moins de 110, 1,6 s, après les 1,6 s de l'éclat) ; ils tremblent et brillent de plus en plus, puis la portée s'ouvre. C'est le même geste que pour un partenaire : rester près, c'est dire oui. Si l'on s'en va, rien ne s'ouvre.
+- **Les œufs dans l'eau** : quatre œufs d'or pâle, comme ceux de l'écran de la portée, sont pondus là où la parade a fini, dans sa figure de lumière, entre les deux danseurs. Ils flottent en petit tas, chacun se balançant à sa façon, et luisent doucement (on les voit aussi dans le noir).
+- **Les faire éclore** : on reste près d'eux (à moins de 110, 1,6 s, après les 1,6 s de la figure de lumière) ; ils tremblent et brillent de plus en plus, puis la portée s'ouvre. C'est le même geste que pour un partenaire : rester près, c'est dire oui. Si l'on s'en va, rien ne s'ouvre.
 - **Plus tard** : l'écran de la portée a un second bouton, « Plus tard : les œufs t'attendront ici » (ou Échap). Les œufs restent où ils sont ; pour rouvrir la portée, il faut s'en éloigner (180) puis revenir rester près d'eux. Ce sont les mêmes quatre enfants (la même graine de `brood`).
 - **Une ponte à la fois** : une nouvelle parade pond ses œufs à la place des anciens. Choisir un enfant les fait éclore pour de bon. Les œufs ne sont pas gardés dans la sauvegarde : un rechargement les efface.
 - Dans le code : les règles dans `src/monde/ponte.ts` (pures, testées), les œufs dans le monde dans `ponte-jeu.ts`. Pour les tests : `monde.ponte.clutch` (où ils sont, `hold`, `armed`, `crosses`), `monde.ponte.open()`, `monde.portee.later()`. `monde.openPortee(partenaire, qualité)` pond les œufs à côté du nageur et ouvre leur portée tout de suite.
@@ -134,7 +150,7 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
 
 - Un écran accessible à tout moment montre l'arbre des générations, avec le portrait de chaque ancêtre, son nom, le partenaire et le lieu de naissance.
 - Tu peux nommer chaque génération.
-- À la fin, cet arbre devient une image souvenir exportable (sauf dans le lien Artifact, où les téléchargements sont bloqués).
+- À la fin, cet arbre passe en générique, puis devient une image souvenir à télécharger (sauf dans le lien Artifact, où les téléchargements sont bloqués) : voir « Le générique et l'image souvenir » ci-dessous.
 - **Dans le jeu** (`src/monde/arbre-ecran.ts`, la logique pure dans `arbre.ts`) : un bouton rond en haut à gauche (à droite de ✎ quand l'Atelier est là), caché pendant l'adieu et la portée.
   - Les générations descendent comme la lignée, de la première larve (en haut) à celle qu'on joue (en bas, cerclée d'or, « aujourd'hui ») ; l'écran s'ouvre centré sur elle.
   - Pour chacune : son portrait (`snapshot3`) dans un médaillon, « Troisième génération » (en toutes lettres, pas de chiffres), son nom, « née au Récif ». Le lieu de naissance n'est pas gardé à part : c'est le chapitre où la génération d'avant a donné naissance, la Nurserie pour la première.
@@ -142,6 +158,23 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
   - **Nommer** : on touche un nom, on l'écrit (24 lettres au plus), Entrée ou toucher ailleurs le garde, Échap l'annule. Le nom est celui de la créature (`name` de sa définition) : celui de la génération jouée compte donc pour ses enfants, dont le nom commence comme celui du parent.
   - Le jeu s'arrête pendant que l'arbre est ouvert, et les textes attendent. On le ferme par ×, Échap ou en touchant à côté.
   - Pour les tests : `monde.arbre.open()`, `close()`, `rename(rang, nom)` (1 : la première génération), `isOpen`.
+
+### Le générique et l'image souvenir
+
+- **Le générique** (`src/monde/generique-ecran.ts`, la logique pure dans `generique.ts`) : à la fin de l'histoire, toute la lignée monte à l'écran, lentement, comme un générique de film, sur la mer assombrie (le jeu attend).
+  - En tête, « La Lignée » et « Tous ceux que nous avons été ». Puis chaque génération, de la première larve à la dernière (cerclée d'or) : son portrait dans un médaillon teinté de l'eau du chapitre où elle est née, « Troisième génération », son nom, « née au Récif », et les notes du chant qu'elle a apprises, en or (« a appris l'éclat », comme dans l'arbre). Entre deux générations, un bout de fil d'or et le partenaire, en bleu pâle : son petit portrait et « avec Méduse lune ».
+  - Il finit sur « La Lignée », seul au milieu de l'écran, un moment, puis l'image souvenir vient à sa place.
+  - Environ 52 px par seconde, plus vite pour une très longue lignée (deux minutes au plus) : une quarantaine de secondes pour dix générations. Un doigt (ou Espace) posé le presse ; « Passer » (ou Échap) mène tout de suite à l'image. Avec « réduire les animations » du système, l'image vient sans défilement.
+  - **Le déclencher** : `generique.play()` (`monde.generique` dans la console), que la fin de la Remontée appelle quand la lignée a percé la surface. Pour les tests, le panneau ⚙ a un bouton « Le générique de fin » avec `?dev`.
+  - Quand il est allé au bout (ou qu'on l'a passé), l'histoire est finie : la Balade libre est débloquée (`unlockBalade()`), et l'Atelier revient.
+- **L'image souvenir** (`src/monde/generique-image.ts`) : l'arbre dessiné dans un canvas, comme une tranche de la mer descendue.
+  - 1 080 px de large, et haute de ce que demande la lignée (environ 4 000 px pour dix générations) ; une très longue lignée est réduite pour tenir dans 12 000 px de haut, ce qu'un téléphone garde encore dans un canvas.
+  - L'eau derrière chaque génération est celle de son chapitre (`bandColour`, assez sombre pour les lettres claires) : claire en haut, sous la surface, de plus en plus sombre jusqu'à la dernière, avec des rayons et de la neige marine. Le fil d'or, les médaillons, les noms, les notes apprises et les partenaires comme dans l'arbre ; en bas, le texte final de la Remontée (lu dans [chapitres.md](chapitres.md)) et « La Lignée ».
+  - Montrée dans un cadre qu'on fait défiler, avec « Garder l'image » : un JPEG (qualité 0,9, 300 à 400 Ko pour dix générations) téléchargé sous le nom de la dernière génération, `la-lignee-aube.jpg`. On peut aussi appuyer longuement sur l'image, là où le navigateur le permet.
+  - **Pas de bouton dans le lien Artifact** de claude.ai, dont le cadre bloque les téléchargements (`downloadsBlocked`) : la page servie depuis `claudeusercontent.com`, ou dans un cadre ouvert depuis `claude.ai` ou `claude.site`. `?artifact` dans l'adresse fait de même, pour les tests. L'image y est montrée quand même.
+  - Une fois l'histoire finie, l'arbre de la lignée a un bouton « L'image souvenir » sous les générations, qui la montre de nouveau, avec la lignée du moment (et toujours avec `?dev`).
+  - Les portraits (`snapshot3`) sont dessinés pendant le générique, quelques-uns par image ; l'image se dessine ensuite en un quart de seconde environ, même si on passe le générique tout de suite.
+  - Pour les tests : `monde.generique.play()`, `souvenir()` (l'image seule), `skip()`, `close()`, `stage` (`'roll'`, `'souvenir'` ou `''`), `image` (le canvas), `canKeep`.
 
 ## Les ancêtres
 
