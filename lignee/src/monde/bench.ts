@@ -14,7 +14,7 @@ import { draw3 } from '../engine3/render3';
 import { Ortho } from '../engine3/view';
 import { Gfx } from '../engine3/gfx';
 import { paint3 } from '../engine3/paint-gl';
-import { makeCanvas } from '../game/bake';
+import { makeCanvas } from './sprites';
 import { biomeMid, floorAt } from './biomes';
 import type { FrameSample, api as Api } from './main';
 

@@ -11,7 +11,7 @@ import { Creature3, swimFactor3 } from '../engine3/creature3';
 import { draw3, drawSkeleton3, eachGlow3, pick3 } from '../engine3/render3';
 import { snapshot3 } from '../engine3/snapshot3';
 import { View } from '../engine3/view';
-import { glowSprite } from '../game/bake';
+import { glowSprite } from '../monde/sprites';
 
 export interface AtelierContext { playLabel?: string; onPlay?: (spec: unknown) => void; onClose?: () => void; }
 export interface Atelier { open(spec?: unknown, ctx?: AtelierContext): void; close(): void; readonly isOpen: boolean; }

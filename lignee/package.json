@@ -5,20 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
     "check": "tsc --noEmit",
-    "preview": "vite preview",
-    "build3d": "tsc --noEmit && vite build --config vite.3d.config.ts",
-    "build25": "tsc --noEmit && vite build --config vite.25.config.ts",
-    "buildmonde": "tsc --noEmit && vite build --config vite.monde.config.ts"
+    "build": "tsc --noEmit && vite build",
+    "play": "npm run build && cp dist/index.html play/lignee-monde.html",
+    "preview": "vite preview"
   },
   "devDependencies": {
-    "@types/three": "^0.170.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.1",
     "vite-plugin-singlefile": "^2.3.3"
-  },
-  "dependencies": {
-    "three": "^0.170.0"
   }
 }

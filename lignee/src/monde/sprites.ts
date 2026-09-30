@@ -1,28 +1,111 @@
-// The world of the 2.5D prototype: a sea floor with depth, rocks and plants
-// set at many depths, all baked once into small images (with their fog), so
-// that a frame costs about what the 2D version costs.
+// Everything drawn once and reused: sprites of rocks and of far animals and
+// plants (with their fog), caustics, glow sprites, the fish of the schools.
 
-import { TAU, clamp, noise1, rng, seedOf, type Spec } from '../engine';
-import { Creature3, settle3 } from '../engine3/creature3';
+import { TAU, clamp, noise1, rng } from '../engine';
+import type { Creature3 } from '../engine3/creature3';
 import { draw3 } from '../engine3/render3';
 import { Ortho } from '../engine3/view';
-import { css, fogged, moodAt, waterAt, type HSL, type Mood } from '../game/palette';
-import { plantSpec } from '../game/plants';
-import { floorY as floor2D, reefness } from '../game/terrain';
-import { makeCanvas } from '../game/bake';
+import { css, type HSL, type Mood } from './palette';
 
-const smooth = (t: number) => t * t * (3 - 2 * t);
+export function makeCanvas(w: number, h: number): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.ceil(w));
+  c.height = Math.max(1, Math.ceil(h));
+  return c;
+}
 
+// ----- caustics: a tileable Voronoi edge texture ----- //
+
+export function causticTile(size = 256, cells = 9, seed = 5): HTMLCanvasElement {
+  const c = makeCanvas(size, size), ctx = c.getContext('2d')!;
+  const R = rng(seed), pts: number[] = [];
+  for (let i = 0; i < cells * cells; i++) pts.push(((i % cells) + 0.15 + R() * 0.7) / cells, (Math.floor(i / cells) + 0.15 + R() * 0.7) / cells);
+  const img = ctx.createImageData(size, size), d = img.data;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const u = x / size, v = y / size;
+      let f1 = 9, f2 = 9;
+      for (let i = 0; i < pts.length; i += 2) {
+        for (let ox = -1; ox <= 1; ox++) {
+          const dx = pts[i] + ox - u;
+          if (dx > 0.35 || dx < -0.35) continue;
+          for (let oy = -1; oy <= 1; oy++) {
+            const dy = pts[i + 1] + oy - v, dd = dx * dx + dy * dy;
+            if (dd < f1) { f2 = f1; f1 = dd; } else if (dd < f2) f2 = dd;
+          }
+        }
+      }
+      const e = Math.sqrt(f2) - Math.sqrt(f1);
+      const a = Math.pow(clamp(1 - e / 0.04, 0, 1), 2.2);
+      const k = (y * size + x) * 4;
+      d[k] = 255; d[k + 1] = 255; d[k + 2] = 235; d[k + 3] = Math.round(a * 255);
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+// ----- glow sprites, one per hue bucket ----- //
+
+const glowCache = new Map<number, HTMLCanvasElement>();
+export function glowSprite(hue: number): HTMLCanvasElement {
+  const k = Math.round((((hue % 360) + 360) % 360) / 15) * 15;
+  let c = glowCache.get(k);
+  if (c) return c;
+  c = makeCanvas(64, 64);
+  const ctx = c.getContext('2d')!, g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, `hsla(${k},100%,80%,0.9)`);
+  g.addColorStop(0.25, `hsla(${k},100%,62%,0.4)`);
+  g.addColorStop(1, `hsla(${k},100%,50%,0)`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 64, 64);
+  glowCache.set(k, c);
+  return c;
+}
+
+// ----- small school fish: 3 frames of tail beat ----- //
+
+export function fishSprites(body: HSL, belly: HSL, len = 14): HTMLCanvasElement[] {
+  const out: HTMLCanvasElement[] = [];
+  for (let f = 0; f < 3; f++) {
+    const w = len * 2, h = len, c = makeCanvas(w * 2, h * 2), ctx = c.getContext('2d')!;
+    ctx.scale(2, 2);
+    ctx.translate(w / 2, h / 2);
+    const bend = (f - 1) * 0.35, L = len * 0.5, H = len * 0.2;
+    // tail
+    ctx.fillStyle = css(body, 0.95, -6);
+    ctx.beginPath();
+    ctx.moveTo(-L * 0.7, 0);
+    ctx.lineTo(-L * 1.25, -H * 1.1 + bend * H * 2);
+    ctx.lineTo(-L * 1.12, bend * H);
+    ctx.lineTo(-L * 1.25, H * 1.1 + bend * H * 2);
+    ctx.closePath();
+    ctx.fill();
+    // body
+    const g = ctx.createLinearGradient(0, -H, 0, H);
+    g.addColorStop(0, css(body, 1, -8));
+    g.addColorStop(0.55, css(body, 1, 6));
+    g.addColorStop(1, css(belly, 1, 10));
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(L, 0);
+    ctx.quadraticCurveTo(L * 0.4, -H * 1.2, -L * 0.2, -H * 0.9);
+    ctx.quadraticCurveTo(-L * 0.8, -H * 0.4 + bend * H, -L * 0.85, bend * H * 0.6);
+    ctx.quadraticCurveTo(-L * 0.8, H * 0.4 + bend * H, -L * 0.2, H * 0.9);
+    ctx.quadraticCurveTo(L * 0.4, H * 1.2, L, 0);
+    ctx.fill();
+    // stripe and eye
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(L * 0.6, -H * 0.1); ctx.lineTo(-L * 0.6, -H * 0.05); ctx.stroke();
+    ctx.fillStyle = '#081018';
+    ctx.beginPath(); ctx.arc(L * 0.62, -H * 0.18, H * 0.22, 0, TAU); ctx.fill();
+    out.push(c);
+  }
+  return out;
+}
 /** shared drawing environment: 0 = deep dark water, 1 = bright shallow water */
 export const env = { water: 0 };
-
-/** depth of the floor (y down) at x and at depth z */
-export function floorAt(x: number, z: number): number {
-  const back = smooth(clamp((z - 250) / 700, 0, 1)) * (180 + 240 * noise1(x / 520 + z / 400, 77));
-  const front = z < 0 ? -z * 0.12 : 0;
-  const ripple = (noise1(x / 170 + z / 90, 78) - 0.5) * 30 * clamp(z / 400, 0, 1);
-  return floor2D(x) + front - back + ripple;
-}
 
 /** how much the water hides something at view depth d (the swimming plane is at `plane`) */
 export function fogOf(d: number, plane: number): number {
@@ -133,81 +216,5 @@ export function bakeCreature(cr: Creature3, fog: number, fogCol: HSL, res: numbe
 }
 
 // ----- what stands where ----- //
-
 export interface Rock { x: number; z: number; r: number; seed: number; sprite: Sprite | null; spriteD: number; }
 export interface Plant { x: number; z: number; kind: string; seed: number; cr: Creature3 | null; sprite: Sprite | null; spriteD: number; live: boolean; }
-
-export const X0 = -800, X1 = 12000;
-
-export function makeRocks(): Rock[] {
-  const R = rng(77), out: Rock[] = [];
-  for (let x = X0; x < X1; x += 60 + R() * 140) {
-    const reef = reefness(x);
-    const z = -60 + R() * 1500;
-    let r = (14 + R() * 30) * (1 + reef * 1.2) * (R() < 0.15 + reef * 0.25 ? 1.9 : 1);
-    if (z < 30) r = Math.min(r, 16); // nothing big between the eye and the swimmer
-    out.push({ x, z, r, seed: seedOf(Math.round(x), Math.round(z)), sprite: null, spriteD: 0 });
-    if (reef > 0.5 && R() < 0.5) out.push({ x: x + 30, z: z + 40, r: r * 0.7, seed: seedOf(Math.round(x) + 7, 3), sprite: null, spriteD: 0 });
-  }
-  return out;
-}
-
-/** build the plant's whip the first time it comes near */
-export function growPlant(p: Plant): Creature3 {
-  const R = rng(p.seed), kind = p.kind, hanging = kind === 'sargasse';
-  const y = hanging ? 3 + R() * 4 : floorAt(p.x, p.z) + 3;
-  const tilt = kind === 'kelp' || kind === 'posidonie' || hanging ? 0 : (R() - 0.5) * 0.35;
-  const scale = kind === 'kelp' ? 0.9 + R() * 0.5 : 0.8 + R() * 0.45;
-  const sp: Spec = plantSpec(kind, R);
-  // each plant lives in its own vertical plane, turned by a random azimuth
-  const az = R() * Math.PI, ca = Math.cos(az), sa = Math.sin(az);
-  const dv = { x: Math.sin(tilt) * ca, y: hanging ? 1 : -Math.cos(tilt), z: Math.sin(tilt) * sa };
-  if (hanging) { dv.x = Math.sin(tilt) * ca; dv.z = Math.sin(tilt) * sa; dv.y = Math.cos(tilt); }
-  const cr = new Creature3(sp, p.x, y, p.z, { anchor: { dir: dv, plane: az }, phase: R() * TAU, scale });
-  if (kind === 'anemone') for (const sg of cr.list) sg.def.motion.amp *= 0.3;
-  settle3(cr, kind === 'kelp' || hanging ? 70 : 40);
-  p.cr = cr;
-  return cr;
-}
-
-export function makePlants(): Plant[] {
-  const R = rng(41), out: Plant[] = [];
-  const add = (kind: string, x: number, z: number) => {
-    out.push({ x, z, kind, seed: seedOf(Math.round(x), Math.round(z)), cr: null, sprite: null, spriteD: 0, live: Math.abs(z) < 60 });
-  };
-  for (let x = X0; x < X1; x += 14 + R() * 26) {
-    const z = -40 + R() * 1300, reef = reefness(x), k = R();
-    if (reef < 0.5) {
-      const meadow = noise1(x / 520, 11) - 0.4;
-      if (noise1(x / 700 + 3, 51) > 0.55 && k < 0.35 && z > 40) add('kelp', x, z);
-      else if (meadow > 0 && k < 0.5 + meadow) add('posidonie', x, z);
-      else if (k < 0.05) add('anemone', x, z);
-    } else {
-      if (k < 0.3) add('coral', x, z);
-      else if (k < 0.44) add('fan', x, z);
-      else if (k < 0.58) add('softcoral', x, z);
-      else if (k < 0.68) add('anemone', x, z);
-      else if (k < 0.76) add('tubes', x, z);
-      else if (k < 0.8 && z > 40) add('kelp', x, z);
-    }
-  }
-  // the floor just in front of the swimmer: a band of life that frames the view
-  for (let x = X0; x < X1; x += 20 + R() * 40) {
-    const z = -110 + R() * 90, reef = reefness(x), k = R();
-    if (reef > 0.5) {
-      if (k < 0.3) add('coral', x, z);
-      else if (k < 0.45) add('softcoral', x, z);
-      else if (k < 0.55) add('fan', x, z);
-      else if (k < 0.62) add('anemone', x, z);
-      else if (k < 0.68) add('tubes', x, z);
-    } else if (noise1(x / 520, 11) - 0.4 > 0 && k < 0.6) add('posidonie', x, z);
-  }
-  // sargassum hanging from the surface over the Nurserie
-  for (let x = X0; x < 7000; x += 18 + R() * 26) {
-    const raft = noise1(x / 700, 21) - 0.45 + (x < 1600 ? 0.35 : 0);
-    if (raft > 0 && R() < raft * 1.6) add('sargasse', x, -40 + R() * 700);
-  }
-  return out;
-}
-
-export { css, fogged, moodAt, waterAt, type Creature3 };

@@ -4,10 +4,9 @@
 // itself. The projected chains are then drawn by the 2D ribbon renderer:
 // gradients, motifs, ink, all flat. Parts are ordered by depth.
 
-import type { Seg } from '../engine/creature';
 import type { Box } from '../engine/types';
 import { TAU, wrapAngle } from '../engine/util';
-import { drawSelf, drawWebs, setInk, setShade, type DrawOptions } from '../engine/render';
+import { drawSelf, drawWebs, setInk, setShade, type DrawOptions, type Seg } from '../engine/render';
 import type { Creature3, Seg3 } from './creature3';
 import type { Proj, Projector } from './view';
 
@@ -185,7 +184,7 @@ export const thinned = (c: Shim, o: DrawOptions) => !!o.lod && o.lod >= 2 && !!c
 export const outside = (b: Box, v?: Box) => !!v && (b[2] < v[0] || b[0] > v[2] || b[3] < v[1] || b[1] > v[3]);
 
 function drawTree(ctx: Ctx, sh: Shim, o: DrawOptions): void {
-  const ch = sh.children, me = sh as unknown as Seg;
+  const ch = sh.children, me: Seg = sh;
   drawWebs(ctx, me, false, { ...o, ring3: true });
   // parts further from the eye than this one first, nearer ones after it
   for (const c of ch) if ((c.key > sh.key + EPS || (Math.abs(c.key - sh.key) <= EPS && !c.att?.front)) && !thinned(c, o)) drawTree(ctx, c, o);

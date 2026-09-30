@@ -4,10 +4,9 @@
 
 import { TAU, clamp, noise1, rng, seedOf, spec, type Spec } from '../engine';
 import { Creature3, settle3 } from '../engine3/creature3';
-import { css, type HSL, type Mood } from '../game/palette';
-import { plantSpec } from '../game/plants';
-import { makeCanvas } from '../game/bake';
-import type { Plant, Rock, Sprite } from '../proto25/world';
+import { css, type HSL, type Mood } from './palette';
+import { plantSpec } from './plants';
+import { makeCanvas, type Plant, type Rock, type Sprite } from './sprites';
 import { BIOMES, X0, X1, biomeIndex, floorAt, presence } from './biomes';
 
 type R01 = () => number;

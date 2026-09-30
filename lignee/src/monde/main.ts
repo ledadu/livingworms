@@ -6,25 +6,23 @@
 // when there is one (engine3/gfx: the canvas pays a fixed price per path, the
 // GPU does not), on the 2D canvas otherwise or with ?gl=0.
 
-import { Flow, STEP, TAU, clamp, detail, rand, rng, spec as makeSpec, type Spec } from '../engine';
+import { STEP, TAU, clamp, detail, rand, rng, spec as makeSpec, type Spec } from '../engine';
 import { Atelier } from '../editor';
 import { Creature3, swimFactor3 } from '../engine3/creature3';
+import { Flow } from '../engine3/flow';
 import { draw3, eachGlow3, lodOf, lodSize, prepare3 } from '../engine3/render3';
-import { SPECIES } from '../content';
-import { firstAncestor } from '../game/game';
-import { Input } from '../game/input';
-import { causticTile, fishSprites, glowSprite, makeCanvas } from '../game/bake';
-import { css, fogged, waterAt, type HSL, type Mood } from '../game/palette';
+import { SPECIES, firstAncestor } from '../content';
+import { Input } from './input';
+import { css, fogged, waterAt, type HSL, type Mood } from './palette';
 import { View, type Proj } from '../engine3/view';
 import { hsl01 } from '../engine3/gfx';
 import { disc, paint3 } from '../engine3/paint-gl';
 import { causticsGL, fishAtlas, fishGL, glowsGL, hcol, raysGL, rings, rowGL, screenGfx, shadowGL, spriteGL, surfaceGL, waterGL } from './scene-gl';
-import { bakeCreature, bakeRock, env, fogOf, type Plant, type Sprite } from '../proto25/world';
+import { bakeCreature, bakeRock, causticTile, env, fishSprites, fogOf, glowSprite, makeCanvas, type Plant, type Sprite } from './sprites';
 import { BIOMES, X0, X1, biomeIndex, biomeMid, floorAt, metres, moodAt } from './biomes';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
 import { compareSpecies, runBench } from './bench';
-import '../proto3d/style.css';
-import './monde.css';
+import './style.css';
 
 type M = ReturnType<typeof moodAt>;
 
@@ -310,7 +308,7 @@ function update(): void {
   const near = (x: number) => Math.abs(x - px) < 1100;
   const inPlane = (a: Actor) => Math.abs(a.cr.root.z[0]) < 60;
   let nNear = 0;
-  for (const a of actors) if (inPlane(a) && near(a.cr.root.x[0])) flow.add(a.cr as never);
+  for (const a of actors) if (inPlane(a) && near(a.cr.root.x[0])) flow.add(a.cr);
   for (const a of actors) {
     if (a.kind === 'player' || !near(a.cr.root.x[0])) continue;
     nNear++;
@@ -340,9 +338,9 @@ function update(): void {
   }
   counts.near = nNear;
   let live = 0;
-  for (const pl of plants) if (pl.live && pl.cr && Math.abs(pl.x - px) < 700) { live++; pl.cr.update(t, 0, 0, 0, 1); flow.apply(pl.cr as never, { push: 0.25, wake: 0.04, reach: 18 }); }
+  for (const pl of plants) if (pl.live && pl.cr && Math.abs(pl.x - px) < 700) { live++; pl.cr.update(t, 0, 0, 0, 1); flow.apply(pl.cr, { push: 0.25, wake: 0.04, reach: 18 }); }
   counts.live = live;
-  for (const a of actors) if (inPlane(a) && near(a.cr.root.x[0])) flow.apply(a.cr as never, { push: 0.3, wake: 0.02, body: a.kind === 'player' ? 0.008 : 0.01 });
+  for (const a of actors) if (inPlane(a) && near(a.cr.root.x[0])) flow.apply(a.cr, { push: 0.3, wake: 0.02, body: a.kind === 'player' ? 0.008 : 0.01 });
 
   for (const v of visitors) {
     const cr = v.cr, vx = cr.root.x[0];

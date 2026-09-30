@@ -202,7 +202,6 @@ export function generate(opt: GenerateOptions = {}): Spec {
   return sp;
 }
 
-export function randomSpecies(): Spec { return generate({}); }
 
 // ----- fusion ----- //
 // modes: mix (bodies blended, limbs of both), bodyA / bodyB (one body, limbs

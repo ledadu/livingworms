@@ -1,11 +1,22 @@
-// Drawing a creature: ribbons (smoothed hull), plates, lines, beads, eyes,
-// body motifs and membranes between copies.
+// Drawing one part of a creature, already projected on the screen: ribbons
+// (smoothed hull), plates, lines, beads, eyes, body motifs and membranes
+// between copies. The 3D engine (engine3/render3) fills a Seg for every part.
 
-import type { Box } from './types';
-import { Creature, Seg } from './creature';
+import type { AttDef, Box, NodeDef } from './types';
 import { TAU, clamp, hash, wrapAngle } from './util';
 
 type Ctx = CanvasRenderingContext2D;
+
+/** what the drawing reads of a part: its nodes on the screen and its colours */
+export interface Seg {
+  def: NodeDef; att: AttDef | null; parent: Seg | null; children: Seg[];
+  n: number; k: number; side: number; hue: number; scale: number;
+  x: Float32Array; y: Float32Array; ang: Float32Array; rad: Float32Array; lens: Float32Array;
+  cols: string[]; edgeCol: string; shineCol: string; patCol: string; webCol: string;
+  maxRad: number; pulse: number; pulseU: boolean; box: Box;
+  /** the copy on the far side of the body (drawn behind, darker) */
+  far: boolean;
+}
 
 export interface DrawOptions {
   view?: Box;
@@ -357,10 +368,6 @@ function drawEye(ctx: Ctx, s: Seg): void {
   ctx.beginPath(); ctx.arc(ex - er * 0.3, ey - er * 0.3, er * 0.26, 0, TAU); ctx.fill();
 }
 
-export function inView(b: Box, v?: Box): boolean {
-  return !v || !(b[2] < v[0] || b[0] > v[2] || b[3] < v[1] || b[1] > v[3]);
-}
-
 export function drawSelf(ctx: Ctx, s: Seg, o: DrawOptions): void {
   const d = s.def;
   if (o.lit && !(d.color.add || d.color.glow !== 'none')) return;
@@ -374,89 +381,4 @@ export function drawSelf(ctx: Ctx, s: Seg, o: DrawOptions): void {
     case 'eye': drawEye(ctx, s); break;
     default: drawDiscs(ctx, s);
   }
-}
-
-/** parts attached "behind" are drawn before their parent, the others after */
-export function drawSeg(ctx: Ctx, s: Seg, o: DrawOptions = {}): void {
-  const ch = s.children;
-  if (!s.parent) ink = !!o.ink;
-  drawWebs(ctx, s, false, o);
-  // far copies (profile view) first, so the near ones and the body cover them
-  for (const c of ch) if (c.far && !c.att?.front) drawSeg(ctx, c, o);
-  for (const c of ch) if (!c.far && !c.att?.front) drawSeg(ctx, c, o);
-  if (inView(s.box, o.view)) drawSelf(ctx, s, o);
-  drawWebs(ctx, s, true, o);
-  for (const c of ch) if (c.att?.front) drawSeg(ctx, c, o);
-  if (!s.parent) {
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'source-over';
-  }
-}
-
-function drawEyes(ctx: Ctx, cr: Creature, bright?: boolean): void {
-  const e = cr.spec.eyes;
-  if (!e.on) return;
-  const r = cr.root, h = cr.heading(), rad = r.rad[0];
-  if (cr.profile) {
-    // one eye, a little toward the back, looking ahead
-    const fx = Math.cos(h), fy = Math.sin(h), side = cr.facing >= 0 ? 1 : -1;
-    // the back is opposite the belly: belly normal = side * (-sin pa, cos pa), pa = h - PI
-    const bx = -side * Math.sin(h), by = side * Math.cos(h);
-    const er = Math.max(1, rad * 0.36 * e.size);
-    const ex = r.x[0] + fx * rad * (e.fwd + 0.1) + bx * rad * 0.22, ey = r.y[0] + fy * rad * (e.fwd + 0.1) + by * rad * 0.22;
-    ctx.fillStyle = bright ? '#f4fffd' : '#fbf6ec';
-    ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU); ctx.fill();
-    ctx.lineWidth = Math.max(minWidth(ctx), er * 0.16);
-    ctx.strokeStyle = 'rgba(10,14,24,0.55)';
-    ctx.stroke();
-    ctx.fillStyle = '#05080f';
-    ctx.beginPath(); ctx.arc(ex + fx * er * 0.32, ey + fy * er * 0.32, er * 0.56, 0, TAU); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.95)';
-    ctx.beginPath(); ctx.arc(ex + fx * er * 0.12 - er * 0.18, ey + fy * er * 0.12 - er * 0.22, er * 0.2, 0, TAU); ctx.fill();
-    return;
-  }
-  const fx = Math.cos(h), fy = Math.sin(h), px = -fy, py = fx, er = Math.max(0.8, rad * 0.27 * e.size);
-  for (let sd = -1; sd <= 1; sd += 2) {
-    const ex = r.x[0] + fx * rad * e.fwd + px * rad * e.spread * sd;
-    const ey = r.y[0] + fy * rad * e.fwd + py * rad * e.spread * sd;
-    ctx.fillStyle = bright ? '#eafffb' : 'rgba(255,244,228,0.9)';
-    ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#02060c';
-    ctx.beginPath(); ctx.arc(ex + fx * er * 0.3, ey + fy * er * 0.3, er * 0.5, 0, TAU); ctx.fill();
-  }
-}
-
-export function draw(ctx: Ctx, cr: Creature, o: DrawOptions = {}): void {
-  drawSeg(ctx, cr.root, o);
-  if (o.lit) return;
-  ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
-  drawEyes(ctx, cr, o.bright);
-  ctx.globalAlpha = 1;
-}
-
-/** calls fn(x, y, size, hue, alpha) for every glowing point */
-export function eachGlow(list: Seg[], fn: (x: number, y: number, size: number, hue: number, a: number) => void, view?: Box): void {
-  for (const s of list) {
-    const g = s.def.color.glow;
-    if (g === 'none' || !inView(s.box, view)) continue;
-    if (g === 'tip') fn(s.x[s.n], s.y[s.n], 8 + s.rad[s.n] * 8, s.hue, 0.85);
-    else {
-      const step = Math.max(1, Math.round(s.n / 5));
-      for (let k = 0; k <= s.n; k += step) fn(s.x[k], s.y[k], 6 + s.rad[k] * 3, s.hue, 0.14);
-    }
-  }
-}
-
-/** static portrait: swims a moment so that parts trail, then fits the canvas */
-export function snapshot(sp: Creature['spec'], canvas: HTMLCanvasElement, o: { pad?: number; max?: number; w?: number; h?: number } = {}): void {
-  const cr = new Creature(sp, 0, 0, { dir: 0, phase: 0 });
-  for (let t = 0; t < 80; t++) cr.update(t / 60, -1.3, 0, 0.25);
-  const b = cr.box, dpr = Math.min(2, window.devicePixelRatio || 1);
-  const w = canvas.clientWidth || o.w || 120, h = canvas.clientHeight || o.h || 80;
-  canvas.width = Math.round(w * dpr);
-  canvas.height = Math.round(h * dpr);
-  const ctx = canvas.getContext('2d')!, pad = o.pad === undefined ? 6 : o.pad;
-  const k = Math.min((w - pad * 2) / (b[2] - b[0] || 1), (h - pad * 2) / (b[3] - b[1] || 1), o.max || 4);
-  ctx.setTransform(k * dpr, 0, 0, k * dpr, dpr * (w / 2 - ((b[0] + b[2]) / 2) * k), dpr * (h / 2 - ((b[1] + b[3]) / 2) * k));
-  draw(ctx, cr);
 }

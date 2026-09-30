@@ -1,29 +1,28 @@
 // Measures and variations on species definitions.
 
-import { Creature } from './creature';
-import { HARMONIES, spec, walkNodes } from './defs';
+import { HARMONIES, expand, spec, walkNodes } from './defs';
 import type { Harmony, NodeDef, PaletteDef, Spec } from './types';
 import { clamp, clone, rand } from './util';
 
 export interface Stats { chains: number; nodes: number; depth: number; }
 
+/** how many chains and nodes a creature of this species is made of, and how deep its tree of parts goes */
 export function stats(sp: Spec): Stats {
-  const cr = new Creature(sp, 0, 0, { phase: 0 });
-  let nodes = 0, depth = 0;
-  for (const s of cr.list) { nodes += s.n + 1; if (s.depth > depth) depth = s.depth; }
-  return { chains: cr.list.length, nodes, depth: depth + 1 };
+  const st: Stats = { chains: 0, nodes: 0, depth: 0 };
+  const count = (d: NodeDef, depth: number, copies: number) => {
+    const n = Math.max(1, d.links);
+    st.chains += copies; st.nodes += copies * (n + 1);
+    if (depth + 1 > st.depth) st.depth = depth + 1;
+    for (const a of d.attach) count(a.node, depth + 1, copies * expand(a, n).length);
+  };
+  count(sp.body, 0, 1);
+  return st;
 }
 
 export function nodeDepth(d: NodeDef): number {
   let m = 0;
   for (const a of d.attach) m = Math.max(m, nodeDepth(a.node));
   return 1 + m;
-}
-
-export function nodeTitle(d: NodeDef): string {
-  const names: string[] = [];
-  for (const a of d.attach) walkNodes(a.node, (x) => { if (!names.includes(x.name)) names.push(x.name); });
-  return d.name + (names.length ? ' + ' + names.join(' + ') : '');
 }
 
 /** a variation that keeps the structure (used for siblings of a litter) */

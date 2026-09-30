@@ -5,8 +5,7 @@
 // sampled), the caps are the same half discs, the gradients run along the same
 // axes.
 
-import type { Seg } from '../engine/creature';
-import { EXTRA_MIN, INK_MIN, detail, hullOf, sheenSide } from '../engine/render';
+import { EXTRA_MIN, INK_MIN, detail, hullOf, sheenSide, type Seg } from '../engine/render';
 import { hash } from '../engine/util';
 import type { Creature3 } from './creature3';
 import { EPS, eyeDiscs3, outside, prepare3, shimOf, type Shim } from './render3';
@@ -414,7 +413,7 @@ function drawWebs(s: Shim, front: boolean, base: number): void {
       const ring = (a.pattern === 'ring' || a.node.drive === 'pull') && gr.length > 2;
       for (let j = 0; j < gr.length - (ring ? 0 : 1); j++) {
         const A = gr[j], B = gr[(j + 1) % gr.length];
-        if (B.k - A.k === 1 || (ring && A.k === a.count - 1 && B.k === 0)) webPair(A as unknown as Seg, B as unknown as Seg, a.web);
+        if (B.k - A.k === 1 || (ring && A.k === a.count - 1 && B.k === 0)) webPair(A, B, a.web);
       }
     }
   }
@@ -434,7 +433,7 @@ function drawEye(s: Seg): void {
 }
 
 function drawSelf(s: Shim, base: number, addScale: number, addOver: boolean): void {
-  const d = s.def, me = s as unknown as Seg;
+  const d = s.def, me: Seg = s;
   g.alpha = base * (d.color.add ? addScale : 1);
   g.setBlend(d.color.add && !addOver ? 'add' : 'over');
   switch (d.style) {

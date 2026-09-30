@@ -4,8 +4,8 @@
 // frame are one draw call.
 
 import { Gfx, hsl01 } from '../engine3/gfx';
-import { glowSprite, makeCanvas } from '../game/bake';
-import type { HSL, Mood } from '../game/palette';
+import { glowSprite, makeCanvas } from './sprites';
+import type { HSL, Mood } from './palette';
 import type { Proj, View } from '../engine3/view';
 import { strokeLine } from '../engine3/paint-gl';
 

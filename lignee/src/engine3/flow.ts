@@ -3,9 +3,9 @@
 // speed) and pushes away what it touches. Nodes are sorted in a grid so only
 // neighbours are compared.
 
-import type { Creature } from './creature';
+import type { Creature3 } from './creature3';
 
-interface Entry { x: number; y: number; vx: number; vy: number; r: number; owner: Creature | null; }
+interface Entry { x: number; y: number; vx: number; vy: number; r: number; owner: Creature3 | null; }
 
 export interface FlowOptions {
   /** contact strength */
@@ -47,7 +47,7 @@ export class Flow {
     b.push(e);
   }
 
-  add(cr: Creature): void {
+  add(cr: Creature3): void {
     for (const s of cr.list) {
       if (s.cut) continue;
       const step = s.n > 12 ? 2 : 1;
@@ -74,7 +74,7 @@ export class Flow {
    * a school crossing kelp would add up dozens of pushes), and the contact
    * correction is capped: nothing can gain energy from the water.
    */
-  apply(cr: Creature, o: FlowOptions): void {
+  apply(cr: Creature3, o: FlowOptions): void {
     const c = this.cell, push = o.push, wake = o.wake, body = o.body || 0, reachW = o.reach || 14;
     for (const s of cr.list) {
       if (s.cut) continue;

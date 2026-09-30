@@ -672,3 +672,24 @@ export const SPECIES: Record<string, () => Spec> = {
     });
   }
 };
+
+/** the first ancestor: a small translucent larva with beating cilia */
+export function firstAncestor(): Spec {
+  return spec({
+    name: 'Première', size: 1, palette: { hue: 28, harmony: 'analog', sat: 80, light: 62 },
+    swim: { mode: 'steady', speed: 2 }, ai: 'prey', eyes: { on: true, size: 1.2, spread: 0.5, fwd: 0.3 },
+    body: {
+      name: 'Corps', links: 9, len: 5, width: 4.6, shape: 'tadpole', style: 'ribbon', flex: 0.4, spring: 0.06, drag: 0.8,
+      color: { slot: 0, alpha: 0.88, grad: -16, pattern: 'spots', pslot: 3, plight: 22, pdensity: 5, pscale: 0.7 },
+      motion: { type: 'undulate', amp: 0.13, freq: 1.5 },
+      attach: [
+        { node: { name: 'Cil', role: 'cilia', links: 2, len: 2.4, width: 0.5, shape: 'linear', style: 'line', flex: 0.4, spring: 0.3, color: { slot: 1, alpha: 0.8, light: 18 }, motion: { type: 'row', amp: 0.9, freq: 3 } },
+          pattern: 'series', at: 0.1, to: 0.55, count: 5, angle: 1.57, edge: 0.95, phaseStep: 0.5, mirror: true },
+        { node: { name: 'Queue', role: 'fin', links: 4, len: 3.2, width: 2.2, shape: 'leaf', style: 'ribbon', flex: 0.5, spring: 0.1, color: { slot: 2, alpha: 0.7, add: true } },
+          pattern: 'single', at: 1, angle: 0 },
+        { node: { name: 'Lueur', role: 'light', links: 1, len: 1.4, width: 1.1, shape: 'constant', style: 'disc', flex: 0.1, spring: 0.5, color: { slot: 3, light: 25, glow: 'tip' } },
+          pattern: 'single', at: 0.45, angle: 0, edge: 0 }
+      ]
+    }
+  });
+}

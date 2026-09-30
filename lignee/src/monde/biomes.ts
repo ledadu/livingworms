@@ -3,7 +3,7 @@
 // light (a Mood), its floor, what grows there and who lives there.
 
 import { clamp, lerp, lerpHue, noise1 } from '../engine';
-import type { HSL, Mood } from '../game/palette';
+import type { HSL, Mood } from './palette';
 
 export interface Biome extends Mood {
   id: string;
@@ -150,7 +150,6 @@ export function biomeIndex(x: number): number {
   while (i + 1 < BIOMES.length && x >= BIOMES[i + 1].x0) i++;
   return i;
 }
-export const biomeAt = (x: number): Biome => BIOMES[biomeIndex(x)];
 
 /** centre of a biome, along x */
 export function biomeMid(i: number): number {
