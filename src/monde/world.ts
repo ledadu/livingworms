@@ -8,6 +8,7 @@ import { css, type HSL, type Mood } from './palette';
 import { plantSpec } from './plants';
 import { makeCanvas, type Plant, type Rock, type Sprite } from './sprites';
 import { BIOMES, X0, X1, biomeIndex, chapterIndex, floorAt, presence, span, type ChapterId } from './biomes';
+import { bakeIce, glacierDecor } from './glacier';
 import { CARCASSE, bakeBone, underCarcasse } from './carcasse';
 
 type R01 = () => number;
@@ -156,7 +157,7 @@ export function makePlants(vents: Decor[]): Plant[] {
 // ----- set pieces ----- //
 
 export interface Decor {
-  kind: 'vent' | 'whale' | 'wreck' | 'seep' | 'bone'; x: number; z: number; seed: number; h: number; sprite: Sprite | null; spriteD: number;
+  kind: 'vent' | 'whale' | 'wreck' | 'seep' | 'bone' | 'ice' | 'frost'; x: number; z: number; seed: number; h: number; sprite: Sprite | null; spriteD: number;
   /** a bone of the Carcasse: which one, and its variant (carcasse.ts) */
   part?: string; k?: number;
 }
@@ -176,6 +177,8 @@ export function makeDecor(): Decor[] {
   // seeps: streams of bubbles from the sand, warm in the shallows, brine under the Glacier
   for (const [id, u, z] of [['nurserie', 0.49, 60], ['nurserie', 0.81, 240], ['recif', 0.4, 140], ['recif', 0.8, 30],
     ['foret', 0.3, 50], ['foret', 0.85, 260], ['glacier', 0.3, 80], ['glacier', 0.55, 200], ['glacier', 0.75, 40]] as const) add('seep', at(id, u), z);
+  // the walls of ice and the frost of the Glacier
+  out.push(...glacierDecor());
   return out;
 }
 
@@ -357,7 +360,7 @@ export function bakeDecor(d: Decor, m: Mood, fog: number, fogCol: HSL, res: numb
   if (d.kind === 'whale') return bakeWhale(d, m, fog, fogCol, res);
   if (d.kind === 'wreck') return bakeWreck(d, m, fog, fogCol, res);
   if (d.kind === 'bone') return bakeBone(d, m, fog, fogCol, res);
-  return null;
+  return bakeIce(d, m, fog, fogCol, res);
 }
 
 // ----- particles: smoke from the chimneys, bubbles from the seeps ----- //
