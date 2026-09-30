@@ -2,6 +2,17 @@
 
 Le changelog de La Lignée, version après version. Généré depuis [`changes/`](changes/) par `make whats-new` : ne pas modifier à la main.
 
+## Version 0.4 (v0.4.0, 2026-09-30)
+
+### ✨ Nouveautés
+
+- **Ceux qui pourraient t'accompagner** : Dans chaque chapitre, quelques créatures s'illuminent doucement quand tu t'approches d'elles 🐠 — [rapport](changes/v0.4.0/especes-compatibles-leur/report.md)
+- **Chaque chapitre garde son passage** : Un courant, un mur d'algues, une eau brûlante… Pour descendre plus bas, il faudra le bon corps 🌊 — [rapport](changes/v0.4.0/obstacles-cles/report.md)
+- **Chaque corps a ses traits** : Des nageoires, une lanterne, des pinces ou une carapace : ce que ta créature sait faire se lit sur son corps 🦀 — [rapport](changes/v0.4.0/traits-corps/report.md)
+- **L'adieu au parent** : Au moment de se quitter, l'enfant fait une dernière fois le tour de son parent, puis s'en va. Le parent, lui, reste 🐚 — [rapport](changes/v0.4.0/adieu-parent/report.md)
+- **La parade** : Approche-toi d'un partenaire, reste un instant près de lui, et il t'invite à danser 🐠 — [rapport](changes/v0.4.0/parade/report.md)
+- **Quatre œufs, un seul enfant** : Après l'union, quatre œufs éclosent, et c'est toi qui choisis qui continue la descente 🐚 — [rapport](changes/v0.4.0/portee-4-enfants/report.md)
+
 ## Version 0.3 (v0.3.0, 2026-09-30)
 
 ### ✨ Nouveautés
