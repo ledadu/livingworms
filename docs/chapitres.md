@@ -114,6 +114,7 @@ Ouverture :
 ## 7. Le Glacier (340–400 m) *— nouveau chapitre, tout est proposition*
 
 - **Décor** : juste après la chaleur des Sources, une langue d'eau glacée et salée descend d'une banquise lointaine et plonge vers le fond. Parois de glace bleue, aiguilles de givre qui poussent autour du courant froid, cristaux en suspension, lumière froide et diffuse.
+  - Fait (`src/monde/glacier.ts`) : le courant froid, un ruban laiteux qui tombe d'en haut puis coule sur le fond en suivant la pente ; des falaises et des blocs de glace bleue en arrière-plan (crête éclairée, cannelures, fissures, stalactites sous les corniches) ; des touffes d'aiguilles de givre sur les deux rives du courant ; des cristaux qui scintillent autour de soi. Il se place dans l'étendue du chapitre `glacier` de la carte, par-dessus son décor provisoire (blocs, éponges pâles, suintements).
 - **Obstacle** : l'eau glacée fige ce qu'elle touche et ralentit tout. Il faut une carapace, qui protège du froid, ou des filaments pour se laisser emporter par le courant froid qui plonge.
 - **Partenaires** : ange de mer, krill, et une méduse des eaux froides (`clione`, `krill`, `chrysaora`). L'ange de mer et le krill vivent vraiment dans les eaux polaires.
 - **Moment fort** : une aiguille de glace descend lentement le long du courant et fige tout sur son passage ; on la regarde tomber, puis on plonge dans le chemin qu'elle a ouvert.
@@ -178,7 +179,7 @@ La carte du Grand Monde (`src/monde/biomes.ts`) suit la trame : les 10 chapitres
 | 6 | Les Sources | 15 800 à 19 000 | 280–340 m | fumeurs noirs, riftias, fumée et bulles | — |
 | 7 | Le Glacier | 19 000 à 22 000 | 340–400 m | *provisoire* : fond de glace pâle, blocs de glace bleue, éponges blanches, suintements froids, cristaux qui tombent | calmar géant |
 | 8 | Le Jardin de méduses | 22 000 à 25 200 | 400–500 m (pleine eau) | *provisoire* : le fond tombe hors de vue, méduses partout, la vie reste en pleine eau | siphonophore géant |
-| 9 | La Fosse | 25 200 à 28 400 | 500–650 m | *provisoire* : le noir, les lueurs, la neige marine | dragon abyssal, calmar |
+| 9 | La Fosse | 25 200 à 28 400 | 500–650 m | le noir total sauf sa propre lumière, les lueurs, la neige marine dans la lumière ; décor du fond *provisoire* | dragon abyssal, calmar (géants, en silhouettes) |
 | 10 | La Remontée | 28 400 à 30 000 | 650 m et plus | le fond, d'où part la Remontée (le puits de lumière est à faire) | — |
 
 ## À écrire
