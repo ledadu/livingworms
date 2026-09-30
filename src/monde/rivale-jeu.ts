@@ -9,11 +9,11 @@ import { traitsOf } from '../content/traits';
 import { chapterIndex, floorAt, span } from './biomes';
 import { CARCASSE, WHALE_LENGTH } from './carcasse';
 import type { Narrator } from './narration';
-import { MEET, NOTICE, arrivedAt, cousinGoal, cousinHue, cousinLight, hashOf, rivalLineage, type Pt, type Rival } from './rivale';
+import { MEET, NOTICE, arrivedAt, cousinGoal, cousinHue, cousinLight, cousinSeed, ourPartners, rivalLineage, type Pt, type Rival } from './rivale';
 
 interface Deps {
-  /** the lineage as saved (partie.ts): the ancestors, each with the chapter where it gave birth */
-  lineage(): readonly { creature: object; chapter: string }[];
+  /** the lineage as saved (partie.ts): the ancestors, each with the chapter where it gave birth and its partner */
+  lineage(): readonly { creature: object; chapter: string; partner?: { id: string } }[];
   /** the creature played now */
   swimmer(): Creature3;
   /** the cousin joins the animals of the world at (x, y), at this scale */
@@ -44,8 +44,8 @@ export function initRivale(deps: Deps) {
   }
 
   function make(): void {
-    const sp = ours(), traits = traitsOf(sp);
-    rival = rivalLineage(traits, hashOf(sp.name + ':' + traits.join(',')));
+    const sp = ours(), taken = ourPartners(deps.lineage());
+    rival = rivalLineage(traitsOf(sp), cousinSeed(sp, taken), taken);
     // of our generation, so about our size: a smaller cousin is drawn a little larger
     const probe = new Creature3(rival.spec, 0, 0, 0, { dir: { x: 1, y: 0, z: 0 }, scale: SCALE });
     for (let i = 0; i < 20; i++) probe.update(i * STEP, 0, 0, 0, 0.1);

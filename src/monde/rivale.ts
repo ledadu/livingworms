@@ -49,21 +49,33 @@ export function arrivedAt<C>(lineage: readonly { creature: C; chapter: string }[
   return lineage.find((a) => idx(a.chapter) >= at)?.creature ?? played;
 }
 
+/** the partners our lineage had in each chapter before the Carcasse, as the save keeps them (partie.ts, since the lineage tree) */
+export function ourPartners(lineage: readonly { chapter: string; partner?: { id: string } }[]): Partial<Record<ChapterId, string[]>> {
+  const out: Partial<Record<ChapterId, string[]>> = {};
+  for (const a of lineage) {
+    const c = a.chapter as ChapterId;
+    if (a.partner?.id && BEFORE.includes(c)) (out[c] ??= []).push(a.partner.id);
+  }
+  return out;
+}
+
 /**
  * The partner the other lineage chose in each chapter before the Carcasse. Where there is an obstacle, one that
  * brings a trait crossing it, the traits our body lacks first (it crossed the other way), then the most traits we
- * lack at all; where there is none, more or less anyone. `R` breaks the ties.
+ * lack at all; where there is none, more or less anyone. Never ours (`taken`) when there is another one that
+ * crosses. `R` breaks the ties.
  */
-export function rivalChoices(ours: readonly string[], traits: (id: string) => readonly string[], R: () => number): Omit<RivalStep, 'name'>[] {
+export function rivalChoices(ours: readonly string[], traits: (id: string) => readonly string[], R: () => number,
+  taken: Partial<Record<ChapterId, readonly string[]>> = {}): Omit<RivalStep, 'name'>[] {
   const lacks = (t: string) => !ours.includes(t);
   return BEFORE.map((chapter) => {
     const keys: string[] = (KEYS[chapter] ?? []).filter((k) => k !== 'chant');
     const ids = [...new Set(PARTNERS[chapter].map((q) => q.id))];
     const best = ids.map((id) => {
-      const tr = traits(id), keyed = tr.filter((t) => keys.includes(t));
+      const tr = traits(id), keyed = tr.filter((t) => keys.includes(t)), mine = taken[chapter]?.includes(id) ? 20 : 0;
       const score = keys.length
-        ? (keyed.length ? 10 : 0) + 4 * keyed.filter(lacks).length + tr.filter(lacks).length + R() * 0.9
-        : 0.5 * tr.filter(lacks).length + R() * 2;
+        ? (keyed.length ? 100 : 0) - mine + 4 * keyed.filter(lacks).length + tr.filter(lacks).length + R() * 0.9
+        : -mine + 0.5 * tr.filter(lacks).length + R() * 2;
       return { id, tr, keyed, score };
     }).sort((a, b) => b.score - a.score)[0];
     if (!best) return null;
@@ -75,13 +87,22 @@ export function rivalChoices(ours: readonly string[], traits: (id: string) => re
 /** how well its parades went: well, it knew what it came for */
 const QUALITY = 0.8;
 
-/** the other lineage, from the first larva to the generation at the Carcasse; same traits and seed = same cousin */
-export function rivalLineage(ours: readonly string[], seed: number): Rival {
+/**
+ * The seed of the cousin of a creature of ours: from its body and our partners, not from its name (the lineage tree
+ * renames it), so that it stays the same cousin.
+ */
+export function cousinSeed(sp: Spec, taken: Partial<Record<ChapterId, readonly string[]>> = {}): number {
+  const b = sp.body;
+  return hashOf(JSON.stringify([traitsOf(sp), b.shape, b.style, b.links, sp.palette.hue, b.attach.map((a) => a.node.name), BEFORE.map((c) => taken[c] ?? [])]));
+}
+
+/** the other lineage, from the first larva to the generation at the Carcasse; same traits, partners of ours and seed = same cousin */
+export function rivalLineage(ours: readonly string[], seed: number, taken: Partial<Record<ChapterId, readonly string[]>> = {}): Rival {
   const R = rng(seed), traits = new Map<string, readonly string[]>();
   const traitsOfId = (id: string) => traits.get(id) ?? traits.set(id, traitsOf(SPECIES[id]())).get(id)!;
   let cur = firstAncestor();
   const steps: RivalStep[] = [];
-  rivalChoices(ours, traitsOfId, R).forEach((c, k) => {
+  rivalChoices(ours, traitsOfId, R, taken).forEach((c, k) => {
     const kids = brood(cur, SPECIES[c.partner](), { quality: QUALITY, seed: seed + 101 * (k + 1), keys: c.wanted });
     // the child that crosses the chapter's obstacle and carries what it came for, then the furthest from its parent: the strangest
     const pick = kids.map((kid) => ({ kid, n: (crosses(c.chapter, kid.traits) ? 10 : 0) + kid.traits.filter((t) => c.wanted.includes(t)).length }))

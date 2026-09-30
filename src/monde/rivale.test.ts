@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import doc from '../../docs/chapitres.md?raw';
-import { stats } from '../engine';
+import { clone, spec, stats } from '../engine';
 import { SPECIES } from '../content/species';
 import { TRAITS, traitsOf } from '../content/traits';
 import { KEYS } from './obstacles';
 import { GLOW_HUE, PARTNERS } from './partenaires';
 import { parseChapterTexts, textsOf } from './textes';
 import {
-  BEFORE, FLARE, KEEP, LEASH, NOTICE, arrivedAt, cousinGoal, cousinHue, cousinLight, hashOf, rivalChoices, rivalLineage
+  BEFORE, FLARE, KEEP, LEASH, NOTICE, arrivedAt, cousinGoal, cousinHue, cousinLight, cousinSeed, hashOf, ourPartners, rivalChoices, rivalLineage
 } from './rivale';
 
 const traits = (id: string) => traitsOf(SPECIES[id]());
 const noTies = () => 0.5;
-const choice = (ours: string[], chapter: string) => rivalChoices(ours, traits, noTies).find((s) => s.chapter === chapter)!;
+const choice = (ours: string[], chapter: string, taken = {}) => rivalChoices(ours, traits, noTies, taken).find((s) => s.chapter === chapter)!;
 const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
 
 describe('the rival lineage of the Carcasse', () => {
@@ -31,10 +31,27 @@ describe('the rival lineage of the Carcasse', () => {
     expect(choice(['lanterne'], 'grotte').wanted).toEqual(['corpsFin']);
   });
 
-  it('always chose a partner that crosses the obstacle, whatever our body has', () => {
+  it('never chose the partners of our lineage, when another one crosses', () => {
+    expect(choice([], 'nurserie', { nurserie: ['copepode'] }).partner).toBe('larve');
+    expect(choice(['corpsFin'], 'foret', { foret: ['homard'] }).partner).toBe('dragonFeuillu');
+    expect(choice([], 'grotte', { grotte: ['anguille', 'ctenophore'] }).partner).toBe('serpentCilie');
+    // every partner taken: one that crosses all the same
+    const all = { recif: PARTNERS.recif.map((q) => q.id) };
+    expect(traits(choice([], 'recif', all).partner).some((t) => ['nageoires', 'pulsation'].includes(t))).toBe(true);
+  });
+
+  it('reads our partners in the saved lineage, before the Carcasse only', () => {
+    expect(ourPartners([
+      { chapter: 'nurserie', partner: { id: 'copepode' } }, { chapter: 'recif' }, { chapter: 'foret', partner: { id: '' } },
+      { chapter: 'grotte', partner: { id: 'anguille' } }, { chapter: 'carcasse', partner: { id: 'crabe' } }
+    ])).toEqual({ nurserie: ['copepode'], grotte: ['anguille'] });
+  });
+
+  it('always chose a partner that crosses the obstacle, whatever our body and our partners', () => {
     for (let mask = 0; mask < 1 << TRAITS.length; mask++) {
       const ours = TRAITS.filter((_, i) => mask & (1 << i));
-      for (const s of rivalChoices(ours, traits, Math.random)) {
+      const taken = Object.fromEntries(BEFORE.map((c) => [c, PARTNERS[c].filter(() => Math.random() < 0.5).map((q) => q.id)]));
+      for (const s of rivalChoices(ours, traits, Math.random, taken)) {
         const keys = KEYS[s.chapter];
         if (keys) expect(traits(s.partner).some((t) => keys.includes(t as never)), `${ours} ${s.chapter}`).toBe(true);
       }
@@ -66,6 +83,16 @@ describe('the rival lineage of the Carcasse', () => {
     expect(arrivedAt([born('grotte', 'a'), born('sources', 'c')], 'played')).toBe('c');
     expect(hashOf('Premiphore:lanterne')).toBe(hashOf('Premiphore:lanterne'));
     expect(hashOf('Premiphore:lanterne')).not.toBe(hashOf('Premiphore:cils'));
+  });
+
+  it('stays the same cousin when our creature is renamed or read back from the save', () => {
+    const ours = rivalLineage(['pulsation', 'lanterne'], 7).spec, taken = { recif: ['hippocampe'] };
+    const renamed = spec(clone(ours));
+    renamed.name = 'Aube';
+    const saved = spec(JSON.parse(JSON.stringify(ours)));
+    expect(cousinSeed(renamed, taken)).toBe(cousinSeed(ours, taken));
+    expect(cousinSeed(saved, taken)).toBe(cousinSeed(ours, taken));
+    expect(cousinSeed(ours, { recif: ['meduseBoite'] })).not.toBe(cousinSeed(ours, taken));
   });
 
   it('has its words of the meeting in chapitres.md', () => {
