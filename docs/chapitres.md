@@ -15,7 +15,7 @@ Les profondeurs sont indicatives : le monde est une descente continue, pas une c
 - Ils s'affichent en lettres fines, lentement, au début de chaque chapitre (ouverture) et au moment de l'adieu.
 - Deux à quatre lignes au maximum.
 - La voix est celle de la lignée, un « nous », comme si les ancêtres parlaient.
-- **Dans le jeu** (`src/monde/textes.ts`, affichage dans `narration.ts`) : les textes sont lus dans ce document même, au build. Sous le titre `## N. Nom` d'un chapitre, la citation (`> …`) qui suit une ligne « Ouverture : », « Adieu … : », « Le retournement : » (l'ouverture de la Remontée) ou « Texte final : » devient ce texte ; pour en changer un, il suffit de l'écrire ici. Une phrase par ligne ; une phrase seule et longue se coupe à la virgule la plus proche de son milieu ; quatre lignes au plus. L'ouverture s'écrit la première fois qu'on entre dans le chapitre, ligne après ligne, sous son nom en petites capitales, puis s'efface ; en y revenant, seul le nom passe. Elle attend qu'aucun panneau (Nouveautés, Atelier) ne couvre la mer. L'adieu est prêt (`monde.narrator.tell(i, 'farewell')`) mais rien ne le déclenche encore : il viendra avec les générations.
+- **Dans le jeu** (`src/monde/textes.ts`, affichage dans `narration.ts`) : les textes sont lus dans ce document même, au build. Sous le titre `## N. Nom` d'un chapitre, la citation (`> …`) qui suit une ligne « Ouverture : », « Adieu … : », « Le retournement : » (l'ouverture de la Remontée) ou « Texte final : » devient ce texte ; pour en changer un, il suffit de l'écrire ici. Une phrase par ligne ; une phrase seule et longue se coupe à la virgule la plus proche de son milieu ; quatre lignes au plus. L'ouverture s'écrit la première fois qu'on entre dans le chapitre, ligne après ligne, sous son nom en petites capitales, puis s'efface ; en y revenant, seul le nom passe. Elle attend qu'aucun panneau (Nouveautés, Atelier) ne couvre la mer. L'adieu se dit pendant la scène de l'adieu au parent ([mécaniques](mecaniques.md#ladieu)) ; tant qu'il est à l'écran, une ouverture attend qu'il s'efface.
 
 ## Vue d'ensemble
 
@@ -63,6 +63,10 @@ Ouverture :
 
 > Ici, tout le monde a une maison. Nous n'en avions pas. Alors nous sommes devenus de ceux qui passent.
 
+Adieu (proposition) :
+
+> Tu nous as appris à passer sans nous retourner. Pour toi, une seule fois, nous nous sommes retournés.
+
 ## 3. La Forêt (90–200 m)
 
 - **Décor** : kelp géant jusqu'à la surface, lumière verte filtrée, épaisseur, silence.
@@ -74,6 +78,10 @@ Ouverture :
 Ouverture :
 
 > La forêt ne pousse pas vers le fond. Elle pousse vers ce qu'elle a quitté.
+
+Adieu (proposition) :
+
+> Tu resteras dans la lumière verte. Nous descendons. Comme la forêt, nous pousserons toujours un peu vers toi.
 
 ## 4. La Grotte (200–250 m) *— nouveau chapitre, tout est proposition*
 
@@ -88,7 +96,7 @@ Ouverture :
 
 > Il y avait sous la forêt un chemin que la lumière ne prenait pas. Nous l'avons pris pour elle.
 
-Adieu (proposition, les autres adieux sont à écrire) :
+Adieu (proposition) :
 
 > Tu resteras à l'entrée, là où il fait encore un peu jour. Nous emportons le reste.
 
@@ -106,6 +114,10 @@ Ouverture :
 
 > Même finie, elle nourrit. Nous avons compris ce jour-là que rien ne s'arrête vraiment.
 
+Adieu (proposition) :
+
+> Tu restes près des grands os, là où rien ne se perd. Ce que tu nous as donné, nous l'emportons.
+
 ## 6. Les Sources (280–340 m)
 
 - **Décor** : cheminées fumantes, eau trouble et chaude, vers tubicoles rouges, crevettes blanches.
@@ -117,6 +129,10 @@ Ouverture :
 Ouverture :
 
 > Ici, la chaleur ne vient pas du ciel. Elle monte d'en dessous, comme une promesse.
+
+Adieu (proposition) :
+
+> Tu restes près des feux du fond. Nous emportons un peu de ta chaleur, pour le froid qui vient.
 
 ## 7. Le Glacier (340–400 m) *— nouveau chapitre, tout est proposition*
 
@@ -131,6 +147,10 @@ Ouverture :
 
 > Le froid est venu d'un monde que nous ne verrions jamais. Il descendait, lui aussi.
 
+Adieu (proposition) :
+
+> Le froid descend encore, et nous avec lui. Toi, tu restes au bord de la glace. Nous n'aurons pas froid : tu viens un peu avec nous.
+
 ## 8. Le Jardin de méduses (400–500 m)
 
 - **Décor** : plus de fond visible, des milliers de méduses qui pulsent et s'éclairent, des siphonophores géants.
@@ -143,6 +163,10 @@ Ouverture :
 
 > Ceux qui vivent ici n'ont jamais touché le sol. Ils nous ont appris à ne plus en avoir besoin.
 
+Adieu (proposition) :
+
+> Tu restes parmi les lumières qui ne touchent jamais le sol. Nous, nous nous laissons tomber, sans peur. C'est toi qui nous l'as appris.
+
 ## 9. La Fosse (500–650 m)
 
 - **Décor** : noir total, seulement ta propre lumière. Des silhouettes immenses passent. La neige marine tombe.
@@ -154,6 +178,10 @@ Ouverture :
 Ouverture :
 
 > Nous n'avions jamais été aussi loin de la lumière. Nous n'avions jamais autant brillé.
+
+Adieu (proposition) :
+
+> Tu as porté la lumière plus bas que personne. Laisse-la-nous. Nous reviendrons te la montrer.
 
 ## 10. La Remontée (du fond à la surface)
 
@@ -197,5 +225,5 @@ Le voyage du panneau de réglages (⚙) sert aux tests : il n'apparaît qu'avec 
 
 ## À écrire
 
-- Les adieux des chapitres 2 à 9 (le plan v1 n'a que celui de la Nurserie ; celui de la Grotte est une proposition).
+- Les adieux des chapitres 2 à 9 sont des propositions (le plan v1 n'avait que celui de la Nurserie) : à relire et à valider.
 - Les textes de la Grotte et du Glacier, s'ils ne conviennent pas.
