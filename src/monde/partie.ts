@@ -9,10 +9,20 @@ export const LEGACY_PLAYER_KEY = 'lignee.player';
 /** a creature as stored: the JSON of its species definition */
 export type SavedCreature = Record<string, unknown>;
 
+/** the partner of a birth: its species id in the bestiary ('' when it is not one) and its name */
+export interface Mate { id: string; name: string }
+
+/** where a parent was left: x counted from the start of its chapter (so that it outlives a change of the map), y the depth (px) */
+export interface Place { x: number; y: number }
+
 export interface Ancestor {
   creature: SavedCreature;
   /** the chapter where it gave birth */
   chapter: string;
+  /** with whom (saves before the lineage tree have none) */
+  partner?: Mate;
+  /** where it was left in that chapter (ancetres.ts); missing in the games saved before */
+  at?: Place;
 }
 
 export interface Partie {
@@ -73,10 +83,19 @@ export function clearPartie(store: Store | null): void {
   try { store?.removeItem(PARTIE_KEY); store?.removeItem(LEGACY_PLAYER_KEY); } catch { /* blocked */ }
 }
 
-/** a birth: the parent joins the lineage where it gave birth, and the child is played from now on */
-export function birth(p: Partie, child: SavedCreature, chapter: string): Partie {
-  const lineage = p.creature ? [...p.lineage, { creature: p.creature, chapter }] : p.lineage;
+/** a birth: the parent joins the lineage where it gave birth (with this partner, and was left at this place), and the child is played from now on */
+export function birth(p: Partie, child: SavedCreature, chapter: string, partner?: Mate, at?: Place): Partie {
+  const lineage = p.creature ? [...p.lineage, { creature: p.creature, chapter, ...(partner && { partner }), ...(at && { at }) }] : p.lineage;
   return { ...p, chapter, creature: child, lineage };
+}
+
+/** an ancestor renamed (the i-th generation, the oldest first); the one played is renamed with its creature */
+export function renameAncestor(p: Partie, i: number, name: string): Partie {
+  const a = p.lineage[i];
+  if (!a) return p;
+  const lineage = p.lineage.slice();
+  lineage[i] = { ...a, creature: { ...a.creature, name } };
+  return { ...p, lineage };
 }
 
 /** the creature changes without a birth (the Atelier): the lineage stays as it is */
@@ -84,9 +103,10 @@ export function replaceCreature(p: Partie, creature: SavedCreature): Partie {
   return { ...p, creature };
 }
 
-/** a new chapter reached; true when it changed */
-export function reachChapter(p: Partie, chapter: string): boolean {
-  if (p.chapter === chapter) return false;
+/** a new chapter reached; true when it changed. Given the chapters in the order of the story, only a deeper one
+ * counts: swimming back to the ancestors does not bring the game back */
+export function reachChapter(p: Partie, chapter: string, order?: readonly string[]): boolean {
+  if (p.chapter === chapter || (order && order.indexOf(chapter) < order.indexOf(p.chapter))) return false;
   p.chapter = chapter;
   return true;
 }

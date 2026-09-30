@@ -46,6 +46,10 @@ import { createPortee } from './portee-ecran';
 import { KEYS } from './obstacles';
 import { initParade } from './parade-jeu';
 import { initAdieu, testChild } from './adieu-jeu';
+import { mateFor } from './arbre';
+import { initArbre } from './arbre-ecran';
+import { ancestorsIn } from './ancetres-jeu';
+import { placeOf } from './ancetres';
 import { initRivale } from './rivale-jeu';
 import './style.css';
 
@@ -160,7 +164,7 @@ function becomes(sp: Spec, born = false): void {
 }
 // the brood (portee-ecran.ts): the chosen child is played from now on, its parent joins the lineage and stays
 // where it is, in the farewell scene (farewell, below)
-const portee = createPortee((sp) => farewell(sp));
+const portee = createPortee((sp, _, mate) => farewell(sp, mate));
 /** four children with a partner (a species id of the bestiary, or a species), after a parade of this quality;
  * the parade favours the limbs that bring the traits crossing the chapter's obstacle */
 function openPortee(partner: string | Spec, quality = 0.5): void {
@@ -170,6 +174,8 @@ function openPortee(partner: string | Spec, quality = 0.5): void {
 let paused = false;
 const atBtn = document.getElementById('atBtn');
 applyAtelierAccess(atBtn);
+// the lineage tree (arbre-ecran.ts), at any time: the sea waits while it is open
+const arbre = initArbre({ partie, chapters: BIOMES, live: () => player.cr.spec, onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); } });
 atBtn?.addEventListener('click', () => {
   paused = true;
   Atelier.open(player.cr.spec, {
@@ -1104,11 +1110,11 @@ function showChapter(i: number): void { narrator.chapter(i); }
 // ----- the farewell to the parent (adieu.ts) ----- //
 
 const adieu = initAdieu(narrator);
-/** a child is born: it is played from now on, the parent stays where it is (without a child: one for the tests) */
-function farewell(child?: Spec): void {
+/** a child is born, of this partner: it is played from now on, the parent stays where it is (without a child: one for the tests) */
+function farewell(child?: Spec, mate?: Spec): void {
   if (adieu.on) return;
   const old = player.cr, x = old.root.x[0], y = old.root.y[0], bi = biomeIndex(x);
-  const sp = child ?? testChild(old.spec, SPECIES[BIOMES[bi].fauna[0][0]]());
+  const sp = child ?? testChild(old.spec, mate ??= SPECIES[BIOMES[bi].fauna[0][0]]());
   // the siblings stay with it
   for (const a of actors) if (a.kind === 'sib') { a.kind = 'swim'; a.hx = x; a.hy = y; }
   actors.push({ cr: old, kind: 'parent', z: 0, hx: x, hy: y, tx: x, ty: y, next: 0, buf: null, spr: null, bakedAt: -99 });
@@ -1118,7 +1124,15 @@ function farewell(child?: Spec): void {
   adieu.start(old, cr, t, bi, floorAt(x + 1000, 0));
   // a new game has not saved its first creature yet: it is the parent all the same
   if (!partie.creature) partie.becomes(old.spec);
-  partie.born(sp, BIOMES[bi].id);
+  partie.born(sp, BIOMES[bi].id, mate && mateFor(mate), placeOf(x, y, BIOMES[bi].x0));
+}
+// the parents left in earlier visits swim where they were left (ancetres.ts); the first one's siblings stay with it
+for (const { spec, home, k } of ancestorsIn(partie.lineage)) {
+  adieu.stay(addActor(spec, home.x, home.y, 'parent', 0.8).cr, home);
+  if (k === 0) for (const a of actors) if (a.kind === 'sib') {
+    a.kind = 'swim'; a.hx = home.x; a.hy = home.y;
+    a.cr.translate(home.x + rand(-80, 80) - a.cr.root.x[0], home.y + rand(-50, 50) - a.cr.root.y[0], 0);
+  }
 }
 
 // the rival lineage of the Carcasse (rivale-jeu.ts): its cousin, made from the creature of ours that got there
@@ -1224,14 +1238,15 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, rivale,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, rivale,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
   get size() { return [W, H, canvas.width, canvas.height]; },
   setFrameHook: (f: typeof onFrame) => { onFrame = f; },
   unlockBalade: () => { unlockBalade(); applyAtelierAccess(atBtn); },
-  partners: () => actors.filter((a) => a.partner !== undefined)
+  partners: () => actors.filter((a) => a.partner !== undefined),
+  ancestors: () => actors.filter((a) => a.kind === 'parent')
 };
 (window as unknown as { monde: typeof api }).monde = api;
 
@@ -1275,7 +1290,7 @@ const hint = document.getElementById('hint')!;
 setTimeout(() => hint.classList.add('gone'), 6000);
 document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).closest('#panel, #atelier, #benchOut')) e.preventDefault(); }, { passive: false });
 const nouveautes = initNouveautes(() => !Atelier.isOpen && benchOut.hidden === true);
-narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen || portee.isOpen;
+narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen || portee.isOpen || arbre.isOpen;
 
 // back where the game was left: the start of its chapter, the obstacles before it crossed (teleport)
 const resumeAt = chapterIndex(partie.chapter as (typeof BIOMES)[number]['id']);
