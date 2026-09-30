@@ -20,12 +20,17 @@ export interface Ancestor {
   partner?: Mate;
 }
 
+/** a note of the song learned (chant.ts): the chapter it belongs to, and the generation that learned it (1: the first) */
+export interface LearnedNote { chapter: string; gen?: number }
+
 export interface Partie {
   v: 1;
   chapter: string;
   creature: SavedCreature | null;
   /** the generations before the one played, the oldest first */
   lineage: Ancestor[];
+  /** the notes of the song learned, in the order they were (games saved before the song have none) */
+  notes?: LearnedNote[];
   savedAt: number;
 }
 
@@ -47,9 +52,11 @@ export function parsePartie(json: string | null, chapters: readonly string[]): P
   const lineage = Array.isArray(o.lineage)
     ? o.lineage.filter((a): a is Ancestor => isObject(a) && isObject(a.creature) && typeof a.chapter === 'string')
     : [];
+  const notes = Array.isArray(o.notes) ? o.notes.filter((n): n is LearnedNote => isObject(n) && typeof n.chapter === 'string') : undefined;
   return {
     v: 1, chapter, lineage,
     creature: isObject(o.creature) ? o.creature : null,
+    ...(notes && { notes }),
     savedAt: typeof o.savedAt === 'number' ? o.savedAt : 0
   };
 }
@@ -96,6 +103,12 @@ export function renameAncestor(p: Partie, i: number, name: string): Partie {
 /** the creature changes without a birth (the Atelier): the lineage stays as it is */
 export function replaceCreature(p: Partie, creature: SavedCreature): Partie {
   return { ...p, creature };
+}
+
+/** the note of a chapter learned by the generation played (once: a note learned stays with its first generation) */
+export function learnNote(p: Partie, chapter: string): Partie {
+  if (p.notes?.some((n) => n.chapter === chapter)) return p;
+  return { ...p, notes: [...(p.notes ?? []), { chapter, gen: p.lineage.length + 1 }] };
 }
 
 /** a new chapter reached; true when it changed */
