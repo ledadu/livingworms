@@ -107,16 +107,17 @@ function toward(from: Pt, to: Pt, speed: number, ease = 60): Pt {
 /**
  * The cousin's wished velocity. Alone, it goes up and down the skeleton, slowly, as if it looked at the bones. When
  * we come near it turns to us and comes to swim beside us, a little above, on the side it came from; it follows us
- * around the Carcasse, never onto us, and goes back to its bones when we swim too far.
+ * around the Carcasse, never onto us, and goes back to its bones when we swim too far, or when we are busy with
+ * another (`aside`: a parade, a farewell).
  */
-export function cousinGoal(me: Pt, home: Pt, swimmer: Pt, time: number, seed = 0, reach = 520): Pt {
+export function cousinGoal(me: Pt, home: Pt, swimmer: Pt, time: number, seed = 0, reach = 520, aside = false): Pt {
   const dx = swimmer.x - me.x, dy = swimmer.y - me.y, d = Math.hypot(dx, dy);
   const off = Math.hypot(swimmer.x - home.x, swimmer.y - home.y);
   if (d < 90) return toward(me, { x: me.x - dx, y: me.y - dy }, 1.2, 30);
-  if (d < NOTICE && off < LEASH) {
+  if (d < NOTICE && off < LEASH && !aside) {
     const side = me.x < swimmer.x ? -1 : 1;
     const spot = { x: swimmer.x + side * KEEP, y: swimmer.y - KEEP * 0.4 + Math.sin(time * 0.8 + seed) * 18 };
-    return toward(me, spot, d > 300 ? 2 : 1.4, 90);
+    return toward(me, spot, Math.min(2.6, 1.2 + d / 200), 90);
   }
   const drift = { x: home.x + Math.sin(time * 0.045 + seed) * reach, y: home.y + Math.cos(time * 0.11 + seed * 1.3) * 50 };
   return toward(me, drift, 0.7, 90);

@@ -97,9 +97,12 @@ describe('the cousin among the bones', () => {
     expect(v.x).toBeGreaterThan(0);
   });
 
-  it('lets us go when we swim too far from its bones', () => {
+  it('lets us go when we swim too far from its bones, or dance with another', () => {
     const me = { x: home.x + LEASH, y: 500 }, swimmer = { x: home.x + LEASH + 200, y: 500 };
     expect(cousinGoal(me, home, swimmer, 0, 0, 0).x).toBeLessThan(0);
+    const near = { x: home.x + 300, y: 500 }, us = { x: home.x + 500, y: 500 };
+    expect(cousinGoal(near, home, us, 0, 0, 0).x).toBeGreaterThan(0);
+    expect(cousinGoal(near, home, us, 0, 0, 0, true).x).toBeLessThan(0);
   });
 
   it('lights up when it notices us, then breathes while we are near', () => {

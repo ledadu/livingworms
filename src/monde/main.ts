@@ -1123,9 +1123,10 @@ function farewell(child?: Spec): void {
 
 // the rival lineage of the Carcasse (rivale-jeu.ts): its cousin, made from the creature of ours that got there
 const rivale = initRivale({
-  lineage: () => partie.lineage, played: () => player.cr.spec, narrator,
-  add: (sp, x, y) => addActor(sp, x, y, 'rival', 0.8).cr,
-  quiet: () => paused || portee.isOpen || adieu.on || narrator.quiet() || chapterEl.classList.contains('show')
+  lineage: () => partie.lineage, swimmer: () => player.cr, narrator,
+  add: (sp, x, y, scale) => addActor(sp, x, y, 'rival', scale).cr,
+  quiet: () => paused || portee.isOpen || adieu.on || narrator.quiet() || chapterEl.classList.contains('show'),
+  aside: () => adieu.on || parade.active
 });
 
 // ----- loop ----- //

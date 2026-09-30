@@ -2,8 +2,8 @@
 // Carcasse, from the creature of our lineage that got there, and waits among the bones. It turns to us, swims with us
 // for a while, and the first time we meet it the words of the lineage come.
 
-import { spec as makeSpec, type Spec } from '../engine';
-import type { Creature3 } from '../engine3/creature3';
+import { STEP, clamp, spec as makeSpec, type Spec } from '../engine';
+import { Creature3 } from '../engine3/creature3';
 import type { Proj, View } from '../engine3/view';
 import { traitsOf } from '../content/traits';
 import { chapterIndex, floorAt, span } from './biomes';
@@ -15,15 +15,21 @@ interface Deps {
   /** the lineage as saved (partie.ts): the ancestors, each with the chapter where it gave birth */
   lineage(): readonly { creature: object; chapter: string }[];
   /** the creature played now */
-  played(): Spec;
-  /** the cousin joins the animals of the world at (x, y) */
-  add(sp: Spec, x: number, y: number): Creature3;
+  swimmer(): Creature3;
+  /** the cousin joins the animals of the world at (x, y), at this scale */
+  add(sp: Spec, x: number, y: number, scale: number): Creature3;
   narrator: Narrator;
   /** while this is true (other words on the screen, a panel, a farewell), the words of the meeting wait */
   quiet(): boolean;
+  /** while this is true (a parade, a farewell), it keeps to its bones and lets us be */
+  aside(): boolean;
 }
 
 const at = (cr: Creature3): Pt => ({ x: cr.root.x[0], y: cr.root.y[0] });
+/** the size of a creature as drawn: the diagonal of its box */
+const sizeOf = (cr: Creature3) => Math.hypot(cr.box[3] - cr.box[0], cr.box[4] - cr.box[1]);
+/** the scale of the animals of the world */
+const SCALE = 0.8;
 
 export function initRivale(deps: Deps) {
   const chapter = chapterIndex('carcasse'), [x0, x1] = span('carcasse');
@@ -34,13 +40,17 @@ export function initRivale(deps: Deps) {
   /** the creature of our lineage that reached the Carcasse */
   function ours(): Spec {
     const saved = arrivedAt(deps.lineage(), null);
-    try { return saved ? makeSpec(saved as Parameters<typeof makeSpec>[0]) : deps.played(); } catch { return deps.played(); }
+    try { return saved ? makeSpec(saved as Parameters<typeof makeSpec>[0]) : deps.swimmer().spec; } catch { return deps.swimmer().spec; }
   }
 
   function make(): void {
     const sp = ours(), traits = traitsOf(sp);
     rival = rivalLineage(traits, hashOf(sp.name + ':' + traits.join(',')));
-    cr = deps.add(rival.spec, home.x + WHALE_LENGTH * 0.3, home.y);
+    // of our generation, so about our size: a smaller cousin is drawn a little larger
+    const probe = new Creature3(rival.spec, 0, 0, 0, { dir: { x: 1, y: 0, z: 0 }, scale: SCALE });
+    for (let i = 0; i < 20; i++) probe.update(i * STEP, 0, 0, 0, 0.1);
+    const k = clamp((0.9 * sizeOf(deps.swimmer())) / Math.max(1, sizeOf(probe)), 1, 1.8);
+    cr = deps.add(rival.spec, home.x + WHALE_LENGTH * 0.3, home.y, SCALE * k);
   }
 
   return {
@@ -54,7 +64,7 @@ export function initRivale(deps: Deps) {
       if (!deps.quiet()) met = deps.narrator.tell(chapter, 'meeting');
     },
     /** each step: its wished velocity */
-    goal: (c: Creature3, time: number, swimmer: Pt): Pt => cousinGoal(at(c), home, swimmer, time, 3.1, WHALE_LENGTH * 0.4),
+    goal: (c: Creature3, time: number, swimmer: Pt): Pt => cousinGoal(at(c), home, swimmer, time, 3.1, WHALE_LENGTH * 0.4, deps.aside()),
     /** each frame: its light, in its own colour, around the middle of its body */
     lights(view: View, out: number[], P: Proj, time: number, swimmer: Pt): void {
       if (!cr || !rival) return;
