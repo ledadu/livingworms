@@ -57,7 +57,8 @@ body { font-family: 'Cormorant Garamond', Georgia, serif; color: #f4efe2; -webki
 }
 #panel { max-height: calc(100vh - 90px); overflow-y: auto; }
 #panel #trip button { flex: 1 1 30%; }
-#benchBtn { flex: none !important; padding: 10px !important; background: rgba(246,217,138,0.16) !important; border-color: rgba(246,217,138,0.5) !important; }
+#benchBtn, #newGame { flex: none !important; padding: 10px !important; background: rgba(246,217,138,0.16) !important; border-color: rgba(246,217,138,0.5) !important; }
+#newGame { width: 100%; background: rgba(255,255,255,0.06) !important; border-color: rgba(244,239,226,0.3) !important; }
 
 #benchOut {
   position: fixed; inset: calc(12px + env(safe-area-inset-top, 0px)) 12px 12px 12px; overflow: auto; padding: 16px;

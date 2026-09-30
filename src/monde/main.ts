@@ -20,7 +20,7 @@ import { hsl01 } from '../engine3/gfx';
 import { disc, paint3 } from '../engine3/paint-gl';
 import { causticsGL, fishAtlas, fishGL, glowsGL, hcol, raysGL, rings, rowGL, screenGfx, shadowGL, spriteGL, surfaceGL, waterGL } from './scene-gl';
 import { bakeCreature, bakeRock, causticTile, env, fishSprites, fogOf, glowSprite, makeCanvas, type Plant, type Sprite } from './sprites';
-import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, floorAt, liftAt, metres, moodAt, openFloor } from './biomes';
+import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, chapterIndex, floorAt, liftAt, metres, moodAt, openFloor } from './biomes';
 import { Jardin } from './jardin';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
 import { compareSpecies, runBench } from './bench';
@@ -34,6 +34,7 @@ import { pushCave } from './grotte-draw';
 import { drawFront, frontColour, frontCount, frontPainter, makeFront } from './foreground';
 import { CARCASSE, boneLight, carcasseDwellers, carcasseSchool } from './carcasse';
 import { initNouveautes } from './nouveautes';
+import { initPartie } from './partie-jeu';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -127,8 +128,10 @@ function addActor(sp: Spec, x: number, y: number, kind: Actor['kind'], scale = 1
   return a;
 }
 
+// the saved game (partie-jeu.ts): its creature now, its chapter once the world is ready
+const partie = initPartie(BIOMES.map((b) => b.id));
 function savedPlayer(): Spec | null {
-  try { const j = localStorage.getItem('lignee.player'); return j ? makeSpec(JSON.parse(j)) : null; } catch { return null; }
+  try { return partie.creature ? makeSpec(partie.creature as Parameters<typeof makeSpec>[0]) : null; } catch { return null; }
 }
 const player = addActor(savedPlayer() || firstAncestor(), 420, 180, 'player', 0.8);
 
@@ -138,7 +141,7 @@ function becomes(sp: Spec): void {
   cr.yaw = cr.yawGoal = old.yaw;
   for (let i = 0; i < 60; i++) cr.steer(i * STEP, old.vx, old.vy, 0, 0.2);
   player.cr = cr;
-  try { localStorage.setItem('lignee.player', JSON.stringify(sp)); } catch { /* private mode */ }
+  partie.becomes(sp);
 }
 let paused = false;
 document.getElementById('atBtn')?.addEventListener('click', () => {
@@ -399,7 +402,7 @@ function update(): void {
 
   // entering a biome
   const bi = biomeIndex(px);
-  if (bi !== here.i && Math.abs(px - BIOMES[bi].x0) > 150) { here.i = bi; showChapter(bi); }
+  if (bi !== here.i && Math.abs(px - BIOMES[bi].x0) > 150) { here.i = bi; showChapter(bi); partie.reach(BIOMES[bi].id); }
 }
 
 // ----- drawing ----- //
@@ -1106,7 +1109,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, carcasse: CARCASSE, fosse, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
+  biomes: BIOMES, carcasse: CARCASSE, fosse, partie, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
@@ -1146,7 +1149,10 @@ setTimeout(() => hint.classList.add('gone'), 6000);
 document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).closest('#panel, #atelier, #benchOut')) e.preventDefault(); }, { passive: false });
 initNouveautes(() => !Atelier.isOpen && benchOut.hidden === true);
 
-setTimeout(() => showChapter(0), 400);
+// back where the game was left: the start of its chapter
+here.i = Math.max(0, chapterIndex(partie.chapter as (typeof BIOMES)[number]['id']));
+if (here.i > 0) gotoBiome(here.i);
+setTimeout(() => showChapter(here.i), 400);
 requestAnimationFrame(frame);
 // ?lod=0: without the levels of detail (to compare)
 if (new URLSearchParams(location.search).get('lod') === '0') opts.lod = false;

@@ -103,4 +103,6 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
 ## Durée et sauvegarde
 
 - Durée visée : environ 1 h 30 à 2 h, soit 9 à 12 minutes par chapitre sur 10 chapitres, avec une fin qu'on n'a pas envie de rater.
-- Sauvegarde automatique à chaque naissance, dans le stockage du navigateur. Aujourd'hui seule la créature jouée est gardée (`lignee.player`) ; la lignée entière est à construire.
+- Sauvegarde automatique dans le stockage du navigateur (`lignee.partie`, `src/monde/partie.ts`) : le chapitre atteint, la créature jouée et la lignée (les parents, chacun avec le chapitre où il a donné naissance). La partie est sauvée à chaque naissance, à chaque nouveau chapitre et quand l'Atelier change la créature.
+- À l'ouverture de la page, on reprend au début du chapitre sauvé, avec sa créature ; une ancienne sauvegarde (`lignee.player`, la créature seule) est reprise à la Nurserie. Le panneau ⚙ a un bouton « Recommencer depuis la Nurserie » (deux touches), et `?nouvelle` fait de même pour les tests.
+- Les naissances n'existent pas encore : l'hérédité appellera `monde.partie.born(enfant)`, qui range le parent dans la lignée. Les portraits, s'ils sont gardés, iront plutôt dans IndexedDB ([décisions](decisions.md)).
