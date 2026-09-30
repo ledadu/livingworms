@@ -28,10 +28,10 @@ Quatre types de relief, placés chapitre par chapitre, qui passent devant, en tr
   | La Fosse | failles, visibles seulement dans la lumière du nageur (le noir total du chapitre) | failles (x ≈ 26000, 27000, 27680) |
 
 - **Comment le voir** : ⚙ → Voyage → Récif, Forêt, Glacier ; ou `monde.teleport(4060, 520)` (les arches du Récif, une voûte en travers du chemin), `monde.teleport(8348, 660)` (un pilier qui cache), `monde.teleport(21040, 1790)` (sous la corniche du Glacier), `monde.teleport(27003, 3500)` (dans une faille de la Fosse), `monde.teleport(14700, 1350)` (la baleine de la Carcasse dans son creux de surplombs). La couche `relief` de `monde.skip` les retire pour comparer.
-- **Mesures** (Chrome Windows, 1280 × 760) : 60 img/s en WebGL avec ou sans reliefs, dans le Récif et la Forêt (écart de rendu sous le bruit de mesure, de 0,1 à 2 ms selon les essais). En Canvas 2D (`?gl=0`), 44 ms par image contre 39 sans reliefs dans le Récif.
+- **Mesures** (Chrome Windows, 1280 × 760, carte finale) : 60 img/s en WebGL avec ou sans reliefs ; le dessin d'une image passe de 4,0 à 4,2–4,5 ms au Récif, de 3,5 à 4,0–4,4 ms au Glacier. En Canvas 2D (`?gl=0`, mesuré avant les dernières fusions), 44 ms par image contre 39 sans reliefs au Récif.
 - **Branchements** : `floorAt` ajoute `carve(x, z)` (`biomes.ts`) ; `main.ts` appelle `initReliefs` après les décors, `bump(cr)` dans `collide`, `pushReliefs` dans le tri de la scène ; `world.ts` fait pousser les plantes sur les reliefs (`groundAt`) et n'y pose pas de rochers (`solidAt`).
 - **Doc** : section « Les reliefs composés » dans `docs/direction-artistique.md`.
-- **Test voisin corrigé** : `foreground.test.ts` (premier plan sombre) cherchait les biomes `kelp` et `abysses`, disparus de `backlog` avec la carte des 10 chapitres ; il cherche maintenant la Forêt et la Fosse. `make check` est vert.
+- **Test voisin** : `foreground.test.ts` (premier plan sombre) cherchait les biomes `kelp` et `abysses`, disparus de `backlog` avec la carte des 10 chapitres ; je l'avais corrigé (la Forêt et la Fosse), puis la même correction est arrivée sur `backlog` avec la Carcasse : il n'en reste aucune différence. `make check` est vert.
 
 ![Avant : le Récif sans relief](img/recif-avant.jpg)
 ![Après : les arches du Récif, au loin et en travers du chemin](img/recif-apres.jpg)
@@ -99,7 +99,6 @@ Aucune question structurante posée à l'utilisateur : tout est tranché seul (o
 - `src/monde/main.ts` : deux imports, `initReliefs(...)` juste après `makeDecor()` (avec un rayon par type de décor : `seep`, `frost`, `ice`, les autres), `bump(cr)` à la fin de la boucle des rochers de `collide` (la Grotte ajoute aussi deux lignes dans `collide` : garder les deux), `pushReliefs(...)` après la boucle des décors dans `render`.
 - `src/monde/biomes.ts` : un import, `+ carve(x, z)` dans le `return` de `floorAt` (à garder si un voisin réécrit `floorAt`).
 - `src/monde/world.ts` : un import, `groundAt` dans `growPlant2`, deux conditions `solidAt` dans `makeRocks`.
-- `src/monde/foreground.test.ts` : deux ids de chapitre.
 - `docs/direction-artistique.md` : une section « Les reliefs composés » avant « Une palette par chapitre », une ligne retirée de « Il manque ».
 - Nouveaux fichiers : `src/monde/relief.ts`, `relief-draw.ts`, `relief.test.ts`.
 - La table `PLANS` suit les ids de la nouvelle carte (`nurserie`, `recif`, `foret`, `carcasse`, `sources`, `glacier`, `fosse`) : un chapitre renommé perd ses reliefs sans erreur.
