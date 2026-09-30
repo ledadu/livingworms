@@ -7,7 +7,7 @@ import { Creature3, settle3 } from '../engine3/creature3';
 import { css, type HSL, type Mood } from './palette';
 import { plantSpec } from './plants';
 import { makeCanvas, type Plant, type Rock, type Sprite } from './sprites';
-import { BIOMES, X0, X1, biomeIndex, floorAt, presence } from './biomes';
+import { BIOMES, X0, X1, biomeIndex, chapterIndex, floorAt, presence, span, type ChapterId } from './biomes';
 
 type R01 = () => number;
 const pick = <T>(R: R01, l: T[]): T => l[Math.floor(R() * l.length)];
@@ -35,10 +35,10 @@ function ownerAt(x: number, R: R01): number {
 // ----- plants that only live in this world ----- //
 
 /** the kinds of the 2.5D prototype, plus sponges, sea lilies and the giant tube worms of the vents */
-export function plantSpec2(kind: string, R: R01, biome: string): Spec {
+export function plantSpec2(kind: string, R: R01, biome: ChapterId): Spec {
   const r = (a: number, c: number) => a + R() * (c - a);
   const ri = (a: number, c: number) => Math.floor(r(a, c + 1));
-  const deep = biome === 'crepuscule' || biome === 'abysses';
+  const deep = !!BIOMES[chapterIndex(biome)].pale;
   switch (kind) {
     case 'eponge':
       return spec({ name: 'Éponge', eyes: { on: false },
@@ -80,7 +80,7 @@ export function growPlant2(p: Plant): Creature3 {
   const y = hanging ? 3 + R() * 4 : floorAt(p.x, p.z) + 3;
   const upright = kind === 'kelp' || kind === 'posidonie' || kind === 'crinoide' || kind === 'riftia' || hanging;
   const tilt = upright ? (R() - 0.5) * 0.1 : (R() - 0.5) * 0.35;
-  const scale = kind === 'kelp' ? (biome === 'kelp' ? 1.3 + R() * 0.8 : 0.9 + R() * 0.5) : kind === 'crinoide' ? 1 + R() * 0.6 : 0.8 + R() * 0.45;
+  const scale = kind === 'kelp' ? (biome === 'foret' ? 1.3 + R() * 0.8 : 0.9 + R() * 0.5) : kind === 'crinoide' ? 1 + R() * 0.6 : 0.8 + R() * 0.45;
   const sp = plantSpec2(kind, R, biome);
   const az = R() * Math.PI, ca = Math.cos(az), sa = Math.sin(az);
   const dv = hanging ? { x: Math.sin(tilt) * ca, y: Math.cos(tilt), z: Math.sin(tilt) * sa } : { x: Math.sin(tilt) * ca, y: -Math.cos(tilt), z: Math.sin(tilt) * sa };
@@ -125,7 +125,7 @@ export function makePlants(vents: Decor[]): Plant[] {
     if (kind === 'kelp' && z < 40) kind = 'posidonie';
     // the kelp grows in groves, the grass in meadows
     const grove = noise1(x / 600 + 3, 51);
-    if (kind === 'kelp' && b.id !== 'kelp' && grove < 0.55) kind = 'posidonie';
+    if (kind === 'kelp' && b.id !== 'foret' && grove < 0.55) kind = 'posidonie';
     if (!(kind === 'posidonie' && b.id === 'nurserie' && noise1(x / 520, 11) < 0.38)) out.push(newPlant(kind, x, z));
     x += b.flora.every * (0.5 + R());
   }
@@ -136,8 +136,8 @@ export function makePlants(vents: Decor[]): Plant[] {
     if (R() < 0.75) out.push(newPlant(weighted(R, b.flora.front), x, z));
     x += (20 + R() * 40) * (b.flora.every / 24);
   }
-  // sargassum hanging from the surface over the Nurserie and the kelp
-  for (let x = X0; x < 7200; x += 18 + R() * 26) {
+  // sargassum hanging from the surface over the Nurserie and the Récif
+  for (let x = X0; x < span('recif')[1]; x += 18 + R() * 26) {
     const raft = noise1(x / 700, 21) - 0.45 + (x < 1600 ? 0.35 : 0);
     if (raft > 0 && R() < raft * 1.6) out.push(newPlant('sargasse', x, -40 + R() * 700));
   }
@@ -158,13 +158,17 @@ export interface Decor { kind: 'vent' | 'whale' | 'wreck' | 'seep'; x: number; z
 export function makeDecor(): Decor[] {
   const out: Decor[] = [];
   const add = (kind: Decor['kind'], x: number, z: number, h = 0) => out.push({ kind, x, z, seed: seedOf(Math.round(x), Math.round(z)), h, sprite: null, spriteD: 0 });
-  // black smokers: a field of chimneys at several depths
+  /** a place along a chapter, from its start (0) to its end (1) */
+  const at = (id: ChapterId, u: number) => { const [a, b] = span(id); return Math.round(a + (b - a) * u); };
+  // black smokers: a field of chimneys at several depths, in the Sources
   const R = rng(2024);
-  for (const [x, z] of [[18900, 90], [19250, 420], [19700, 160], [20150, 700], [20900, 60], [21250, 300], [21600, 900]] as const) add('vent', x, z, 180 + R() * 180);
-  add('whale', 20450, 150);
-  add('wreck', 13350, 330);
-  // cold seeps: streams of bubbles from the sand
-  for (const [x, z] of [[1250, 60], [2600, 240], [4900, 140], [6300, 30], [9100, 50], [10400, 260], [12000, 120]] as const) add('seep', x, z);
+  for (const [u, z] of [[0.18, 90], [0.28, 420], [0.4, 160], [0.52, 700], [0.64, 60], [0.74, 300], [0.84, 900]] as const) add('vent', at('sources', u), z, 180 + R() * 180);
+  add('whale', at('carcasse', 0.5), 150);
+  // a wreck in the kelp
+  add('wreck', at('foret', 0.62), 330);
+  // seeps: streams of bubbles from the sand, warm in the shallows, brine under the Glacier
+  for (const [id, u, z] of [['nurserie', 0.49, 60], ['nurserie', 0.81, 240], ['recif', 0.4, 140], ['recif', 0.8, 30],
+    ['foret', 0.3, 50], ['foret', 0.85, 260], ['glacier', 0.3, 80], ['glacier', 0.55, 200], ['glacier', 0.75, 40]] as const) add('seep', at(id, u), z);
   return out;
 }
 
