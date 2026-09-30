@@ -17,6 +17,7 @@ Les profondeurs sont indicatives : le monde est une descente continue, pas une c
 - La voix est celle de la lignée, un « nous », comme si les ancêtres parlaient.
 - **Dans le jeu** (`src/monde/textes.ts`, affichage dans `narration.ts`) : les textes sont lus dans ce document même, au build. Sous le titre `## N. Nom` d'un chapitre, la citation (`> …`) qui suit une ligne « Ouverture : », « Adieu … : », « Le retournement : » (l'ouverture de la Remontée) ou « Texte final : » ou « Devant l'obstacle : » (dit la première fois que l'obstacle du chapitre nous retient) devient ce texte ; pour en changer un, il suffit de l'écrire ici. Une phrase par ligne ; une phrase seule et longue se coupe à la virgule la plus proche de son milieu ; quatre lignes au plus. L'ouverture s'écrit la première fois qu'on entre dans le chapitre, ligne après ligne, sous son nom en petites capitales, puis s'efface ; en y revenant, seul le nom passe. Elle attend qu'aucun panneau (Nouveautés, Atelier) ne couvre la mer. L'adieu se dit pendant la scène de l'adieu au parent ([mécaniques](mecaniques.md#ladieu)) ; tant qu'il est à l'écran, une ouverture attend qu'il s'efface et rien d'autre ne se dit.
 - « La rencontre : » donne le texte dit la première fois qu'on croise la cousine de la lignée rivale, à la Carcasse (voir le chapitre 5).
+- La ligne « Note : « … » » de chaque chapitre donne son nom à la note du chant qu'on y apprend (`chant.ts`, voir [mécaniques](mecaniques.md#le-chant)).
 
 ## Vue d'ensemble
 
