@@ -91,6 +91,8 @@ Adieu (proposition, les autres adieux sont à écrire) :
 - **Partenaires** : ver plumeau, crabe (`plumeau`, `crabe`).
 - **Moment fort** : une lignée « rivale » est là, avec des choix différents des tiens. Une créature étrange, cousine lointaine.
 - **Note** : « le souvenir ».
+- **Dans le monde** (`src/monde/carcasse.ts`) : le squelette couché sur le fond, tête à gauche, sur 1 200 px environ. Crâne, deux mâchoires, colonne en quatre tronçons qui suivent le sable, treize paires de côtes (debout, brisées ou tombées), nageoires ; tapis blancs et jaunes de bactéries, duvet rouge des vers mangeurs d'os. Un rai de lumière pâle tombe sur les côtes, les os luisent un peu dans le noir. Crabes, vers plumeaux, ophiures, crevettes, homard, anguilles et un banc de poissons argentés y vivent. Les os sont derrière le plan de nage : on nage devant et entre eux.
+- **Les fresques naturelles** : trois, des coquilles posées en motif sur les os plats, listées dans `CARCASSE.fresques` (`id`, `motif`, position) pour servir de traces à l'étape 4 : une **spirale** sur l'omoplate (debout derrière les côtes), des **anneaux** sur le crâne, des **rayons** sur une vertèbre de la queue roulée à l'écart. Des tas de coquilles sont semés autour.
 
 Ouverture :
 

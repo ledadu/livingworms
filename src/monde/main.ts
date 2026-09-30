@@ -22,6 +22,7 @@ import { bakeCreature, bakeRock, causticTile, env, fishSprites, fogOf, glowSprit
 import { BIOMES, X0, X1, biomeIndex, biomeMid, floorAt, metres, moodAt } from './biomes';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
 import { compareSpecies, runBench } from './bench';
+import { CARCASSE, boneLight, carcasseDwellers, carcasseSchool } from './carcasse';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -159,6 +160,7 @@ function homeY(kind: Actor['kind'], x: number, z: number, R: () => number): numb
       addActor(SPECIES[id](), x, homeY(kind, x, z, R), kind, scale, z);
     }
   });
+  for (const [id, kind, x, z, scale] of carcasseDwellers()) addActor(SPECIES[id](), x, homeY(kind, x, z, R), kind, scale, z);
 }
 
 // big animals passing far away, one or two per biome
@@ -225,6 +227,8 @@ const shoals: Shoal[] = [];
     const mid = biomeMid(bi) + (k - (b.schools.length - 1) / 2) * 1400 + (R() - 0.5) * 600;
     shoals.push(new Shoal(mid, 110 + R() * 380, s.n, s.body, s.belly, s.size, !!s.glow, bi * 10 + k));
   }));
+  const c = carcasseSchool;
+  shoals.push(new Shoal(c.x, c.z, c.n, c.body, c.belly, c.size, false, 250));
 }
 
 // smoke and bubbles
@@ -481,6 +485,8 @@ function render(): void {
     if (sm) items.push({ d: view.depth(y - d.h, d.z) - 1, fn: () => drawPuffs(sm, d.z, smokeSpr, 1), k: 'smoke' });
     if (bu) items.push({ d: view.depth(y - 200, d.z) - 1.5, fn: () => drawPuffs(bu, d.z, bubbleSpr, 0), k: 'bubbles' });
     if (d.kind === 'vent') { view.project(d.x, y + ventMouth(d), d.z, P); lights.push(P.x, P.y, 40 * P.s + 10, 25, 0.9); }
+    const bl = d.kind === 'bone' && boneLight(d);
+    if (bl) { view.project(d.x, y - bl[0], d.z, P); lights.push(P.x, P.y, bl[1] * P.s, bl[2], bl[3]); }
   }
   let np = 0;
   for (const pl of plants) {
@@ -1038,7 +1044,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto,
-  biomes: BIOMES, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
+  biomes: BIOMES, carcasse: CARCASSE, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
