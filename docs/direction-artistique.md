@@ -28,6 +28,15 @@ Il manque, pour le plan :
 - les décors propres à la Grotte, la Carcasse, le Glacier, le Jardin de méduses et la Fosse (ils ont aujourd'hui un décor provisoire tiré de l'existant) ;
 - le puits de lumière de la Remontée.
 
+### Le premier plan
+
+Entre l'œil et le plan de nage (`src/monde/foreground.ts`) : des silhouettes sombres et floues, plus proches de l'œil que tout le reste, donc qui défilent plus vite (la perspective s'en charge : environ deux fois la vitesse du plan de nage).
+
+- **Ce qu'on y voit** : ce qui pousse dans le chapitre (kelp, herbes, coraux, gorgones, tubes, tiges), plus des roches, en groupes et en clairières. Moins dense là où le noir se referme.
+- **Sombre et flou** : chaque silhouette est cuite une fois, petite et floutée, d'une seule couleur (l'eau autour, très assombrie), puis agrandie ; elle ondule doucement depuis son pied.
+- **Le plan de nage reste lisible** : les silhouettes montent du bas de l'écran (ou de leur sol quand il est visible) et s'effacent presque en approchant du nageur.
+- **Coût** : quelques images par trame, en WebGL comme en canvas. Couche `front` de `monde.skip` pour la comparer.
+
 ## Une palette par chapitre
 
 | Chapitre | Palette |
