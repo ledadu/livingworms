@@ -23,7 +23,9 @@ La Nurserie et la Carcasse n'ont pas d'obstacle : on y trouve quand même un par
 
 - Dans chaque biome, une ou deux espèces compatibles (la liste par chapitre est dans [chapitres.md](chapitres.md)).
 - Elles émettent une lueur quand tu es proche.
-- Aujourd'hui, les animaux de chaque biome viennent de sa `fauna` (`src/monde/biomes.ts`). Le partenaire compatible est à construire : un marqueur sur l'espèce et sa lueur.
+- **Dans le jeu** (`src/monde/partenaires.ts`) : `PARTNERS` donne les partenaires de chaque chapitre. Un animal d'une de ces espèces est un partenaire (`actor.partner`, l'index du chapitre) s'il vit dans le plan de nage, là où on peut le rejoindre : dans son chapitre, avant la retenue de son obstacle (`meetRange`). Chaque chapitre en a au moins deux de chaque espèce (`PER_PARTNER`), répartis sur sa longueur, en plus de sa faune.
+- **La lueur** : un halo doré (`GLOW_HUE`) autour du milieu du corps, qui naît à 650 px du nageur, est plein à 160 px, et respire lentement (`partnerGlow`). Un peu plus fort en eau claire, où une lumière ajoutée se voit moins. `monde.partners()` les liste ; `monde.skip.add('partner')` éteint leur lueur (captures avant / après).
+- **On ne se bloque jamais** : les partenaires d'un chapitre apportent, par leur corps, chacun des traits qui franchissent son obstacle (`uncovered`, testé contre les traits de chaque espèce). Le chant de la Fosse n'est pas un trait du corps : il viendra à l'étape 5.
 
 ### La parade
 
@@ -38,9 +40,9 @@ La Nurserie et la Carcasse n'ont pas d'obstacle : on y trouve quand même un par
 - L'écran montre ce que chacun a hérité du parent et du partenaire.
 - Tu choisis 1 enfant parmi 4 : c'est lui que tu joues ensuite.
 - Dans le code : `brood` (`src/content/portee.ts`) fait les 4 enfants avec `fuse` en mode « mélange », une part du partenaire de 30, 37, 43 et 50 % (40 % en moyenne), et note d'où vient chaque membre et à qui ressemble le corps. Chaque enfant reçoit au moins un membre du côté qui ne lui a pas donné son corps.
-- Les **traits voulus** (les membres du partenaire qu'on est venu chercher ; par défaut, ceux d'un rôle que le parent n'a pas, en attendant les traits des obstacles) vont à 1 enfant après une parade ratée, 2 à mi-chemin, 3 après une parade parfaite (`carriers`) : jamais à aucun, jamais aux 4, pour qu'il reste un choix.
-- L'écran (`src/monde/portee-ecran.ts`) : quatre œufs qui tremblent puis fondent, chacun sur son portrait (`snapshot3`), son nom (le début du nom du parent, la fin de celui du partenaire) et « de Première : Corps, Cil… / de Méduse lune : Filament… ». On touche un enfant, puis « Continuer avec … » : il devient la créature jouée, et le parent rejoint la lignée de la sauvegarde (`partie.born`).
-- Pour l'ouvrir : `monde.openPortee(partenaire, qualité)` (un id du bestiaire ou une espèce, qualité de 0 à 1), ou, avec `?dev`, le bouton « Une portée avec un animal d'ici » du panneau ⚙. La parade l'appellera à sa fin.
+- Les **traits voulus** sont ceux qui franchissent l'obstacle du chapitre (`KEYS`, `src/monde/obstacles.ts`) ; sans obstacle, ceux du partenaire que le parent n'a pas. Les membres du partenaire qui les apportent (`limbTraits`, lu avec `traitsOf` de `src/content/traits.ts`) vont à 1 enfant après une parade ratée, 2 à mi-chemin, 3 après une parade parfaite (`carriers`) : jamais à aucun, jamais aux 4, pour qu'il reste un choix.
+- L'écran (`src/monde/portee-ecran.ts`) : quatre œufs qui tremblent puis fondent, chacun sur son portrait (`snapshot3`), son nom (le début du nom du parent, la fin de celui du partenaire) « de Première : Corps, Cil… / de Méduse lune : Filament… », puis ses traits, en or ceux qui franchissent l'obstacle du chapitre. On touche un enfant, puis « Continuer avec … » : il devient la créature jouée, et le parent rejoint la lignée de la sauvegarde (`partie.born`).
+- Pour l'ouvrir : `monde.openPortee(partenaire, qualité)` (un id du bestiaire ou une espèce, qualité de 0 à 1), ou, avec `?dev`, le bouton « Une portée avec un partenaire d'ici » du panneau ⚙ (un partenaire du chapitre, `PARTNERS`). La parade l'appellera à sa fin.
 
 ### L'adieu
 
@@ -51,16 +53,18 @@ La Nurserie et la Carcasse n'ont pas d'obstacle : on y trouve quand même un par
 
 Chaque partie du corps apporte un trait utile, qui sert aussi de clé pour franchir les obstacles.
 
-| Trait | Vient de… | Permet | Dans le code (proposition) |
+| Trait | Vient de… | Permet | Dans le code (`traitsOf`, `src/content/traits.ts`) |
 | --- | --- | --- | --- |
-| Nageoires | poissons, raie | Remonter un courant fort | parties `nageoire`, `caudale`, `rayons`, `aile`, `collerette` (rôle `fin`) |
-| Lanterne / photophores | baudroie, cténophore | Voir dans le noir, attirer, ouvrir des passages sombres | parties `lanterne`, `photophore`, et toute lueur (`color.glow`) |
-| Pinces | crabe, homard | Écarter des algues denses, briser du corail mort | parties `pince`, `pinceHomard` (rôle `jaw`) |
-| Corps fin (ver) | vers, anguille | Passer dans les failles étroites | tronc long et mince (formes `worm`, `sansue`…), seuil à définir sur longueur et largeur |
-| Carapace / plaques | crustacés, nautile | Supporter la chaleur des sources, le froid, la pression | tronc en `plates` |
-| Pulsation (ombrelle) | méduses | Monter ou descendre verticalement, flotter dans les zones sans fond | tronc en mouvement `pulse`, ou nage `bell` |
-| Filaments | méduses, siphonophores | Se laisser porter par le courant, s'accrocher | parties `filament`, `tentacule`, `brasOral` |
-| Cils | cténophore, vers | Écarter la vase, trouver ce qui est enfoui | parties `cils`, `peigne` (rôle `cilia`) |
+| Nageoires | poissons, raie | Remonter un courant fort | une partie de rôle `fin` : `nageoire`, `caudale`, `rayons`, `aile`, `collerette`, mais aussi les pléopodes et l'éventail des crustacés |
+| Lanterne / photophores | baudroie, cténophore | Voir dans le noir, attirer, ouvrir des passages sombres | une partie de rôle `light` (`lanterne`, `photophore`), ou toute lueur (`color.glow`), tronc compris |
+| Pinces | crabe, homard | Écarter des algues denses, briser du corail mort | une partie de rôle `jaw` en `plates` (`pince`, `pinceHomard`, patte ravisseuse) ; pas la tête de la tortue |
+| Corps fin (ver) | vers, anguille | Passer dans les failles étroites | tronc dont la longueur fait au moins **15 fois** son plus grand rayon (anguille 19, axolotl 12) |
+| Carapace / plaques | crustacés, nautile | Supporter la chaleur des sources, le froid, la pression | au moins **40 %** de la surface de l'animal (chaque copie de chaque partie) en `plates` : le crabe l'a par ses pattes et ses pinces |
+| Pulsation (ombrelle) | méduses | Monter ou descendre verticalement, flotter dans les zones sans fond | nage `bell`, ou tronc en mouvement `pulse` d'ampleur au moins **0,15** (les méduses battent à 0,16 et plus, le manteau du calmar à 0,1) |
+| Filaments | méduses, siphonophores | Se laisser porter par le courant, s'accrocher | un long fil souple : partie de rôle `whip`, `sting` ou `deco` d'au moins **8 maillons** et de souplesse (`flex`) au moins **0,3** (`filament`, `tentacule`, `brasOral`, `bras`, `couronne`…) ; pas les piquants raides |
+| Cils | cténophore, vers | Écarter la vase, trouver ce qui est enfoui | une partie de rôle `cilia` (`cils`, `peigne`) |
+
+Les traits se lisent sur le rôle, le style et la forme des parties, jamais sur leur nom (les espèces les renomment). Une partie marquée `bud` (« ébauche ») n'apporte aucun trait : ce sont la queue, la lueur et les cils de la larve de départ, qui naît donc sans trait ; ses enfants gardent ces ébauches, et leurs traits leur viennent du partenaire. Les seuils sont dans `TRAIT_THRESHOLDS`. Dans le bestiaire, la larve, l'étoile de mer et l'oursin n'ont aucun trait ; la tortue n'a pas de carapace (son tronc n'est pas en plaques).
 
 - Un enfant hérite d'environ **60 % des traits de son parent** et d'environ **40 % du partenaire**. Des traits peuvent donc se perdre, et c'est un choix.
 - **Toujours une solution** : chaque obstacle a au moins deux traits capables de le franchir, et le biome propose les partenaires qu'il faut. On ne peut jamais se bloquer.

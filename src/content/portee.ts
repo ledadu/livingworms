@@ -1,11 +1,12 @@
 // The brood: four children fused from the parent and the partner (docs/mecaniques.md, « La portée »).
 // Each child comes from fuse() in 'mix' mode with a partner share around 0.4 (about 60 % of the parent, 40 % of the
-// partner), then the limbs the parade was for are handed out: the better the parade, the more children carry them,
+// partner), then the limbs the parade was for (those that bring the traits the lineage wants) are handed out: the better the parade, the more children carry them,
 // but always at least one, so that a brood never loses what the lineage came for. Every limb of a child keeps where it
 // came from, for the screen that shows what each one inherited.
 
 import { att, clone, rng, spec, stats, type AttDef, type Spec } from '../engine';
 import { fuse } from './generate';
+import { traitsOf, type Trait } from './traits';
 
 export type Origin = 'parent' | 'partner';
 
@@ -18,13 +19,17 @@ export interface Child {
   /** the parts it inherited, by name, without repeats */
   fromParent: string[];
   fromPartner: string[];
+  /** its traits (traits.ts) */
+  traits: Trait[];
 }
 
 export interface BroodOptions {
   /** how well the parade went, 0 to 1 */
   quality?: number;
   seed?: number;
-  /** the partner's limbs the lineage wants (default: those of a kind, role, the parent does not have) */
+  /** the traits the lineage wants, those of the chapter's obstacle (default: the partner's traits the parent lacks) */
+  keys?: readonly string[];
+  /** the partner's limbs the lineage wants (default: those that bring one of the keys) */
   wanted?: (limb: AttDef) => boolean;
 }
 
@@ -36,6 +41,15 @@ const MAX_CHAINS = 170;
 const key = (a: AttDef) => JSON.stringify(att(clone(a)));
 const uniq = (names: string[]) => [...new Set(names)];
 
+/** the traits a limb brings to its owner: those of its trunk with this limb, less those of the bare trunk */
+export function limbTraits(owner: Spec, limb: AttDef): Trait[] {
+  const bare = spec(clone(owner)), one = spec(clone(owner));
+  bare.body.attach = [];
+  one.body.attach = [att(clone(limb))];
+  const base = traitsOf(bare);
+  return traitsOf(one).filter((t) => !base.includes(t));
+}
+
 /** how many of the four children carry each wanted limb: 1 after a poor parade, 3 after a perfect one */
 export function carriers(quality: number): number {
   return 1 + Math.round(Math.max(0, Math.min(1, quality)) * (BROOD - 2));
@@ -46,8 +60,8 @@ export function brood(parent: Spec, partner: Spec, o: BroodOptions = {}): Child[
   const seed = o.seed ?? Math.floor(Math.random() * 0xfffffff), R = rng(seed);
   const A = spec(clone(parent)), B = spec(clone(partner));
   const fromA = new Set(A.body.attach.map(key)), limbsB = B.body.attach.map((a) => ({ a, k: key(a) }));
-  const rolesA = new Set(A.body.attach.map((a) => a.node.role));
-  const wanted = limbsB.filter(({ a }) => (o.wanted ? o.wanted(a) : !rolesA.has(a.node.role)));
+  const traitsA = traitsOf(A), keys = o.keys ?? traitsOf(B).filter((t) => !traitsA.includes(t));
+  const wanted = limbsB.filter(({ a }) => (o.wanted ? o.wanted(a) : limbTraits(B, a).some((t) => keys.includes(t))));
   const wantedKeys = new Set(wanted.map((w) => w.k));
 
   const shares = SHARES.slice();
@@ -97,7 +111,7 @@ export function brood(parent: Spec, partner: Spec, o: BroodOptions = {}): Child[
     // fuse() copies the whole body of the closest one: the name goes with the body it mostly has
     const body = bodyOrigin(sp, A, B);
     sp.body.name = (body === 'parent' ? A : B).body.name;
-    return { spec: sp, share, body, fromParent: uniq(fromParent), fromPartner: uniq(fromPartner) };
+    return { spec: sp, share, body, fromParent: uniq(fromParent), fromPartner: uniq(fromPartner), traits: traitsOf(sp) };
   });
 }
 

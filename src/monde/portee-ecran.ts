@@ -5,6 +5,7 @@
 import type { Spec } from '../engine';
 import { snapshot3 } from '../engine3/snapshot3';
 import { brood, type BroodOptions, type Child } from '../content/portee';
+import { TRAIT_LABELS } from '../content/traits';
 import './portee.css';
 
 /** the delay between two eggs, and the time an egg takes to hatch (ms, as in portee.css) */
@@ -18,6 +19,11 @@ export function inherited(c: Child, parent: string, partner: string): Inherited[
   const p = c.body === 'parent' ? [body, ...c.fromParent] : c.fromParent;
   const q = c.body === 'partner' ? [body, ...c.fromPartner] : c.fromPartner;
   return [{ from: parent, parts: p }, { from: partner, parts: q }].filter((l) => l.parts.length);
+}
+
+/** a child's traits in words, those that cross the chapter's obstacle marked */
+export function traitWords(c: Child, keys: readonly string[] = []): { word: string; key: boolean }[] {
+  return c.traits.map((t) => ({ word: TRAIT_LABELS[t], key: keys.includes(t) }));
 }
 
 export interface Portee {
@@ -79,7 +85,17 @@ export function createPortee(onChoose: (child: Spec, all: Child[]) => void): Por
           dd.textContent = l.parts.join(', ');
           list.append(dt, dd);
         }
-        card.append(cv, egg, name, list);
+        const traits = document.createElement('p');
+        traits.className = 'traits';
+        const words = traitWords(c, o.keys);
+        if (!words.length) traits.textContent = 'Pas encore de trait';
+        for (const w of words) {
+          const span = document.createElement('span');
+          span.textContent = w.word;
+          if (w.key) span.className = 'key';
+          traits.append(span);
+        }
+        card.append(cv, egg, name, list, traits);
         card.addEventListener('click', () => pick(i));
         cards.push(card);
         grid.append(card);

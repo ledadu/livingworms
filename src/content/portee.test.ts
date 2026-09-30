@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { stats } from '../engine';
 import { SPECIES, firstAncestor } from './species';
-import { BROOD, brood, carriers, childNames } from './portee';
+import { BROOD, brood, carriers, childNames, limbTraits } from './portee';
 
 const larva = firstAncestor();
 const PAIRS: [string, string][] = [['larve', 'meduse'], ['poissonClown', 'crabe'], ['anguille', 'ctenophore'], ['homard', 'baudroie'], ['seiche', 'siphonophore']];
@@ -66,5 +66,26 @@ describe('childNames', () => {
       expect(new Set(names).size).toBe(4);
       expect(names).toHaveLength(BROOD);
     }
+  });
+});
+
+describe('traits', () => {
+  it('knows what a limb brings', () => {
+    const crab = SPECIES.crabe(), claw = crab.body.attach.find((l) => l.node.role === 'jaw')!;
+    expect(limbTraits(crab, claw)).toContain('pinces');
+  });
+
+  it('hands the limbs that bring the wanted traits, and says the traits of each child', () => {
+    for (let s = 0; s < 10; s++) {
+      const kids = brood(larva, SPECIES.crabe(), { seed: s, quality: 1, keys: ['pinces'] });
+      expect(kids.filter((c) => c.traits.includes('pinces')).length).toBeGreaterThanOrEqual(3);
+      const poor = brood(larva, SPECIES.crabe(), { seed: s, quality: 0, keys: ['pinces'] });
+      expect(poor.filter((c) => c.traits.includes('pinces')).length).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('wants by default the partner traits the parent lacks', () => {
+    const kids = brood(larva, SPECIES.meduse(), { seed: 4, quality: 1 });
+    expect(kids.filter((c) => c.traits.includes('filaments')).length).toBeGreaterThanOrEqual(3);
   });
 });

@@ -14,7 +14,7 @@
 #portee .brood { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: min(560px, 100%); }
 @media (min-aspect-ratio: 4/3) { #portee .brood { grid-template-columns: repeat(4, minmax(0, 1fr)); width: min(980px, 100%); } }
 #portee .child {
-  position: relative; display: grid; grid-template-rows: auto auto 1fr; gap: 4px; padding: 8px 8px 10px; min-width: 0;
+  position: relative; display: grid; grid-template-rows: auto auto 1fr auto; gap: 4px; padding: 8px 8px 10px; min-width: 0;
   border-radius: 16px; border: 1px solid rgba(244,239,226,0.16); background: rgba(255,255,255,0.04);
   color: inherit; font: inherit; text-align: left; cursor: pointer; transition: border-color 0.4s ease, background 0.4s ease, box-shadow 0.4s ease;
 }
@@ -41,8 +41,8 @@
   60% { opacity: 1; transform: translateX(-50%) rotate(-3deg) scale(1); }
   100% { opacity: 0; transform: translateX(-50%) scale(1.5); filter: blur(6px); }
 }
-#portee .child b, #portee .child dl { opacity: 0; transition: opacity 1s ease calc(var(--delay) + 1.2s); }
-#portee.show .child b, #portee.show .child dl { opacity: 1; }
+#portee .child b, #portee .child dl, #portee .traits { opacity: 0; transition: opacity 1s ease calc(var(--delay) + 1.2s); }
+#portee.show .child b, #portee.show .child dl, #portee.show .traits { opacity: 1; }
 #portee .child b { font-weight: 500; font-size: clamp(18px, 4.6vw, 21px); text-align: center; }
 #portee dl { margin: 0; display: grid; gap: 1px; font-family: system-ui, sans-serif; font-size: 12px; line-height: 1.35; }
 #portee dt { font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic; font-size: 14px; margin-top: 3px; }
@@ -57,3 +57,10 @@
 #portee .go:disabled { opacity: 0.45; cursor: default; font-style: italic; }
 #portee .go:focus-visible { outline: 2px solid #f6d98a; outline-offset: 2px; }
 #panel #porteeBtn { flex: none; padding: 10px; }
+/* its traits, those that cross the chapter's obstacle in gold */
+#portee .traits { margin: 4px 0 0; display: flex; flex-wrap: wrap; gap: 4px; font-family: system-ui, sans-serif; font-size: 11px; align-self: end; }
+#portee .traits:not(:has(span)) { font-style: italic; color: rgba(244,239,226,0.55); }
+#portee .traits span { padding: 1px 7px; border-radius: 10px; border: 1px solid rgba(143,216,232,0.4); }
+#portee .traits span.key { border-color: rgba(246,217,138,0.85); color: #f6d98a; }
+/* the words of the chapter wait behind the brood */
+body:has(#portee.show) #chapter { opacity: 0; }
