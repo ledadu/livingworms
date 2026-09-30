@@ -2,6 +2,15 @@
 
 Le changelog de La Lignée, version après version. Généré depuis [`changes/`](changes/) par `make whats-new` : ne pas modifier à la main.
 
+## Version 0.5 (v0.5.0, 2026-09-30)
+
+### ✨ Nouveautés
+
+- **L'arbre de la lignée** : Tous tes ancêtres réunis sur un fil de lumière, de la toute première larve jusqu'à toi, et tu peux donner un nom à chacun 🐚 — [rapport](changes/v0.5.0/arbre-lignee/report.md)
+- **Les ancêtres restent dans le monde** : Chaque parent que tu quittes reste là où tu lui as dit adieu, et t'y attend, même le lendemain 🐚 — [rapport](changes/v0.5.0/ancetres-restent-monde/report.md)
+- **Les traces de la lignée** : Plus bas dans la descente, tu retrouves ce que tes ancêtres ont laissé : des œufs qui n'ont jamais éclos, une mue, un corps devenu récif 🐚 — [rapport](changes/v0.5.0/traces-lignee/report.md)
+- **Une cousine à la Carcasse** : Parmi les os de la baleine, une créature étrange t'attend. Elle vient de la même larve que toi, mais elle a fait d'autres choix 🐚 — [rapport](changes/v0.5.0/lignee-rivale-carcasse/report.md)
+
 ## Version 0.4 (v0.4.0, 2026-09-30)
 
 ### ✨ Nouveautés

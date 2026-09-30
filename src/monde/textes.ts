@@ -4,7 +4,7 @@
 // written there and nowhere in the code.
 
 /** which text of a chapter */
-export type TextKind = 'opening' | 'farewell' | 'final' | 'obstacle';
+export type TextKind = 'opening' | 'farewell' | 'final' | 'obstacle' | 'meeting';
 
 export interface ChapterTexts {
   /** the number of the chapter in the document (1 to 10) */
@@ -16,6 +16,8 @@ export interface ChapterTexts {
   final?: string[];
   /** the first time its obstacle bars the way */
   obstacle?: string[];
+  /** the first time we meet the cousin of the rival lineage (rivale.ts) */
+  meeting?: string[];
 }
 
 /** the label before a quote in the document, and the text it gives */
@@ -24,7 +26,8 @@ const LABELS: [RegExp, TextKind][] = [
   [/^le retournement\b/i, 'opening'],
   [/^adieu\b/i, 'farewell'],
   [/^texte final\b/i, 'final'],
-  [/^devant l['’]obstacle\b/i, 'obstacle']
+  [/^devant l['’]obstacle\b/i, 'obstacle'],
+  [/^la rencontre\b/i, 'meeting']
 ];
 
 /** at most this many lines on screen */
