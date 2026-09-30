@@ -210,15 +210,17 @@ export const BIOMES: Biome[] = [
     accents: [{ h: 205, s: 100, l: 60 }, { h: 190, s: 100, l: 55 }, { h: 240, s: 80, l: 65 }],
     blades: [{ h: 210, s: 40, l: 40 }, { h: 230, s: 50, l: 50 }],
     rays: 0, caustics: 0, plankton: { h: 200, s: 80, l: 80 },
-    dark: 0.93, snow: 1, encrust: 0, pale: true,
+    dark: 1, snow: 1, encrust: 0, pale: true,
     ground: { hills: 60, bumps: 30, dunes: 0 },
     rocks: { every: 200, r: [16, 40] },
     flora: { every: 64, kinds: [['crinoide', 2.5], ['eponge', 1.5], ['anemone', 1], ['seapen', 1]], front: [['crinoide', 0.6], ['anemone', 0.4]] },
     fauna: [['baudroie', 'swim', 2, 0.8], ['dragonAbyssal', 'swim', 1.5, 0.8], ['nautile', 'swim', 1.5, 0.8], ['grandGosier', 'swim', 1.5, 0.8],
-      ['meduseBoite', 'swim', 1, 0.8], ['calmar', 'swim', 1, 0.8], ['serpentCilie', 'swim', 1, 0.8], ['hydre', 'swim', 1, 0.8]],
+      ['meduseBoite', 'swim', 1, 0.8], ['calmar', 'swim', 1, 0.8], ['serpentCilie', 'swim', 1, 0.8], ['hydre', 'swim', 1, 0.8],
+      ['ctenophore', 'swim', 1.5, 0.8], ['siphonophore', 'swim', 1, 0.8]],
     pop: 20,
     schools: [{ body: { h: 230, s: 20, l: 28 }, belly: { h: 210, s: 30, l: 50 }, n: 24, size: 1, glow: true }],
-    visitors: [['dragonAbyssal', 2900, 1300, 3], ['calmar', 2700, 1500, 3.5]]
+    // huge shapes in the total dark (fosse-draw)
+    visitors: [['dragonAbyssal', 2900, 1500, 7], ['calmar', 2650, 2400, 9]]
   },
   {
     // the bottom, where the ascent starts: the light comes back from far above
