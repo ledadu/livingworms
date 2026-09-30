@@ -75,6 +75,7 @@ Ouverture :
 - **Partenaires** : anguille (corps fin), serpent cilié, et un cténophore égaré, qui apporte la lumière (`anguille`, `serpentCilie`, `ctenophore`).
 - **Moment fort** : tout le banc de poissons qui te suivait fait demi-tour à l'entrée ; tu entres seul, et ta propre nage se met à résonner.
 - **Note** : « l'écho ».
+- **Dans le jeu** (`src/monde/grotte.ts`, dessin dans `grotte-draw.ts`) : une voûte ocre s'ouvre en arche dans la falaise et se referme sur le sol au fond. Des stalactites y pendent, des stalagmites poussent du sol, des piliers se dressent hors du plan de nage, et le jour tombe en rais par des puits. Aux deux tiers de la grotte, la lumière renonce : le noir se referme autour de nous, et seules brillent de petites vies accrochées à la roche. Les bancs de poissons font demi-tour à l'entrée, le kelp ne pousse pas sous la voûte, et rien ne passe à travers la voûte. La grotte suit le chapitre `grotte` de la carte ; tant que la carte n'en a pas, elle occupe la fin de la Forêt de kelp.
 
 Ouverture :
 
