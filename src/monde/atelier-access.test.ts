@@ -11,7 +11,8 @@ describe('the Atelier outside the story', () => {
     expect(atelierAvailable('', false)).toBe(false);
     expect(atelierAvailable('?bench', false)).toBe(false);
   });
-  it('opens with ?atelier, for development', () => {
+  it('opens with ?atelier or ?dev, for development', () => {
+    expect(atelierAvailable('?dev', false)).toBe(true);
     expect(atelierAvailable('?atelier', false)).toBe(true);
     expect(atelierAvailable('?lod=0&atelier=1', false)).toBe(true);
   });

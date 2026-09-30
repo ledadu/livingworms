@@ -1,5 +1,5 @@
 // The Atelier is outside the story: heredity is the only way to change while playing. Its button (✎) comes back in
-// the « Balade libre », unlocked after the end; `?atelier` in the address shows it anyway, for development.
+// the « Balade libre », unlocked after the end; `?atelier` or `?dev` in the address shows it anyway, for development.
 
 export const BALADE_KEY = 'lignee.balade';
 
@@ -19,7 +19,8 @@ export function unlockBalade(storage: Store | null = store()): void {
 }
 
 export function atelierAvailable(search: string, unlocked: boolean): boolean {
-  return unlocked || new URLSearchParams(search).has('atelier');
+  const params = new URLSearchParams(search);
+  return unlocked || params.has('atelier') || params.has('dev');
 }
 
 // Shows or hides the button; returns whether it is shown.

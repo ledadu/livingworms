@@ -98,7 +98,7 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
 - **Chanter** : un bouton en bas, qui ouvre le cercle de notes.
 - **Écran de la lignée** : l'arbre, accessible à tout moment.
 - **Interface minimale** : pas de chiffres. Le texte narratif est la seule vraie interface.
-- **L'Atelier** n'est pas dans l'histoire : il est débloqué après la fin, dans la « Balade libre » (décision validée). Son bouton ✎ est caché pendant l'histoire ; il revient quand `lignee.balade` vaut `1` dans le stockage du navigateur (`unlockBalade()`, `src/monde/atelier-access.ts`, à appeler à la fin de l'histoire). Pour le développement, `?atelier` dans l'adresse le montre toujours ; `monde.unlockBalade()` débloque la Balade dans la console.
+- **L'Atelier** n'est pas dans l'histoire : il est débloqué après la fin, dans la « Balade libre » (décision validée). Son bouton ✎ est caché pendant l'histoire ; il revient quand `lignee.balade` vaut `1` dans le stockage du navigateur (`unlockBalade()`, `src/monde/atelier-access.ts`, à appeler à la fin de l'histoire). Pour le développement, `?atelier` ou `?dev` (qui montre aussi le voyage du panneau ⚙) dans l'adresse le montre toujours ; `monde.unlockBalade()` débloque la Balade dans la console.
 
 ## Durée et sauvegarde
 
