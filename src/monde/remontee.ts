@@ -5,7 +5,7 @@
 // Pure: the well, the way up, the formation, the light and the moments of the scene; the game is remontee-jeu.ts.
 
 import { clamp, lerp, lerpHue } from '../engine';
-import { BIOMES, X1, presence, span, type ChapterId } from './biomes';
+import { BIOMES, X1, presence, span } from './biomes';
 import type { HSL, Mood } from './palette';
 
 export interface Pt { x: number; y: number }
@@ -50,14 +50,6 @@ export const T = {
 
 /** the notes of the song, one per chapter of the descent (the Remontée has none) */
 export const NOTES = BIOMES.length - 1;
-
-/** the colour of each chapter's note, taken from its palette (docs/direction-artistique.md) */
-export const NOTE_COLOUR: Record<ChapterId, HSL> = {
-  nurserie: { h: 50, s: 95, l: 72 }, recif: { h: 8, s: 88, l: 68 }, foret: { h: 112, s: 60, l: 58 },
-  grotte: { h: 32, s: 85, l: 58 }, carcasse: { h: 44, s: 30, l: 90 }, sources: { h: 20, s: 100, l: 58 },
-  glacier: { h: 190, s: 75, l: 82 }, jardin: { h: 312, s: 75, l: 74 }, fosse: { h: 210, s: 100, l: 64 },
-  remontee: { h: 46, s: 90, l: 88 }
-};
 
 /**
  * When each ancestor comes (s from the start of the scene), the oldest first: with the note of the chapter where it

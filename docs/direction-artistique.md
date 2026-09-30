@@ -18,6 +18,7 @@ Le Grand Monde (`src/monde/`) a déjà :
 - un fond, des rochers, des plantes simulées de près et figées en images au loin, des décors (épave, cheminées) ;
 - des rayons, des caustiques, la surface vue de dessous, le plancton et la neige marine ;
 - des bancs de poissons qui s'écartent du nageur, et de grands visiteurs lointains (tortue, raie manta, requin-baleine, calmar, dragon abyssal) ;
+- des animaux qui se retournent en vrai volume, tantôt par le dos (la tête part vers le fond), tantôt de face (elle vient vers nous) : le sens de chaque demi-tour est tiré au sort, pour le nageur comme pour les autres, qu'ils nagent, filent par jets ou marchent (`turnYaw` dans `src/engine3/creature3.ts`) ;
 - les 10 chapitres dans l'ordre de la trame, chacun avec sa palette (tableau ci-dessous) : voir [chapitres.md](chapitres.md#dans-le-monde) ;
 - un rendu WebGL2 avec niveaux de détail et budget par image, et le canvas en repli.
 
@@ -80,6 +81,7 @@ Les chapitres profonds (Sources, Remontée) assombrissent l'écran sans jamais l
 - **Ce qui brille** reste visible au loin, par-dessus le noir : animaux lumineux, poissons-lanternes.
 - **La neige marine** ne se voit que dans la lumière, blanche, plus forte près du nageur.
 - **Les grandes silhouettes** (un dragon abyssal ×7 et un calmar géant ×9, les visiteurs du chapitre) passent au loin : des corps noirs devant une faible lueur bleu électrique, avec leurs propres photophores.
+- **Les lumières qui répondent au chant** (`lumieres-jeu.ts`) : chacune a la couleur de sa lignée, jamais l'or des partenaires. Elle répond par trois éclats au loin, au bord de l'écran, puis vient nager autour de nous. Son corps, teinté de sa couleur, est dessiné par-dessus le noir, comme s'il s'éclairait lui-même.
 - Le passage du Jardin de méduses à la Fosse, puis de la Fosse à la Remontée, se fait en fondu sur les frontières.
 
 ## La Remontée : tout s'éclaire
@@ -98,5 +100,7 @@ Tout est généré dans le code, sans fichier audio (Web Audio API, voir [decisi
 
 - **Une ambiance musicale par chapitre** : nappes et harmoniques qui changent avec la profondeur.
 - **Le chant** : chaque note a son timbre ; joué en entier, il forme une mélodie.
+  - Dans le jeu (`src/monde/chant-son.ts`) : des oscillateurs et leurs harmoniques, sur une réverbération faite dans le code. L'éclat est une cloche claire, le battement bat comme des nageoires, le frôlement souffle, l'écho revient des parois, le souvenir est chaud et doublé, la braise grésille, le givre scintille comme du verre, la pulsation enfle et ondule, le silence est un souffle grave. Les notes descendent avec les chapitres (la gamme pentatonique de ré), et les animaux qui répondent reprennent la note une octave plus haut.
+  - Le navigateur ne laisse sonner une page qu'après un premier toucher ou une touche : avant, les notes sont muettes.
 - **Les bruits** : des bulles, le courant, des cris lointains de baleine.
 - Proposition pour les nouveaux chapitres : la Grotte résonne (réverbération longue, gouttes), le Glacier craque et tinte (glace qui se fend, cristaux).

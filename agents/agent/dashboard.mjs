@@ -16,6 +16,7 @@ import { branchesRoutes } from './branches-routes.mjs';
 import { isReleaseServer } from './release-servers.mjs';
 import { mergeOrder, orderTask, runState, sessionTranscript } from './launch.mjs';
 import { cleanAgents, orphanBranches } from './clean.mjs';
+import { clearTrain, readTrain, startTrain, stepTrain, stopTrain } from './merge-train.mjs';
 import { parseGoal } from './goal.mjs';
 import { syncBacklog } from './backlog.mjs';
 import { UNRELEASED } from '../release/changes.mjs';
@@ -218,7 +219,7 @@ async function snapshot() {
   const envs = files.map((file) => readEnv(join(registry, file)));
   const agents = await Promise.all(envs.filter((env) => !isReleaseServer(env)).map(agentState));
   agents.sort((a, b) => Number(a.AGENT_SLOT) - Number(b.AGENT_SLOT));
-  return { now: Date.now(), main: mainRoot, agents, releaseServers: envs.filter(isReleaseServer).length };
+  return { now: Date.now(), main: mainRoot, agents, releaseServers: envs.filter(isReleaseServer).length, mergeTrain: readTrain(registry) };
 }
 
 // Every commit of every agent since its base, newest first, with its message body and the files it touched.
@@ -438,6 +439,8 @@ function baseBranchOf(name) {
 // « ✓ Accepter » : the agent's branch merged (--no-ff) into its base branch in the main checkout, which must be on
 // that branch; then the task is archived, so that its entry shows under « À publier », its queue entry done and its
 // backlog line merged. A conflict aborts the merge and names the files; the main checkout is never left mid-merge.
+// `blocked`: the main checkout itself stops the merge (another branch, changes in its index, local changes the merge
+// would overwrite), whatever the agent; the merge train waits for it to be fixed instead of failing every task.
 async function acceptAgent(name) {
   const envFile = join(registry, `${name}.env`);
   if (!existsSync(envFile)) return { ok: false, error: `agent inconnu ${name}` };
@@ -446,7 +449,10 @@ async function acceptAgent(name) {
   if (existsSync(env.AGENT_DIR) && (await git(env.AGENT_DIR, 'status', '--porcelain'))) return { ok: false, error: 'fichiers non commités dans son worktree : l’agent n’a pas fini' };
   const base = baseBranchOf(name);
   const current = await git(mainRoot, 'symbolic-ref', '--short', 'HEAD');
-  if (current !== base) return { ok: false, error: `le dépôt principal est sur ${current || 'un commit détaché'}, pas sur ${base} : passe-le sur ${base} pour accepter` };
+  if (current !== base) return { ok: false, blocked: true, error: `le dépôt principal est sur ${current || 'un commit détaché'}, pas sur ${base} : passe-le sur ${base} pour accepter` };
+  // git merge refuses to run over anything in the index (git add, git rm): say so before trying.
+  const staged = await git(mainRoot, 'diff', '--cached', '--name-only');
+  if (staged) return { ok: false, blocked: true, error: `des changements sont indexés dans le dépôt principal (${staged.split('\n').slice(0, 5).join(', ')}${staged.split('\n').length > 5 ? '…' : ''}) : git merge refuse de fusionner par-dessus. Commite-les ou retire-les de l’index (git restore --staged <fichiers>), puis accepte à nouveau.` };
   const branch = env.AGENT_BRANCH || `${project.branches.agent}${name}`;
   const merged = await run('git', ['-C', mainRoot, 'merge-base', '--is-ancestor', branch, base]).then(() => true, () => false);
   let message = `Déjà fusionnée dans ${base}.`;
@@ -457,9 +463,10 @@ async function acceptAgent(name) {
     } catch (error) {
       const conflicts = await git(mainRoot, 'diff', '--name-only', '--diff-filter=U');
       if (conflicts) await run('git', ['-C', mainRoot, 'merge', '--abort']).catch(() => {});
-      const detail = conflicts ? `conflit, fusion annulée : ${conflicts.split('\n').join(', ')}. Donne-lui l’ordre de fusionner ${base} et de régler le conflit.`
-        : String(error.stderr || error.message).trim().split('\n').slice(0, 3).join(' ');
       if (conflicts) return { ok: false, conflict: true, error: `conflit, fusion annulée : ${conflicts.split('\n').join(', ')}. Clique « 🔀 Corriger les conflits » : l’agent fusionne ${base} et les règle, puis accepte à nouveau.` };
+      const detail = String(error.stderr || error.message).trim().split('\n').slice(0, 3).join(' ');
+      // Local changes of the main checkout that the merge would overwrite: nothing the agent can fix.
+      if (/would be overwritten|serait écrasé|seraient écrasés/.test(detail)) return { ok: false, blocked: true, error: `le dépôt principal a des changements locaux que la fusion écraserait : ${detail}. Commite-les ou mets-les de côté (git stash), puis accepte à nouveau.` };
       return { ok: false, error: detail };
     }
   }
@@ -497,6 +504,25 @@ ${goal?.text ?? ''}`;
     return { ok: false, error: error.message };
   }
 }
+
+// « 🔀 Corriger les conflits » : the agent merges its base and settles the conflicts itself (a new order).
+function fixConflicts(name) {
+  const base = baseBranchOf(name);
+  const result = orderAgent(name, mergeOrder(base));
+  return result.ok ? { ...result, message: `${name} fusionne ${base} et règle les conflits.` } : result;
+}
+
+// « ✓ Accepter la sélection » (merge-train.mjs): one step every few seconds, never two at once; an accept can take a
+// while (the merge, then agent.sh down).
+let trainStep = null;
+setInterval(() => {
+  if (trainStep) return;
+  const train = readTrain(registry);
+  if (!train || train.finishedAt) return;
+  trainStep = stepTrain(registry, { accept: acceptAgent, fix: async (name) => fixConflicts(name), runState: (name) => runState(runsRegistry, name) })
+    .catch((error) => console.error(`merge train: ${error.message}`))
+    .finally(() => (trainStep = null));
+}, 3000).unref();
 
 async function rebaseAgent(name, base = MAIN, archive = false) {
   const envFile = join(registry, `${name}.env`);
@@ -622,12 +648,33 @@ async function handle(request, response) {
     latest = await snapshot();
     return json(result);
   }
-  // « 🔀 Corriger les conflits » : the agent merges its base and settles the conflicts itself (a new order).
   const fix = /^\/api\/fix-conflicts\/([a-z0-9-]+)$/.exec(path);
   if (fix && request.method === 'POST') {
-    const result = orderAgent(fix[1], mergeOrder(baseBranchOf(fix[1])));
+    const result = fixConflicts(fix[1]);
     latest = await snapshot();
-    return json(result.ok ? { ...result, message: `${fix[1]} fusionne ${baseBranchOf(fix[1])} et règle les conflits.` } : result);
+    return json(result);
+  }
+  // « ✓ Accepter la sélection » : { names } accepted one after the other (merge-train.mjs); stop, or clear once over.
+  const train = /^\/api\/merge-train(?:\/(stop|clear))?$/.exec(path);
+  if (train && request.method === 'POST') {
+    let result;
+    try {
+      if (train[1] === 'stop') result = { ok: true, train: stopTrain(registry), message: 'File de fusion arrêtée.' };
+      else if (train[1] === 'clear') result = clearTrain(registry);
+      else {
+        let body = '';
+        for await (const chunk of request) body += chunk;
+        const names = JSON.parse(body || '{}').names;
+        if (!Array.isArray(names)) throw new Error('liste d’agents attendue');
+        for (const name of names) if (!existsSync(join(registry, `${name}.env`))) throw new Error(`agent inconnu ${name}`);
+        const started = startTrain(registry, names);
+        result = { ok: true, train: started, message: `File de fusion : ${started.items.filter((item) => item.state === 'waiting').length} agent(s) à accepter l’un après l’autre.` };
+      }
+    } catch (error) {
+      result = { ok: false, error: error.message };
+    }
+    latest = await snapshot();
+    return json(result);
   }
   const order = /^\/api\/order\/([a-z0-9-]+)$/.exec(path);
   if (order && request.method === 'POST') {

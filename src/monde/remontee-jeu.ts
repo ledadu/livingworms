@@ -17,10 +17,11 @@ import { stayGoal } from './adieu';
 import type { Narrator } from './narration';
 import type { GlacierScene } from './glacier';
 import {
-  END, NOTES, NOTE_COLOUR, T, WELL_REACH, WELL_X, AscentPath, ascentPath, callTimes, carrySpeed, crown, gapFor, litAt, litMood,
+  END, NOTES, T, WELL_REACH, WELL_X, AscentPath, ascentPath, callTimes, carrySpeed, crown, gapFor, litAt, litMood,
   reached, slot, wellLight, type Pt
 } from './remontee';
 import { remonteeItems } from './remontee-draw';
+import { noteOf } from './chant';
 import './remontee.css';
 
 /** an animal of main.ts, as much as the scene needs */
@@ -48,6 +49,8 @@ type Phase = 'idle' | 'well' | 'rise' | 'surface' | 'after';
 const REM = chapterIndex('remontee');
 const at = (cr: Creature3): Pt => ({ x: cr.root.x[0], y: cr.root.y[0] });
 const UP: Pt = { x: 0, y: -1 };
+/** the colour of a chapter's note (chant.ts); the Remontée, which has none, is golden */
+const hueOf = (c: string) => noteOf(c)?.hue ?? 46;
 /** how fast a body swims by itself while the current carries it (px per step) */
 const SWIM = 1.3;
 /** a ring of light going out: where, when, of which hue, how wide it goes (world px) and for how long */
@@ -120,7 +123,7 @@ export function initRemontee(w: RemonteeWorld) {
   function sing(s: number, lead: Pt): void {
     while (sung < NOTES && s >= T.song + sung * T.note) {
       const id = BIOMES[sung].id;
-      ring(lead.x, lead.y, NOTE_COLOUR[id].h);
+      ring(lead.x, lead.y, hueOf(id));
       for (const f of notes) f(sung, id);
       // the song calls the parents left behind: they come with the others
       if (sung === 0) for (let i = w.actors.length - 1; i >= 0; i--) if (w.actors[i].kind === 'parent') w.actors.splice(i, 1);
@@ -142,7 +145,7 @@ export function initRemontee(w: RemonteeWorld) {
         litOn[i] = 1;
         w.narrator.chapter(i);
         const c = at(w.swimmer());
-        ring(c.x, c.y, NOTE_COLOUR[BIOMES[i].id].h, 1100, 3.4);
+        ring(c.x, c.y, hueOf(BIOMES[i].id), 1100, 3.4);
       }
       if (litOn[i]) lit[i] = Math.min(1, lit[i] + STEP / 2.5);
     }

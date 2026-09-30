@@ -16,7 +16,7 @@ VERSION ?=
 
 .PHONY: changes-new changes-check whats-new release release-branches release-patch \
 	agent-help agent-new agent-list agent-env agent-up agent-down agent-restart agent-logs agent-logs-client agent-url \
-	agent-check agent-test agent-sync agent-shot agent-chrome agent-rm agent-dashboard agent-dashboard-token agent-mirror agent-mirror-act agent-ask agent-queue agent-queue-wait \
+	agent-check agent-test agent-sync agent-shot agent-chrome agent-rm agent-dashboard agent-dashboard-token agent-ask agent-queue agent-queue-wait \
 	agent-clean backlog backlog-link up down restart logs url shot
 
 # --- Changes, « what's new » and versions ($(AGENTS_DIR)/docs/changes.md) ------------------------------------------------
@@ -93,13 +93,6 @@ agent-dashboard: ## Live view of every agent worktree on http://localhost:7800 (
 
 agent-dashboard-token: ## The dashboard's token, for a visit from another machine: <address>/?token=<it> once (a cookie keeps it)
 	@node $(AGENTS_DIR)/agent/access.mjs
-
-agent-mirror: ## Snapshot of the dashboard for its mirror on claude.ai (agent/mirror.html): .git/agents/mirror.json, that Claude sends to the page (PORT=... of the dashboard)
-	@node $(AGENTS_DIR)/agent/mirror.mjs --port $(or $(PORT),7800)
-
-agent-mirror-act: ## Runs an action of the mirror page (FILE=the comment sent to Claude, saved), then takes a new snapshot (PORT=... of the dashboard)
-	@test -n "$(FILE)" || { echo "FILE=... required"; exit 2; }
-	@node $(AGENTS_DIR)/agent/mirror-act.mjs --port $(or $(PORT),7800) --file $(FILE)
 
 agent-ask: ## An agent asks the user through the dashboard: make agent-ask ARGS='choice --title "…" --option "*A" --option B' (ARGS=--help)
 	@node $(AGENTS_DIR)/agent/ask.mjs $(or $(ARGS),--help)

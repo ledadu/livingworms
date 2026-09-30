@@ -16,6 +16,8 @@ Les profondeurs sont indicatives : le monde est une descente continue, pas une c
 - Deux à quatre lignes au maximum.
 - La voix est celle de la lignée, un « nous », comme si les ancêtres parlaient.
 - **Dans le jeu** (`src/monde/textes.ts`, affichage dans `narration.ts`) : les textes sont lus dans ce document même, au build. Sous le titre `## N. Nom` d'un chapitre, la citation (`> …`) qui suit une ligne « Ouverture : », « Adieu … : », « Le retournement : » (l'ouverture de la Remontée) ou « Texte final : » ou « Devant l'obstacle : » (dit la première fois que l'obstacle du chapitre nous retient) devient ce texte ; pour en changer un, il suffit de l'écrire ici. Une phrase par ligne ; une phrase seule et longue se coupe à la virgule la plus proche de son milieu ; quatre lignes au plus. L'ouverture s'écrit la première fois qu'on entre dans le chapitre, ligne après ligne, sous son nom en petites capitales, puis s'efface ; en y revenant, seul le nom passe. Elle attend qu'aucun panneau (Nouveautés, Atelier) ne couvre la mer. L'adieu se dit pendant la scène de l'adieu au parent ([mécaniques](mecaniques.md#ladieu)) ; tant qu'il est à l'écran, une ouverture attend qu'il s'efface et rien d'autre ne se dit.
+- « La rencontre : » donne le texte dit la première fois qu'on croise la cousine de la lignée rivale, à la Carcasse (voir le chapitre 5).
+- La ligne « Note : « … » » de chaque chapitre donne son nom à la note du chant qu'on y apprend (`chant.ts`, voir [mécaniques](mecaniques.md#le-chant)).
 
 ## Vue d'ensemble
 
@@ -121,10 +123,19 @@ Adieu (proposition) :
 - **Note** : « le souvenir ».
 - **Dans le monde** (`src/monde/carcasse.ts`) : le squelette couché sur le fond, tête à gauche, sur 1 200 px environ. Crâne, deux mâchoires, colonne en quatre tronçons qui suivent le sable, treize paires de côtes (debout, brisées ou tombées), nageoires ; tapis blancs et jaunes de bactéries, duvet rouge des vers mangeurs d'os. Un rai de lumière pâle tombe sur les côtes, les os luisent un peu dans le noir. Crabes, vers plumeaux, ophiures, crevettes, homard, anguilles et un banc de poissons argentés y vivent. Les os sont derrière le plan de nage : on nage devant et entre eux.
 - **Les fresques naturelles** : trois, des coquilles posées en motif sur les os plats, listées dans `CARCASSE.fresques` (`id`, `motif`, position) pour servir de traces à l'étape 4 : une **spirale** sur l'omoplate (debout derrière les côtes), des **anneaux** sur le crâne, des **rayons** sur une vertèbre de la queue roulée à l'écart. Des tas de coquilles sont semés autour.
+- **La lignée rivale** (`src/monde/rivale.ts`, dans le monde par `rivale-jeu.ts`) : une autre lignée est partie de la même larve que nous, mais a fait d'autres rencontres. Dans chaque chapitre avant la Carcasse, elle a choisi un partenaire (`PARTNERS`) qui franchit l'obstacle avec le trait que notre corps n'a pas : si nous avons des nageoires, elle a battu comme la méduse-boîte ; si nous avons des pinces, elle s'est faite fine comme le dragon feuillu ; à la Nurserie, un partenaire presque au hasard. Elle ne prend jamais le partenaire que notre lignée a eu dans ce chapitre (la sauvegarde le garde depuis l'arbre de la lignée, `ourPartners`), sauf s'il est le seul à franchir l'obstacle. Ses portées sont faites par `brood`, comme les nôtres, et elle a gardé chaque fois l'enfant qui franchit l'obstacle, le plus loin de son parent : une créature étrange, de notre génération, dont le nom commence comme le nôtre.
+  - Elle est faite la première fois qu'on entre dans la Carcasse, à partir de la créature de notre lignée qui y est arrivée (celle qui y a donné naissance ou plus bas, sinon celle qu'on joue) et de nos partenaires : c'est la même cousine à chaque visite, sans rien de plus dans la sauvegarde, même quand l'arbre de la lignée renomme notre créature (`cousinSeed` ne lit pas son nom).
+  - Seule, elle va et vient le long du squelette. Quand on approche (560 px), une lueur de sa couleur s'allume, jamais l'or des partenaires ; elle se tourne vers nous et vient nager à côté, un peu au-dessus. Elle nous suit autour des os, sans jamais nous toucher, et y retourne quand on s'en éloigne (760 px). Ce n'est pas une partenaire : elle ne danse pas.
+  - La première fois qu'on la croise (320 px), le texte de « La rencontre » (ci-dessous) se dit, dès qu'aucun autre texte n'est à l'écran.
+  - Pour les tests : `monde.rivale` (`rival` : sa définition et les partenaires qu'elle a choisis ; `cr`, `met`, `make()`).
 
 Ouverture :
 
 > Même finie, elle nourrit. Nous avons compris ce jour-là que rien ne s'arrête vraiment.
+
+La rencontre (la première fois qu'on croise la cousine de la lignée rivale) :
+
+> D'autres étaient partis de la même lumière que nous. Ils avaient fait d'autres rencontres, pris d'autres corps. Nous nous sommes reconnus quand même.
 
 Adieu (proposition) :
 
@@ -198,6 +209,23 @@ Adieu (proposition) :
 - **Partenaires** : baudroie, dragon abyssal, nautile (`baudroie`, `dragonAbyssal`, `nautile`).
 - **Moment fort** : tu joues les notes déjà apprises et, une à une, des lumières répondent dans le noir, celles des ancêtres des autres lignées.
 - **Note** : « le silence ».
+- **Les lumières qui répondent** (`src/monde/lumieres.ts`, pures et testées ; dans le jeu `lumieres-jeu.ts`, dessin `lumieres-draw.ts`) :
+  - Dans la Fosse, chaque note apprise qu'on chante fait répondre une lumière, une à une : après un silence (1,1 s), et jamais moins de 1,8 s après la précédente, même si l'on chante vite. On chante avec le bouton du chant et son cercle de notes ([mécaniques](mecaniques.md#le-chant)) ; chaque note, au moment où le nageur la chante (`chant.onNote`), est entendue ici. Les notes apprises sont celles du chant (`chant.learned`).
+  - Chaque lumière est **l'ancêtre d'une autre lignée**, celui qui a appris cette note. Cette lignée part d'une première larve d'une autre couleur que la nôtre. Dans chaque chapitre, elle a choisi un partenaire qui franchit l'obstacle et gardé un enfant qui le franchit, jusqu'au chapitre de la note.
+    - Chaque note a sa lignée, la même d'une visite à l'autre tant que notre lignée ne change pas.
+    - La note de la Carcasse fait exception : si on l'a croisée, c'est la cousine de la lignée rivale qui répond (voir le chapitre 5).
+    - Ces lignées se font en approchant de la Fosse, une naissance par pas de simulation, pour ne jamais faire attendre une image.
+  - La lumière répond de loin, au bord de ce qu'on voit : 520 px au plus, moins sur les côtés d'un téléphone tenu droit. Elle vient d'au-dessus ou des côtés, jamais d'en dessous.
+    - D'abord trois éclats de sa couleur ; puis elle vient, sans se presser, nager à sa place autour de nous (de 170 à 226 px, en trois rangs), et nous suit dans la Fosse.
+    - Son corps se voit par sa propre lumière, teinté de sa couleur, par-dessus le noir.
+  - Rechanter une note qui a déjà répondu fait briller sa lumière de nouveau.
+  - Chaque lumière arrivée près de nous ajoute à notre lumière : ensemble, elles éclairent autour de nous plus qu'une lanterne.
+  - Quand chaque note apprise a eu sa lumière et que toutes sont arrivées, **le chant a franchi le noir** :
+    - l'obstacle de la Fosse s'ouvre (le noir ne se referme plus devant sa borne) ;
+    - toutes les lumières brillent ensemble, en vague ;
+    - la lignée dit « Les lumières qui répondent » (ci-dessous).
+    - Le fond de la Fosse s'ouvre alors sur la Remontée et son puits de lumière ; les lumières qui ont répondu y viennent avec nous, et le courant de la remontée les emporte avec la lignée (chapitre 10).
+  - Pour les tests : `monde.chant.sing(monde.chant.learned)` chante toutes les notes apprises (une toutes les 0,5 s) ; `monde.lumieres.hear('recif')` fait entendre une note sans la chanter. `monde.lumieres.answers` et `done` disent où on en est, `onDone(f)` est appelé quand le chant a franchi le noir, et `monde.skip.add('answer')` cache les lumières.
 
 Ouverture :
 
@@ -206,6 +234,10 @@ Ouverture :
 Devant l'obstacle :
 
 > Le noir, et rien pour lui répondre. Il nous faudrait une lumière à nous, ou un chant.
+
+Les lumières qui répondent (quand chaque note apprise a eu sa réponse, *proposition*) :
+
+> Nous avons chanté ce que chacun de nous avait appris. Dans le noir, d'autres lignées ont répondu. Le silence n'était pas vide.
 
 Adieu (proposition) :
 
@@ -237,6 +269,22 @@ Texte final :
 > Nous sommes remontés. Pas un seul d'entre nous n'avait fait tout le chemin. Et pourtant, nous l'avions fait ensemble.
 
 **Générique** : l'arbre complet de ta lignée, génération par génération.
+
+## Les traces de la lignée
+
+Plus bas dans la descente, ce que les générations passées ont laissé ([mécaniques](mecaniques.md#les-ancêtres)). La première fois qu'on s'en approche, la lignée dit l'un de ces textes, sous le nom de l'ancêtre (*propositions*) :
+
+Les œufs non éclos :
+
+> Des œufs, les tiens, que le courant a portés jusqu'ici. Ils n'ont jamais éclos. Nous vivons aussi pour eux.
+
+La mue :
+
+> Ta forme exacte, vide et claire. Tu l'avais quittée pour grandir. Nous aussi, nous laissons derrière nous ce qui nous serre.
+
+La carcasse devenue récif :
+
+> Ton corps est descendu jusqu'ici, et la vie s'y est posée. Toi qui n'avais pas de maison, tu en es une. Rien de nous ne se perd.
 
 ## Dans le monde
 
@@ -277,7 +325,7 @@ Chaque obstacle barre la descente tant que le corps qu'on joue n'a pas l'un des 
 
 - **Avec le trait**, l'obstacle se sent encore un peu (le courant tire, l'eau épaisse freine) mais on passe ; le noir ne se referme plus.
 - **La première fois qu'un obstacle retient** (à mi-chemin de son approche), la lignée dit ce qu'il aurait fallu : la citation « Devant l'obstacle : » du chapitre, dans ce document.
-- **La Fosse** garde son fond : une lanterne le franchit, et derrière s'ouvre la Remontée. Le chant (étape 5) n'est pas un trait du corps : il ouvrira aussi ce passage.
+- **La Fosse** garde son fond : une lanterne le franchit, et derrière s'ouvre la Remontée. Le chant n'est pas un trait du corps : il ouvre aussi l'obstacle de la Fosse quand chaque note apprise a eu sa lumière (voir « Les lumières qui répondent », chapitre 9).
 - **Les traits du corps** sont lus sur l'arbre de parties (`traitsOf`). En attendant la fonction des traits de l'étape 3, `obstacles-traits.ts` en donne une version approchée, avec les mêmes noms. La larve de départ n'a aucun trait : sans naissance, elle s'arrête au courant du Récif.
 - **Pour les tests** : `monde.keys.traits` (les traits du corps joué), `monde.keys.force = ['nageoires']` (jouer comme si on les avait, `null` pour revenir), `monde.becomes(…)`.
 
