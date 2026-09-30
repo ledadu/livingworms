@@ -151,11 +151,10 @@ export function initParade(deps: Deps) {
     /** the lights of the parade, into the lights of the world (x, y on screen, size, hue, alpha) */
     lights(view: View, out: number[], P: Proj): void {
       // clear bright water swallows an added light: they shine a little more there
-      const k = 1 + 0.7 * env.water;
       motes.each((x, y, size, hue, al) => {
         view.project(x, y, 0, P);
-        out.push(P.x, P.y, size * P.s, hue, al * k);
-      });
+        out.push(P.x, P.y, size * P.s, hue, al);
+      }, 1 + 0.5 * env.water);
     }
   };
   return game;

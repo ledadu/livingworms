@@ -170,8 +170,11 @@ export class Motes {
     }
   }
 
-  /** each light as it shows now: x, y (world), size, hue, alpha; where many gather, they share their strength */
-  each(fn: (x: number, y: number, size: number, hue: number, alpha: number) => void): void {
+  /**
+   * Each light as it shows now: x, y (world), size, hue, alpha. `gain` makes them stronger (in clear water, where an
+   * added light shows less), never beyond PEAK_MAX; where many gather, they share their strength.
+   */
+  each(fn: (x: number, y: number, size: number, hue: number, alpha: number) => void, gain = 1): void {
     const d = this.d, sums = this.sums, raw = this.raw;
     sums.clear(); raw.length = 0;
     for (let i = 0; i < d.length; i += F) {
@@ -179,8 +182,9 @@ export class Motes {
       if (age < 0) { raw.push(0, 0, 0, 0); continue; }
       const k = age / d[i + 10], tw = d[i + 15];
       const x = d[i] + d[i + 4] * Math.cos(d[i + 6]), y = d[i + 1] + d[i + 4] * Math.sin(d[i + 6]) * d[i + 8];
-      let al = d[i + 18] * Math.min(1, age * 8) * (1 - k);
+      let al = d[i + 18] * gain * Math.min(1, age * 8) * (1 - k);
       if (tw) al *= 0.55 + 0.45 * Math.sin(Math.PI * 2 * tw * age + d[i + 16]);
+      al = Math.min(PEAK_MAX, al);
       const key = cellKey(x, y);
       raw.push(x, y, al, key);
       sums.set(key, (sums.get(key) || 0) + al);
@@ -218,7 +222,7 @@ export function wake(m: Motes, l: Lueur, tick: number, them: Pt, us: Pt, sync: n
     const k = ours ? sync : 1, off = ours ? 1 : 0;
     switch (l.wake) {
       case 'poussiere':
-        if (at(3, off, false)) m.add({ x: p.x + around(rnd, 4), y: p.y + around(rnd, 4), vy: -0.05, life: 1.4 * k + 0.2, hue, size: (4 + 3 * sync) * z, peak: 0.57 });
+        if (at(3, off, false)) m.add({ x: p.x + around(rnd, 4), y: p.y + around(rnd, 4), vy: -0.05, life: 1.4 * k + 0.2, hue, size: (3.5 + 2.5 * sync) * z, peak: 0.57 });
         break;
       case 'bulles':
         if (at(5, off, ours)) m.add({ x: p.x + around(rnd, 5), y: p.y + around(rnd, 5), vy: -0.2, lift: -0.012, drag: 0.985, r: 2 + 2 * rnd(), a: rnd() * TAU, turn: 0.14, life: 1.9 * k + 0.3, hue, size: (3 + 2 * rnd()) * z, grow: 1.1, peak: 0.61 });
@@ -304,7 +308,7 @@ function figure(m: Motes, l: Lueur, f: Burst, c: Pt, rich: number, wide: number,
       const count = n(24);
       for (let i = 0; i < count; i++) {
         const u = rnd() * TAU, r = (20 + 110 * Math.sqrt(rnd())) * wide;
-        m.add({ x: c.x + Math.cos(u) * r, y: c.y + Math.sin(u) * r * 0.8, vx: around(rnd, 0.1), vy: around(rnd, 0.1), lift: -0.002, delay: wait + rnd() * 1.1, life: 1.4 + rnd(), hue: hueAt(l, i), size: (4 + 2 * rnd()) * z, twinkle: 1.5 + 1.5 * rnd(), phase: rnd() * TAU, grow: 0.8, peak: 0.7 });
+        m.add({ x: c.x + Math.cos(u) * r, y: c.y + Math.sin(u) * r * 0.8, vx: around(rnd, 0.1), vy: around(rnd, 0.1), lift: -0.002, delay: wait + rnd() * 1.1, life: 1.4 + rnd(), hue: hueAt(l, i), size: (3 + 2 * rnd()) * z, twinkle: 1.5 + 1.5 * rnd(), phase: rnd() * TAU, grow: 0.8, peak: 0.65 });
       }
       break;
     }

@@ -7,14 +7,14 @@ const genes = (id: string) => genesOf(SPECIES[id]());
 const near = (a: number, b: number, d: number) => Math.abs(((a - b + 540) % 360) - 180) <= d;
 
 /** what the lights show now: each light, and the alpha summed in each cell */
-function shown(m: Motes) {
+function shown(m: Motes, gain = 1) {
   const lights: { x: number; y: number; size: number; hue: number; al: number }[] = [];
   const cells = new Map<string, number>();
   m.each((x, y, size, hue, al) => {
     lights.push({ x, y, size, hue, al });
     const k = `${Math.floor(x / CELL)},${Math.floor(y / CELL)}`;
     cells.set(k, (cells.get(k) || 0) + al);
-  });
+  }, gain);
   return { lights, cells: [...cells.values()] };
 }
 
@@ -121,10 +121,13 @@ describe('the lights', () => {
       for (let i = 0; i < 180; i++) {
         m.step();
         if (i % 6) continue;
-        const { lights, cells } = shown(m);
-        seen = Math.max(seen, lights.length);
-        for (const c of cells) expect(c).toBeLessThanOrEqual(CELL_CAP + 1e-9);
-        for (const l of lights) expect(l.al).toBeLessThanOrEqual(PEAK_MAX + 1e-9);
+        // in clear water too, where they are made stronger
+        for (const gain of [1, 1.5, 3]) {
+          const { lights, cells } = shown(m, gain);
+          seen = Math.max(seen, lights.length);
+          for (const c of cells) expect(c).toBeLessThanOrEqual(CELL_CAP + 1e-9);
+          for (const l of lights) expect(l.al).toBeLessThanOrEqual(PEAK_MAX + 1e-9);
+        }
       }
       expect(seen).toBeGreaterThan(10);
     }
