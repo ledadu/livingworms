@@ -294,7 +294,7 @@ Chaque obstacle barre la descente tant que le corps qu'on joue n'a pas l'un des 
 - **Avec le trait**, l'obstacle se sent encore un peu (le courant tire, l'eau épaisse freine) mais on passe ; le noir ne se referme plus.
 - **La première fois qu'un obstacle retient** (à mi-chemin de son approche), la lignée dit ce qu'il aurait fallu : la citation « Devant l'obstacle : » du chapitre, dans ce document.
 - **La Fosse** garde la fin du monde : même avec une lanterne, on n'y va pas plus loin tant que la Remontée n'existe pas. Le chant (étape 5) n'est pas un trait du corps.
-- **Les traits du corps** sont lus sur l'arbre de parties (`traitsOf`). En attendant la fonction des traits de l'étape 3, `obstacles-traits.ts` en donne une version approchée, avec les mêmes noms. La larve de départ n'a aucun trait : sans naissance, elle s'arrête au courant du Récif.
+- **Les traits du corps** sont lus sur l'arbre de parties (`traitsOf` de `src/content/traits.ts`, la même fonction que la portée, qui marque en or ce qui franchit l'obstacle). La version approchée d'avant (`obstacles-traits.ts`) n'est plus lue par le jeu. La larve de départ n'a aucun trait : sans naissance, elle s'arrête au courant du Récif.
 - **Pour les tests** : `monde.keys.traits` (les traits du corps joué), `monde.keys.force = ['nageoires']` (jouer comme si on les avait, `null` pour revenir), `monde.becomes(…)`.
 
 ## À écrire
