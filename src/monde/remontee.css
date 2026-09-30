@@ -1,5 +1,5 @@
 /* La Remontée (remontee-jeu.ts): the buttons step back while the lineage goes up, and the light breaks through at the surface */
-body.remontee :is(#hud, #gear, #atBtn, #arBtn, #nvBtn, #hint) { opacity: 0; pointer-events: none; }
+body.remontee :is(#hud, #gear, #atBtn, #arBtn, #nvBtn, #chBtn, #hint) { opacity: 0; pointer-events: none; }
 #remonteeFlash {
   position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity 3.4s ease-in;
   background: radial-gradient(ellipse 120% 90% at 50% -8%, rgba(255,252,236,1) 0%, rgba(255,243,205,0.95) 38%, rgba(255,232,172,0.6) 72%, rgba(255,226,160,0.3) 100%);

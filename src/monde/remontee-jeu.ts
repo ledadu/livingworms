@@ -226,9 +226,14 @@ export function initRemontee(w: RemonteeWorld) {
       return cap({ x: (END.x - p.x) * 0.02, y: (END.y + 30 - p.y) * 0.02 }, 1.1);
     },
 
-    /** each step: the current carries the lineage (after its own swimming) */
-    carry(cr: Creature3): void {
-      if (api.on && (carry.x || carry.y)) cr.translate(carry.x, carry.y, 0);
+    /** each step: the current carries the lineage (after its own swimming); an escort (the lights that answered in the
+     * Fosse) is also drawn back toward the leader when it falls behind */
+    carry(cr: Creature3, escort = false): void {
+      if (!api.on || !(carry.x || carry.y)) return;
+      cr.translate(carry.x, carry.y, 0);
+      if (!escort) return;
+      const p = at(cr), l = at(w.swimmer()), d = Math.hypot(l.x - p.x, l.y - p.y);
+      if (d > 420) { const k = Math.min(8, (d - 420) * 0.05) / d; cr.translate((l.x - p.x) * k, (l.y - p.y) * k, 0); }
     },
 
     /** each step: the wished velocity of an ancestor of the formation */

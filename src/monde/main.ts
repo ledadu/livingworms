@@ -424,7 +424,7 @@ function update(): void {
       const v = lumieres.goal(c, t, { x: px, y: py });
       steer(a, v.x, v.y, 0.05);
       // the lights that answered in the Fosse come up with the lineage
-      remontee.carry(c);
+      remontee.carry(c, true);
       collide(c);
       continue;
     }
