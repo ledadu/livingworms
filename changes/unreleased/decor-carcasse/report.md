@@ -15,10 +15,9 @@
 - **Doc** : `docs/chapitres.md`, chapitre 5 (« Dans le monde », « Les fresques naturelles »).
 - **Pour le voir** : `monde.teleport(monde.carcasse.x, monde.floorAt(monde.carcasse.x, 0) - 150)`.
 
-![Vue d'ensemble : le squelette sous son rai de lumière](img/wide.jpg)
+![Vue d'ensemble, dans le chapitre Carcasse : le squelette sous son rai de lumière](img/wide.jpg)
 ![Les côtes, la colonne et l'omoplate à la spirale](img/mid.jpg)
-![De près : les anneaux du crâne, la spirale derrière les côtes](img/fresque.jpg)
-![La tête, à côté de l'épave](img/head.jpg)
+![De près : les anneaux du crâne, la spirale derrière les côtes (capture faite avant la fusion, quand la baleine était encore dans le Tombant)](img/fresque.jpg)
 
 ## Choix retenus
 
@@ -32,7 +31,7 @@ Aucune question posée sur le tableau de bord : tous les choix sont tranchés pa
 | Motifs | Spirale, anneaux, rayons, en coquilles | Trois motifs lisibles et distincts, faciles à rappeler à l'étape 4. |
 | La lumière sur les os | Un rai pâle (image) et des halos ivoire après le noir | N'utilise que ce qui existe (images, `lights`), sur canvas comme sur WebGL. |
 | Les habitants | Espèces du bestiaire placées autour (`addActor`) et un banc | Pas de nouvelle espèce. Les partenaires du chapitre, plumeau et crabe, y sont. |
-| L'ancienne petite baleine des Abysses (`whale`) | Gardée | Hors chantier ; l'intégrateur ou le chantier des 10 chapitres peut la retirer. |
+| La baleine provisoire (`whale`) posée par `10-chapitres-monde` au milieu de la Carcasse | Retirée de `makeDecor` à la fusion ; `bakeWhale` reste disponible | Elle se superposait au vrai squelette, qu'elle annonçait. |
 
 ## Options non retenues
 
@@ -56,9 +55,8 @@ Aucune question posée sur le tableau de bord : tous les choix sont tranchés pa
 
 ## Reste à faire / limites
 
-- Quand le chantier `10-chapitres-monde` aura un biome d'id **`carcasse`**, la baleine s'y posera seule. Sinon, changer le repli dans `carcasseX()`.
+- Depuis la fusion avec `backlog`, la baleine se pose seule au milieu du chapitre `carcasse` (x = 14 700). Le repli x = 14 100 de `carcasseX()` ne sert plus que si le chapitre disparaît.
 - La « lignée rivale » et les indices sur la fin sont des chantiers à part (étapes suivantes). Les fresques ne réagissent pas encore au joueur.
-- La baleine est posée à côté de l'épave (x = 13350), ce qui fait un peu chargé tant qu'elle est dans le Tombant.
 - Les plantes du biome poussent entre les os. C'est voulu (oasis), mais on pourrait les éclaircir.
 - Performance : 30 à 60 img/s mesurées sur le Chrome Windows, qu'utilisaient en même temps les autres agents : ces chiffres ne sont pas une mesure propre. Le rai de lumière est cuit à 0,4 de résolution au plus.
 
@@ -68,3 +66,16 @@ Aucune question posée sur le tableau de bord : tous les choix sont tranchés pa
 - `src/monde/main.ts` : un import et quatre branchements (habitants, banc, halos dans la boucle des décors, `carcasse` dans l'API).
 - `docs/chapitres.md` : deux puces au chapitre 5.
 - `carcasse.ts` lit `BIOMES`, `biomeMid` et `floorAt` de `biomes.ts` : si le chantier des 10 chapitres les renomme, les adapter.
+
+## Fusion avec `backlog`
+
+Le chantier `10-chapitres-monde` et le premier plan sombre sont arrivés sur `backlog` avant ma branche. Conflits réglés :
+
+- `src/monde/world.ts` :
+  - imports combinés : `chapterIndex`, `span`, `ChapterId` et `carcasse.ts` ;
+  - `makeDecor` : je garde les positions par chapitre (`at(...)`) de `backlog`, j'ajoute `CARCASSE.pieces` et je retire la baleine provisoire `whale` du chapitre Carcasse.
+- `src/monde/main.ts` : imports combinés (`foreground.ts` et `carcasse.ts`) ; l'API de test garde `front`, `frontCount` et `carcasse`.
+- `docs/chapitres.md` (sans conflit) : la ligne 5 du tableau « Dans le monde » ne dit plus *provisoire*, elle décrit le vrai décor.
+- `src/monde/foreground.test.ts` (sans conflit, mais cassé par la fusion des deux autres chantiers) : il cherchait les anciens biomes `kelp` et `abysses`. Ils sont remplacés par `foret` et `fosse`, les nouveaux identifiants.
+
+Dans le chapitre Carcasse (sombre, ivoire), le rai de lumière et les halos gardent les os lisibles, et le premier plan sombre passe devant (captures `wide.jpg` et `mid.jpg`, refaites après la fusion).
