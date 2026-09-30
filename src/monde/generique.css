@@ -1,0 +1,89 @@
+/* The credits (generique-ecran.ts): the lineage going up the screen on a thread of light, the lineage in gold, the
+   partners in pale blue (as in the tree, arbre.css); then the image to keep */
+#generique {
+  --gold: #f6d98a; --mate: #8fd8e8;
+  position: fixed; inset: 0; z-index: 24; overflow: hidden; touch-action: none;
+  background: linear-gradient(rgba(3,22,34,0.9), rgba(2,10,18,0.97));
+  opacity: 0; transition: opacity 1.6s ease;
+}
+#generique.show { opacity: 1; }
+#generique:focus { outline: none; }
+#generique button:focus-visible, #generique a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+/* nothing else over the credits: the words of the chapter, the depth, the buttons of the corners */
+body:has(#generique.show) :is(#chapter, #hud, #hint, #arBtn, #atBtn, #gear, #nvBtn) { opacity: 0; pointer-events: none; }
+
+#generique .gq-roll {
+  position: absolute; top: 0; left: 0; right: 0; padding: 0 20px; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; text-align: center; will-change: transform;
+  text-shadow: 0 1px 12px rgba(0,20,30,0.9);
+}
+#generique header { min-height: 42vh; }
+#generique header small, #generique .gq-souvenir > small {
+  display: block; font-size: 13px; font-weight: 500; letter-spacing: 0.32em; text-transform: uppercase; opacity: 0.55;
+}
+#generique header h2 { margin: 10px 0 0; font-weight: 300; font-size: clamp(30px, 8vw, 46px); line-height: 1.15; }
+
+#generique .gq-gen { display: flex; flex-direction: column; align-items: center; }
+#generique .gq-portrait, #generique .gq-mini {
+  display: block; border-radius: 50%; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 45%, var(--water), var(--deep) 72%);
+}
+#generique :is(.gq-portrait, .gq-mini) canvas { display: block; width: 100%; height: 100%; }
+#generique .gq-portrait {
+  width: 200px; height: 150px;
+  box-shadow: 0 0 0 1px rgba(246,217,138,0.4), 0 4px 22px rgba(0,10,16,0.55);
+}
+#generique .gq-now .gq-portrait { box-shadow: 0 0 0 2px rgba(246,217,138,0.9), 0 0 30px rgba(246,217,138,0.4); }
+#generique .gq-gen small {
+  display: block; margin-top: 16px; font-size: 13px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; opacity: 0.6;
+}
+#generique .gq-now small { opacity: 0.9; }
+#generique .gq-name { margin: 4px 0 2px; font-weight: 500; font-size: clamp(30px, 8vw, 40px); line-height: 1.1; overflow-wrap: anywhere; }
+#generique .gq-born { margin: 0; font-style: italic; font-size: 20px; opacity: 0.8; }
+
+/* between a parent and its child: the thread, and the partner on it */
+#generique .gq-join { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 16px 0; color: var(--mate); }
+#generique .gq-join::before, #generique .gq-join::after {
+  content: ''; width: 2px; height: 46px; border-radius: 1px;
+  background: linear-gradient(rgba(246,217,138,0.2), rgba(246,217,138,0.7), rgba(246,217,138,0.2));
+  box-shadow: 0 0 10px rgba(246,217,138,0.35);
+}
+#generique .gq-mini { width: 96px; height: 70px; box-shadow: 0 0 0 1px rgba(143,216,232,0.5); }
+#generique .gq-join p { margin: 0; font-style: italic; font-size: 20px; }
+#generique .gq-end { margin: 34vh 0 0; font-weight: 300; font-size: clamp(42px, 12vw, 68px); letter-spacing: 0.04em; }
+
+#generique .gq-skip {
+  position: absolute; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); padding: 9px 18px; border-radius: 22px;
+  border: 1px solid rgba(244,239,226,0.3); background: rgba(6,40,56,0.5); color: inherit; font: inherit; font-style: italic; font-size: 18px;
+  opacity: 0.7; cursor: pointer;
+}
+#generique .gq-gone { opacity: 0; transition: opacity 1s ease; pointer-events: none; }
+
+/* the image to keep */
+#generique .gq-souvenir {
+  position: absolute; inset: 0; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) 14px calc(16px + env(safe-area-inset-bottom, 0px));
+  opacity: 0; transition: opacity 1.4s ease 0.4s; text-shadow: 0 1px 12px rgba(0,20,30,0.9);
+}
+#generique .gq-souvenir.ready { opacity: 1; }
+#generique .gq-frame {
+  flex: 0 1 auto; min-height: 0; width: min(480px, 100%); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
+  border-radius: 12px; box-shadow: 0 0 0 1px rgba(246,217,138,0.3), 0 10px 40px rgba(0,8,14,0.7);
+  scrollbar-width: thin; scrollbar-color: rgba(244,239,226,0.25) transparent;
+}
+/* the image can be held down to be kept, where the browser allows it */
+#generique .gq-frame img { display: block; width: 100%; height: auto; -webkit-touch-callout: default; -webkit-user-select: auto; user-select: auto; }
+#generique .gq-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+#generique .gq-actions > * {
+  min-width: 140px; box-sizing: border-box; padding: 11px 22px; border-radius: 24px; font: inherit; font-size: 19px; text-align: center;
+  text-decoration: none; cursor: pointer;
+}
+#generique .gq-keep { border: 1px solid var(--gold); background: rgba(246,217,138,0.16); color: var(--gold); font-weight: 500; }
+#generique .gq-go { border: 1px solid rgba(244,239,226,0.35); background: rgba(6,40,56,0.55); color: inherit; }
+@media (prefers-reduced-motion: reduce) { #generique, #generique .gq-souvenir { transition: none; } }
+
+/* under the lineage tree, once the story is over (arbre-ecran.ts) */
+#arbre .ar-souvenir {
+  margin: 18px 0 0; padding: 10px 22px; border-radius: 24px; border: 1px solid rgba(246,217,138,0.7);
+  background: rgba(246,217,138,0.12); color: #f6d98a; font: inherit; font-size: 19px; cursor: pointer;
+}

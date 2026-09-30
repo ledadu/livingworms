@@ -9,7 +9,7 @@
 
 import { STEP, TAU, clamp, detail, rand, rng, spec as makeSpec, type Spec } from '../engine';
 import { Atelier } from '../editor';
-import { applyAtelierAccess, unlockBalade } from './atelier-access';
+import { applyAtelierAccess, baladeUnlocked, unlockBalade } from './atelier-access';
 import { Creature3, swimFactor3 } from '../engine3/creature3';
 import { Flow } from '../engine3/flow';
 import { draw3, eachGlow3, lodOf, lodSize, prepare3 } from '../engine3/render3';
@@ -48,6 +48,7 @@ import { initParade } from './parade-jeu';
 import { initAdieu, testChild } from './adieu-jeu';
 import { mateFor } from './arbre';
 import { initArbre } from './arbre-ecran';
+import { initGenerique, souvenirButton } from './generique-ecran';
 import { ancestorsIn } from './ancetres-jeu';
 import { placeOf } from './ancetres';
 import { initTraces } from './traces-jeu';
@@ -177,6 +178,10 @@ const atBtn = document.getElementById('atBtn');
 applyAtelierAccess(atBtn);
 // the lineage tree (arbre-ecran.ts), at any time: the sea waits while it is open
 const arbre = initArbre({ partie, chapters: BIOMES, live: () => player.cr.spec, onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); } });
+// the credits and the keepsake image (generique-ecran.ts), at the end of the story: then the Balade opens, and the tree
+// shows the image again
+const generique = initGenerique({ partie, chapters: BIOMES, live: () => player.cr.spec, onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); }, onEnd: () => { unlockBalade(); applyAtelierAccess(atBtn); } });
+arbre.more = () => (baladeUnlocked() || travelShown(location.search) ? souvenirButton(() => { arbre.close(); generique.souvenir(); }) : null);
 atBtn?.addEventListener('click', () => {
   paused = true;
   Atelier.open(player.cr.spec, {
@@ -1243,7 +1248,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, traces, rivale,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, generique, traces, rivale,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
@@ -1288,6 +1293,10 @@ porteeBtn.addEventListener('click', () => {
   panel.hidden = true;
   openPortee(ids[Math.floor(Math.random() * ids.length)], 0.7);
 });
+// the credits of the end, for the tests (?dev)
+const generiqueBtn = document.getElementById('generiqueBtn')!;
+generiqueBtn.hidden = !travelShown(location.search);
+generiqueBtn.addEventListener('click', () => { panel.hidden = true; generique.play(); });
 const benchOut = document.getElementById('benchOut')!;
 document.getElementById('benchBtn')!.addEventListener('click', () => { panel.hidden = true; void runBench(api, benchOut); });
 for (const el of [panel, gear, benchOut, document.getElementById('atBtn')!]) for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'wheel']) el.addEventListener(ev, (e) => e.stopPropagation());
@@ -1295,7 +1304,7 @@ const hint = document.getElementById('hint')!;
 setTimeout(() => hint.classList.add('gone'), 6000);
 document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).closest('#panel, #atelier, #benchOut')) e.preventDefault(); }, { passive: false });
 const nouveautes = initNouveautes(() => !Atelier.isOpen && benchOut.hidden === true);
-narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen || portee.isOpen || arbre.isOpen;
+narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen || portee.isOpen || arbre.isOpen || generique.isOpen;
 
 // back where the game was left: the start of its chapter, the obstacles before it crossed (teleport)
 const resumeAt = chapterIndex(partie.chapter as (typeof BIOMES)[number]['id']);
