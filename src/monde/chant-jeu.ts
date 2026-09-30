@@ -32,7 +32,8 @@ const GLOWS = 8;
 /** how long the sea stays quiet before a note is learned (s) */
 const SETTLE = 1.4;
 
-interface Light { kind: 'song' | 'answer' | 'learn'; note: Note; at: Creature3 | { x: number; y: number; z: number }; t0: number; dur: number; size: number }
+/** a light of the song in the sea, on a creature (the singer, or an animal that answers) */
+interface Light { kind: 'song' | 'answer' | 'learn'; note: Note; at: Creature3; t0: number; dur: number; size: number }
 interface Song { notes: number[]; t0: number; sung: number; singer: Creature3; answers: (Answer & { a: Hearer; done: boolean })[]; end: number }
 
 export function initChant(d: ChantDeps) {
@@ -180,8 +181,8 @@ export function initChant(d: ChantDeps) {
     g.clearRect(0, 0, W, H);
     g.globalCompositeOperation = 'lighter';
     for (const l of lights) {
-      const u = (now - l.t0) / l.dur, o = 'root' in l.at ? { x: l.at.root.x[0], y: l.at.root.y[0], z: l.at.root.z[0] } : l.at;
-      d.view.project(o.x, o.y, o.z, P);
+      const u = (now - l.t0) / l.dur, o = l.at.root;
+      d.view.project(o.x[0], o.y[0], o.z[0], P);
       const grow = 1 - Math.pow(1 - u, 3), fade = Math.pow(1 - u, 1.6), s = P.s;
       if (l.kind === 'song') {
         ring(P.x, P.y, l.size * s * (0.1 + 0.9 * grow), 1.5 + 3 * (1 - u), l.note, 0.7 * fade);
