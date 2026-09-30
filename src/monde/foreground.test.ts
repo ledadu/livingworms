@@ -28,7 +28,7 @@ describe('the dark foreground', () => {
 
   it('takes the shapes of what grows in each biome', () => {
     const l = makeFront();
-    expect(inBiome(l, 'kelp').some((p) => p.shape === 'kelp')).toBe(true);
+    expect(inBiome(l, 'foret').some((p) => p.shape === 'kelp')).toBe(true);
     expect(inBiome(l, 'recif').some((p) => p.shape === 'coral')).toBe(true);
     expect(inBiome(l, 'nurserie').some((p) => p.shape === 'grass')).toBe(true);
     expect(shapeOf('something new')).toBe('rock');
@@ -39,7 +39,7 @@ describe('the dark foreground', () => {
       const i = BIOMES.findIndex((b) => b.id === id);
       return inBiome(l, id).length / ((BIOMES[i + 1]?.x0 ?? X1) - BIOMES[i].x0 - 1400);
     };
-    expect(per('abysses')).toBeLessThan(per('recif'));
+    expect(per('fosse')).toBeLessThan(per('recif'));
   });
 
   it('passes faster than the swimming plane', () => {
