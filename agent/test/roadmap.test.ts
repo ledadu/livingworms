@@ -1,6 +1,6 @@
 import '../../test/env.mjs';
 import { execFile } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -26,6 +26,7 @@ import {
   statusLabel,
 } from '../roadmap.mjs';
 import { briefPath } from '../../config.mjs';
+import { readSettings } from '../settings.mjs';
 
 const run = promisify(execFile);
 const folders: string[] = [];
@@ -362,6 +363,31 @@ describe('queue', () => {
     });
   });
 
+  it('records the effort and model of a queued task in its agent’s registry file, and refuses unknown ones', async () => {
+    const registry = join(temp(), 'agents');
+    const queueDir = join(registry, 'queue');
+    mkdirSync(registry, { recursive: true });
+    // agent.sh new writes the registry file; the fake does the same.
+    const createWorktree = async (name: string) => writeFileSync(join(registry, `${name}.env`), `AGENT_NAME=${name}\n`);
+    const results = await enqueue(
+      [
+        { id: 'a', name: 'grotte', title: 'Grotte', prompt: 'P', effort: 'xhigh', model: 'opus' },
+        { id: 'b', name: 'typo', title: 'Typo', prompt: 'P', effort: 'low' },
+        { id: 'c', name: 'defaut', title: 'Défaut', prompt: 'P' },
+        { id: 'd', name: 'trop', title: 'Trop', prompt: 'P', effort: 'ultra' },
+      ],
+      { queueDir, registry, createWorktree },
+    );
+    expect(results.map((result) => result.ok)).toEqual([true, true, true, false]);
+    expect(results[3]!.error).toMatch(/effort inconnu « ultra »/);
+    expect(existsSync(join(registry, 'trop.env'))).toBe(false);
+    expect(readSettings(registry, 'grotte')).toEqual({ effort: 'xhigh', model: 'opus' });
+    expect(readSettings(registry, 'typo')).toEqual({ effort: 'low', model: null });
+    expect(readSettings(registry, 'defaut')).toEqual({ effort: null, model: null });
+    expect(JSON.parse(readFileSync(join(queueDir, 'grotte.json'), 'utf8'))).toMatchObject({ effort: 'xhigh', model: 'opus' });
+    expect(JSON.parse(readFileSync(join(queueDir, 'defaut.json'), 'utf8'))).not.toHaveProperty('effort');
+  });
+
   it('marks, lists and removes entries', () => {
     const queueDir = join(temp(), 'queue');
     mkdirSync(queueDir);
@@ -387,8 +413,13 @@ describe('queue', () => {
     writeFileSync(join(registry, 'queue/rais.json'), JSON.stringify({ name: 'rais', title: 'Rais', base: 'backlog', createdAt: '1', status: 'queued' }));
     const { stdout } = await waiting;
     expect(JSON.parse(stdout).map((entry: { name: string }) => entry.name)).toEqual(['rais']);
+    expect(JSON.parse(stdout)[0]).toMatchObject({ effort: null, model: null, agentType: 'general-purpose' });
     await run('node', [script, 'mark', 'rais', 'launched'], { env });
     const { stdout: listed } = await run('node', [script, 'list'], { env });
-    expect(listed).toMatch(/^launched\s+rais\s+backlog/);
+    expect(listed).toMatch(/^launched\s+rais\s+backlog\s+-\/-/);
+    // The agent's settings as they are now, and the agent type the orchestrator launches it with.
+    writeFileSync(join(registry, 'rais.env'), 'AGENT_NAME=rais\nAGENT_EFFORT=xhigh\nAGENT_MODEL=sonnet\n');
+    const { stdout: json } = await run('node', [script, 'list', '--json'], { env });
+    expect(JSON.parse(json)[0]).toMatchObject({ effort: 'xhigh', model: 'sonnet', agentType: 'chantier-xhigh' });
   });
 });

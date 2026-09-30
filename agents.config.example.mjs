@@ -30,6 +30,10 @@ export default {
 
   check: { typecheck: 'npm run typecheck --silent', test: 'npx vitest run' },
 
+  // The effort and model of an agent whose task sets none (each task may have its own: Backlog page, agent's card,
+  // make agent-new EFFORT=… MODEL=…); null leaves Claude Code's.
+  defaults: { effort: null, model: null },
+
   // The instructions of this game for its agents (architecture, shared files, test accounts, dev tools), read after
   // the common brief (agents/agent/brief.md).
   brief: 'docs/agents.md',

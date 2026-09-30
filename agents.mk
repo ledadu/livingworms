@@ -16,7 +16,7 @@ VERSION ?=
 
 .PHONY: changes-new changes-check whats-new release release-branches release-patch \
 	agent-help agent-new agent-list agent-env agent-up agent-down agent-restart agent-logs agent-logs-client agent-url \
-	agent-check agent-test agent-sync agent-shot agent-chrome agent-rm agent-dashboard agent-ask agent-queue agent-queue-wait \
+	agent-check agent-test agent-sync agent-shot agent-chrome agent-rm agent-dashboard agent-dashboard-token agent-mirror agent-ask agent-queue agent-queue-wait \
 	agent-clean backlog backlog-link up down restart logs url shot
 
 # --- Changes, « what's new » and versions ($(AGENTS_DIR)/docs/changes.md) ------------------------------------------------
@@ -45,9 +45,9 @@ release-patch: ## Publishes the fixes of release/LINE (LINE=0.2 [VERSION=0.2.1] 
 agent-help: ## Every agent command, in detail
 	@$(AGENT) help
 
-agent-new: ## New agent: make agent-new NAME=x [BASE=branch] -> worktree ../<project>.worktrees/x, branch agent/x
+agent-new: ## New agent: make agent-new NAME=x [BASE=branch] [EFFORT=low|medium|high|xhigh|max] [MODEL=sonnet] -> worktree ../<project>.worktrees/x, branch agent/x
 	@test -n "$(ID)" || { echo "NAME=... required"; exit 2; }
-	@$(AGENT) new $(ID) $(BASE)
+	@AGENT_EFFORT="$(EFFORT)" AGENT_MODEL="$(MODEL)" $(AGENT) new $(ID) $(BASE)
 
 agent-list: ## Agents, their ports, state, commits and uncommitted files
 	@$(AGENT) list
@@ -90,6 +90,12 @@ agent-chrome: ## Opens the Windows Chrome with remote debugging (9222)
 
 agent-dashboard: ## Live view of every agent worktree on http://localhost:7800 (PORT=...)
 	node $(AGENTS_DIR)/agent/dashboard.mjs $(or $(PORT),7800)
+
+agent-dashboard-token: ## The dashboard's token, for a visit from another machine: <address>/?token=<it> once (a cookie keeps it)
+	@node $(AGENTS_DIR)/agent/access.mjs
+
+agent-mirror: ## Snapshot of the dashboard for its mirror on claude.ai (agent/mirror.html): .git/agents/mirror.json, that Claude sends to the page
+	@node $(AGENTS_DIR)/agent/mirror.mjs
 
 agent-ask: ## An agent asks the user through the dashboard: make agent-ask ARGS='choice --title "…" --option "*A" --option B' (ARGS=--help)
 	@node $(AGENTS_DIR)/agent/ask.mjs $(or $(ARGS),--help)

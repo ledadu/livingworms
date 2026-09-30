@@ -115,6 +115,11 @@
   .pick input.base { width: 90px; font-family: ui-monospace, monospace; }
   .pick textarea { width: 100%; min-height: 150px; resize: vertical; font-family: ui-monospace, monospace; font-size: 11px; line-height: 1.35; }
   .pick .edited { color: var(--warn); font-size: 11px; }
+  .pick .set { white-space: nowrap; }
+  .pick select { font-size: 12px; width: auto; max-width: 180px; }
+  .pick .why { font-size: 11px; color: var(--muted); }
+  .pick .why.claude { color: var(--say); }
+  .settings { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; margin-left: 4px; white-space: nowrap; }
   ul.queue { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
   ul.queue li { --status: var(--off); border-left: 3px solid var(--status); background: var(--panel2); border-radius: 6px; padding: 6px 8px; font-size: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   ul.queue li.q-queued { --status: var(--warn); }
@@ -160,7 +165,7 @@
     <section class="panel">
       <h2>Tâches choisies <span id="pick-count"></span></h2>
       <div id="picks"><span class="empty">Coche des chantiers « à faire » : un nom d'agent, une base et le prompt proposé apparaissent ici.</span></div>
-      <div class="line"><button class="btn go" id="enqueue" disabled>Mettre en file</button><span class="note" id="enqueue-note"></span></div>
+      <div class="line"><button class="btn go" id="enqueue" disabled>Mettre en file</button><button class="btn" id="propose" disabled title="Claude propose un effort et un modèle pour chaque tâche choisie (sauf celles où tu as déjà choisi) ; tu valides ou tu changes">✨ Proposer avec Claude</button><span class="note" id="enqueue-note"></span></div>
       <span class="note">Crée le worktree de chaque tâche (<code>agent.sh new</code>) et l'ajoute à la file. Ensuite, « ▶ Lancer » démarre l'agent tout de suite (le CLI <code>claude</code> dans son worktree), ou l'orchestrateur (la session Claude Code, <code>make agent-queue-wait</code>) les prend.</span>
     </section>
     <section class="panel">
@@ -196,7 +201,7 @@ const $ = (id) => document.getElementById(id);
 const NAME = /^[a-z0-9][a-z0-9-]*$/;
 let data = null;
 let lastRendered = '';
-const picked = new Map(); // id -> { name, base, prompt, edited }
+const picked = new Map(); // id -> { name, base, prompt, edited, effort, model, why, by, chosen }
 const opened = new Set(); // ids whose text is shown
 const closedSections = new Set();
 let filter = 'todo';
@@ -318,10 +323,16 @@ function queueButtons(entry) {
   const resume = entry.run ? `<button class="btn launch" data-resume="${name}" title="Reprend la même session claude (--resume), avec tout son historique">↻ Relancer</button>` : '';
   return `${log}${resume}<button class="btn" data-forget="${name}" title="Retirer de la liste (le worktree reste)">Retirer</button>`;
 }
+// « effort xhigh · sonnet » of a task, when it has its own.
+function settingsBadge(entry) {
+  const parts = [entry.effort ? `effort ${entry.effort}` : '', entry.model ?? ''].filter(Boolean);
+  return parts.length ? `<span class="settings" title="Effort et modèle de l'agent (changer : sa carte, page Agents)">${escapeHtml(parts.join(' · '))}</span>` : '';
+}
+
 function queueHtml() {
   if (!data.queue.length) return '<li class="empty" style="border:none;background:none">File vide.</li>';
   return data.queue
-    .map((entry) => `<li class="q-${escapeHtml(entry.status)}${entry.run ? ` r-${escapeHtml(entry.run.state)}` : ''}"><span class="qt"><b>${escapeHtml(entry.name)}</b> · ${escapeHtml(queueLabel(entry))}<span title="${escapeHtml(entry.title)}">${escapeHtml(entry.title)} — depuis ${escapeHtml(entry.base)}, ${escapeHtml(when(Date.parse(entry.createdAt)))}</span>${entry.run ? `<span class="run">pid ${escapeHtml(entry.run.pid)} · session ${escapeHtml(String(entry.run.sessionId).slice(0, 8))} · permissions ${escapeHtml(entry.run.permissionMode)} · ${escapeHtml(when(Date.parse(entry.run.startedAt)))}</span>` : ''}</span>
+    .map((entry) => `<li class="q-${escapeHtml(entry.status)}${entry.run ? ` r-${escapeHtml(entry.run.state)}` : ''}"><span class="qt"><b>${escapeHtml(entry.name)}</b>${settingsBadge(entry)} · ${escapeHtml(queueLabel(entry))}<span title="${escapeHtml(entry.title)}">${escapeHtml(entry.title)} — depuis ${escapeHtml(entry.base)}, ${escapeHtml(when(Date.parse(entry.createdAt)))}</span>${entry.run ? `<span class="run">pid ${escapeHtml(entry.run.pid)} · session ${escapeHtml(String(entry.run.sessionId).slice(0, 8))} · permissions ${escapeHtml(entry.run.permissionMode)} · ${escapeHtml(when(Date.parse(entry.run.startedAt)))}</span>` : ''}</span>
       ${queueButtons(entry)}</li>`)
     .join('');
 }
@@ -351,6 +362,9 @@ function renderPicks() {
     element.dataset.id = id;
     element.innerHTML = `<div class="head"><b>${escapeHtml(item?.title ?? id)}</b>
       agent <input class="name" value="${escapeHtml(pick.name)}" spellcheck="false"> base <input class="base" value="${escapeHtml(pick.base)}" spellcheck="false">
+      <span class="set">effort <select class="effort" title="Effort de réflexion de l'agent (claude --effort)">${settingOptions(PROJECT.efforts, PROJECT.defaults.effort)}</select></span>
+      <span class="set">modèle <select class="model" title="Modèle de l'agent (claude --model)">${settingOptions(PROJECT.models, PROJECT.defaults.model)}</select></span>
+      <span class="why"></span>
       <span class="edited" hidden>prompt modifié à la main</span><span class="spacer"></span><button class="toggle" data-unpick>✕ retirer</button></div>
       <textarea spellcheck="false" placeholder="prompt…"></textarea>`;
     element.querySelector('.name').addEventListener('input', (event) => {
@@ -362,6 +376,14 @@ function renderPicks() {
       pick.base = event.target.value.trim();
       schedulePrompts();
     });
+    for (const key of ['effort', 'model']) {
+      element.querySelector(`select.${key}`).addEventListener('change', (event) => {
+        pick[key] = event.target.value || null;
+        pick.chosen = true;
+        showSettings(element, pick);
+      });
+    }
+    showSettings(element, pick);
     const area = element.querySelector('textarea');
     area.value = pick.prompt ?? '';
     area.addEventListener('input', () => {
@@ -379,6 +401,24 @@ function renderPicks() {
   }
   $('pick-count').textContent = picked.size ? `(${picked.size})` : '';
   $('enqueue').disabled = !picked.size;
+  $('propose').disabled = !picked.size;
+}
+
+// The options of an effort or model menu: « défaut » (the project's, else Claude Code's), then each value.
+function settingOptions(values, fallback) {
+  return [`<option value="">défaut${fallback ? ` (${escapeHtml(fallback)})` : ' (Claude Code)'}</option>`, ...values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`)].join('');
+}
+
+// A chosen task's menus and the reason of the proposal they come from (none once the user chose).
+function showSettings(element, pick) {
+  const model = element.querySelector('select.model');
+  // A model outside the list (a full model id) gets its own option.
+  if (pick.model && ![...model.options].some((option) => option.value === pick.model)) model.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(pick.model)}">${escapeHtml(pick.model)}</option>`);
+  element.querySelector('select.effort').value = pick.effort ?? '';
+  model.value = pick.model ?? '';
+  const why = element.querySelector('.why');
+  why.className = `why${pick.by === 'claude' ? ' claude' : ''}`;
+  why.textContent = pick.chosen || !pick.why ? '' : `${pick.by === 'claude' ? '✨ Claude' : 'proposé'} : ${pick.why}`;
 }
 
 let promptTimer = 0;
@@ -464,7 +504,7 @@ document.addEventListener('change', (event) => {
   const box = event.target.closest('[data-pick]');
   if (!box) return;
   const item = data.items.find((one) => one.id === box.dataset.pick);
-  if (box.checked) picked.set(item.id, { name: item.proposedName, base: '__INTEGRATION__', prompt: '', edited: false });
+  if (box.checked) picked.set(item.id, { name: item.proposedName, base: '__INTEGRATION__', prompt: '', edited: false, effort: item.suggested?.effort ?? null, model: null, why: item.suggested?.why ?? '', by: 'text', chosen: false });
   else picked.delete(item.id);
   render();
   renderPicks();
@@ -514,6 +554,39 @@ $('launch-all').addEventListener('click', async () => {
   await load();
 });
 
+$('propose').addEventListener('click', async () => {
+  const note = $('enqueue-note');
+  const button = $('propose');
+  const ids = [...picked].filter(([, pick]) => !pick.chosen).map(([id]) => id);
+  if (!ids.length) {
+    note.className = 'note';
+    note.textContent = 'Tu as déjà choisi pour chaque tâche.';
+    return;
+  }
+  button.disabled = true;
+  note.className = 'note';
+  note.innerHTML = `<span class="spin"></span>Claude lit ${ids.length} chantier${ids.length > 1 ? 's' : ''}…`;
+  try {
+    const result = await (await fetch('/api/roadmap/propose', { method: 'POST', body: JSON.stringify({ ids }) })).json();
+    if (!result.ok) throw new Error(result.error);
+    let count = 0;
+    for (const [id, proposal] of Object.entries(result.proposals)) {
+      const pick = picked.get(id);
+      if (!pick || pick.chosen) continue;
+      Object.assign(pick, { effort: proposal.effort, model: proposal.model, why: proposal.why || 'proposé', by: 'claude' });
+      const element = document.querySelector(`.pick[data-id="${CSS.escape(id)}"]`);
+      if (element) showSettings(element, pick);
+      count++;
+    }
+    note.className = count ? 'note good' : 'note bad';
+    note.textContent = count ? `Proposé pour ${count} tâche${count > 1 ? 's' : ''} : change ce qui ne te va pas, puis « Mettre en file ».` : 'Pas de proposition exploitable.';
+  } catch (error) {
+    note.className = 'note bad';
+    note.textContent = `Proposition impossible : ${error.message}`;
+  }
+  button.disabled = !picked.size;
+});
+
 $('enqueue').addEventListener('click', async () => {
   const note = $('enqueue-note');
   const bad = [...picked.values()].filter((pick) => !NAME.test(pick.name));
@@ -526,7 +599,7 @@ $('enqueue').addEventListener('click', async () => {
   button.disabled = true;
   note.className = 'note';
   note.innerHTML = `<span class="spin"></span>Création de ${picked.size} worktree${picked.size > 1 ? 's' : ''}…`;
-  const tasks = [...picked].map(([id, pick]) => ({ id, name: pick.name, base: pick.base, prompt: pick.edited ? pick.prompt : undefined }));
+  const tasks = [...picked].map(([id, pick]) => ({ id, name: pick.name, base: pick.base, prompt: pick.edited ? pick.prompt : undefined, effort: pick.effort, model: pick.model }));
   try {
     const { results } = await (await fetch('/api/roadmap/enqueue', { method: 'POST', body: JSON.stringify({ tasks }) })).json();
     const failed = results.filter((result) => !result.ok);

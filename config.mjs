@@ -16,6 +16,9 @@ export const frameworkDir = dirname(fileURLToPath(import.meta.url));
 export const projectRoot = resolve(frameworkDir, '..');
 export const configFile = process.env.AGENTS_CONFIG ? resolve(process.env.AGENTS_CONFIG) : join(projectRoot, 'agents.config.mjs');
 
+// The effort levels of Claude Code (claude --effort), from the lightest.
+export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+
 export const DEFAULTS = {
   // Shown in the page titles and the prompts.
   name: 'Projet',
@@ -61,6 +64,13 @@ export const DEFAULTS = {
   devServers: 'le serveur de dev de l’utilisateur',
   // The instructions of this project for its agents, appended to the common brief (agent/brief.md): a path from the root.
   brief: null,
+  // The effort and model of an agent whose task sets none (claude --effort / --model); null leaves Claude Code's own.
+  // A task gets its own on the Backlog page, from its agent's card, or with make agent-new EFFORT=… MODEL=….
+  defaults: { effort: null, model: null },
+  // The models offered in the menus (aliases or full model ids).
+  models: ['opus', 'sonnet', 'fable', 'haiku'],
+  // The model that proposes an effort and a model for the chosen tasks (« ✨ Proposer » of the Backlog page).
+  suggestModel: 'sonnet',
   // The trailer of the agents' commits.
   coAuthoredBy: 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>',
   // Screenshots in the Windows Chrome from WSL (agent.sh shot / chrome).
@@ -146,11 +156,14 @@ export const askPath = relative(projectRoot, join(frameworkDir, 'agent/ask.mjs')
 
 // What the pages of the dashboard know of the project: window.PROJECT.
 export function clientSettings() {
-  const { name, pitch, branches, paths, release, services } = project;
+  const { name, pitch, branches, paths, release, services, defaults, models } = project;
   return {
     name,
     pitch,
     branches,
+    defaults,
+    models,
+    efforts: EFFORTS,
     paths: { backlog: paths.backlog, roadmap: paths.roadmap, changes: paths.changes, changelog: paths.changelog },
     release: { ...release, Word: capitalize(release.word) },
     docs: docLinks(),

@@ -45,6 +45,9 @@
   .order { margin: 8px 0; padding: 8px; border: 1px solid var(--accent); border-radius: 8px; background: var(--panel2); }
   .order textarea { width: 100%; min-height: 70px; resize: vertical; font: inherit; font-size: 13px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px; box-sizing: border-box; }
   .order .row { display: flex; gap: 6px; margin-top: 6px; }
+  .setting { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 6px 0; }
+  .setting select { width: auto; max-width: 200px; font-size: 12px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 1px 4px; }
+  .setting .note { font-size: 11px; }
   .goal { border: 1px solid var(--line); border-left: 3px solid var(--say); border-radius: 8px; padding: 7px 10px; margin: 8px 0 6px; background: var(--panel2); }
   .goal:empty { display: none; }
   .goal .gt { font-weight: 600; font-size: 14px; }
@@ -219,6 +222,45 @@ function showTab(tab) {
 }
 const busy = new Map(); // agent -> { working, label } or { error }
 
+// The options of an effort or model menu: « défaut » (the project's, else Claude Code's), then each value.
+function settingOptions(values, fallback) {
+  return [`<option value="">défaut${fallback ? ` (${escapeHtml(fallback)})` : ' (Claude Code)'}</option>`, ...values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`)].join('');
+}
+
+// The card's menus show the agent's own settings, unless one is being changed; a model outside the list gets its
+// option. The note tells when the process at work runs with other settings than the ones chosen now.
+function showSettings(card, agent) {
+  const own = agent.settings ?? {};
+  for (const select of card.querySelectorAll('[data-setting]')) {
+    if (select === document.activeElement || select.dataset.saving) continue;
+    const value = own[select.dataset.setting] ?? '';
+    if (value && ![...select.options].some((option) => option.value === value)) select.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`);
+    select.value = value;
+  }
+  const note = card.querySelector('[data-part="setting-note"]');
+  if (note.dataset.until && Date.now() < Number(note.dataset.until)) return;
+  const run = agent.run;
+  const used = run ? [run.effort ? `effort ${run.effort}` : '', run.model ?? ''].filter(Boolean).join(' · ') || 'défauts' : '';
+  const chosen = [own.effort ? `effort ${own.effort}` : '', own.model ?? ''].filter(Boolean).join(' · ') || 'défauts';
+  note.textContent = run?.state === 'running' && used !== chosen ? `en cours avec ${used} ; ${chosen} au prochain lancement` : '';
+}
+
+async function saveSettings(card, name) {
+  const selects = [...card.querySelectorAll('[data-setting]')];
+  const body = Object.fromEntries(selects.map((select) => [select.dataset.setting, select.value || null]));
+  const note = card.querySelector('[data-part="setting-note"]');
+  for (const select of selects) select.dataset.saving = '1';
+  try {
+    const result = await (await fetch(`/api/settings/${encodeURIComponent(name)}`, { method: 'POST', body: JSON.stringify(body) })).json();
+    note.textContent = result.ok ? 'enregistré : vaut pour le prochain lancement' : result.error;
+  } catch (error) {
+    note.textContent = `échec : ${error.message}`;
+  }
+  note.dataset.until = String(Date.now() + 6000);
+  for (const select of selects) delete select.dataset.saving;
+  refresh();
+}
+
 function createCard(name) {
   const card = document.createElement('section');
   card.className = 'card';
@@ -227,6 +269,11 @@ function createCard(name) {
     <div class="goal" data-part="goal"></div>
     <div class="task" data-part="task"></div>
     <div class="stats" data-part="stats"></div>
+    <div class="setting" title="Effort et modèle de l'agent : ils valent pour son prochain lancement (▶ Lancer, ↻ Relancer, ✎ Nouvel ordre, 🔀 Corriger les conflits), pas pour un processus déjà en cours">
+      <label>effort <select data-setting="effort">${settingOptions(PROJECT.efforts, PROJECT.defaults.effort)}</select></label>
+      <label>modèle <select data-setting="model">${settingOptions(PROJECT.models, PROJECT.defaults.model)}</select></label>
+      <span class="note" data-part="setting-note"></span>
+    </div>
     <div class="actions">
       <button class="btn primary" data-action="try">▶ Tester cette version</button>
       <button class="btn" data-action="stop" hidden>■ Arrêter</button>
@@ -253,6 +300,7 @@ function createCard(name) {
     <details data-section="client"><summary>Journal client</summary><div class="body"><pre data-part="client"></pre></div></details>`;
   card.dataset.agent = name;
   const part = (key) => card.querySelector(`[data-part="${key}"]`);
+  for (const select of card.querySelectorAll('[data-setting]')) select.addEventListener('change', () => saveSettings(card, name));
   card.querySelector('[data-section="progress"]').addEventListener('toggle', (event) => {
     if (event.target.open) loadProgress(name);
   });
@@ -318,6 +366,7 @@ function updateCard(agent) {
     patch(part('state'), '<span class="pill">worktree absent</span>');
     return;
   }
+  showSettings(card, agent);
   const steps = agent.progress ?? { events: [] };
   const lastMove = Math.max(agent.activity || 0, steps.updated || 0);
   const recent = lastMove && serverNow - lastMove < ACTIVE_MS;

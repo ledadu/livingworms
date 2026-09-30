@@ -8,6 +8,7 @@ import { promisify } from 'node:util';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CO_AUTHORED_BY, claimQueue, launchTask, mergeOrder, orderPrompt, orderTask, RESUME_PROMPT, resumeTask, runDir, runLog, runLogFrom, runState, sessionTranscript, stopTask } from '../launch.mjs';
 import { readQueue, writeQueueEntry } from '../roadmap.mjs';
+import { writeSettings } from '../settings.mjs';
 import { roadmapRoutes } from '../roadmap-routes.mjs';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -101,6 +102,29 @@ describe('launchTask', () => {
     expect(readFileSync(join(dir, 'prompt.md'), 'utf8')).toContain('Travaille.');
     expect(runLog(registry, name).match(/fake claude running/g)).toHaveLength(2);
     expect(runState(registry, name)).toMatchObject({ state: 'done', code: 0, sessionId: started.sessionId, resumes: [{ after: 'error', code: 1 }] });
+  });
+
+  it('passes the agent’s effort and model, and a resume takes them as they are now', async () => {
+    const { registry, bin, name } = setup();
+    writeSettings(registry, name, { effort: 'xhigh', model: 'sonnet' });
+    const started = launchTask({ registry, name, env: envFor(bin, { FAKE_CODE: '1' }) });
+    pids.push(started.pid);
+    await until(() => runState(registry, name)?.state === 'error');
+    const dir = runDir(registry, name);
+    const first = readFileSync(join(dir, 'fake.args'), 'utf8').trim().split('\n');
+    expect(first).toEqual(['-p', '--session-id', started.sessionId, '--permission-mode', 'auto', '--permission-prompts', 'none', '--effort', 'xhigh', '--model', 'sonnet', '--output-format', 'stream-json', '--verbose']);
+    expect(runState(registry, name)).toMatchObject({ effort: 'xhigh', model: 'sonnet' });
+
+    // Changed on the card: the resume uses the new effort and no model of its own.
+    writeSettings(registry, name, { effort: 'max', model: null });
+    const resumed = resumeTask({ registry, name, env: envFor(bin) });
+    pids.push(resumed.pid);
+    await until(() => runState(registry, name)?.state === 'done');
+    const args = readFileSync(join(dir, 'fake.args'), 'utf8').trim().split('\n');
+    expect(args.slice(0, 3)).toEqual(['-p', '--resume', started.sessionId]);
+    expect(args.join(' ')).toContain('--effort max');
+    expect(args).not.toContain('--model');
+    expect(runState(registry, name)).toMatchObject({ effort: 'max', model: null, resumes: [{ after: 'error', effort: 'max' }] });
   });
 
   it('refuses to resume a run that still works, or one never launched from here', async () => {

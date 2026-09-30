@@ -28,6 +28,7 @@ import { askAboutTask, clearChat, hasChat, markApplied, readChat } from './task-
 import { renameSync as renameFile } from 'node:fs';
 import { launchTask, resumeTask, runDir, runLog, runLogFrom, runState, stopTask } from './launch.mjs';
 import { project, renderPage } from '../config.mjs';
+import { proposeSettings, readSettings, suggestEffort } from './settings.mjs';
 
 const run = promisify(execFile);
 
@@ -40,7 +41,12 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
   const queueDir = join(registry, 'queue');
   const snapshotFile = join(registry, 'roadmap-snapshot.json');
   // The queue with the state of the runs started from the dashboard (running, done, error, stopped, lost).
-  const queueWithRuns = () => readQueue(queueDir).map((entry) => (entry.launchedBy === 'dashboard' ? { ...entry, run: runState(registry, entry.name) } : entry));
+  // Each with the agent's own effort and model as they are now (its card may have changed them since it was queued).
+  const queueWithRuns = () =>
+    readQueue(queueDir).map((entry) => {
+      const withSettings = existsSync(join(registry, `${entry.name}.env`)) ? { ...entry, ...readSettings(registry, entry.name) } : entry;
+      return entry.launchedBy === 'dashboard' ? { ...withSettings, run: runState(registry, entry.name) } : withSettings;
+    });
 
   // Tracked files of the main checkout, to find the files a task cites by their bare name.
   let fileIndex = { at: 0, files: [] };
@@ -76,6 +82,7 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
       }
       if (item.kind !== 'task' || item.status !== 'new') continue;
       item.proposedName = proposeName(item.title, taken);
+      item.suggested = suggestEffort(item);
       taken.add(item.proposedName);
     }
     return { items, sources, queue };
@@ -230,7 +237,8 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
       const job = queuing.then(async () => {
         const { prompts: generated, chosen } = await prompts(tasks);
         const edited = new Map(tasks.map((task) => [task.id, task.prompt]));
-        const ready = chosen.map((task) => ({ id: task.id, name: task.name, base: task.base, title: task.title, prompt: edited.get(task.id) || generated[task.id] }));
+        const asked = new Map(tasks.map((task) => [task.id, task]));
+        const ready = chosen.map((task) => ({ id: task.id, name: task.name, base: task.base, title: task.title, prompt: edited.get(task.id) || generated[task.id], effort: asked.get(task.id)?.effort, model: asked.get(task.id)?.model }));
         const results = await enqueue(ready, { queueDir, registry, createWorktree: (name, base) => agentCommand(['new', name, base]) });
         // The task now names its agent in the backlog: « > 🟣 en file · agent <name> ».
         for (const task of ready) {
@@ -243,6 +251,16 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
       });
       queuing = job.catch(() => {});
       return json({ results: await job, queue: queueWithRuns() }), true;
+    }
+    // « ✨ Proposer » : Claude proposes an effort and a model for each chosen task (settings.mjs, one call, no tools).
+    if (path === '/api/roadmap/propose' && post) {
+      const { ids = [] } = await readBody(request);
+      const tasks = current().items.filter((item) => item.kind === 'task' && ids.includes(item.id)).map((item) => ({ id: item.id, text: item.text }));
+      try {
+        return json({ ok: true, proposals: await proposeSettings({ tasks, root }) }), true;
+      } catch (error) {
+        return json({ ok: false, error: error.message }), true;
+      }
     }
     if (path === '/api/queue') return json(queueWithRuns()), true;
     // Launches the claude CLI on one queued task, or on all of them (launch.mjs); a task already launched is refused.

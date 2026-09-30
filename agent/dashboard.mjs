@@ -20,6 +20,8 @@ import { parseGoal } from './goal.mjs';
 import { syncBacklog } from './backlog.mjs';
 import { UNRELEASED } from '../release/changes.mjs';
 import { markQueue, readQueue } from './roadmap.mjs';
+import { readSettings, writeSettings } from './settings.mjs';
+import { dashboardToken, guard } from './access.mjs';
 import { briefPath, project, renderPage, renderText } from '../config.mjs';
 
 const run = promisify(execFile);
@@ -159,6 +161,7 @@ async function agentState(env) {
     goal,
     deliverables: await deliverables(env, commits.length, existsSync(report), goal?.base),
     run: runState(runsRegistry, env.AGENT_NAME),
+    settings: readSettings(registry, env.AGENT_NAME),
     ...env,
     exists,
     server,
@@ -559,13 +562,18 @@ const branches = branchesRoutes({ registry, readEnv, here });
 // The home page, a map of the whole ecosystem (hub.mjs): /, /api/hub, /doc/…; the worktrees page moves to /agents.
 const hub = createHub({ port, root: mainRoot, snapshot: () => latest, page: pageFile });
 
+// Outside the machine itself (a phone through tailscale serve, say), every request needs the dashboard's token
+// (access.mjs).
+const token = dashboardToken(registry);
+
 createServer((request, response) => {
+  if (guard(request, response, token)) return;
   handle(request, response).catch((error) => {
     console.error(error);
     response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
     response.end(String(error.stack || error));
   });
-}).listen(port, () => console.log(`agents dashboard: http://localhost:${port}`));
+}).listen(port, () => console.log(`agents dashboard: http://localhost:${port} (from another machine: its token once, ?token=…, see make agent-dashboard-token)`));
 
 async function handle(request, response) {
   const path = new URL(request.url ?? '/', 'http://localhost').pathname;
@@ -632,6 +640,23 @@ async function handle(request, response) {
     const result = orderAgent(order[1], text);
     latest = await snapshot();
     return json(result);
+  }
+  // The agent's effort and model (settings.mjs), for its next start of claude.
+  const settingsOf = /^\/api\/settings\/([a-z0-9-]+)$/.exec(path);
+  if (settingsOf && request.method === 'POST') {
+    let body = {};
+    try {
+      let text = '';
+      for await (const chunk of request) text += chunk;
+      body = JSON.parse(text || '{}');
+    } catch {}
+    try {
+      const settings = writeSettings(registry, settingsOf[1], { effort: body.effort ?? null, model: body.model ?? null });
+      latest = await snapshot();
+      return json({ ok: true, settings });
+    } catch (error) {
+      return json({ ok: false, error: error.message });
+    }
   }
   const archive = /^\/api\/(archive|unarchive)\/([a-z0-9-]+)$/.exec(path);
   if (archive && request.method === 'POST') {

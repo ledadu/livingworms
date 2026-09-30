@@ -28,7 +28,7 @@ Pour relancer une équipe : le skill `/agent-team` ([`skills/agent-team/`](../sk
 
 ### 2. Lancer
 
-Un appel `Agent` par chantier, **tous dans le même message** pour qu'ils partent ensemble, en arrière-plan (`subagent_type: general-purpose`, `run_in_background: true`). Le prompt tient en quelques lignes :
+Un appel `Agent` par chantier, **tous dans le même message** pour qu'ils partent ensemble, en arrière-plan (`run_in_background: true`). Le type d'agent porte l'**effort** : `subagent_type: chantier-<effort>` (`chantier-low` … `chantier-max`, définis dans [`claude-agents/`](../claude-agents/)) quand la tâche en a un, `general-purpose` sinon ; le **modèle**, s'il y en a un, passe par le paramètre `model` de l'outil (`opus`, `sonnet`, `fable`, `haiku`). Préparés à la main, les worktrees les prennent avec `make agent-new NAME=… EFFORT=… MODEL=…`, et l'utilisateur peut les changer sur la carte. Le prompt tient en quelques lignes :
 
 ```text
 Tu es l'agent `<chantier>`. Lis d'abord la consigne commune : <chemin du brief> et respecte-la strictement.
@@ -50,7 +50,7 @@ L'utilisateur peut aussi préparer les chantiers lui-même : page **Backlog** du
 
 1. Lancer `make agent-queue-wait` (ou `node agents/agent/queue.mjs wait`) **en tâche de fond** (`run_in_background: true`). La commande attend qu'une tâche soit en file, imprime les tâches `queued` en JSON puis se termine, ce qui réveille l'orchestrateur.
 2. `node agents/agent/queue.mjs mark <nom> launched` pour chacune (la page l'affiche « lancée par l'orchestrateur »). Cette commande prend la tâche de façon exclusive : si elle échoue (« lancée depuis le tableau de bord »), l'utilisateur l'a lancée entre-temps avec « ▶ Lancer » : ne pas la lancer une seconde fois.
-3. Pour chaque tâche prise : remplacer `{{CO_AUTHORED_BY}}` du `prompt` par la ligne `Co-Authored-By` de la session, écrire le brief commun si besoin, puis un appel `Agent` avec ce prompt (tous dans le même message, comme ci-dessus). Le worktree existe déjà : pas de `make agent-new`. Relancer ensuite l'attente de l'étape 1.
+3. Pour chaque tâche prise : remplacer `{{CO_AUTHORED_BY}}` du `prompt` par la ligne `Co-Authored-By` de la session, écrire le brief commun si besoin, puis un appel `Agent` avec ce prompt, `subagent_type` = son `agentType` et, s'il y en a un, `model` = son `model` (tous dans le même message, comme ci-dessus). `wait` et `list --json` donnent `effort`, `model` et `agentType` tels qu'ils sont au moment de la lecture (la carte a pu les changer). Le worktree existe déjà : pas de `make agent-new`. Relancer ensuite l'attente de l'étape 1.
 4. À la fusion : `node agents/agent/queue.mjs mark <nom> done`. `make agent-queue` liste la file ; `make agent-queue MARK="<nom> done"` change un statut.
 
 Une tâche annulée depuis la page disparaît de la file (et son worktree, si l'utilisateur l'a demandé) : une tâche absente de la sortie de `wait` ne se lance pas.
