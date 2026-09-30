@@ -521,7 +521,8 @@ const glacier: GlacierScene = { view, ctx, gx, dpr, t: 0, plane: 0 };
 /** a partner glows softly around the middle of its body when the swimmer comes near */
 function pushPartnerLight(a: Actor): void {
   const r = a.cr.root, pr = player.cr.root, k = r.x.length >> 1;
-  const al = partnerGlow(Math.hypot(r.x[k] - pr.x[0], r.y[k] - pr.y[0]), t, a.cr.root.x.length + a.hx * 0.01);
+  // while it dances and just after, the lights of the parade speak for it (parade-jeu.ts)
+  const al = partnerGlow(Math.hypot(r.x[k] - pr.x[0], r.y[k] - pr.y[0]), t, a.cr.root.x.length + a.hx * 0.01) * (parade.danced(a) ? 0.3 : 1);
   if (al < 0.01) return;
   view.project(r.x[k], r.y[k], r.z[k], P);
   // clear bright water swallows an added light: it glows a little more there
