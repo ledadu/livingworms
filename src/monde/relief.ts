@@ -502,13 +502,13 @@ export function initReliefs(biomes: readonly { id: string; x0: number; encrust: 
     const [a, e] = span(i);
     for (const p of PLANS[b.id] || []) {
       if (p.kind === 'faille') continue;
-      // in the swimming plane, one every so often, where it fits: on a gentle slope, clear of the set pieces and the faults
-      const gap = Math.max(700, p.every / (p.lane + p.front + p.back) / (p.lane || 1));
+      // in the swimming plane, one every so often, where it fits: on a gentle slope (a ledge may overhang a steeper one), clear of the set pieces and the faults
+      const gap = Math.max(700, p.every / (p.lane + p.front + p.back) / (p.lane || 1)), steep = p.kind === 'surplomb' ? 320 : 150;
       if (p.lane > 0) {
         for (let x = a + 400 + R() * gap * 0.5; x < e - 400; x += gap * (0.75 + 0.5 * R())) {
           for (let k = 0; k < 6; k++) {
             const xx = x + k * 90;
-            if (xx > e - 400 || Math.abs(floor(xx - 150, 0) - floor(xx + 150, 0)) > 150) continue;
+            if (xx > e - 400 || Math.abs(floor(xx - 150, 0) - floor(xx + 150, 0)) > steep) continue;
             const r = build(p.kind, 'lane', xx, R, floor, b.encrust);
             if (r && fits(r)) { reliefs.push(r); x = xx; break; }
           }
