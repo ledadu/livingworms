@@ -43,7 +43,7 @@ function strand(k: number): HTMLCanvasElement {
   if (c) return c;
   const R = rng(700 + k), W = 64, H = 512;
   c = makeCanvas(W, H);
-  const g = c.getContext('2d')!, hue = 44 + R() * 30, lit = 24 + R() * 10;
+  const g = c.getContext('2d')!, hue = 70 + R() * 30, lit = 16 + R() * 8;
   g.lineCap = 'round';
   g.strokeStyle = `hsl(${hue},45%,${lit - 6}%)`; g.lineWidth = 3;
   g.beginPath(); g.moveTo(W / 2, H);
@@ -51,7 +51,7 @@ function strand(k: number): HTMLCanvasElement {
   g.stroke();
   for (let y = H - 30, s = 1; y > 20; y -= 18 + R() * 16, s = -s) {
     const x = W / 2 + Math.sin(y * 0.02 + k) * 5, L = 16 + R() * 14;
-    g.fillStyle = `hsla(${hue + R() * 12},${50 + R() * 12}%,${lit + R() * 8}%,0.92)`;
+    g.fillStyle = `hsla(${hue + R() * 12},${36 + R() * 12}%,${lit + R() * 8}%,0.92)`;
     g.beginPath();
     g.ellipse(x + s * L * 0.55, y - 6, L * 0.6, 5 + R() * 3, s * -0.55, 0, TAU);
     g.fill();
@@ -103,22 +103,22 @@ function drawLayer(s: Scene, look: Look, gate: number, soft: number, layer: numb
     if (al < 0.02) continue;
     if (look === 'current') {
       blend(s, sz > 0.7);
-      put(s, blob(sz > 0.7 ? '235,252,255' : '200,236,245'), P.x, P.y, Math.sin(t + ph) * 0.05, (60 + 90 * sz) * P.s, (sz > 0.7 ? 2 : 10 + 14 * sz) * P.s, al * (sz > 0.7 ? 0.5 : 0.22));
+      put(s, blob(sz > 0.7 ? '235,252,255' : '210,240,250'), P.x, P.y, Math.sin(t + ph) * 0.05, (80 + 120 * sz) * P.s, (sz > 0.7 ? 3 : 12 + 16 * sz) * P.s, al * (sz > 0.7 ? 0.8 : 0.4));
     } else if (look === 'heat') {
       blend(s, sz > 0.8);
-      put(s, blob(sz > 0.8 ? '255,190,110' : '255,140,80'), P.x + Math.sin(t * 2 + ph) * 6 * P.s, P.y, Math.PI / 2 + Math.sin(t * 1.5 + ph) * 0.2, (40 + 60 * sz) * P.s, (sz > 0.8 ? 3 : 18 + 20 * sz) * P.s, al * (sz > 0.8 ? 0.45 : 0.16));
+      put(s, blob(sz > 0.8 ? '255,190,110' : '255,140,80'), P.x + Math.sin(t * 2 + ph) * 6 * P.s, P.y, Math.PI / 2 + Math.sin(t * 1.5 + ph) * 0.2, (40 + 60 * sz) * P.s, (sz > 0.8 ? 3 : 18 + 20 * sz) * P.s, al * (sz > 0.8 ? 0.8 : 0.32));
     } else if (look === 'cold') {
       blend(s, sz > 0.85);
-      put(s, blob(sz > 0.85 ? '240,252,255' : '215,240,255'), P.x, P.y, ph, (50 + 110 * sz) * P.s, (30 + 60 * sz) * P.s, al * (sz > 0.85 ? 0.35 : 0.2));
+      put(s, blob(sz > 0.85 ? '240,252,255' : '215,240,255'), P.x, P.y, ph, (50 + 110 * sz) * P.s, (30 + 60 * sz) * P.s, al * (sz > 0.85 ? 0.6 : 0.4));
     } else if (look === 'void') {
       blend(s, true);
       put(s, blob('190,200,255'), P.x, P.y, Math.PI / 2, (60 + 80 * sz) * P.s, 1.6 * P.s, al * 0.4);
     } else {
       // kelp: dense in the last stretch before the gate, swaying slowly
-      if (u < 0.45) continue;
+      if (u < 0.45 || layer === 0) continue;
       blend(s, false);
       const h = Math.min(bot - top, 700 + 500 * sz) * P.s;
-      put(s, strand((l * 7 + Math.floor(ph * 10)) % 12), P.x, P.y, Math.sin(t * 0.5 + ph) * 0.06, 34 * P.s * (1 + sz), h, al * 0.95, 0.5, 1);
+      put(s, strand((l * 7 + Math.floor(ph * 10)) % 12), P.x, P.y, Math.sin(t * 0.5 + ph) * 0.06, 34 * P.s * (1 + sz), h, al * 0.9 * (1 - fogOf(P.d, s.plane)), 0.5, 1);
     }
   }
   blend(s, false);
