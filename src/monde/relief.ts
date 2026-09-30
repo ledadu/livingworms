@@ -425,7 +425,7 @@ const PLANS: Record<string, Plan[]> = {
   // basalt columns far away among the chimneys
   sources: [{ kind: 'pilier', every: 1000, lane: 0, front: 0.1, back: 0.9 }],
   // crevasses and ledges of ice
-  glacier: [{ kind: 'faille', every: 1100, lane: 1, front: 0, back: 0 }, { kind: 'surplomb', every: 800, lane: 0.4, front: 0, back: 0.6 }],
+  glacier: [{ kind: 'faille', every: 1700, lane: 1, front: 0, back: 0 }, { kind: 'surplomb', every: 600, lane: 0.6, front: 0, back: 0.4 }],
   // (the Jardin has no floor in sight)
   // the trench: the floor cracks open in the dark
   fosse: [{ kind: 'faille', every: 1000, lane: 1, front: 0, back: 0 }]

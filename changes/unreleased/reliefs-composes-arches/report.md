@@ -18,16 +18,16 @@ Quatre types de relief, placés chapitre par chapitre, qui passent devant, en tr
   | Chapitre | Reliefs | Dans le plan de nage |
   | --- | --- | --- |
   | La Nurserie | quelques arches au loin | rien (le chapitre reste ouvert) |
-  | Le Récif | arches couvertes de polypes, devant et derrière | arches à traverser (x ≈ 4400, 5510, 6440) |
-  | La Forêt | piliers, comme une cathédrale, devant et derrière | piliers (x ≈ 7570, 8660, 9870) |
+  | Le Récif | arches couvertes de polypes, derrière | arches à traverser (x ≈ 3960, 5310, 6510) |
+  | La Forêt | piliers, comme une cathédrale, devant et derrière | piliers (x ≈ 7940, 9600) |
   | La Grotte | rien : elle a sa voûte et ses piliers (`grotte.ts`) | — |
-  | La Carcasse | surplombs | un surplomb (x ≈ 15040) |
+  | La Carcasse | surplombs au loin, autour de la baleine | rien : la baleine (`carcasse.ts`) occupe le plan de nage |
   | Les Sources | colonnes de basalte au loin, entre les cheminées | rien |
-  | Le Glacier | crevasses, corniches de glace | crevasses (x ≈ 19840, 20940) |
+  | Le Glacier | crevasse, corniches de glace | une crevasse (x ≈ 20080), des corniches (x ≈ 19410, 21080) |
   | Le Jardin de méduses | rien : pas de fond | — |
-  | La Fosse | failles dans le noir | failles (x ≈ 25870, 26790, 27840) |
+  | La Fosse | failles dans le noir | failles (x ≈ 26040, 27080, 27990) |
 
-- **Comment le voir** : ⚙ → Voyage → Récif, Forêt, Glacier ; ou `monde.teleport(4300, 520)` (arches du Récif), `monde.teleport(8790, 640)` (un pilier qui cache), `monde.teleport(19837, 1880)` (dans une crevasse du Glacier), `monde.teleport(14890, 1440)` (sous un surplomb de la Carcasse). La couche `relief` de `monde.skip` les retire pour comparer.
+- **Comment le voir** : ⚙ → Voyage → Récif, Forêt, Glacier ; ou `monde.teleport(4000, 520)` (arches du Récif), `monde.teleport(7818, 640)` (un pilier qui cache), `monde.teleport(20076, 1900)` (dans la crevasse du Glacier), `monde.teleport(19250, 1690)` (sous une corniche du Glacier), `monde.teleport(14700, 1350)` (la baleine de la Carcasse dans son creux de surplombs). La couche `relief` de `monde.skip` les retire pour comparer.
 - **Mesures** (Chrome Windows, 1280 × 760) : 60 img/s en WebGL avec ou sans reliefs, dans le Récif et la Forêt (écart de rendu sous le bruit de mesure, de 0,1 à 2 ms selon les essais). En Canvas 2D (`?gl=0`), 44 ms par image contre 39 sans reliefs dans le Récif.
 - **Branchements** : `floorAt` ajoute `carve(x, z)` (`biomes.ts`) ; `main.ts` appelle `initReliefs` après les décors, `bump(cr)` dans `collide`, `pushReliefs` dans le tri de la scène ; `world.ts` fait pousser les plantes sur les reliefs (`groundAt`) et n'y pose pas de rochers (`solidAt`).
 - **Doc** : section « Les reliefs composés » dans `docs/direction-artistique.md`.
@@ -38,7 +38,8 @@ Quatre types de relief, placés chapitre par chapitre, qui passent devant, en tr
 ![La traversée : le poisson-clown passe sous la voûte, entre le pied avant et le pied arrière](img/traversee.jpg)
 ![La Forêt : un pilier du premier rang cache le nageur](img/pilier-cache.jpg)
 ![Le Glacier : une crevasse, le nageur y plonge](img/glacier-crevasse.jpg)
-![La Carcasse : à l'abri sous un surplomb](img/carcasse-abri.jpg)
+![Le Glacier : à l'abri sous une corniche de glace](img/glacier-corniche.jpg)
+![La Carcasse : la baleine repose dans un creux de surplombs](img/carcasse-creux.jpg)
 
 ## Choix retenus
 
@@ -87,7 +88,7 @@ Aucune question structurante posée à l'utilisateur : tout est tranché seul (o
 - Seule la **racine** d'une créature bute (comme pour le fond et les rochers) : une queue peut passer dans la roche.
 - **Canvas 2D** : environ 5 ms de plus par image au Récif, et de fines coutures claires entre les facettes (l'anticrénelage du canvas entre deux tracés voisins) ; le WebGL (par défaut) n'a ni l'un ni l'autre. Un trait de la couleur des faces les couvrirait, pour un tracé de plus par couleur.
 - `drawRow` (`main.ts`) prend la couleur du sol à la verticale de la caméra : au-dessus d'une faille, elle vient du fond de la faille (un peu plus sombre au loin). Rien de visible aux essais ; à reprendre avec un fond non creusé si besoin.
-- La **Grotte** a sa propre voûte (`ceilAt`, `grotte.ts`) : elle pourrait devenir un relief, et ses piliers aussi. Le **Glacier** : crevasses et corniches à harmoniser avec les parois de glace du chantier `decor-glacier` quand il sera fusionné ; la **Carcasse** : vérifier avec le chantier `decor-carcasse` que les surplombs laissent la baleine bien visible (ils évitent déjà la carcasse de `makeDecor`).
+- La **Grotte** a sa propre voûte (`ceilAt`, `grotte.ts`) : elle pourrait devenir un relief, et ses piliers aussi. Le **Glacier** : crevasses et corniches à harmoniser avec les parois de glace du chantier `decor-glacier` quand il sera fusionné ; la **Carcasse** : les surplombs évitent les os de la baleine (`CARCASSE.pieces` dans les décors) et restent donc au loin ; les corniches à l'abri desquelles se glisser sont au Glacier.
 - Les **grottes** comme type de relief (une galerie qu'on traverse) ne sont pas faites ici : la Grotte les a à sa façon. Les **failles** ne font pas encore d'obstacle (étape 3).
 - Pas de **son** pour les reliefs (écho sous une voûte, par exemple).
 
