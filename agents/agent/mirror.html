@@ -72,6 +72,11 @@
   .empty { background: var(--panel); border: 1px dashed var(--line); border-radius: 12px; padding: 18px; color: var(--muted); }
   .empty b { color: var(--fg); }
   .hint { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
+  .refresh { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 8px; }
+  .refresh button { font: 600 13px var(--sans); color: var(--bg); background: var(--accent); border: 0; border-radius: 999px; padding: 6px 14px; min-height: 32px; cursor: pointer; }
+  .refresh button:disabled { color: var(--muted); background: var(--panel2); cursor: default; }
+  .refresh button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .refresh span { color: var(--muted); font-size: 13px; }
   @media (prefers-reduced-motion: no-preference) { .pill.s-working::before { animation: pulse 1.6s ease-in-out infinite; } }
   @keyframes pulse { 50% { opacity: .35; } }
 </style>
@@ -80,6 +85,7 @@
   <header>
     <h1>Agents <span class="project" id="project"></span></h1>
     <div class="taken" id="taken">Chargement…</div>
+    <div class="refresh" id="refresh-row" hidden><button type="button" id="refresh">↻ Rafraîchir</button><span id="refresh-note" aria-live="polite"></span></div>
     <nav id="nav" hidden>
       <a href="#agents">Agents <b id="n-agents"></b></a>
       <a href="#questions">Questions <b id="n-questions"></b></a>
@@ -88,7 +94,7 @@
     </nav>
   </header>
   <main id="main">
-    <div class="empty" style="margin-top:18px"><b>Aucun instantané pour l'instant.</b><br>Cette page montre le tableau de bord des agents tel qu'il était au dernier envoi : les agents et leur tâche du moment, les questions en attente, la file, le backlog et les versions. Écris « miroir » dans la conversation Claude Code pour l'envoyer ici.</div>
+    <div class="empty" style="margin-top:18px"><b>Aucun instantané pour l'instant.</b><br>Cette page montre le tableau de bord des agents tel qu'il était au dernier envoi : les agents et leur tâche du moment, les questions en attente, la file, le backlog et les versions. Touche « ↻ Rafraîchir », ou écris « miroir » dans la conversation Claude Code, pour l'envoyer ici.</div>
   </main>
 </div>
 
@@ -119,7 +125,7 @@ function header() {
   $('project').textContent = snap.project ?? '';
   const taken = Date.parse(snap.takenAt);
   const stale = Date.now() - taken > 60 * 60 * 1000;
-  $('taken').innerHTML = `<span>Instantané du ${esc(time(taken))}</span><span class="pill ${stale ? 's-stale' : 's-fresh'}">${esc(ago(taken))}</span>${stale ? '<span>Pour du frais : « miroir » dans la conversation.</span>' : ''}`;
+  $('taken').innerHTML = `<span>Instantané du ${esc(time(taken))}</span><span class="pill ${stale ? 's-stale' : 's-fresh'}">${esc(ago(taken))}</span>${stale ? '<span>Pour du frais : « ↻ Rafraîchir », ou « miroir » dans la conversation.</span>' : ''}`;
 }
 
 function figures() {
@@ -225,10 +231,74 @@ function render() {
     <h2 id="versions">Versions</h2>${versions()}`;
 }
 
-setInterval(header, 30_000);
+// Refreshing from the page: a comment sent to Claude (the comments capability, sendToClaude), which the Claude Code
+// session watching the page answers with a new snapshot (make agent-mirror, then ArtifactData set). Every request goes
+// to one thread, whose id the page keeps in mirror/refresh.
+const REQUEST = 'miroir : rafraîchis cet instantané depuis la machine (make agent-mirror, puis ArtifactData set sur mirror/state).';
+const WAIT_MS = 3 * 60 * 1000;
+// askedAt: when the request left (this device's clock); askedFrom: the snapshot shown then, so that any newer one
+// ends the wait whatever the machine's clock says.
+let db = null, comments = null, can = 'off', thread = null, askedAt = 0, askedFrom = null;
+let status = { kind: 'idle', text: '' };
+
+function paintRefresh() {
+  const button = $('refresh');
+  $('refresh-row').hidden = !comments || can === 'off';
+  const busy = status.kind === 'sending' || status.kind === 'asked';
+  button.disabled = busy || can !== 'available';
+  button.textContent = status.kind === 'sending' ? 'Envoi…' : status.kind === 'asked' ? 'Demandé…' : '↻ Rafraîchir';
+  const reason = can === 'no_session' ? 'Aucune session Claude Code ne suit la page : écris « miroir » dans la conversation.'
+    : can === 'writers_only' ? 'Seuls les éditeurs de la page peuvent demander un instantané.' : '';
+  $('refresh-note').textContent = status.text || reason;
+}
+const setStatus = (kind, text = '') => { status = { kind, text }; paintRefresh(); };
+
+async function checkRefresh() {
+  if (!comments) return;
+  try { can = await comments.canSendToClaude(); } catch { can = 'off'; }
+  if (status.kind === 'asked' && Date.now() - askedAt > WAIT_MS) setStatus('error', 'Pas de réponse en 3 min : la session Claude Code est peut-être occupée ou fermée.');
+  else paintRefresh();
+}
+
+$('refresh').addEventListener('click', async () => {
+  if (!comments || $('refresh').disabled) return;
+  setStatus('sending');
+  try {
+    let sent = null;
+    if (thread) {
+      try { sent = await comments.sendToClaude({ threadId: thread, text: REQUEST }); }
+      catch (error) { if (error?.code !== 'not_found') throw error; thread = null; }
+    }
+    if (!sent) {
+      sent = await comments.sendToClaude({ anchor: await comments.anchorFor($('refresh')), text: REQUEST });
+      thread = sent.threadId;
+      // only a convenience (next requests reuse the thread): its failure must not look like a failed request
+      try { db?.doc('mirror/refresh').set({ thread }).catch(() => {}); } catch { /* read-only view */ }
+    }
+    askedAt = Date.now();
+    askedFrom = snap?.takenAt ?? null;
+    setStatus('asked', 'Demandé à Claude : le nouvel instantané arrive d\'ici une minute ou deux.');
+  } catch (error) {
+    const code = error?.code;
+    if (code === 'forbidden') can = 'off';
+    setStatus('error', code === 'consent_required' ? 'Pas envoyé : autorise la page à commenter en ton nom, puis réessaie.'
+      : code === 'claude_unavailable' ? 'Aucune session Claude Code ne peut recevoir la demande : écris « miroir » dans la conversation.'
+      : code === 'rate_limited' ? 'Trop de demandes d\'un coup : attends un peu.'
+      : code === 'forbidden' ? 'Les commentaires depuis la page sont désactivés ici.'
+      : `Pas envoyé (${code ?? 'erreur'}).`);
+  }
+});
+
+setInterval(() => { header(); checkRefresh(); }, 30_000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkRefresh(); });
 
 (async () => {
-  const db = window.claude?.use ? await window.claude.use('db') : null;
+  comments = window.claude?.use ? await window.claude.use('comments') : null;
+  checkRefresh();
+})();
+
+(async () => {
+  db = window.claude?.use ? await window.claude.use('db') : null;
   if (!db) {
     $('taken').textContent = 'La base de la page ne répond pas ici : ouvre-la sur claude.ai.';
     return;
@@ -238,8 +308,10 @@ setInterval(header, 30_000);
       snap = doc.exists ? doc.data() : null;
       if (snap) render();
       else $('taken').textContent = 'Pas encore d\'instantané.';
+      if (snap && askedAt && snap.takenAt !== askedFrom) { askedAt = 0; setStatus('done', 'À jour.'); }
     },
     (error) => ($('taken').textContent = `Lecture impossible (${error.code}).`),
   );
+  db.doc('mirror/refresh').onSnapshot((doc) => { thread = doc.exists ? doc.data().thread ?? null : null; }, () => {});
 })();
 </script>
