@@ -5,14 +5,20 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "check": "tsc --noEmit",
+    "dev:client": "vite --port ${CLIENT_PORT:-5173} --strictPort",
+    "dev:server": "vite build && vite preview --port ${PORT:-4173} --strictPort",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "tsc --noEmit && vitest run",
     "build": "tsc --noEmit && vite build",
     "play": "npm run build && cp dist/index.html play/lignee-monde.html",
     "preview": "vite preview"
   },
   "devDependencies": {
+    "playwright-core": "^1.63.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.1",
-    "vite-plugin-singlefile": "^2.3.3"
+    "vite-plugin-singlefile": "^2.3.3",
+    "vitest": "^5.0.2"
   }
 }
