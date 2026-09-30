@@ -9,10 +9,15 @@ export const LEGACY_PLAYER_KEY = 'lignee.player';
 /** a creature as stored: the JSON of its species definition */
 export type SavedCreature = Record<string, unknown>;
 
+/** the partner of a birth: its species id in the bestiary ('' when it is not one) and its name */
+export interface Mate { id: string; name: string }
+
 export interface Ancestor {
   creature: SavedCreature;
   /** the chapter where it gave birth */
   chapter: string;
+  /** with whom (saves before the lineage tree have none) */
+  partner?: Mate;
 }
 
 export interface Partie {
@@ -74,9 +79,18 @@ export function clearPartie(store: Store | null): void {
 }
 
 /** a birth: the parent joins the lineage where it gave birth, and the child is played from now on */
-export function birth(p: Partie, child: SavedCreature, chapter: string): Partie {
-  const lineage = p.creature ? [...p.lineage, { creature: p.creature, chapter }] : p.lineage;
+export function birth(p: Partie, child: SavedCreature, chapter: string, partner?: Mate): Partie {
+  const lineage = p.creature ? [...p.lineage, { creature: p.creature, chapter, ...(partner && { partner }) }] : p.lineage;
   return { ...p, chapter, creature: child, lineage };
+}
+
+/** an ancestor renamed (the i-th generation, the oldest first); the one played is renamed with its creature */
+export function renameAncestor(p: Partie, i: number, name: string): Partie {
+  const a = p.lineage[i];
+  if (!a) return p;
+  const lineage = p.lineage.slice();
+  lineage[i] = { ...a, creature: { ...a.creature, name } };
+  return { ...p, lineage };
 }
 
 /** the creature changes without a birth (the Atelier): the lineage stays as it is */
