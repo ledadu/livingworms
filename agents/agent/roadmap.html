@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backlog __PROJECT__</title>
+<style>
+  :root {
+    --bg: #111418; --panel: #1a1f26; --panel2: #222933; --line: #2e3744; --text: #e6e9ee; --muted: #8b95a5;
+    --ok: #4cc38a; --warn: #e5b454; --off: #5b6472; --accent: #7aa7ff; --bad: #ef6b6b; --say: #c8b6ff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+  header { display: flex; align-items: baseline; gap: 16px; padding: 14px 20px; border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; background: var(--bg); z-index: 3; flex-wrap: wrap; }
+  h1 { font-size: 18px; margin: 0; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .summary { color: var(--muted); font-size: 12px; }
+  .summary b { color: var(--text); }
+  .spacer { flex: 1; }
+  .btn { font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel2);
+    color: var(--text); cursor: pointer; text-decoration: none; }
+  .btn:hover { border-color: var(--accent); text-decoration: none; }
+  .btn.primary { background: var(--accent); color: #0b1220; border-color: var(--accent); font-weight: 600; }
+  .btn.go { background: var(--ok); border-color: var(--ok); color: #0d1f16; font-weight: 700; font-size: 14px; padding: 7px 14px; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.danger:hover { border-color: var(--bad); color: var(--bad); }
+  select, input, textarea { font: inherit; font-size: 12px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
+  input.bad { border-color: var(--bad); }
+  .legend { display: flex; gap: 12px; font-size: 12px; color: var(--muted); }
+  .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+  .spin { display: inline-block; width: 10px; height: 10px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%;
+    animation: s .8s linear infinite; vertical-align: -1px; margin-right: 4px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  .layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(340px, 2fr); gap: 20px; padding: 16px 20px; align-items: start; }
+  .side { position: sticky; top: 64px; display: flex; flex-direction: column; gap: 14px; max-height: calc(100vh - 80px); overflow: auto; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .panel h2 { font-size: 13px; margin: 0; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  .note { font-size: 12px; color: var(--muted); }
+  .note.bad { color: var(--bad); }
+  .note.good { color: var(--ok); }
+  /* What changed since the last refresh. */
+  .diff { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--say); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px; }
+  .diff.quiet { border-left-color: var(--off); color: var(--muted); }
+  .diff ul { margin: 4px 0 0; padding-left: 18px; }
+  .diff .gone { color: var(--muted); text-decoration: line-through; }
+  /* A ## section and its tasks. */
+  details.section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; }
+  details.section > summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: 15px; display: flex; gap: 10px; align-items: baseline; }
+  details.section > summary .counts { font-weight: 400; font-size: 12px; color: var(--muted); }
+  .rows { padding: 0 10px 10px; display: flex; flex-direction: column; gap: 4px; }
+  .row { --status: var(--off); border-left: 3px solid var(--status); border-radius: 6px; padding: 5px 8px;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--status) 10%, var(--panel2)) 0%, var(--panel2) 60%); }
+  .row.st-new { --status: var(--say); }
+  .row.st-active { --status: var(--accent); }
+  .row.st-done { --status: var(--ok); }
+  .row.st-archived { --status: var(--off); opacity: .8; }
+  .row.kind-item { margin-left: 22px; }
+  .row.kind-step .title, .row.kind-subsection .title, .row.kind-task .title { font-weight: 600; }
+  .row.st-paused { opacity: .6; }
+  .tool { font: inherit; font-size: 12px; background: none; border: 1px solid transparent; color: var(--muted); border-radius: 6px; padding: 1px 6px; cursor: pointer; }
+  .tool:hover { border-color: var(--accent); color: var(--text); }
+  .tool.has { color: var(--say); }
+  .tool small { font-size: 10px; margin-left: 2px; }
+  .tool.new { margin-left: auto; font-weight: 400; }
+  dialog.task { width: min(1200px, 96vw); height: min(820px, 92vh); padding: 0; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 12px; }
+  dialog.task::backdrop { background: rgba(0, 0, 0, .55); }
+  dialog.task .frame { display: flex; flex-direction: column; height: 100%; }
+  dialog.task header { position: static; padding: 10px 16px; }
+  dialog.task .panes { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+  dialog.task .panes.solo { grid-template-columns: 1fr; }
+  dialog.task .pane { display: flex; flex-direction: column; min-height: 0; padding: 12px 16px; gap: 8px; }
+  dialog.task .pane + .pane { border-left: 1px solid var(--line); }
+  dialog.task h3 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  dialog.task textarea.text { flex: 1; min-height: 200px; font: 13px/1.5 ui-monospace, monospace; resize: none; padding: 10px; }
+  dialog.task .bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .thread { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; }
+  .msg { border-radius: 8px; padding: 6px 12px; font-size: 13px; line-height: 1.5; }
+  .msg.user { background: var(--panel2); align-self: flex-end; max-width: 88%; white-space: pre-wrap; }
+  .msg.assistant { border: 1px solid var(--line); border-left: 3px solid var(--say); }
+  .msg.error { border-left-color: var(--bad); color: var(--bad); white-space: pre-wrap; }
+  .msg .md p { margin: 4px 0; } .msg .md ul, .msg .md ol { margin: 4px 0; padding-left: 20px; }
+  .msg .md code { background: var(--panel2); padding: 0 4px; border-radius: 4px; font-size: 12px; }
+  .msg .md pre { background: var(--panel2); padding: 6px; border-radius: 6px; overflow: auto; font-size: 12px; }
+  .proposal { margin-top: 8px; border: 1px solid var(--accent); border-radius: 8px; overflow: hidden; }
+  .proposal .head { display: flex; gap: 8px; align-items: center; padding: 4px 8px; background: var(--panel2); font-size: 12px; }
+  .proposal pre.diff { margin: 0; max-height: 300px; overflow: auto; font-size: 12px; padding: 6px 8px; white-space: pre-wrap; }
+  .diff .del { color: var(--bad); background: rgba(239, 107, 107, .08); display: block; }
+  .diff .add { color: var(--ok); background: rgba(76, 195, 138, .08); display: block; }
+  .diff .same { color: var(--muted); display: block; }
+  .typing { color: var(--muted); font-size: 12px; font-style: italic; }
+  dialog.task .ask { min-height: 60px; resize: vertical; font: inherit; font-size: 13px; padding: 6px; }
+  .row.kind-section .title { font-style: italic; color: var(--muted); }
+  .row.picked { outline: 1px solid var(--say); }
+  .line { display: flex; gap: 8px; align-items: center; min-width: 0; }
+  .line .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .line input[type=checkbox] { accent-color: var(--say); width: 15px; height: 15px; margin: 0; flex: none; }
+  .line .box { width: 15px; flex: none; }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 99px; white-space: nowrap; font-weight: 600; color: #0b1220; background: var(--status); }
+  .st-archived .pill { color: var(--text); }
+  .tag { font-size: 10px; padding: 1px 6px; border-radius: 99px; border: 1px solid; white-space: nowrap; }
+  .tag.added { color: var(--say); }
+  .tag.modified { color: var(--warn); }
+  .who { font-size: 12px; color: var(--muted); font-family: ui-monospace, monospace; white-space: nowrap; }
+  .toggle { font-size: 11px; color: var(--muted); cursor: pointer; background: none; border: none; padding: 0 2px; }
+  .toggle:hover { color: var(--text); }
+  pre { margin: 6px 0 2px; font-size: 11.5px; white-space: pre-wrap; word-break: break-word; color: #c9d1dc; background: var(--bg); border-radius: 6px; padding: 6px 8px; max-height: 360px; overflow: auto; }
+  .choices { font-size: 12px; color: var(--warn); margin-top: 3px; }
+  /* The tasks chosen, before they are queued. */
+  .pick { border: 1px solid var(--line); border-left: 3px solid var(--say); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; background: var(--panel2); }
+  .pick .head { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .pick .head b { color: var(--text); font-size: 13px; flex-basis: 100%; }
+  .pick input.name { width: 170px; font-family: ui-monospace, monospace; }
+  .pick input.base { width: 90px; font-family: ui-monospace, monospace; }
+  .pick textarea { width: 100%; min-height: 150px; resize: vertical; font-family: ui-monospace, monospace; font-size: 11px; line-height: 1.35; }
+  .pick .edited { color: var(--warn); font-size: 11px; }
+  ul.queue { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  ul.queue li { --status: var(--off); border-left: 3px solid var(--status); background: var(--panel2); border-radius: 6px; padding: 6px 8px; font-size: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  ul.queue li.q-queued { --status: var(--warn); }
+  ul.queue li.q-launched { --status: var(--accent); }
+  ul.queue li.q-done, ul.queue li.r-done { --status: var(--ok); }
+  ul.queue li.r-error, ul.queue li.r-lost { --status: var(--bad); }
+  ul.queue li.r-stopped { --status: var(--off); }
+  ul.queue li .run { font-size: 11px; color: var(--muted); }
+  ul.queue li.r-error .run, ul.queue li.r-lost .run { color: var(--bad); }
+  .btn.launch { border-color: var(--ok); color: var(--ok); font-weight: 600; }
+  ul.queue li .qt { flex: 1; min-width: 0; }
+  ul.queue li .qt b { font-family: ui-monospace, monospace; }
+  ul.queue li .ask { font-size: 12px; color: var(--warn); }
+  ul.queue li .qt span { color: var(--muted); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .empty { color: var(--muted); font-size: 12px; font-style: italic; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; padding: 12px 16px; } .side { position: static; max-height: none; } header { padding: 12px 16px; } }
+  nav.site { display: flex; gap: 4px; flex-wrap: wrap; }
+  nav.site a { color: var(--muted); padding: 2px 10px; border-radius: 99px; font-size: 13px; }
+  nav.site a:hover { color: var(--text); background: var(--panel2, #222933); text-decoration: none; }
+  nav.site a.on { color: #0b1220; background: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Backlog __PROJECT__</h1>
+  <nav class="site"><a href="/">Accueil</a><a href="/agents">Agents</a><a href="/journal">Journal</a><a href="/versions">Versions</a><a href="/roadmap">Backlog</a><a href="/questions">Questions</a></nav><script>document.querySelector(`nav.site a[href="${location.pathname}"]`)?.classList.add('on');</script>
+  <button class="btn primary" id="refresh" title="Relire __BACKLOG__ du dépôt principal, mettre ses états à jour, retenir son contenu et montrer ce qui a changé depuis le dernier rafraîchissement">⟳ Rafraîchir le backlog</button>
+  <span class="summary" id="summary">…</span>
+  <span class="spacer"></span>
+  <label class="summary">Afficher <select id="filter">
+    <option value="todo">à faire et en cours</option>
+    <option value="new">à faire seulement</option>
+    <option value="all">tout</option>
+  </select></label>
+  <span class="legend"><span><i style="background:var(--say)"></i>à faire</span><span><i style="background:var(--accent)"></i>en cours</span><span><i style="background:var(--ok)"></i>livré</span><span><i style="background:var(--off)"></i>fusionné</span></span>
+</header>
+<div class="layout">
+  <main>
+    <div id="diff"></div>
+    <div id="sections"></div>
+  </main>
+  <aside class="side">
+    <section class="panel">
+      <h2>Tâches choisies <span id="pick-count"></span></h2>
+      <div id="picks"><span class="empty">Coche des chantiers « à faire » : un nom d'agent, une base et le prompt proposé apparaissent ici.</span></div>
+      <div class="line"><button class="btn go" id="enqueue" disabled>Mettre en file</button><span class="note" id="enqueue-note"></span></div>
+      <span class="note">Crée le worktree de chaque tâche (<code>agent.sh new</code>) et l'ajoute à la file. Ensuite, « ▶ Lancer » démarre l'agent tout de suite (le CLI <code>claude</code> dans son worktree), ou l'orchestrateur (la session Claude Code, <code>make agent-queue-wait</code>) les prend.</span>
+    </section>
+    <section class="panel">
+      <h2>File des tâches <button class="btn launch" id="launch-all" hidden title="Démarre le CLI claude sur chaque tâche en attente">▶ Lancer tout</button></h2>
+      <ul class="queue" id="queue"></ul>
+      <span class="note" id="queue-note"></span>
+    </section>
+  </aside>
+</div>
+<dialog class="task" id="task-dialog">
+  <div class="frame">
+    <header><h1 id="td-title" style="font-size:16px">Chantier</h1><span class="summary" id="td-where"></span><span class="spacer"></span><button class="btn" id="td-close">Fermer</button></header>
+    <div class="panes" id="td-panes">
+      <div class="pane">
+        <h3>Texte du chantier <span style="text-transform:none;letter-spacing:0">(Markdown, titre « ### » compris ; sa ligne d'état est tenue par le système)</span></h3>
+        <textarea class="text" id="td-text" spellcheck="true"></textarea>
+        <div class="bar"><button class="btn primary" id="td-save">Enregistrer</button><button class="btn" id="td-reset" title="Revenir au texte enregistré">Annuler les modifications</button><span class="note" id="td-note"></span></div>
+      </div>
+      <div class="pane" id="td-chat-pane">
+        <h3>Discussion avec Claude <span style="text-transform:none;letter-spacing:0">(il lit le code, ne modifie rien ; tu appliques ses propositions)</span></h3>
+        <div class="thread" id="td-thread"></div>
+        <textarea class="ask" id="td-ask" placeholder="Ex. : « découpe-le en étapes vérifiables », « qu'est-ce qui existe déjà dans le code ? », « corrige les fautes et précise les critères de sortie »  (Ctrl+Entrée pour envoyer)"></textarea>
+        <div class="bar"><button class="btn primary" id="td-send">Envoyer</button><button class="btn danger" id="td-clear" title="Effacer la discussion (une nouvelle session repart de zéro)">Effacer la discussion</button><span class="note" id="td-chat-note"></span></div>
+      </div>
+    </div>
+  </div>
+</dialog>
+<script src="/markdown.js"></script>
+<script>
+// Rebuilt only when the data changes: the checked tasks, their edited names and prompts, and the open texts stay.
+const escapeHtml = (text) => String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const $ = (id) => document.getElementById(id);
+const NAME = /^[a-z0-9][a-z0-9-]*$/;
+let data = null;
+let lastRendered = '';
+const picked = new Map(); // id -> { name, base, prompt, edited }
+const opened = new Set(); // ids whose text is shown
+const closedSections = new Set();
+let filter = 'todo';
+try {
+  filter = localStorage.getItem('roadmap.filter') || 'todo';
+  for (const id of JSON.parse(localStorage.getItem('roadmap.closed') || '[]')) closedSections.add(id);
+} catch {}
+$('filter').value = filter;
+
+function when(ms) {
+  if (!ms) return 'jamais';
+  const date = new Date(ms);
+  const s = Math.round((Date.now() - date.getTime()) / 1000);
+  if (s < 60) return 'à l’instant';
+  if (s < 3600) return `il y a ${Math.round(s / 60)} min`;
+  if (s < 86400) return `il y a ${(s / 3600).toFixed(1)} h`;
+  return date.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function visible(item) {
+  if (filter === 'all') return true;
+  if (picked.has(item.id)) return true;
+  if (filter === 'new') return item.status === 'new';
+  return item.status === 'new' || item.status === 'active';
+}
+
+// New tasks, and those that only inherit the status of their heading (maybe a bullet added since).
+const choosable = (item) => item.status === 'new' || item.inherited;
+
+function diffHtml() {
+  const byId = new Map(data.items.map((item) => [item.id, item]));
+  const describe = (diff, heading) => {
+    const count = diff.added.length + diff.modified.length + diff.removed.length;
+    if (!count) return '';
+    const link = (id) => `<a href="#t-${escapeHtml(id)}" data-reveal="${escapeHtml(id)}">${escapeHtml(byId.get(id)?.title ?? id)}</a>`;
+    const parts = [];
+    if (diff.added.length) parts.push(`<li><b>${diff.added.length} nouveau${diff.added.length > 1 ? 'x' : ''}</b> : ${diff.added.slice(0, 30).map(link).join(', ')}${diff.added.length > 30 ? '…' : ''}</li>`);
+    if (diff.modified.length) parts.push(`<li><b>${diff.modified.length} modifié${diff.modified.length > 1 ? 's' : ''}</b> : ${diff.modified.map(link).join(', ')}</li>`);
+    if (diff.removed.length) parts.push(`<li><b>${diff.removed.length} retiré${diff.removed.length > 1 ? 's' : ''}</b> : ${diff.removed.map((gone) => `<span class="gone">${escapeHtml(gone.title)}</span>`).join(', ')}</li>`);
+    return `<div class="diff">${heading}<ul>${parts.join('')}</ul></div>`;
+  };
+  const pending = data.pending;
+  if (!data.snapshotAt) return '<div class="diff">Jamais rafraîchi : <b>⟳ Rafraîchir le backlog</b> retient son état, pour montrer ensuite ce qui change.</div>';
+  const waiting = describe(pending, `Le backlog a changé depuis le rafraîchissement ${escapeHtml(when(Date.parse(data.snapshotAt)))} :`);
+  if (waiting) return `${waiting}`;
+  if (data.lastDiff && !data.lastDiff.since) return `<div class="diff quiet">Premier rafraîchissement (${escapeHtml(when(Date.parse(data.lastDiff.at)))}) : ${data.items.length} chantiers retenus. Les prochains montreront ce qui change.</div>`;
+  const last = data.lastDiff && describe(data.lastDiff, `Dernier rafraîchissement (${escapeHtml(when(Date.parse(data.lastDiff.at)))}) :`);
+  return last || `<div class="diff quiet">Rien de changé depuis le rafraîchissement ${escapeHtml(when(Date.parse(data.snapshotAt)))}.</div>`;
+}
+
+function rowHtml(item, marks) {
+  const box = choosable(item)
+    ? `<input type="checkbox" data-pick="${escapeHtml(item.id)}" ${picked.has(item.id) ? 'checked' : ''} title="Choisir ce chantier">`
+    : '<span class="box"></span>';
+  const mark = marks.added.has(item.id) ? '<span class="tag added">ajouté</span>' : marks.modified.has(item.id) ? '<span class="tag modified">modifié</span>' : '';
+  const who = item.agent ? `<span class="who" title="${escapeHtml(item.refs.map((ref) => ref.kind === 'queue' ? `file : ${ref.name}` : ref.name || ref.path || `roadmap ${ref.date}`).join(' · '))}">${escapeHtml(item.agent)}${item.inherited ? ' ↑' : ''}</span>` : '';
+  const choices = item.choices.length ? `<div class="choices">${item.choices.map((choice) => `✔ ${escapeHtml(choice)}`).join('<br>')}</div>` : '';
+  const open = opened.has(item.id);
+  return `<div class="row st-${item.status} kind-${item.kind}${picked.has(item.id) ? ' picked' : ''}" id="t-${escapeHtml(item.id)}">
+    <div class="line">${box}<span class="title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</span>${mark}${who}<span class="pill">${escapeHtml(item.label)}</span>
+      <button class="toggle" data-open="${escapeHtml(item.id)}" title="Texte exact (ligne ${item.line})">${open ? '▾ texte' : '▸ texte'}</button>
+      ${item.kind === 'task' ? `<button class="tool" data-edit="${escapeHtml(item.id)}" title="Modifier le texte du chantier">✎</button><button class="tool${item.chat ? ' has' : ''}" data-chat="${escapeHtml(item.id)}" title="En discuter avec Claude pour l'améliorer, l'affiner ou le corriger">💬${item.chat ? `<small>${item.chat.pending ? '…' : item.chat.count}</small>` : ''}</button>` : ''}</div>
+    ${choices}${open ? `<pre>${escapeHtml(item.text)}</pre>` : ''}</div>`;
+}
+
+function sectionsHtml() {
+  const marks = { added: new Set(data.pending.added), modified: new Set(data.pending.modified) };
+  if (!data.pending.added.length && !data.pending.modified.length && data.lastDiff?.since) {
+    marks.added = new Set(data.lastDiff.added);
+    marks.modified = new Set(data.lastDiff.modified);
+  }
+  // A fresh roadmap (no snapshot yet) marks nothing: everything would be « new ».
+  if (!data.snapshotAt) marks.added.clear();
+  const sections = [];
+  for (const item of data.items) {
+    if (item.kind === 'section') sections.push({ head: item, items: [] });
+    else if (sections.length) sections[sections.length - 1].items.push(item);
+  }
+  return sections
+    .map(({ head, items }) => {
+      const all = [head, ...items];
+      const count = (status) => all.filter((item) => item.status === status).length;
+      const shown = all.filter(visible);
+      if (!shown.length) return '';
+      const counts = ['new', 'active', 'done', 'archived']
+        .map((status) => [status, count(status)])
+        .filter(([, n]) => n)
+        .map(([status, n]) => `${n} ${{ new: 'à faire', active: 'en cours', done: 'livré', archived: 'fusionné' }[status]}${n > 1 && (status === 'done' || status === 'archived') ? 's' : ''}`)
+        .join(' · ');
+      return `<details class="section" data-section="${escapeHtml(head.id)}" ${closedSections.has(head.id) ? '' : 'open'}>
+        <summary>${escapeHtml(head.title)} <span class="counts">${counts}</span>${head.title !== 'Livré' ? `<button class="tool new" data-new="${escapeHtml(head.title)}" title="Ajouter un chantier à ce groupe">+ chantier</button>` : ''}</summary>
+        <div class="rows">${shown.map((item) => rowHtml(item, marks)).join('')}</div></details>`;
+    })
+    .join('') || '<p class="empty">Aucun chantier à montrer avec ce filtre.</p>';
+}
+
+function summaryHtml() {
+  const count = (status) => data.items.filter((item) => item.status === status).length;
+  return `<b>${count('new')}</b> à faire · <b>${count('active')}</b> en cours · <b>${count('archived')}</b> fusionnés · <b>${count('done')}</b> livrés — backlog modifié ${escapeHtml(when(data.modified))}, rafraîchie ${escapeHtml(when(data.snapshotAt && Date.parse(data.snapshotAt)))}`;
+}
+
+let confirming = ''; // the queued task whose cancellation asks about its worktree
+const QUEUE_LABELS = { queued: 'en attente', launched: 'lancée par l’orchestrateur', done: 'terminée', cancelled: 'annulée' };
+// The fate of an agent launched with « ▶ Lancer » (launch.mjs), from its process.
+const RUN_LABELS = { running: 'au travail', done: 'terminé', error: 'en erreur', stopped: 'arrêté', lost: 'processus disparu' };
+function queueLabel(entry) {
+  if (entry.launchedBy !== 'dashboard' || !entry.run) return QUEUE_LABELS[entry.status] ?? entry.status;
+  const run = entry.run;
+  return `lancée ici · ${RUN_LABELS[run.state] ?? run.state}${run.state === 'error' ? ` (code ${run.code})` : ''}`;
+}
+function queueButtons(entry) {
+  const name = escapeHtml(entry.name);
+  if (entry.status === 'queued') {
+    if (confirming === entry.name) return `<span class="ask">Retirer aussi le worktree ?</span><button class="btn danger" data-cancel="${name}" data-worktree="1" title="agent.sh rm : la branche agent/${name} reste">Oui, le retirer</button><button class="btn" data-cancel="${name}">Non, le garder</button>`;
+    return `<button class="btn launch" data-launch="${name}" title="Démarre le CLI claude dans le worktree, sans orchestrateur">▶ Lancer</button><button class="btn danger" data-confirm="${name}">Annuler</button>`;
+  }
+  const log = entry.run ? `<a class="btn" href="/run/${name}" target="_blank" title="Ce que fait l'agent : messages, outils, résultat">Sortie</a><a class="btn" href="/agents" title="Sa carte sur la page Agents">Carte</a>` : '';
+  if (entry.run?.state === 'running') return `${log}<button class="btn danger" data-stop="${name}" title="Tue le processus claude et tout son groupe">■ Arrêter</button>`;
+  const resume = entry.run ? `<button class="btn launch" data-resume="${name}" title="Reprend la même session claude (--resume), avec tout son historique">↻ Relancer</button>` : '';
+  return `${log}${resume}<button class="btn" data-forget="${name}" title="Retirer de la liste (le worktree reste)">Retirer</button>`;
+}
+function queueHtml() {
+  if (!data.queue.length) return '<li class="empty" style="border:none;background:none">File vide.</li>';
+  return data.queue
+    .map((entry) => `<li class="q-${escapeHtml(entry.status)}${entry.run ? ` r-${escapeHtml(entry.run.state)}` : ''}"><span class="qt"><b>${escapeHtml(entry.name)}</b> · ${escapeHtml(queueLabel(entry))}<span title="${escapeHtml(entry.title)}">${escapeHtml(entry.title)} — depuis ${escapeHtml(entry.base)}, ${escapeHtml(when(Date.parse(entry.createdAt)))}</span>${entry.run ? `<span class="run">pid ${escapeHtml(entry.run.pid)} · session ${escapeHtml(String(entry.run.sessionId).slice(0, 8))} · permissions ${escapeHtml(entry.run.permissionMode)} · ${escapeHtml(when(Date.parse(entry.run.startedAt)))}</span>` : ''}</span>
+      ${queueButtons(entry)}</li>`)
+    .join('');
+}
+
+function render() {
+  const key = JSON.stringify([data, filter, [...picked.keys()], [...opened], confirming]);
+  if (key === lastRendered) return;
+  lastRendered = key;
+  $('summary').innerHTML = summaryHtml();
+  $('diff').innerHTML = diffHtml();
+  $('sections').innerHTML = sectionsHtml();
+  $('queue').innerHTML = queueHtml();
+  $('launch-all').hidden = data.queue.filter((entry) => entry.status === 'queued').length < 2;
+}
+
+// The chosen tasks: kept as they are, only added or removed, so what is being typed stays.
+function renderPicks() {
+  const holder = $('picks');
+  const items = new Map(data.items.map((item) => [item.id, item]));
+  for (const element of [...holder.querySelectorAll('.pick')]) if (!picked.has(element.dataset.id)) element.remove();
+  holder.querySelector('.empty')?.toggleAttribute('hidden', picked.size > 0);
+  for (const [id, pick] of picked) {
+    if (holder.querySelector(`.pick[data-id="${CSS.escape(id)}"]`)) continue;
+    const item = items.get(id);
+    const element = document.createElement('div');
+    element.className = 'pick';
+    element.dataset.id = id;
+    element.innerHTML = `<div class="head"><b>${escapeHtml(item?.title ?? id)}</b>
+      agent <input class="name" value="${escapeHtml(pick.name)}" spellcheck="false"> base <input class="base" value="${escapeHtml(pick.base)}" spellcheck="false">
+      <span class="edited" hidden>prompt modifié à la main</span><span class="spacer"></span><button class="toggle" data-unpick>✕ retirer</button></div>
+      <textarea spellcheck="false" placeholder="prompt…"></textarea>`;
+    element.querySelector('.name').addEventListener('input', (event) => {
+      pick.name = event.target.value.trim();
+      event.target.classList.toggle('bad', !NAME.test(pick.name));
+      schedulePrompts();
+    });
+    element.querySelector('.base').addEventListener('input', (event) => {
+      pick.base = event.target.value.trim();
+      schedulePrompts();
+    });
+    const area = element.querySelector('textarea');
+    area.value = pick.prompt ?? '';
+    area.addEventListener('input', () => {
+      pick.prompt = area.value;
+      pick.edited = true;
+      element.querySelector('.edited').hidden = false;
+    });
+    element.querySelector('[data-unpick]').addEventListener('click', () => {
+      picked.delete(id);
+      renderPicks();
+      render();
+      schedulePrompts();
+    });
+    holder.appendChild(element);
+  }
+  $('pick-count').textContent = picked.size ? `(${picked.size})` : '';
+  $('enqueue').disabled = !picked.size;
+}
+
+let promptTimer = 0;
+function schedulePrompts() {
+  clearTimeout(promptTimer);
+  promptTimer = setTimeout(loadPrompts, 250);
+}
+async function loadPrompts() {
+  if (!picked.size) return;
+  const tasks = [...picked].map(([id, pick]) => ({ id, name: pick.name, base: pick.base }));
+  const prompts = await (await fetch('/api/roadmap/prompts', { method: 'POST', body: JSON.stringify({ tasks }) })).json();
+  for (const [id, pick] of picked) {
+    if (pick.edited || !prompts[id]) continue;
+    pick.prompt = prompts[id];
+    const area = document.querySelector(`.pick[data-id="${CSS.escape(id)}"] textarea`);
+    if (area && document.activeElement !== area) area.value = pick.prompt;
+  }
+}
+
+async function load(url = '/api/roadmap', options) {
+  const response = await fetch(url, { cache: 'no-store', ...options });
+  data = await response.json();
+  // A task no longer « new » (queued meanwhile, or matched) cannot stay chosen.
+  for (const id of [...picked.keys()]) if (!data.items.some((item) => item.id === id && choosable(item))) picked.delete(id);
+  render();
+  renderPicks();
+}
+
+$('refresh').addEventListener('click', async () => {
+  const button = $('refresh');
+  button.disabled = true;
+  button.innerHTML = '<span class="spin"></span>Rafraîchissement…';
+  try {
+    await load('/api/roadmap/refresh', { method: 'POST' });
+    schedulePrompts();
+  } finally {
+    button.disabled = false;
+    button.textContent = '⟳ Rafraîchir le backlog';
+  }
+});
+
+$('filter').addEventListener('change', (event) => {
+  filter = event.target.value;
+  try {
+    localStorage.setItem('roadmap.filter', filter);
+  } catch {}
+  render();
+});
+
+document.addEventListener('click', (event) => {
+  const open = event.target.closest('[data-open]');
+  if (open) {
+    const id = open.dataset.open;
+    opened.has(id) ? opened.delete(id) : opened.add(id);
+    render();
+    return;
+  }
+  const reveal = event.target.closest('[data-reveal]');
+  if (reveal) {
+    event.preventDefault();
+    const id = reveal.dataset.reveal;
+    const item = data.items.find((one) => one.id === id);
+    if (item && !visible(item)) {
+      filter = 'all';
+      $('filter').value = 'all';
+    }
+    opened.add(id);
+    render();
+    document.getElementById(`t-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  const confirm = event.target.closest('[data-confirm]');
+  if (confirm) {
+    confirming = confirm.dataset.confirm;
+    render();
+    return;
+  }
+  const cancel = event.target.closest('[data-cancel], [data-forget], [data-launch], [data-stop], [data-resume]');
+  if (cancel) queueAction(cancel);
+});
+
+document.addEventListener('change', (event) => {
+  const box = event.target.closest('[data-pick]');
+  if (!box) return;
+  const item = data.items.find((one) => one.id === box.dataset.pick);
+  if (box.checked) picked.set(item.id, { name: item.proposedName, base: '__INTEGRATION__', prompt: '', edited: false });
+  else picked.delete(item.id);
+  render();
+  renderPicks();
+  schedulePrompts();
+});
+
+document.addEventListener('toggle', (event) => {
+  const section = event.target.closest?.('details.section');
+  if (!section) return;
+  section.open ? closedSections.delete(section.dataset.section) : closedSections.add(section.dataset.section);
+  try {
+    localStorage.setItem('roadmap.closed', JSON.stringify([...closedSections]));
+  } catch {}
+}, true);
+
+async function queueAction(button) {
+  const name = button.dataset.cancel || button.dataset.forget || button.dataset.launch || button.dataset.stop || button.dataset.resume;
+  const action = button.dataset.cancel ? 'cancel' : button.dataset.launch ? 'launch' : button.dataset.stop ? 'stop' : button.dataset.resume ? 'resume' : 'forget';
+  const note = $('queue-note');
+  let url = `/api/queue/${encodeURIComponent(name)}/${action}`;
+  if (button.dataset.worktree) url += '?worktree=1';
+  confirming = '';
+  button.disabled = true;
+  note.className = 'note';
+  note.innerHTML = '<span class="spin"></span>…';
+  const result = await (await fetch(url, { method: 'POST' })).json();
+  note.className = result.ok ? 'note good' : 'note bad';
+  note.textContent = result.ok ? result.message : result.error;
+  await load();
+}
+
+$('launch-all').addEventListener('click', async () => {
+  const note = $('queue-note');
+  $('launch-all').disabled = true;
+  note.className = 'note';
+  note.innerHTML = '<span class="spin"></span>Lancement…';
+  try {
+    const { results } = await (await fetch('/api/queue/launch-all', { method: 'POST' })).json();
+    const failed = results.filter((result) => !result.ok);
+    note.className = failed.length ? 'note bad' : 'note good';
+    note.textContent = failed.length ? failed.map((result) => `${result.name} : ${result.error}`).join(' · ') : `${results.length} agent${results.length > 1 ? 's' : ''} lancé${results.length > 1 ? 's' : ''}.`;
+  } catch (error) {
+    note.className = 'note bad';
+    note.textContent = String(error);
+  }
+  $('launch-all').disabled = false;
+  await load();
+});
+
+$('enqueue').addEventListener('click', async () => {
+  const note = $('enqueue-note');
+  const bad = [...picked.values()].filter((pick) => !NAME.test(pick.name));
+  if (bad.length) {
+    note.className = 'note bad';
+    note.textContent = 'Noms d’agent : minuscules, chiffres et tirets.';
+    return;
+  }
+  const button = $('enqueue');
+  button.disabled = true;
+  note.className = 'note';
+  note.innerHTML = `<span class="spin"></span>Création de ${picked.size} worktree${picked.size > 1 ? 's' : ''}…`;
+  const tasks = [...picked].map(([id, pick]) => ({ id, name: pick.name, base: pick.base, prompt: pick.edited ? pick.prompt : undefined }));
+  try {
+    const { results } = await (await fetch('/api/roadmap/enqueue', { method: 'POST', body: JSON.stringify({ tasks }) })).json();
+    const failed = results.filter((result) => !result.ok);
+    for (const result of results) if (result.ok) for (const [id, pick] of picked) if (pick.name === result.name) picked.delete(id);
+    note.className = failed.length ? 'note bad' : 'note good';
+    note.textContent = failed.length
+      ? failed.map((result) => `${result.name} : ${result.error}`).join(' · ')
+      : `${results.length} tâche${results.length > 1 ? 's' : ''} en file : « ▶ Lancer » ou l'orchestrateur.`;
+  } catch (error) {
+    note.className = 'note bad';
+    note.textContent = String(error);
+  }
+  await load();
+  button.disabled = !picked.size;
+});
+
+// --- The task dialog: its text on the left (edited in place), the conversation with Claude on the right.
+const dialog = { id: null, section: null, version: null, saved: '', chat: null, poll: null };
+const md = (text) => `<div class="md">${window.renderMarkdown ? window.renderMarkdown(String(text ?? '')) : escapeHtml(text)}</div>`;
+
+// A line diff (longest common subsequence) of the current text and a proposal.
+function lineDiff(before, after) {
+  const a = String(before).split('\n');
+  const b = String(after).split('\n');
+  const table = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+  for (let i = a.length - 1; i >= 0; i--) for (let j = b.length - 1; j >= 0; j--) table[i][j] = a[i] === b[j] ? table[i + 1][j + 1] + 1 : Math.max(table[i + 1][j], table[i][j + 1]);
+  const out = [];
+  let i = 0;
+  let j = 0;
+  while (i < a.length || j < b.length) {
+    if (i < a.length && j < b.length && a[i] === b[j]) (out.push(`<span class="same">  ${escapeHtml(a[i])}</span>`), i++, j++);
+    else if (j < b.length && (i >= a.length || table[i][j + 1] >= table[i + 1][j])) out.push(`<span class="add">+ ${escapeHtml(b[j++])}</span>`);
+    else out.push(`<span class="del">- ${escapeHtml(a[i++])}</span>`);
+  }
+  return out.join('');
+}
+
+function renderThread() {
+  const chat = dialog.chat ?? { messages: [] };
+  const thread = $('td-thread');
+  const stick = thread.scrollTop + thread.clientHeight >= thread.scrollHeight - 40;
+  thread.innerHTML = (chat.messages.length ? '' : '<p class="typing">Pas encore de discussion. Demande à Claude de relire ce chantier, de le découper, de vérifier ce qui existe déjà dans le code…</p>')
+    + chat.messages.map((message, index) => {
+      if (message.role === 'user') return `<div class="msg user">${escapeHtml(message.text)}</div>`;
+      if (message.error) return `<div class="msg assistant error">Erreur : ${escapeHtml(message.error)}</div>`;
+      const proposal = message.proposal ? `<div class="proposal"><div class="head"><b>Proposition</b><span class="spacer"></span>${message.appliedAt ? '<span class="note good">appliquée</span>' : ''}
+          <button class="btn" data-copy="${index}" title="Reprendre cette version dans l'éditeur, pour la retoucher avant d'enregistrer">↙ Dans l'éditeur</button>
+          <button class="btn primary" data-apply="${index}" title="Écrire cette version dans __BACKLOG__">Appliquer</button></div>
+        <pre class="diff">${lineDiff(dialog.saved, message.proposal)}</pre></div>` : '';
+      return `<div class="msg assistant">${md(message.text)}${proposal}</div>`;
+    }).join('')
+    + (chat.pending ? '<p class="typing">Claude réfléchit (il peut lire le code : jusqu’à une minute ou deux)…</p>' : '');
+  if (stick || chat.pending) thread.scrollTop = thread.scrollHeight;
+  $('td-send').disabled = Boolean(chat.pending);
+  clearTimeout(dialog.poll);
+  if (chat.pending && dialog.id) dialog.poll = setTimeout(pollChat, 2000);
+}
+
+async function pollChat() {
+  if (!dialog.id || !$('task-dialog').open) return;
+  dialog.chat = await (await fetch(`/api/backlog/chat/${encodeURIComponent(dialog.id)}`, { cache: 'no-store' })).json();
+  renderThread();
+}
+
+async function openTask(id, { focus = 'text' } = {}) {
+  const result = await (await fetch(`/api/backlog/task/${encodeURIComponent(id)}`, { cache: 'no-store' })).json();
+  if (!result.ok) return alert(result.error);
+  Object.assign(dialog, { id, section: result.task.section, version: result.task.version, saved: result.task.text, chat: result.chat });
+  $('td-title').textContent = result.task.title;
+  $('td-where').textContent = `groupe « ${result.task.section} » · __BACKLOG__`;
+  $('td-text').value = result.task.text;
+  $('td-note').textContent = '';
+  $('td-chat-note').textContent = '';
+  $('td-panes').classList.remove('solo');
+  $('td-chat-pane').hidden = false;
+  renderThread();
+  $('task-dialog').showModal();
+  (focus === 'chat' ? $('td-ask') : $('td-text')).focus();
+}
+
+function newTask(section) {
+  Object.assign(dialog, { id: null, section, version: null, saved: '', chat: null });
+  $('td-title').textContent = 'Nouveau chantier';
+  $('td-where').textContent = `groupe « ${section} » · __BACKLOG__`;
+  $('td-text').value = '### Titre du chantier\n\nCe qu’il faut faire, pourquoi, et comment savoir que c’est fini.\n';
+  $('td-note').textContent = '';
+  $('td-panes').classList.add('solo');
+  $('td-chat-pane').hidden = true;
+  $('task-dialog').showModal();
+  $('td-text').focus();
+  $('td-text').setSelectionRange(4, 22);
+}
+
+async function saveTask() {
+  const note = $('td-note');
+  note.className = 'note';
+  note.textContent = 'Enregistrement…';
+  const text = $('td-text').value;
+  const result = await (await fetch(dialog.id ? `/api/backlog/task/${encodeURIComponent(dialog.id)}` : '/api/backlog/new', {
+    method: 'POST', body: JSON.stringify(dialog.id ? { text, version: dialog.version } : { section: dialog.section, text }),
+  })).json();
+  if (!result.ok) {
+    note.className = 'note bad';
+    note.textContent = result.error;
+    return false;
+  }
+  const wasNew = !dialog.id;
+  data = { ...data, ...result };
+  render();
+  await openTask(result.id);
+  $('td-note').className = 'note good';
+  $('td-note').textContent = wasNew ? 'Chantier ajouté.' : 'Enregistré dans __BACKLOG__.';
+  return true;
+}
+
+async function sendMessage() {
+  const message = $('td-ask').value.trim();
+  if (!message || !dialog.id) return;
+  // Unsaved edits first: Claude reads the task as it is in the file.
+  if ($('td-text').value !== dialog.saved && !(await saveTask())) return;
+  const result = await (await fetch(`/api/backlog/chat/${encodeURIComponent(dialog.id)}`, { method: 'POST', body: JSON.stringify({ message }) })).json();
+  if (!result.ok) {
+    $('td-chat-note').className = 'note bad';
+    $('td-chat-note').textContent = result.error;
+    return;
+  }
+  $('td-ask').value = '';
+  $('td-chat-note').textContent = '';
+  dialog.chat = result.chat;
+  renderThread();
+}
+
+$('td-save').addEventListener('click', saveTask);
+$('td-reset').addEventListener('click', () => ($('td-text').value = dialog.saved));
+$('td-send').addEventListener('click', sendMessage);
+$('td-ask').addEventListener('keydown', (event) => event.key === 'Enter' && (event.ctrlKey || event.metaKey) && (event.preventDefault(), sendMessage()));
+$('td-text').addEventListener('keydown', (event) => event.key === 's' && (event.ctrlKey || event.metaKey) && (event.preventDefault(), saveTask()));
+$('td-close').addEventListener('click', () => {
+  if ($('td-text').value !== dialog.saved && !confirm('Fermer sans enregistrer les modifications du texte ?')) return;
+  $('task-dialog').close();
+});
+$('task-dialog').addEventListener('cancel', (event) => {
+  if ($('td-text').value !== dialog.saved && !confirm('Fermer sans enregistrer les modifications du texte ?')) event.preventDefault();
+});
+$('td-clear').addEventListener('click', async () => {
+  if (!dialog.id || !confirm('Effacer toute la discussion sur ce chantier ?')) return;
+  const result = await (await fetch(`/api/backlog/chat/${encodeURIComponent(dialog.id)}/clear`, { method: 'POST', body: '{}' })).json();
+  if (result.ok) (dialog.chat = result.chat, renderThread());
+});
+$('td-thread').addEventListener('click', async (event) => {
+  const copy = event.target.closest('[data-copy]');
+  if (copy) {
+    $('td-text').value = dialog.chat.messages[copy.dataset.copy].proposal;
+    $('td-note').className = 'note';
+    $('td-note').textContent = 'Proposition reprise dans l’éditeur : retouche-la puis Enregistrer.';
+    return;
+  }
+  const apply = event.target.closest('[data-apply]');
+  if (!apply) return;
+  if ($('td-text').value !== dialog.saved && !confirm('Le texte a des modifications non enregistrées : les remplacer par la proposition ?')) return;
+  apply.disabled = true;
+  const result = await (await fetch(`/api/backlog/chat/${encodeURIComponent(dialog.id)}/apply`, { method: 'POST', body: JSON.stringify({ index: Number(apply.dataset.apply), version: dialog.version }) })).json();
+  if (!result.ok) {
+    apply.disabled = false;
+    $('td-chat-note').className = 'note bad';
+    $('td-chat-note').textContent = result.error;
+    return;
+  }
+  data = { ...data, ...result };
+  render();
+  await openTask(result.id, { focus: 'chat' });
+  $('td-note').className = 'note good';
+  $('td-note').textContent = 'Proposition appliquée dans __BACKLOG__.';
+});
+document.addEventListener('click', (event) => {
+  const edit = event.target.closest('[data-edit]');
+  const chat = event.target.closest('[data-chat]');
+  const add = event.target.closest('[data-new]');
+  if (!edit && !chat && !add) return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (add) newTask(add.dataset.new);
+  else openTask((edit ?? chat).dataset.edit ?? (edit ?? chat).dataset.chat, { focus: chat ? 'chat' : 'text' });
+}, true);
+
+(async () => {
+  const params = new URLSearchParams(location.search);
+  if (params.has('refresh')) {
+    history.replaceState(null, '', '/roadmap');
+    $('refresh').click();
+  } else await load();
+  setInterval(() => load().catch(() => {}), 5000);
+})();
+</script>
+</body>
+</html>

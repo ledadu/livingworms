@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agents __PROJECT__</title>
+<style>
+  :root {
+    --bg: #111418; --panel: #1a1f26; --panel2: #222933; --line: #2e3744; --text: #e6e9ee; --muted: #8b95a5;
+    --ok: #4cc38a; --warn: #e5b454; --off: #5b6472; --accent: #7aa7ff; --bad: #ef6b6b; --say: #c8b6ff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+  header { display: flex; align-items: baseline; gap: 16px; padding: 14px 20px; border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; background: var(--bg); z-index: 2; flex-wrap: wrap; }
+  h1 { font-size: 18px; margin: 0; }
+  .summary { color: var(--muted); }
+  .summary b { color: var(--text); }
+  main { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 14px; padding: 16px 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 8px; min-width: 0; transition: border-color .3s; }
+  /* Status: a thin coloured edge and a faint tint of the card, the same hue as its pill. */
+  .card { --status: var(--off); border-left: 3px solid var(--status);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--status) 9%, var(--panel)) 0%, var(--panel) 55%); }
+  .card.s-working { --status: var(--accent); }
+  .card.s-calm { --status: var(--warn); }
+  .card.s-done { --status: var(--ok); }
+  .card.s-error { --status: var(--bad); }
+  .card.s-starting { --status: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { border-left-color: transparent; } }
+  .pill.s-working { color: #0b1220; background: var(--accent); }
+  .pill.s-calm { color: #2a1f05; background: var(--warn); }
+  .pill.s-done { color: #0d1f16; background: var(--ok); }
+  .pill.s-error { color: #2a0b0b; background: var(--bad); }
+  .pill.s-starting { color: #0b1220; background: var(--accent); }
+  /* The task under way, in big: what the agent is doing right now. */
+  .task { font-size: 17px; line-height: 1.35; font-weight: 600; color: var(--text); padding: 8px 10px; border-radius: 8px;
+    background: color-mix(in srgb, var(--status) 12%, var(--panel2)); border: 1px solid color-mix(in srgb, var(--status) 35%, transparent);
+    overflow-wrap: anywhere; }
+  /* Clamped part by part: a clamp on the whole box let a cut line show in its bottom padding. */
+  .task .now { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .task .said { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  .btn.fix { border-color: var(--warn); color: var(--warn); }
+  .btn.accept { background: var(--ok); border-color: var(--ok); color: #0d1f16; font-weight: 600; }
+  .order { margin: 8px 0; padding: 8px; border: 1px solid var(--accent); border-radius: 8px; background: var(--panel2); }
+  .order textarea { width: 100%; min-height: 70px; resize: vertical; font: inherit; font-size: 13px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px; box-sizing: border-box; }
+  .order .row { display: flex; gap: 6px; margin-top: 6px; }
+  .goal { border: 1px solid var(--line); border-left: 3px solid var(--say); border-radius: 8px; padding: 7px 10px; margin: 8px 0 6px; background: var(--panel2); }
+  .goal:empty { display: none; }
+  .goal .gt { font-weight: 600; font-size: 14px; }
+  .goal .gt small { display: block; font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 1px; }
+  .goal .where { color: var(--muted); font-size: 11px; font-weight: 400; margin-left: 6px; text-transform: none; letter-spacing: 0; }
+  .goal .deliv { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .goal .deliv span { font-size: 11px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); }
+  .goal .deliv .ok { color: var(--ok); border-color: #2c5a44; }
+  .goal .deliv .todo { color: var(--warn); border-color: #5a4a2a; }
+  .goal details { margin-top: 5px; }
+  .goal details > summary { cursor: pointer; font-size: 12px; color: var(--accent); }
+  .goal .gbody { font-size: 13px; color: #d5dae2; max-height: 320px; overflow: auto; margin-top: 4px; }
+  .goal .gbody h4 { margin: 8px 0 2px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .goal .gbody ul { padding-left: 18px; margin: 2px 0; }
+  .goal .gbody p { margin: 4px 0; }
+  .goal .gbody code { background: var(--panel); padding: 0 4px; border-radius: 4px; font-size: 12px; }
+  .goal .gbody pre { background: var(--panel); padding: 6px; border-radius: 6px; overflow: auto; font-size: 12px; }
+  .task small { display: block; font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+  .task .said { margin-top: 4px; font-size: 13px; font-weight: 400; color: var(--say); }
+  /* The button to try the version takes the colour of the task's progress. */
+  .card .btn.primary { background: var(--status); border-color: var(--status); color: #0b1220; }
+  .tabs { display: flex; gap: 4px; padding: 10px 20px 0; border-bottom: 1px solid var(--line); }
+  .tab { font: inherit; font-size: 13px; padding: 6px 14px; border: 1px solid var(--line); border-bottom: none; border-radius: 8px 8px 0 0;
+    background: var(--panel); color: var(--muted); cursor: pointer; }
+  .tab.on { background: var(--panel2); color: var(--text); font-weight: 600; }
+  .tab .n { margin-left: 6px; font-size: 11px; color: var(--muted); }
+  .card[hidden] { display: none; }
+  .card.archived { opacity: .82; }
+  .card.archived .feed, .card.archived details { display: none; }
+  .toolbar { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); }
+  .toolbar select { font: inherit; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; }
+  .legend { display: flex; gap: 12px; font-size: 12px; color: var(--muted); }
+  .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+  /* The header wraps rather than overflowing: a long name, its branch, the question badges and the state pill. */
+  .top { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; min-width: 0; }
+  .top > * { min-width: 0; }
+  .top .q-badge, .top .q-own, .top [data-part="state"] { flex: none; white-space: nowrap; }
+  .name { font-weight: 600; font-size: 16px; overflow-wrap: anywhere; }
+  .branch { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; }
+  .spacer { flex: 1; }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: var(--panel2); color: var(--muted); white-space: nowrap; }
+  .pill.ok { color: #0d1f16; background: var(--ok); }
+  .pill.warn { color: #2a1f05; background: var(--warn); }
+  .pill.done { color: #0d1f16; background: var(--ok); }
+  .stats { display: flex; gap: 14px; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+  .stats b { color: var(--text); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--off); margin-right: 4px; }
+  .dot.on { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .btn { font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel2);
+    color: var(--text); cursor: pointer; text-decoration: none; }
+  .btn:hover { border-color: var(--accent); text-decoration: none; }
+  .btn.primary { background: var(--accent); color: #0b1220; border-color: var(--accent); font-weight: 600; }
+  .btn:disabled { opacity: .6; cursor: wait; }
+  .note { font-size: 12px; color: var(--muted); }
+  .note.bad { color: var(--bad); }
+  .spin { display: inline-block; width: 10px; height: 10px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%;
+    animation: s .8s linear infinite; vertical-align: -1px; margin-right: 4px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  ul.feed, ul.commits { list-style: none; margin: 0; padding: 0; font-size: 12px; }
+  ul.feed { background: var(--panel2); border-radius: 6px; padding: 4px 8px; }
+  ul.feed li, ul.commits li { padding: 2px 0; display: flex; gap: 8px; align-items: baseline; }
+  ul.feed li + li, ul.commits li + li { border-top: 1px solid var(--line); }
+  .kind { width: 14px; flex: none; text-align: center; }
+  .k-say .txt { color: var(--say); }
+  .k-error .txt { color: var(--bad); }
+  .k-in .txt { color: var(--warn); }
+  .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+  .full .txt { white-space: pre-wrap; word-break: break-word; }
+  .sha { font-family: ui-monospace, monospace; color: var(--muted); }
+  .when { color: var(--muted); white-space: nowrap; flex: none; }
+  details { background: var(--panel2); border-radius: 6px; padding: 4px 8px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  details .body { max-height: 320px; overflow: auto; margin-top: 4px; }
+  pre { margin: 0; font-size: 11px; white-space: pre-wrap; word-break: break-word; color: #c9d1dc; }
+  .empty { color: var(--muted); font-size: 12px; font-style: italic; }
+  .fresh { color: var(--ok); }
+  .stale { color: var(--warn); }
+  .err { color: var(--bad); }
+  @media (max-width: 480px) { main { grid-template-columns: 1fr; padding: 12px 16px; } header { padding: 12px 16px; } }
+  /* The navigation shared by the dashboard pages (hub.html, doc.html). */
+  nav.site { display: flex; gap: 4px; flex-wrap: wrap; }
+  nav.site a { color: var(--muted); padding: 2px 10px; border-radius: 99px; font-size: 13px; }
+  nav.site a:hover { color: var(--text); background: var(--panel2, #222933); text-decoration: none; }
+  nav.site a.on { color: #0b1220; background: var(--accent); font-weight: 600; }
+</style>
+<link rel="stylesheet" href="/versions.css">
+</head>
+<body>
+<header>
+  <h1>Agents __PROJECT__</h1>
+  <nav class="site"><a href="/">Accueil</a><a href="/agents">Agents</a><a href="/journal">Journal</a><a href="/versions">Versions</a><a href="/roadmap">Backlog</a><a href="/questions">Questions</a></nav><script>document.querySelector(`nav.site a[href="${location.pathname}"]`)?.classList.add('on');</script>
+  <a class="btn" href="/roadmap?refresh=1" title="Relire __BACKLOG__, voir les chantiers nouveaux et en mettre en file">⟳ Rafraîchir le backlog</a>
+  <span class="summary" id="summary">…</span>
+  <span class="spacer"></span>
+  <span class="toolbar">Rebase sur <select id="rebase-base"><option value="__MAIN__">__MAIN__</option><option value="__INTEGRATION__">__INTEGRATION__</option></select>
+    <button class="btn" id="rebase-all" title="Rebase de chaque tâche terminée, l'une après l'autre ; une fois rebasée, elle passe dans les tâches archivées">⟳ Rebaser les terminées</button>
+    <button class="btn" id="clean-all" title="Retire les worktrees des tâches finies : archivées, fusionnées dans __INTEGRATION__, sans fichier en cours et arrêtées (branche fusionnée supprimée, journaux de claude). Les entrées de changes/ restent.">🧹 Nettoyer les terminés</button></span>
+  <span class="legend"><span><i style="background:var(--accent)"></i>au travail</span><span><i style="background:var(--warn)"></i>calme</span><span><i style="background:var(--ok)"></i>terminé</span><span><i style="background:var(--bad)"></i>erreur</span></span>
+  <span class="summary" id="updated"></span>
+</header>
+<nav class="tabs" id="tabs">
+  <button class="tab on" data-tab="active">En cours<span class="n" id="count-active"></span></button>
+  <button class="tab" data-tab="pending" title="Tâches archivées dont l'entrée n'est affectée à aucune __RELEASE__">À publier<span class="n" id="count-pending"></span></button>
+  <span id="version-tabs" style="display:contents"></span>
+  <button class="tab" data-tab="released">Publiées<span class="n" id="count-released"></span></button>
+  <button class="tab" data-tab="branches" title="Les branches de version release/X.Y : correctifs, report vers __INTEGRATION__, serveurs de test">Branches<span class="n" id="count-branches"></span></button>
+</nav>
+<main id="grid"></main>
+<div class="view" id="view-banner" hidden></div>
+<section class="view" id="view-pending" hidden></section>
+<section class="view" id="view-version" hidden></section>
+<section class="view" id="view-released" hidden></section>
+<section class="view" id="view-branches" hidden></section>
+<script src="/markdown.js"></script>
+<script src="/versions.js"></script>
+<script src="/branches.js"></script>
+<script>
+// Cards are built once per agent, then each part is patched only when its content changes: nothing reloads, open
+// sections, scroll positions and running actions stay as they are.
+const escapeHtml = (text) => String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const icons = { say: '💬', tool: '⚙', error: '✖', in: '✉' };
+const ACTIVE_MS = 5 * 60 * 1000;
+let serverNow = Date.now();
+let clockOffset = 0;
+
+function ago(ms) {
+  if (!ms) return '—';
+  const s = Math.max(0, Math.round((Date.now() + clockOffset - ms) / 1000));
+  if (s < 60) return `${s} s`;
+  if (s < 3600) return `${Math.round(s / 60)} min`;
+  return `${(s / 3600).toFixed(1)} h`;
+}
+
+function patch(element, html) {
+  if (element.__html !== html) {
+    element.innerHTML = html;
+    element.__html = html;
+  }
+}
+
+const cards = new Map();
+// Tabs: « active » (agents at work), « pending » (entries to assign), « v:x.y.z » (a generation in preparation),
+// « released ». The chosen one is remembered.
+let currentTab = 'active';
+try {
+  const saved = localStorage.getItem('agents.tab');
+  currentTab = saved === 'archived' ? 'pending' : saved || 'active';
+} catch {}
+// /versions opens on the versions tabs.
+if (location.pathname === '/versions' && !/^(pending|released|branches|v:)/.test(currentTab)) currentTab = 'pending';
+// /agents opens on the tasks (their versions tabs have /versions); ?tab=… picks a tab, from the links of the home page.
+if (location.pathname === '/agents' && /^(pending|released|branches|v:)/.test(currentTab)) currentTab = 'active';
+const askedTab = new URLSearchParams(location.search).get('tab');
+if (askedTab && /^(active|pending|released|branches|v:[\d.]+)$/.test(askedTab)) currentTab = askedTab;
+
+function showTab(tab) {
+  currentTab = tab;
+  try {
+    localStorage.setItem('agents.tab', tab);
+  } catch {}
+  for (const button of document.querySelectorAll('.tab')) button.classList.toggle('on', button.dataset.tab === tab);
+  document.getElementById('grid').hidden = tab !== 'active';
+  document.getElementById('view-pending').hidden = tab !== 'pending';
+  document.getElementById('view-version').hidden = !tab.startsWith('v:');
+  document.getElementById('view-released').hidden = tab !== 'released';
+  document.getElementById('view-branches').hidden = tab !== 'branches';
+  if (versions) renderVersions(true);
+  window.renderBranches?.(true);
+}
+const busy = new Map(); // agent -> { working, label } or { error }
+
+function createCard(name) {
+  const card = document.createElement('section');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="top"><span class="name">${escapeHtml(name)}</span><span class="branch" data-part="branch"></span><span class="spacer"></span><span data-part="state"></span></div>
+    <div class="goal" data-part="goal"></div>
+    <div class="task" data-part="task"></div>
+    <div class="stats" data-part="stats"></div>
+    <div class="actions">
+      <button class="btn primary" data-action="try">▶ Tester cette version</button>
+      <button class="btn" data-action="stop" hidden>■ Arrêter</button>
+      <button class="btn" data-action="rebase" title="git pull --rebase sur la base choisie en haut (__MAIN__ par défaut) ; une tâche terminée passe ensuite dans les archives">⟳ Rebase</button>
+      <button class="btn accept" data-action="accept" hidden title="Fusionne sa branche dans sa base (__INTEGRATION__) dans le dépôt principal et archive la tâche : elle passe dans « À publier »">✓ Accepter</button>
+      <button class="btn fix" data-action="fix-conflicts" hidden title="L'agent fusionne sa base (__INTEGRATION__) dans sa branche et règle lui-même les conflits, en gardant les deux côtés, puis vérifie et commite">🔀 Corriger les conflits</button>
+      <button class="btn" data-action="order-open" hidden title="Donner un nouvel ordre à l'agent pour peaufiner ou prolonger son chantier (même session quand c'est possible)">✎ Nouvel ordre</button>
+      <button class="btn primary" data-action="resume" hidden title="Reprend la même session claude (--resume) : après une coupure réseau, une erreur d'API ou un arrêt">↻ Relancer l'agent</button>
+      <button class="btn" data-action="kill" hidden title="Tue le processus claude lancé depuis la page Roadmap (tout son groupe de processus)">■ Arrêter l'agent</button>
+      <a class="btn" data-part="runlog" hidden target="_blank" title="Ce que fait l'agent : messages, outils, résultat">Sortie claude</a>
+      <button class="btn" data-action="unarchive" hidden title="Remettre dans les tâches en cours">↩ Désarchiver</button>
+      <a class="btn" href="/journal?agent=${encodeURIComponent(name)}" target="_blank">Commits et rapport</a>
+      <span class="note" data-part="note"></span>
+    </div>
+    <div class="order" data-part="order" hidden>
+      <textarea placeholder="Ce que l'agent doit peaufiner ou faire en plus (il reprend son chantier là où il l'a laissé)"></textarea>
+      <div class="row"><button class="btn primary" data-action="order-send">Envoyer l'ordre</button><button class="btn" data-action="order-close">Annuler</button></div>
+    </div>
+    <div data-part="feed"></div>
+    <div data-part="commits"></div>
+    <details data-section="progress"><summary>Journal d'avancement complet</summary><div class="body" data-part="progress"><span class="empty">chargement…</span></div></details>
+    <details data-section="dirty"><summary data-part="dirty-title">Fichiers modifiés</summary><div class="body"><pre data-part="dirty"></pre></div></details>
+    <details data-section="server"><summary>Journal serveur</summary><div class="body"><pre data-part="server"></pre></div></details>
+    <details data-section="client"><summary>Journal client</summary><div class="body"><pre data-part="client"></pre></div></details>`;
+  card.dataset.agent = name;
+  const part = (key) => card.querySelector(`[data-part="${key}"]`);
+  card.querySelector('[data-section="progress"]').addEventListener('toggle', (event) => {
+    if (event.target.open) loadProgress(name);
+  });
+  cards.set(name, { card, part });
+  return cards.get(name);
+}
+
+// What the agent is on: its last tool call (its description), and what it last said; when done, its last words.
+function currentTask(events, status) {
+  const last = (kind) => [...events].reverse().find((e) => e.kind === kind);
+  const said = [...events].reverse().find((e) => e.kind === 'say');
+  const firstLine = (text) => escapeHtml(String(text ?? '').split('\n')[0]);
+  if (!events.length) return '<small>Tâche</small><span class="now">en attente de démarrage</span>';
+  const interrupted = events[events.length - 1]?.kind === 'error' && /API Error/.test(events[events.length - 1].text);
+  if (interrupted && status !== 'done') return `<small>Interrompu · il y a ${ago(events[events.length - 1].time)}</small><span class="now">coupure de l’API : l’agent attend d’être relancé</span>`;
+  if (status === 'done') return `<small>Terminé</small><span class="now">${firstLine(said?.text ?? 'rapport remis')}</span>`;
+  const tool = last('tool');
+  const doing = tool ? tool.text.replace(/^[A-Za-z]+ · /, '') : said?.text;
+  const saidLine = said && tool && said.time >= tool.time - 60_000 ? `<span class="said">💬 ${firstLine(said.text)}</span>` : '';
+  return `<small>En ce moment · il y a ${ago((tool ?? said).time)}</small><span class="now">${firstLine(doing)}</span>${saidLine}`;
+}
+
+// What the agent is there for (its task, read from its prompt) and where it stands against what its brief asks.
+function goalHtml(agent) {
+  const goal = agent.goal;
+  const d = agent.deliverables;
+  if (!goal && !d) return '';
+  const chip = (ok, text, title) => `<span class="${ok ? 'ok' : 'todo'}" title="${escapeHtml(title)}">${ok ? '✓' : '○'} ${text}</span>`;
+  const deliv = d ? `<div class="deliv">
+    ${chip(d.commits > 0, `${d.commits} commit${d.commits > 1 ? 's' : ''}`, `Commits sur ${agent.AGENT_BRANCH} depuis son départ`)}
+    ${chip(d.report, 'rapport', '__CHANGES__/unreleased/<agent>/report.md')}
+    ${chip(d.entry, 'entrée', '__CHANGES__/unreleased/<agent>/entry.md')}
+    ${chip(d.captures > 0, `${d.captures} capture${d.captures > 1 ? 's' : ''}`, 'Images dans __CHANGES__/unreleased/<agent>/img/')}
+    ${d.behind === null ? '' : chip(d.behind === 0, d.behind === 0 ? `à jour avec ${escapeHtml(d.base)}` : `${d.behind} commit${d.behind > 1 ? 's' : ''} de ${escapeHtml(d.base)} à fusionner`, `La consigne demande git merge ${d.base} avant la réponse finale`)}
+  </div>` : '';
+  if (!goal) return `<div class="gt"><small>🎯 Objectif</small>inconnu (pas de consigne trouvée)</div>${deliv}`;
+  const list = (items) => `<ul>${items.map((item) => `<li>${window.renderMarkdown ? window.renderMarkdown(item).replace(/^<p>|<\/p>$/g, '') : escapeHtml(item)}</li>`).join('')}</ul>`;
+  const body = [
+    goal.text ? (window.renderMarkdown ? window.renderMarkdown(goal.text) : `<pre>${escapeHtml(goal.text)}</pre>`) : '',
+    goal.choices.length ? `<h4>Choix déjà faits</h4>${list(goal.choices)}` : '',
+    goal.checks.length ? `<h4>À vérifier</h4>${list(goal.checks)}` : '',
+  ].join('');
+  return `<div class="gt"><small>🎯 Objectif${goal.where ? `<span class="where">${escapeHtml(goal.where)}</span>` : ''}</small>${escapeHtml(goal.title || '(sans titre)')}</div>
+    ${deliv}
+    ${body ? `<details data-goal><summary>Détail de l’objectif</summary><div class="gbody">${body}</div></details>` : ''}`;
+}
+
+function feedItems(events) {
+  return events
+    .slice()
+    .reverse()
+    .map((e) => `<li class="k-${e.kind}"><span class="kind">${icons[e.kind] ?? '·'}</span><span class="txt" title="${escapeHtml(e.text)}">${escapeHtml(e.text)}</span><span class="when">${ago(e.time)}</span></li>`)
+    .join('');
+}
+
+function updateCard(agent) {
+  const name = agent.AGENT_NAME;
+  const { card, part } = cards.get(name) ?? createCard(name);
+  if (!card.isConnected) document.getElementById('grid').append(card);
+
+  if (!agent.exists) {
+    card.className = 'card';
+    patch(part('state'), '<span class="pill">worktree absent</span>');
+    return;
+  }
+  const steps = agent.progress ?? { events: [] };
+  const lastMove = Math.max(agent.activity || 0, steps.updated || 0);
+  const recent = lastMove && serverNow - lastMove < ACTIVE_MS;
+  const done = steps.finished || (Boolean(agent.report) && agent.dirty.length === 0 && !recent);
+  const pending = busy.get(name);
+  const lastEvent = steps.events[steps.events.length - 1];
+  // An agent launched from the Roadmap page (launch.mjs) also has the fate of its process.
+  const run = agent.run;
+  const status = pending?.error ? ['error', 'échec']
+    : pending?.working ? ['starting', pending.label.replace('…', '')]
+    : run?.state === 'error' ? ['error', `processus en erreur (code ${run.code})`]
+    : run?.state === 'lost' ? ['error', 'processus disparu']
+    : run?.state === 'stopped' ? ['calm', 'arrêté']
+    : done || run?.state === 'done' ? ['done', 'terminé']
+    : lastEvent?.kind === 'error' && /API Error/.test(lastEvent.text) && !done ? ['error', 'interrompu']
+    : recent && lastEvent?.kind === 'error' ? ['error', 'erreur, il corrige']
+    : recent ? ['working', 'au travail']
+    : ['calm', 'calme'];
+  const archived = Boolean(agent.AGENT_ARCHIVED);
+  card.className = `card s-${status[0]}${archived ? ' archived' : ''}`;
+  card.dataset.status = status[0];
+  card.dataset.archived = archived ? '1' : '';
+  // An archived task leaves « En cours »: it is found again under « À publier », a generation or « Publiées ».
+  card.hidden = archived;
+  card.querySelector('[data-action="unarchive"]').hidden = !archived;
+  card.querySelector('[data-action="rebase"]').hidden = archived;
+  patch(part('branch'), escapeHtml(agent.AGENT_BRANCH));
+  patch(part('state'), `<span class="pill s-${status[0]}">${status[1]}</span>`);
+  const goalEl = part('goal');
+  const goalOpen = goalEl.querySelector('details[data-goal]')?.open;
+  patch(goalEl, goalHtml(agent));
+  if (goalOpen) goalEl.querySelector('details[data-goal]')?.setAttribute('open', '');
+  patch(part('task'), currentTask(steps.events, status[0]));
+
+  const url = `http://localhost:${agent.CLIENT_PORT}`;
+  patch(part('stats'), `
+    <span><span class="dot ${agent.server ? 'on' : ''}"></span>serveur ${agent.SERVER_PORT}</span>
+    <span><span class="dot ${agent.client ? 'on' : ''}"></span>${agent.client ? `<a href="${url}" target="_blank">client ${agent.CLIENT_PORT}</a>` : `client ${agent.CLIENT_PORT}`}</span>
+    <span><b>${agent.commits.length}</b> commits</span>
+    <span><b>${agent.dirty.length}</b> fichiers en cours</span>
+    <span class="${recent ? 'fresh' : 'stale'}">actif il y a ${ago(lastMove)}</span>
+    ${agent.diffstat ? `<span>${escapeHtml(agent.diffstat)}</span>` : ''}`);
+
+  const running = agent.server || agent.client;
+  const state = busy.get(name);
+  const tryButton = card.querySelector('[data-action="try"]');
+  const stopButton = card.querySelector('[data-action="stop"]');
+  tryButton.disabled = Boolean(state?.working);
+  // A finished task has nothing left to stop.
+  stopButton.hidden = !running || Boolean(state?.working) || status[0] === 'done';
+  card.querySelector('[data-action="rebase"]').disabled = Boolean(state?.working);
+  const killButton = card.querySelector('[data-action="kill"]');
+  killButton.hidden = run?.state !== 'running';
+  killButton.disabled = Boolean(state?.working);
+  // A finished task: accepted (merged, then « À publier »), or given a new order to go on with.
+  const over = status[0] === 'done' || status[0] === 'calm' || run?.state === 'done';
+  const acceptButton = card.querySelector('[data-action="accept"]');
+  acceptButton.hidden = archived || !over || run?.state === 'running' || !agent.commits.length;
+  acceptButton.disabled = Boolean(state?.working);
+  // Behind its base (the brief's « git merge <base> » is due), or an « Accepter » that met a conflict.
+  const fixButton = card.querySelector('[data-action="fix-conflicts"]');
+  fixButton.hidden = archived || run?.state === 'running' || status[0] === 'working' || !(agent.deliverables?.behind > 0 || state?.conflict);
+  fixButton.disabled = Boolean(state?.working);
+  const orderButton = card.querySelector('[data-action="order-open"]');
+  orderButton.hidden = run?.state === 'running' || status[0] === 'working' || !card.querySelector('[data-part="order"]').hidden;
+  orderButton.disabled = Boolean(state?.working);
+  const resumeButton = card.querySelector('[data-action="resume"]');
+  resumeButton.hidden = !run || run.state === 'running';
+  resumeButton.disabled = Boolean(state?.working);
+  const runLog = part('runlog');
+  runLog.hidden = !run;
+  runLog.href = `/run/${encodeURIComponent(name)}`;
+  patch(tryButton, state?.working ? `<span class="spin"></span>${escapeHtml(state.label)}` : running ? '▶ Ouvrir cette version' : '▶ Tester cette version');
+  patch(part('note'), state?.error ? `<span class="note bad">${escapeHtml(state.error)}</span>`
+    : state?.info ? `<span class="note fresh">${escapeHtml(state.info)}</span>`
+    : state?.working ? 'jusqu\'à quelques minutes si la machine est chargée' : '');
+
+  patch(part('feed'), steps.events.length ? `<ul class="feed">${feedItems(steps.events.slice(-6))}</ul>` : '<div class="empty">pas de journal d\'avancement</div>');
+  patch(part('commits'), agent.commits.length
+    ? `<ul class="commits">${agent.commits.slice(0, 5).map((c) => `<li><span class="sha">${c.sha}</span><span class="txt" title="${escapeHtml(c.subject)}">${escapeHtml(c.subject)}</span><span class="when">${ago(c.time)}</span></li>`).join('')}</ul>`
+    : '<div class="empty">aucun commit encore</div>');
+  patch(part('dirty-title'), `Fichiers modifiés (${agent.dirty.length})`);
+  patch(part('dirty'), escapeHtml(agent.dirty.join('\n')));
+  patch(part('server'), escapeHtml(agent.serverLog || '—'));
+  patch(part('client'), escapeHtml(agent.clientLog || '—'));
+  if (card.querySelector('[data-section="progress"]').open) loadProgress(name);
+}
+
+async function loadProgress(name) {
+  const { part } = cards.get(name);
+  try {
+    const data = await (await fetch(`/api/progress/${encodeURIComponent(name)}`, { cache: 'no-store' })).json();
+    patch(part('progress'), data.events.length ? `<ul class="feed full">${feedItems(data.events)}</ul>` : '<span class="empty">aucun</span>');
+  } catch {}
+}
+
+// Opens the tab right away (a tab opened after an await is blocked as a popup), then points it at the client once up.
+async function tryAgent(name) {
+  const tab = window.open('about:blank', '_blank');
+  if (tab) tab.document.write(`<title>${escapeHtml(name)}</title><body style="background:#111418;color:#e6e9ee;font:15px system-ui;padding:24px">Démarrage de la version « ${escapeHtml(name)} »… (compte de test : banc / banc-essai-1)</body>`);
+  busy.set(name, { working: true, label: 'Démarrage…' });
+  refresh();
+  try {
+    const result = await (await fetch(`/api/up/${encodeURIComponent(name)}`, { method: 'POST' })).json();
+    if (!result.ok) throw new Error(result.error.split('\n').slice(-2).join(' '));
+    busy.delete(name);
+    if (tab) tab.location.href = result.url;
+    else window.open(result.url, '_blank');
+  } catch (error) {
+    busy.set(name, { error: `Échec : ${error.message}` });
+    tab?.close();
+  }
+  refresh();
+}
+
+async function stopAgent(name) {
+  busy.set(name, { working: true, label: 'Arrêt…' });
+  refresh();
+  try {
+    await fetch(`/api/down/${encodeURIComponent(name)}`, { method: 'POST' });
+    busy.delete(name);
+  } catch (error) {
+    busy.set(name, { error: `Échec : ${error.message}` });
+  }
+  refresh();
+}
+
+// Kills the claude process launched from the Roadmap page (its whole process group).
+async function killAgent(name) {
+  busy.set(name, { working: true, label: 'Arrêt de l’agent…' });
+  refresh();
+  try {
+    const result = await (await fetch(`/api/queue/${encodeURIComponent(name)}/stop`, { method: 'POST' })).json();
+    if (result.ok) busy.delete(name);
+    else busy.set(name, { error: result.error });
+  } catch (error) {
+    busy.set(name, { error: `Échec : ${error.message}` });
+  }
+  refresh();
+}
+
+// Resumes the claude session launched from the Roadmap page (same session, --resume), e.g. after a network cut.
+async function resumeAgent(name) {
+  busy.set(name, { working: true, label: 'Relance de l’agent…' });
+  refresh();
+  try {
+    const result = await (await fetch(`/api/queue/${encodeURIComponent(name)}/resume`, { method: 'POST', body: '{}' })).json();
+    busy.set(name, result.ok ? { info: result.message } : { error: result.error });
+    setTimeout(() => busy.get(name)?.info && (busy.delete(name), refresh()), 6000);
+  } catch (error) {
+    busy.set(name, { error: `Échec : ${error.message}` });
+  }
+  refresh();
+}
+
+// « ✓ Accepter » : merge into the base branch and archive (then « À publier »).
+async function acceptAgent(name) {
+  if (!confirm(`Accepter « ${name} » ? Sa branche est fusionnée dans sa base, dans le dépôt principal, et la tâche passe dans « À publier ».`)) return;
+  busy.set(name, { working: true, label: 'Fusion et archivage…' });
+  refresh();
+  try {
+    const result = await (await fetch(`/api/accept/${encodeURIComponent(name)}`, { method: 'POST' })).json();
+    busy.set(name, result.ok ? { info: result.message } : { error: result.error, conflict: Boolean(result.conflict) });
+    setTimeout(() => busy.get(name)?.info && (busy.delete(name), refresh()), 8000);
+  } catch (error) {
+    busy.set(name, { error: `Échec : ${error.message}` });
+  }
+  refresh();
+}
+
+// « 🔀 Corriger les conflits » : the agent merges its base and settles the conflicts, then « Accepter » again.
+async function fixConflicts(name) {
+  busy.set(name, { working: true, label: 'Envoi de l’ordre de fusion…' });
+  refresh();
+  try {
+    const result = await (await fetch(`/api/fix-conflicts/${encodeURIComponent(name)}`, { method: 'POST' })).json();
+    busy.set(name, result.ok ? { info: result.message } : { error: result.error });
+    setTimeout(() => busy.get(name)?.info && (busy.delete(name), refresh()), 8000);
+  } catch (error) {
+    busy.set(name, { error: `Échec : ${error.message}` });
+  }
+  refresh();
+}
+
+// « ✎ Nouvel ordre » : a text area in the card (never re-rendered by the refresh), then the order to the agent.
+async function orderAction(card, name, action) {
+  const box = card.querySelector('[data-part="order"]');
+  const area = box.querySelector('textarea');
+  if (action === 'order-open') {
+    box.hidden = false;
+    card.querySelector('[data-action="order-open"]').hidden = true;
+    area.focus();
+    return;
+  }
+  if (action === 'order-close') {
+    box.hidden = true;
+    refresh();
+    return;
+  }
+  const order = area.value.trim();
+  if (!order) return area.focus();
+  box.querySelectorAll('button').forEach((b) => (b.disabled = true));
+  busy.set(name, { working: true, label: 'Envoi de l’ordre…' });
+  refresh();
+  try {
+    const result = await (await fetch(`/api/order/${encodeURIComponent(name)}`, { method: 'POST', body: JSON.stringify({ order }) })).json();
+    if (result.ok) {
+      area.value = '';
+      box.hidden = true;
+    }
+    busy.set(name, result.ok ? { info: result.message } : { error: result.error });
+    setTimeout(() => busy.get(name)?.info && (busy.delete(name), refresh()), 8000);
+  } catch (error) {
+    busy.set(name, { error: `Échec : ${error.message}` });
+  }
+  box.querySelectorAll('button').forEach((b) => (b.disabled = false));
+  refresh();
+}
+
+// « 🧹 Nettoyer les terminés » : the list first, then the cleanup once confirmed.
+document.getElementById('clean-all').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    const plan = await (await fetch('/api/clean?dry=1', { method: 'POST' })).json();
+    if (!plan.cleaned?.length && !plan.orphans?.length) return alert(plan.error ?? 'Rien à nettoyer : aucune tâche archivée, fusionnée et arrêtée.');
+    const list = [...plan.cleaned, ...plan.orphans.map((branch) => `${branch} (branche seule)`)].join('\n  ');
+    if (!confirm(`Retirer ces worktrees (servers arrêtés, branches fusionnées supprimées, journaux de claude) ?\n\n  ${list}\n\nLes entrées de __CHANGES__/ et le backlog restent.`)) return;
+    const result = await (await fetch('/api/clean', { method: 'POST' })).json();
+    alert(result.ok ? `Nettoyés : ${result.cleaned.join(', ') || 'aucun'}` : `Erreurs : ${(result.errors ?? []).map((e) => `${e.name} : ${e.error}`).join('\n') || result.error}`);
+    refresh();
+  } finally {
+    button.disabled = false;
+  }
+});
+
+async function rebaseAgent(name) {
+  const base = document.getElementById('rebase-base').value;
+  busy.set(name, { working: true, label: `Rebase sur ${base}…` });
+  refresh();
+  try {
+    // A finished task leaves the list once rebased: it goes to the archived tab.
+    const archive = cards.get(name)?.card.dataset.status === 'done' ? '&archive=1' : '';
+    const result = await (await fetch(`/api/rebase/${encodeURIComponent(name)}?base=${encodeURIComponent(base)}${archive}`, { method: 'POST' })).json();
+    if (result.ok) {
+      busy.set(name, { info: result.message });
+      setTimeout(() => {
+        if (busy.get(name)?.info === result.message) busy.delete(name);
+      }, 15000);
+    } else busy.set(name, { error: result.error });
+  } catch (error) {
+    busy.set(name, { error: `Échec : ${error.message}` });
+  }
+  refresh();
+}
+
+document.getElementById('rebase-all').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  // Only the finished tasks: an agent still at work keeps its branch as it is.
+  const done = [...cards.entries()].filter(([, { card }]) => card.dataset.status === 'done' && card.dataset.archived !== '1').map(([name]) => name);
+  if (!done.length) {
+    button.textContent = 'Aucune tâche terminée';
+    setTimeout(() => (button.textContent = '⟳ Rebaser les terminées'), 3000);
+  }
+  for (const name of done) await rebaseAgent(name);
+  button.disabled = false;
+});
+
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-action]');
+  if (!button) return;
+  const name = button.closest('.card').dataset.agent;
+  if (button.dataset.action === 'try') {
+    const running = button.textContent.includes('Ouvrir');
+    running ? window.open(`http://localhost:${button.closest('.card').dataset.port}`, '_blank') : tryAgent(name);
+  }
+  if (button.dataset.action === 'stop') stopAgent(name);
+  if (button.dataset.action === 'kill') killAgent(name);
+  if (button.dataset.action === 'resume') resumeAgent(name);
+  if (button.dataset.action === 'accept') acceptAgent(name);
+  if (button.dataset.action === 'fix-conflicts') fixConflicts(name);
+  if (button.dataset.action.startsWith('order-')) orderAction(button.closest('.card'), name, button.dataset.action);
+  if (button.dataset.action === 'rebase') rebaseAgent(name);
+  if (button.dataset.action === 'unarchive') {
+    fetch(`/api/unarchive/${encodeURIComponent(name)}`, { method: 'POST' }).then(refresh);
+  }
+});
+
+let refreshing = false;
+async function refresh() {
+  if (refreshing) return;
+  refreshing = true;
+  try {
+    const data = await (await fetch('/api/agents', { cache: 'no-store' })).json();
+    serverNow = data.now;
+    clockOffset = data.now - Date.now();
+    const agents = data.agents;
+    for (const agent of agents) {
+      updateCard(agent);
+      cards.get(agent.AGENT_NAME).card.dataset.port = agent.CLIENT_PORT;
+    }
+    for (const [name, { card }] of cards) {
+      if (!agents.some((a) => a.AGENT_NAME === name)) {
+        card.remove();
+        cards.delete(name);
+      }
+    }
+    const archivedCount = agents.filter((a) => a.AGENT_ARCHIVED).length;
+    document.getElementById('count-active').textContent = String(agents.length - archivedCount);
+    const lastMove = (a) => Math.max(a.activity || 0, a.progress?.updated || 0);
+    const working = agents.filter((a) => !a.progress?.finished && serverNow - lastMove(a) < ACTIVE_MS).length;
+    const finished = agents.filter((a) => a.progress?.finished).length;
+    const commits = agents.reduce((sum, a) => sum + (a.commits?.length ?? 0), 0);
+    const reports = agents.filter((a) => a.report).length;
+    patch(document.getElementById('summary'), `<b>${agents.length}</b> agents · <b>${working}</b> au travail · <b>${finished}</b> terminés · <b>${commits}</b> commits · <b>${reports}</b> rapports`);
+    document.getElementById('updated').textContent = `à jour ${new Date().toLocaleTimeString('fr-FR')}`;
+    document.getElementById('updated').classList.remove('err');
+  } catch (error) {
+    document.getElementById('updated').textContent = `injoignable, nouvel essai… (${error.message})`;
+    document.getElementById('updated').classList.add('err');
+  } finally {
+    refreshing = false;
+  }
+}
+
+document.getElementById('tabs').addEventListener('click', (event) => {
+  const tab = event.target.closest('.tab');
+  if (tab) showTab(tab.dataset.tab);
+});
+showTab(currentTab);
+
+refresh();
+setInterval(refresh, 4000);
+refreshVersions();
+setInterval(refreshVersions, 4000);
+</script>
+<script src="/questions-badge.js"></script>
+</body>
+</html>

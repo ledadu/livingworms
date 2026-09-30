@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__PROJECT__, l'écosystème</title>
+<style>
+  :root {
+    --bg: #111418; --panel: #1a1f26; --panel2: #222933; --line: #2e3744; --text: #e6e9ee; --muted: #8b95a5;
+    --ok: #4cc38a; --warn: #e5b454; --off: #5b6472; --accent: #7aa7ff; --bad: #ef6b6b; --say: #c8b6ff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(6px); z-index: 3; flex-wrap: wrap; }
+  h1 { font-size: 18px; margin: 0; display: flex; align-items: center; gap: 8px; }
+  h1 small { font-weight: 400; color: var(--muted); font-size: 13px; }
+  .logo { width: 22px; height: 22px; }
+  nav.site { display: flex; gap: 4px; flex-wrap: wrap; }
+  nav.site a { color: var(--muted); padding: 3px 10px; border-radius: 99px; font-size: 13px; }
+  nav.site a:hover { color: var(--text); background: var(--panel2); text-decoration: none; }
+  nav.site a.on { color: #0b1220; background: var(--accent); font-weight: 600; }
+  .spacer { flex: 1; }
+  .updated { color: var(--muted); font-size: 12px; }
+  .updated.err { color: var(--bad); }
+
+  /* Key figures, above the map. */
+  .strip { display: flex; gap: 8px; flex-wrap: wrap; padding: 14px 20px 0; }
+  .fig { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 6px 12px; color: var(--text); min-width: 0; }
+  .fig:hover { border-color: var(--accent); text-decoration: none; }
+  .fig .i { font-size: 16px; }
+  .fig b { font-size: 15px; }
+  .fig span.t { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46ch; }
+  .fig[hidden] { display: none; }
+
+  main { padding: 10px 20px 24px; }
+  .mapbox { position: relative; background: radial-gradient(ellipse at 50% 50%, #161b22 0%, var(--bg) 75%); border: 1px solid var(--line);
+    border-radius: 14px; overflow: hidden; }
+  svg.map { display: block; width: 100%; height: auto; }
+  .zone-label { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .node { cursor: pointer; }
+  .node .card { fill: var(--panel); stroke-width: 1.2; transition: stroke .2s, fill .2s; }
+  .node:hover .card, .node:focus-visible .card { fill: #20262f; stroke-width: 2; }
+  .node:focus { outline: none; }
+  .node .lift { transition: transform .2s ease; }
+  .node:hover .lift, .node:focus-visible .lift { transform: translateY(-2px); }
+  .node .name { font-size: 13.5px; font-weight: 650; fill: var(--text); }
+  .node .state { font-size: 11px; fill: var(--muted); }
+  .node .icon { font-size: 17px; }
+  .node .badge-text { font-size: 10.5px; font-weight: 700; fill: #0b1220; }
+  .flow-base { fill: none; stroke: #3a4454; stroke-width: 1.6; }
+  .flow-run { fill: none; stroke-width: 1.8; stroke-dasharray: 3 11; stroke-linecap: round; opacity: .9; animation: run 1.6s linear infinite; }
+  .flow.side .flow-base { stroke-dasharray: 4 5; }
+  .flow.side .flow-run { opacity: .45; }
+  .flow .hit { fill: none; stroke: transparent; stroke-width: 12; }
+  .flow:hover .flow-base { stroke: #6b7a90; }
+  .step-dot { stroke: var(--bg); stroke-width: 2; }
+  .step-num { font-size: 9.5px; font-weight: 700; fill: #0b1220; }
+  .flow-label { font-size: 11px; fill: #aeb7c4; paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
+  @keyframes run { to { stroke-dashoffset: -28; } }
+  .helix { animation: helix 9s linear infinite; }
+  @keyframes helix { to { transform: translateX(-120px); } }
+  .pulse { animation: pulse 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) {
+    .flow-run, .helix, .pulse { animation: none; }
+    .node .lift { transition: none; }
+  }
+
+  .tip { position: absolute; z-index: 2; pointer-events: none; max-width: 300px; background: #0d1117f2; border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 12px; box-shadow: 0 8px 24px #0008; font-size: 13px; opacity: 0; transition: opacity .12s; }
+  .tip.on { opacity: 1; }
+  .tip b { display: block; font-size: 14px; margin-bottom: 2px; }
+  .tip .role { color: #cfd6e0; }
+  .tip .live { margin-top: 6px; font-size: 12px; color: var(--muted); }
+  .tip .go { margin-top: 6px; font-size: 11px; color: var(--accent); font-family: ui-monospace, monospace; word-break: break-all; }
+
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; padding: 10px 4px 0; color: var(--muted); font-size: 12px; align-items: center; }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
+  .cycle { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: 12px; color: var(--muted); padding: 6px 4px 0; }
+  .cycle .s { display: inline-flex; align-items: center; gap: 4px; }
+  .cycle .n { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; font-size: 9.5px; font-weight: 700; color: #0b1220; }
+
+  /* On a phone: the same nodes, as cards grouped by zone. */
+  .cards { display: none; }
+  .zone-cards h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; margin: 18px 0 8px; }
+  .ncard { display: flex; gap: 10px; align-items: flex-start; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--lvl, var(--off));
+    border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; color: var(--text); }
+  .ncard:hover { text-decoration: none; border-color: var(--accent); }
+  .ncard .ic { font-size: 20px; line-height: 1.2; }
+  .ncard .nm { font-weight: 650; }
+  .ncard .st { font-size: 12px; color: var(--muted); }
+  .ncard .st::before { content: '●'; color: var(--lvl, var(--off)); margin-right: 5px; }
+  .ncard .rl { font-size: 12px; color: #aeb7c4; margin-top: 2px; }
+  .ncard .bd { margin-left: auto; background: var(--lvl); color: #0b1220; border-radius: 99px; font-size: 11px; font-weight: 700; padding: 0 7px; }
+  @media (max-width: 820px) {
+    .mapbox, .legend, .cycle { display: none; }
+    .cards { display: block; }
+    header, .strip, main { padding-left: 16px; padding-right: 16px; }
+    .fig span.t { max-width: 30ch; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1><svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2c0 6 12 6 12 10S6 16 6 22" fill="none" stroke="#7aa7ff" stroke-width="2" stroke-linecap="round"/><path d="M18 2c0 6-12 6-12 10s12 4 12 10" fill="none" stroke="#4cc38a" stroke-width="2" stroke-linecap="round"/><path d="M8 5h8M8 19h8M10 9h4M10 15h4" stroke="#e5b454" stroke-width="1.5" stroke-linecap="round"/></svg>
+    __PROJECT__ <small>l'écosystème</small></h1>
+  <nav class="site"><a href="/" class="on">Accueil</a><a href="/agents">Agents</a><a href="/journal">Journal</a><a href="/versions">Versions</a><a href="/roadmap">Backlog</a><a href="/questions">Questions</a></nav>
+  <span class="spacer"></span>
+  <span class="updated" id="updated">…</span>
+</header>
+<div class="strip" id="strip"></div>
+<main>
+  <div class="mapbox" id="mapbox">
+    <svg class="map" id="map" role="img" aria-label="Carte de l'écosystème de __PROJECT__"></svg>
+    <div class="tip" id="tip" role="tooltip"></div>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--ok)"></i>en ligne, à jour</span>
+    <span><i style="background:var(--accent)"></i>en cours</span>
+    <span><i style="background:var(--warn)"></i>demande ton attention</span>
+    <span><i style="background:var(--off)"></i>hors ligne ou à venir</span>
+    <span><i style="background:var(--muted)"></i>document</span>
+    <span class="spacer"></span>
+    <span>Survole un nœud pour son rôle, clique pour l'ouvrir.</span>
+  </div>
+  <div class="cycle" id="cycle"></div>
+  <div class="cards" id="cards"></div>
+</main>
+<script>
+const SVG = 'http://www.w3.org/2000/svg';
+const LEVELS = { up: '#4cc38a', busy: '#7aa7ff', warn: '#e5b454', down: '#5b6472', soon: '#5b6472', info: '#8b95a5' };
+const escapeHtml = (text) => String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const el = (name, attrs = {}, parent) => {
+  const node = document.createElementNS(SVG, name);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+  if (parent) parent.append(node);
+  return node;
+};
+
+let map = null;
+let hub = null;
+const parts = new Map(); // node id -> its SVG and card elements
+
+function ago(ms) {
+  const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+  if (s < 60) return `il y a ${s} s`;
+  if (s < 3600) return `il y a ${Math.round(s / 60)} min`;
+  if (s < 48 * 3600) return `il y a ${Math.round(s / 3600)} h`;
+  return `il y a ${Math.round(s / 86400)} j`;
+}
+
+// Shortens an SVG text to a width, with an ellipsis.
+function fit(text, width) {
+  const full = text.textContent;
+  if (text.getComputedTextLength() <= width) return;
+  let low = 0;
+  let high = full.length;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    text.textContent = full.slice(0, mid) + '…';
+    if (text.getComputedTextLength() <= width) low = mid;
+    else high = mid - 1;
+  }
+  text.textContent = full.slice(0, low).trimEnd() + '…';
+}
+
+// A DNA double helix across the middle of the map (hub.helix of the project): the life cycle runs through it, from the
+// plan to the game.
+function helix(svg, zones, words) {
+  const release = zones.find((z) => z.id === 'release');
+  const top = zones.find((z) => z.id === 'docs');
+  const y = (top.y + top.h + 406) / 2;
+  const x0 = top.x;
+  const x1 = release.x - 12;
+  const amplitude = 22;
+  const period = 120;
+  const defs = svg.querySelector('defs');
+  const clip = el('clipPath', { id: 'helix-clip' }, defs);
+  el('rect', { x: x0, y: y - 40, width: x1 - x0, height: 80 }, clip);
+  const fade = el('linearGradient', { id: 'helix-fade', x1: 0, x2: 1, y1: 0, y2: 0 }, defs);
+  for (const [offset, opacity] of [[0, 0], [0.08, 1], [0.92, 1], [1, 0]]) el('stop', { offset, 'stop-color': '#fff', 'stop-opacity': opacity }, fade);
+  const mask = el('mask', { id: 'helix-mask' }, defs);
+  el('rect', { x: x0, y: y - 40, width: x1 - x0, height: 80, fill: 'url(#helix-fade)' }, mask);
+  const outer = el('g', { 'clip-path': 'url(#helix-clip)', mask: 'url(#helix-mask)', opacity: 0.55 }, svg);
+  const group = el('g', { class: 'helix' }, outer);
+  const strand = (phase) => {
+    let d = '';
+    for (let x = x0; x <= x1 + period; x += 4) d += `${d ? 'L' : 'M'}${x},${(y + amplitude * Math.sin(((x - x0) / period) * 2 * Math.PI + phase)).toFixed(1)}`;
+    return d;
+  };
+  const bases = ['#7aa7ff', '#4cc38a', '#e5b454', '#ef6b6b'];
+  for (let x = x0, i = 0; x <= x1 + period; x += 12, i++) {
+    const a = y + amplitude * Math.sin(((x - x0) / period) * 2 * Math.PI);
+    const b = y + amplitude * Math.sin(((x - x0) / period) * 2 * Math.PI + Math.PI);
+    el('line', { x1: x, x2: x, y1: a, y2: b, stroke: bases[(i * 7) % 4], 'stroke-width': 2, 'stroke-linecap': 'round', opacity: 0.55 }, group);
+  }
+  el('path', { d: strand(0), fill: 'none', stroke: '#7aa7ff', 'stroke-width': 2.4 }, group);
+  el('path', { d: strand(Math.PI), fill: 'none', stroke: '#4cc38a', 'stroke-width': 2.4 }, group);
+  const cx = (x0 + x1) / 2;
+  const label = el('g', {}, svg);
+  el('rect', { x: cx - 128, y: y - 13, width: 256, height: 26, rx: 13, fill: '#111418', stroke: '#2e3744' }, label);
+  const text = el('text', { x: cx, y: y + 4.5, 'text-anchor': 'middle', 'font-size': 12.5, fill: '#e6e9ee', 'font-weight': 600 }, label);
+  text.textContent = words.label ?? '';
+  const up = el('text', { x: x1 - 14, y: y - 30, 'font-size': 11, fill: '#8b95a5', 'text-anchor': 'end' }, svg);
+  up.textContent = words.up ?? '';
+  const down = el('text', { x: x1 - 14, y: y + 40, 'font-size': 11, fill: '#8b95a5', 'text-anchor': 'end' }, svg);
+  down.textContent = words.down ?? '';
+}
+
+function build() {
+  const svg = document.getElementById('map');
+  svg.setAttribute('viewBox', `0 0 ${map.width} ${map.height}`);
+  svg.innerHTML = '';
+  const defs = el('defs', {}, svg);
+  const zoneOf = Object.fromEntries(map.zones.map((z) => [z.id, z]));
+  for (const zone of map.zones) {
+    const gradient = el('linearGradient', { id: `zone-${zone.id}`, x1: 0, y1: 0, x2: 1, y2: 1 }, defs);
+    el('stop', { offset: 0, 'stop-color': zone.color, 'stop-opacity': 0.13 }, gradient);
+    el('stop', { offset: 1, 'stop-color': zone.color, 'stop-opacity': 0.03 }, gradient);
+    const marker = el('marker', { id: `arrow-${zone.id}`, viewBox: '0 0 10 10', refX: 8.5, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+    el('path', { d: 'M0,1 L9,5 L0,9 z', fill: zone.color }, marker);
+  }
+  const glow = el('filter', { id: 'glow', x: '-50%', y: '-50%', width: '200%', height: '200%' }, defs);
+  el('feGaussianBlur', { stdDeviation: 3.5 }, glow);
+
+  // Zones.
+  for (const zone of map.zones) {
+    el('rect', { x: zone.x, y: zone.y, width: zone.w, height: zone.h, rx: 18, fill: `url(#zone-${zone.id})`, stroke: zone.color, 'stroke-opacity': 0.28, 'stroke-width': 1.2 }, svg);
+    const label = el('text', { x: zone.x + 18, y: zone.y + 26, class: 'zone-label', fill: zone.color }, svg);
+    label.textContent = zone.label;
+  }
+  if (map.helix) helix(svg, map.zones, map.helix);
+
+  // Flows, under the nodes.
+  const nodeOf = Object.fromEntries(map.nodes.map((n) => [n.id, n]));
+  const flowLayer = el('g', {}, svg);
+  const cycle = [];
+  for (const flow of map.flows) {
+    const color = zoneOf[nodeOf[flow.from].zone].color;
+    const g = el('g', { class: `flow${flow.side ? ' side' : ''}` }, flowLayer);
+    const title = el('title', {}, g);
+    title.textContent = `${flow.step ? flow.step + '. ' : ''}${flow.label} : ${nodeOf[flow.from].name} → ${nodeOf[flow.to].name}`;
+    el('path', { d: flow.d, class: 'hit' }, g);
+    el('path', { d: flow.d, class: 'flow-base', 'marker-end': `url(#arrow-${nodeOf[flow.from].zone})` }, g);
+    el('path', { d: flow.d, class: 'flow-run', stroke: color }, g);
+    if (flow.step) cycle.push({ ...flow, color });
+  }
+  // Step numbers and labels above every flow.
+  const labelLayer = el('g', {}, svg);
+  for (const flow of map.flows) {
+    const color = zoneOf[nodeOf[flow.from].zone].color;
+    const { x, y } = flow.at;
+    if (flow.step) {
+      el('circle', { cx: x, cy: y, r: 8, fill: color, class: 'step-dot' }, labelLayer);
+      const n = el('text', { x, y: y + 3.3, 'text-anchor': 'middle', class: 'step-num' }, labelLayer);
+      n.textContent = flow.step;
+    }
+    if (flow.length >= 90) {
+      const text = el('text', { x: x + (flow.step ? 12 : 0), y: y + 4, class: 'flow-label', 'text-anchor': flow.step ? 'start' : 'middle' }, labelLayer);
+      text.textContent = flow.label;
+    }
+  }
+
+  // Nodes.
+  const { w, h } = map.node;
+  for (const node of map.nodes) {
+    const zone = zoneOf[node.zone];
+    const a = el('a', { class: 'node', href: node.href, tabindex: 0, 'data-id': node.id }, svg);
+    const lift = el('g', { class: 'lift' }, a);
+    el('rect', { x: node.x + 2, y: node.y + 5, width: w, height: h, rx: 12, fill: '#000', opacity: 0.35 }, lift);
+    el('rect', { x: node.x, y: node.y, width: w, height: h, rx: 12, class: 'card', stroke: zone.color, 'stroke-opacity': 0.5 }, lift);
+    const bar = el('rect', { x: node.x, y: node.y + 12, width: 3, height: h - 24, rx: 1.5, fill: LEVELS.info }, lift);
+    el('circle', { cx: node.x + 24, cy: node.y + h / 2, r: 16, fill: zone.color, 'fill-opacity': 0.14, stroke: zone.color, 'stroke-opacity': 0.4 }, lift);
+    const icon = el('text', { x: node.x + 24, y: node.y + h / 2 + 6, 'text-anchor': 'middle', class: 'icon' }, lift);
+    icon.textContent = node.icon;
+    const name = el('text', { x: node.x + 48, y: node.y + 25, class: 'name' }, lift);
+    name.textContent = node.name;
+    const dot = el('circle', { cx: node.x + 52, cy: node.y + 41, r: 3.5, fill: LEVELS.info }, lift);
+    const halo = el('circle', { cx: node.x + 52, cy: node.y + 41, r: 6, fill: LEVELS.info, opacity: 0, class: 'pulse' }, lift);
+    const state = el('text', { x: node.x + 60, y: node.y + 45, class: 'state' }, lift);
+    const state2 = el('text', { x: node.x + 48, y: node.y + 58, class: 'state' }, lift);
+    const badge = el('g', { visibility: 'hidden' }, lift);
+    const badgeDot = el('circle', { cx: node.x + w - 4, cy: node.y + 4, r: 10, fill: LEVELS.warn, filter: '' }, badge);
+    const badgeText = el('text', { x: node.x + w - 4, y: node.y + 7.8, 'text-anchor': 'middle', class: 'badge-text' }, badge);
+    // A long name first gets a smaller font, then an ellipsis.
+    for (const size of [13.5, 12.5, 11.5]) {
+      name.style.fontSize = `${size}px`;
+      if (name.getComputedTextLength() <= w - 56) break;
+    }
+    fit(name, w - 56);
+    parts.set(node.id, { node, a, bar, dot, halo, state, state2, badge, badgeDot, badgeText });
+    a.addEventListener('mouseenter', () => showTip(node.id));
+    a.addEventListener('focus', () => showTip(node.id));
+    a.addEventListener('mouseleave', hideTip);
+    a.addEventListener('blur', hideTip);
+    a.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      }
+    });
+  }
+
+  document.getElementById('cycle').innerHTML = '<span>Le cycle :</span>' + cycle
+    .map((flow) => `<span class="s"><span class="n" style="background:${flow.color}">${flow.step}</span>${escapeHtml(flow.label)}</span>`)
+    .join('<span>→</span>');
+}
+
+function showTip(id) {
+  const p = parts.get(id);
+  if (!p) return;
+  const tip = document.getElementById('tip');
+  const state = hub?.state?.[id] ?? {};
+  const href = hub?.links?.[id] ?? p.node.href;
+  tip.innerHTML = `<b>${p.node.icon} ${escapeHtml(p.node.name)}</b><div class="role">${escapeHtml(p.node.role)}</div>
+    ${state.text ? `<div class="live">● ${escapeHtml(state.text)}${state.detail ? `<br>${escapeHtml(state.detail)}` : ''}</div>` : ''}
+    <div class="go">${escapeHtml(href)}${/^https?:/.test(href) ? ' ↗' : ''}</div>`;
+  const box = document.getElementById('mapbox').getBoundingClientRect();
+  const svg = document.getElementById('map').getBoundingClientRect();
+  const scale = svg.width / map.width;
+  const x = (p.node.x + map.node.w / 2) * scale + (svg.left - box.left);
+  const below = (p.node.y + map.node.h + 8) * scale + (svg.top - box.top);
+  const above = p.node.y * scale + (svg.top - box.top) - 8;
+  tip.classList.add('on');
+  const width = tip.offsetWidth;
+  tip.style.left = `${Math.max(8, Math.min(box.width - width - 8, x - width / 2))}px`;
+  // Below the node, or above it when the tip would leave the map.
+  tip.style.top = below + tip.offsetHeight > box.height - 4 ? `${above - tip.offsetHeight}px` : `${below}px`;
+}
+const hideTip = () => document.getElementById('tip').classList.remove('on');
+
+// The state line: one or two lines split on « · », shortened to the card.
+function setState(p, text) {
+  const [first, ...rest] = String(text ?? '').split(' · ');
+  p.state.textContent = first;
+  p.state2.textContent = rest.join(' · ');
+  fit(p.state, map.node.w - 68);
+  fit(p.state2, map.node.w - 56);
+}
+
+function update() {
+  for (const [id, p] of parts) {
+    const state = hub.state?.[id] ?? { level: 'info', text: '' };
+    const color = LEVELS[state.level] ?? LEVELS.info;
+    const href = hub.links?.[id] ?? p.node.href;
+    const external = /^https?:/.test(href);
+    p.a.setAttribute('href', href);
+    if (external) p.a.setAttribute('target', '_blank');
+    else p.a.removeAttribute('target');
+    p.a.setAttribute('aria-label', `${p.node.name} : ${state.text ?? ''}. ${p.node.role}`);
+    p.a.style.opacity = state.level === 'soon' ? 0.62 : 1;
+    p.bar.setAttribute('fill', color);
+    p.dot.setAttribute('fill', color);
+    p.halo.setAttribute('fill', color);
+    p.halo.setAttribute('opacity', state.level === 'busy' || state.level === 'warn' ? 0.5 : 0);
+    setState(p, state.text);
+    p.badge.setAttribute('visibility', state.badge ? 'visible' : 'hidden');
+    p.badgeDot.setAttribute('fill', color === LEVELS.info ? '#c8b6ff' : color);
+    p.badgeText.textContent = state.badge > 99 ? '99+' : state.badge ?? '';
+  }
+  renderCards();
+  renderStrip();
+  if (document.getElementById('tip').classList.contains('on')) {
+    const focused = document.activeElement?.closest?.('.node') ?? document.querySelector('.node:hover');
+    if (focused) showTip(focused.dataset.id);
+  }
+}
+
+function renderCards() {
+  const zoneOf = Object.fromEntries(map.zones.map((z) => [z.id, z]));
+  const html = map.order.map((zoneId) => {
+    const zone = zoneOf[zoneId];
+    const cards = map.nodes.filter((n) => n.zone === zoneId).map((node) => {
+      const state = hub.state?.[node.id] ?? {};
+      const href = hub.links?.[node.id] ?? node.href;
+      return `<a class="ncard" href="${escapeHtml(href)}"${/^https?:/.test(href) ? ' target="_blank"' : ''} style="--lvl:${LEVELS[state.level] ?? LEVELS.info}">
+        <span class="ic">${node.icon}</span><span><div class="nm">${escapeHtml(node.name)}</div><div class="st">${escapeHtml(state.text ?? '')}</div><div class="rl">${escapeHtml(node.role)}</div></span>
+        ${state.badge ? `<span class="bd">${state.badge}</span>` : ''}</a>`;
+    }).join('');
+    return `<section class="zone-cards"><h2 style="color:${zone.color}">${escapeHtml(zone.label)}</h2>${cards}</section>`;
+  }).join('');
+  const box = document.getElementById('cards');
+  if (box.innerHTML !== html) box.innerHTML = html;
+}
+
+function renderStrip() {
+  const s = hub.summary ?? {};
+  const figs = [];
+  if (s.agents) figs.push({ href: '/agents', icon: '🤖', value: s.agents.working, text: `au travail · ${s.agents.total - s.agents.archived} chantiers en cours` });
+  if (s.generation) figs.push({ href: '/versions', icon: '🧬', value: s.entries, text: `entrées dans la ${s.generation}` });
+  else figs.push({ href: '/versions', icon: '🧬', value: '—', text: `aucune ${PROJECT.release.word} en préparation` });
+  if (s.pending) figs.push({ href: '/versions?tab=pending', icon: '📥', value: s.pending, text: 'entrées à publier' });
+  if (typeof s.questions === 'number') figs.push({ href: '/questions', icon: '💬', value: s.questions, text: 'questions en attente' });
+  if (s.backlog) figs.push({ href: '/journal', icon: '🌿', value: s.backlog.sha, text: `${s.backlog.subject} · ${ago(s.backlog.time)}` });
+  figs.push(...(s.figures ?? []));
+  const html = figs.map((f) => `<a class="fig" href="${escapeHtml(f.href)}"${/^https?:/.test(f.href) ? ' target="_blank"' : ''} title="${escapeHtml(f.text)}"><span class="i">${f.icon}</span><b>${escapeHtml(f.value)}</b><span class="t">${escapeHtml(f.text)}</span></a>`).join('');
+  const strip = document.getElementById('strip');
+  if (strip.innerHTML !== html) strip.innerHTML = html;
+}
+
+async function refresh() {
+  const updated = document.getElementById('updated');
+  try {
+    const body = await (await fetch(map ? '/api/hub?state=1' : '/api/hub', { cache: 'no-store' })).json();
+    if (!map) {
+      map = body.map;
+      build();
+    }
+    hub = body;
+    update();
+    updated.textContent = `à jour ${new Date().toLocaleTimeString('fr-FR')}`;
+    updated.classList.remove('err');
+  } catch (error) {
+    updated.textContent = `injoignable, nouvel essai… (${error.message})`;
+    updated.classList.add('err');
+  }
+}
+
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>
