@@ -179,7 +179,7 @@ La carte du Grand Monde (`src/monde/biomes.ts`) suit la trame : les 10 chapitres
 | 6 | Les Sources | 15 800 à 19 000 | 280–340 m | fumeurs noirs, riftias, fumée et bulles | — |
 | 7 | Le Glacier | 19 000 à 22 000 | 340–400 m | *provisoire* : fond de glace pâle, blocs de glace bleue, éponges blanches, suintements froids, cristaux qui tombent | calmar géant |
 | 8 | Le Jardin de méduses | 22 000 à 25 200 | 400–500 m (pleine eau) | sans fond (`abyss`) : des milliers de méduses lointaines qui pulsent, montent et s'éclairent par vagues, siphonophores géants au loin (`jardin.ts`) ; la vie reste en pleine eau | siphonophore géant |
-| 9 | La Fosse | 25 200 à 28 400 | 500–650 m | *provisoire* : le noir, les lueurs, la neige marine | dragon abyssal, calmar |
+| 9 | La Fosse | 25 200 à 28 400 | 500–650 m | le noir total sauf sa propre lumière, les lueurs, la neige marine dans la lumière ; décor du fond *provisoire* | dragon abyssal, calmar (géants, en silhouettes) |
 | 10 | La Remontée | 28 400 à 30 000 | 650 m et plus | le fond, d'où part la Remontée (le puits de lumière est à faire) | — |
 
 ## À écrire

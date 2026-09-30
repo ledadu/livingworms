@@ -63,6 +63,16 @@ Réalisé dans `src/monde/jardin.ts` (chapitre `jardin` de `biomes.ts`, entre le
 | La Fosse | noir et bleu électrique |
 | La Remontée | tout s'éclaire |
 
+## La Fosse : le noir total
+
+Les chapitres profonds (Sources, Remontée) assombrissent l'écran sans jamais le noircir, la Grotte a son propre noir au fond des galeries (`caveDark`, `grotte.ts`) ; la Fosse (`src/monde/fosse.ts`, `dark: 1`, le seul chapitre au-delà de 0.88) ferme tout : on ne voit que ce que sa propre lumière éclaire.
+
+- **Sa lumière** : un cercle clair autour du nageur, dont la taille vient de ce qu'il porte de lumineux (les lueurs de ses parties, une lanterne comptant triple). Sans rien qui brille, on se voit à peine ; avec une lanterne ou un corps de cténophore, le fond apparaît autour de soi.
+- **Ce qui brille** reste visible au loin, par-dessus le noir : animaux lumineux, poissons-lanternes.
+- **La neige marine** ne se voit que dans la lumière, blanche, plus forte près du nageur.
+- **Les grandes silhouettes** (un dragon abyssal ×7 et un calmar géant ×9, les visiteurs du chapitre) passent au loin : des corps noirs devant une faible lueur bleu électrique, avec leurs propres photophores.
+- Le passage du Jardin de méduses à la Fosse, puis de la Fosse à la Remontée, se fait en fondu sur les frontières.
+
 ## Le son
 
 Tout est généré dans le code, sans fichier audio (Web Audio API, voir [decisions.md](decisions.md#technique)).

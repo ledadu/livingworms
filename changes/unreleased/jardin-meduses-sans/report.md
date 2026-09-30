@@ -15,6 +15,7 @@
 ![Une vague de lumière traverse le jardin](img/jardin-vague.jpg)
 ![Les siphonophores géants au loin](img/jardin-siphonophores.jpg)
 ![Le bord du Glacier : ses murs de glace au-dessus du vide et des méduses](img/jardin-bord.jpg)
+![Vers la Fosse : les méduses s'éclaircissent, un calmar géant en silhouette](img/jardin-fosse.jpg)
 ![Après la fusion avec la carte des 10 chapitres : −424 m, le siphonophore géant simulé et les méduses lointaines](img/jardin-fusion.jpg)
 
 ### Budget (Chrome Windows, GPU réel, WebGL2, build de dev)
@@ -33,6 +34,7 @@
 - Mesure après fusion (PC, 1280×800) : ≈ 520 méduses et 3 siphonophores dessinés, 1,5 ms pour le champ, 59 img/s.
 - **Seconde fusion (Grotte, Carcasse)** : `main.ts` (imports de `grotte`, `grotte-draw`, `carcasse` gardés ; `jardin.collect` posé avant les rayons atténués par la grotte et `pushCave` ; `jardin` et `carcasse` tous deux dans l'API), `foreground.test.ts` (ma vérification « aucun premier plan dans le Jardin » gardée à côté des nouveaux identifiants), `direction-artistique.md` (il ne reste que les décors du Glacier et de la Fosse : Grotte, Carcasse et Jardin sont faits). Rendu du Jardin inchangé : ≈ 370 méduses, 1,4 ms, 57 img/s.
 - **Troisième fusion (Glacier)** : `main.ts` seul en conflit, les deux lignes gardées (`jardin.collect` puis `glacierItems`, imports combinés) ; `direction-artistique.md` : il ne reste que le décor de la Fosse. Relu `glacier.ts` : la langue d'eau froide et les murs de glace suivent `floorAt`, donc au bout du Glacier ils descendent avec la pente du vide ; à l'œil, les murs de glace dominent le jardin de méduses (capture `img/jardin-bord.jpg` refaite). Champ : ≈ 370 méduses, 1,6 ms, 53 img/s.
+- **Quatrième fusion (Fosse, noir total)** : `main.ts` (imports `fosse`/`fosse-draw` gardés, `jardin` et `fosse` tous deux dans l'API), `docs/chapitres.md` (tableau des chapitres : ma ligne du Jardin et celle de la Fosse arrivée de `backlog`). Relu `fosse.test.ts` : il comparait le fond de la Fosse à celui du Jardin, tombé hors de vue ; il compare maintenant `openFloor`, même intention (la Fosse est plus profonde que le chapitre d'avant). À la frontière, les méduses s'éclaircissent et les silhouettes géantes de la Fosse arrivent (`img/jardin-fosse.jpg`). Champ : ≈ 370 méduses, 1 ms.
 
 ## Choix retenus
 
@@ -73,4 +75,5 @@ Aucune question posée sur le tableau de bord : tous les choix sont `auto` (opti
 
 - `src/monde/biomes.ts` : champs `abyss` et `jellies` de `Biome`, `floorAt` = `openFloor` + `abyssAt`, `arrival` sur `openFloor`, entrée `jardin` (3 valeurs).
 - `src/monde/main.ts` : branchements courts (import, `new Jardin`, `jardin.collect` dans `render`, `openFloor` dans `homeY` et `Shoal`, `jardin` dans l'API).
+- `src/monde/fosse.test.ts` : une comparaison sur `openFloor` au lieu de `floorAt`.
 - `src/monde/foreground.ts` : une condition (pas de premier plan sur un fond tombé) ; `foreground.test.ts`, `biomes.test.ts` : identifiants et `openFloor`.
