@@ -8,6 +8,7 @@ import { css, type HSL, type Mood } from './palette';
 import { plantSpec } from './plants';
 import { makeCanvas, type Plant, type Rock, type Sprite } from './sprites';
 import { BIOMES, X0, X1, biomeIndex, floorAt, presence } from './biomes';
+import { groundAt, solidAt } from './relief';
 
 type R01 = () => number;
 const pick = <T>(R: R01, l: T[]): T => l[Math.floor(R() * l.length)];
@@ -77,7 +78,7 @@ export function plantSpec2(kind: string, R: R01, biome: string): Spec {
 export function growPlant2(p: Plant): Creature3 {
   const R = rng(p.seed), kind = p.kind, hanging = kind === 'sargasse';
   const biome = BIOMES[biomeIndex(p.x)].id;
-  const y = hanging ? 3 + R() * 4 : floorAt(p.x, p.z) + 3;
+  const y = hanging ? 3 + R() * 4 : groundAt(p.x, p.z, floorAt(p.x, p.z)) + 3;
   const upright = kind === 'kelp' || kind === 'posidonie' || kind === 'crinoide' || kind === 'riftia' || hanging;
   const tilt = upright ? (R() - 0.5) * 0.1 : (R() - 0.5) * 0.35;
   const scale = kind === 'kelp' ? (biome === 'kelp' ? 1.3 + R() * 0.8 : 0.9 + R() * 0.5) : kind === 'crinoide' ? 1 + R() * 0.6 : 0.8 + R() * 0.45;
@@ -104,8 +105,9 @@ export function makeRocks(): RockX[] {
     if (R() < 0.15 + b.encrust * 0.2) r *= 1.9;
     if (z < 30) r = Math.min(r, 16); // nothing big between the eye and the swimmer
     const seed = seedOf(Math.round(x), Math.round(z));
-    out.push({ x, z, r, seed, sprite: null, spriteD: 0, encrust: b.encrust });
-    if (b.encrust > 0.5 && R() < 0.5) out.push({ x: x + 30, z: z + 40, r: r * 0.7, seed: seed + 7, sprite: null, spriteD: 0, encrust: b.encrust });
+    // not inside a relief
+    if (!solidAt(x, floorAt(x, z) - r * 0.4, z)) out.push({ x, z, r, seed, sprite: null, spriteD: 0, encrust: b.encrust });
+    if (b.encrust > 0.5 && R() < 0.5 && !solidAt(x + 30, floorAt(x + 30, z + 40) - r * 0.3, z + 40)) out.push({ x: x + 30, z: z + 40, r: r * 0.7, seed: seed + 7, sprite: null, spriteD: 0, encrust: b.encrust });
     x += b.rocks.every * (0.5 + R());
   }
   return out;

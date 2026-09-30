@@ -22,6 +22,8 @@ import { bakeCreature, bakeRock, causticTile, env, fishSprites, fogOf, glowSprit
 import { BIOMES, X0, X1, biomeIndex, biomeMid, floorAt, metres, moodAt } from './biomes';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
 import { compareSpecies, runBench } from './bench';
+import { bump, initReliefs } from './relief';
+import { pushReliefs } from './relief-draw';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -81,6 +83,7 @@ input.zoomMul = 900 / settings.dist;
 // ----- world ----- //
 
 const decor: Decor[] = makeDecor();
+initReliefs(BIOMES, X1, floorAt, decor.map((d) => d.x), decor.filter((d) => d.kind !== 'seep').map((d) => d.x));
 const vents = decor.filter((d) => d.kind === 'vent');
 const rocks: RockX[] = makeRocks().sort((a, b) => a.x - b.x);
 /** first rock at or after x (the rocks are sorted along x) */
@@ -275,6 +278,7 @@ function collide(cr: Creature3): void {
     const dx = r.x[0] - k.x, dy = (r.y[0] - cy) / 0.8, d = Math.hypot(dx, dy), m = rs + rad;
     if (d < m && d > 0.01) { r.x[0] = k.x + (dx / d) * m; r.y[0] = cy + (dy / d) * m * 0.8; }
   }
+  bump(cr);
   cr.stand(floorAt(r.x[0], z));
   const fy = floorAt(r.x[0], z) - rad;
   if (r.y[0] > fy) { r.y[0] = fy; if (cr.vy > 0) cr.vy *= -0.3; }
@@ -482,6 +486,7 @@ function render(): void {
     if (bu) items.push({ d: view.depth(y - 200, d.z) - 1.5, fn: () => drawPuffs(bu, d.z, bubbleSpr, 0), k: 'bubbles' });
     if (d.kind === 'vent') { view.project(d.x, y + ventMouth(d), d.z, P); lights.push(P.x, P.y, 40 * P.s + 10, 25, 0.9); }
   }
+  pushReliefs(items, { view, gx, ctx, dpr, plane }, cam.x, cam.y);
   let np = 0;
   for (const pl of plants) {
     if (!pl.cr) continue;
