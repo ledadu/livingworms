@@ -44,6 +44,16 @@ Il manque, pour le plan :
 | La Fosse | noir et bleu électrique |
 | La Remontée | tout s'éclaire |
 
+## La Fosse : le noir total
+
+Après les Abysses, qui assombrissent déjà l'écran sans jamais le noircir, la Fosse (`src/monde/fosse.ts`) ferme tout : on ne voit que ce que sa propre lumière éclaire.
+
+- **Sa lumière** : un cercle clair autour du nageur, dont la taille vient de ce qu'il porte de lumineux (les lueurs de ses parties, une lanterne comptant triple). Sans rien qui brille, on se voit à peine ; avec une lanterne ou un corps de cténophore, le fond apparaît autour de soi.
+- **Ce qui brille** reste visible au loin, par-dessus le noir : animaux lumineux, poissons-lanternes.
+- **La neige marine** ne se voit que dans la lumière, blanche, plus forte près du nageur.
+- **Les grandes silhouettes** (un dragon abyssal et un calmar géant) passent au loin : des corps noirs devant une faible lueur bleu électrique, avec leurs propres photophores.
+- Le passage des Abysses à la Fosse se fait en fondu, sur la frontière entre les deux.
+
 ## Le son
 
 Tout est généré dans le code, sans fichier audio (Web Audio API, voir [decisions.md](decisions.md#technique)).

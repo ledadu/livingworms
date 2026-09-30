@@ -22,6 +22,8 @@ import { bakeCreature, bakeRock, causticTile, env, fishSprites, fogOf, glowSprit
 import { BIOMES, X0, X1, biomeIndex, biomeMid, floorAt, metres, moodAt } from './biomes';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
 import { compareSpecies, runBench } from './bench';
+import { darkStops, glowOf, lightReach, pitchOf, snowLit } from './fosse';
+import { drawShape } from './fosse-draw';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -166,7 +168,8 @@ interface Visitor { cr: Creature3; z: number; x0: number; x1: number; y: number;
 const visitors: Visitor[] = ([
   ['tortue', 800, 3200, 260, 1500, 2.4], ['tortue', 4200, 7000, 300, 1300, 2.2], ['manta', 7600, 11000, 200, 1600, 2.6],
   ['requinBaleine', 11600, 14500, 520, 1500, 3], ['manta', 12200, 14400, 900, 1100, 2.2],
-  ['calmar', 15000, 18000, 1500, 1300, 3.5], ['dragonAbyssal', 18600, 21600, 1950, 1400, 3]
+  ['calmar', 15000, 18000, 1500, 1300, 3.5], ['dragonAbyssal', 18600, 21600, 1950, 1400, 3],
+  ['dragonAbyssal', 22200, 25000, 2650, 1500, 7], ['calmar', 22400, 25200, 2100, 2400, 9]
 ] as [string, number, number, number, number, number][]).map(([id, x0, x1, y, z, s]) => {
   const cr = new Creature3(SPECIES[id](), (x0 + x1) / 2, y, z, { dir: { x: 1, y: 0, z: 0 }, scale: s });
   for (let i = 0; i < 90; i++) cr.update(i * STEP, 0.5, 0, 0, 0.2);
@@ -500,9 +503,11 @@ function render(): void {
     const fy = floorAt(x, rz), h = fy - a.cr.root.y[0];
     if (h < 260 && h > -8 && rz < 900 && m.dark < 0.6) items.push({ d: view.depth(fy, rz) + 0.3, fn: () => drawShadow(a, fy, h), k: 'shadow' });
   }
+  // in the Fosse the big visitors are shapes drawn after the dark (drawShapes)
+  fosse.pitch = pitchOf(m.dark) * clamp((cam.y - 250) / 900, 0, 1);
   for (const v of visitors) {
     const [x0, x1] = view.xRange(v.z, 400);
-    if (v.cr.root.x[0] < x0 || v.cr.root.x[0] > x1) continue;
+    if (v.cr.root.x[0] < x0 || v.cr.root.x[0] > x1 || fosse.pitch >= 0.02) continue;
     items.push({ d: view.depth(v.y, v.cr.root.z[0]), fn: () => drawVisitor(v, m, plane), k: 'visitor' });
   }
   for (const s of shoals) {
@@ -519,19 +524,23 @@ function render(): void {
 
   // the deep closes in around the swimmer: the dark is painted over everything, the lights come after
   const dk = m.dark * clamp((cam.y - 250) / 900, 0, 1);
+  view.project(pr.x[0], pr.y[0], 0, P);
+  // in the Fosse only the swimmer's own light opens the dark
+  fosse.glow = glowOf(player.cr.list);
+  fosse.reach = lightReach(fosse.glow) * P.s;
   if (gx) { renderGLTop(m, dk); return; }
   if (dk > 0.02 && !skip.has('dark')) {
-    view.project(pr.x[0], pr.y[0], 0, P);
-    const r0 = 70 * P.s, r1 = Math.max(W, H) * (0.9 - dk * 0.35);
+    const { r, a } = darkStops(dk, fosse.pitch, P.s, fosse.reach, W, H);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const dg = ctx.createRadialGradient(P.x, P.y, r0, P.x, P.y, r1);
+    const dg = ctx.createRadialGradient(P.x, P.y, r[0], P.x, P.y, r[2]);
     const deep = m.deep;
-    dg.addColorStop(0, css(deep, 0));
-    dg.addColorStop(0.35, css(deep, dk * 0.55, -2));
-    dg.addColorStop(1, css(deep, Math.min(0.97, dk * 1.08), -3));
+    dg.addColorStop(0, css(deep, a[0]));
+    dg.addColorStop((r[1] - r[0]) / (r[2] - r[0]), css(deep, a[1], -2));
+    dg.addColorStop(1, css(deep, a[2], -3));
     ctx.fillStyle = dg;
     ctx.fillRect(0, 0, W, H);
   }
+  drawShapes();
 
   // glows of the creatures: many small lights on one animal share their strength, so they never burn to white
   ctx.globalCompositeOperation = 'lighter';
@@ -571,6 +580,17 @@ function render(): void {
 }
 
 const deepEl = document.getElementById('deep');
+/** the total dark of the Fosse (0..1) and the reach of the swimmer's light on screen */
+const fosse = { pitch: 0, reach: 0, glow: 0 };
+
+/** the huge animals of the total dark, drawn after it */
+function drawShapes(): void {
+  if (fosse.pitch < 0.02 || skip.has('visitor')) return;
+  for (const v of visitors) {
+    const [x0, x1] = view.xRange(v.z, 400);
+    if (v.cr.root.x[0] >= x0 && v.cr.root.x[0] <= x1) drawShape(gx, ctx, view, dpr, v, fosse.pitch, t);
+  }
+}
 
 /** WebGL: what is painted over the scene (the dark, the glows, the lights, the plankton), then the frame is sent */
 function renderGLTop(m: M, dk: number): void {
@@ -578,9 +598,10 @@ function renderGLTop(m: M, dk: number): void {
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (dk > 0.02 && !skip.has('dark')) {
     view.project(pr.x[0], pr.y[0], 0, P);
-    const r0 = 70 * P.s, r1 = Math.max(W, H) * (0.9 - dk * 0.35), deep = m.deep;
-    rings(g, P.x, P.y, [r0, r0 + (r1 - r0) * 0.35, r1], [hcol(g, deep, 0), hcol(g, deep, dk * 0.55, -2), hcol(g, deep, Math.min(0.97, dk * 1.08), -3)], Math.hypot(W, H) * 1.5, 64);
+    const { r, a } = darkStops(dk, fosse.pitch, P.s, fosse.reach, W, H), deep = m.deep;
+    rings(g, P.x, P.y, r, [hcol(g, deep, a[0]), hcol(g, deep, a[1], -2), hcol(g, deep, a[2], -3)], Math.hypot(W, H) * 1.5, 64);
   }
+  drawShapes();
   if (!skip.has('glow')) {
     const lum = 1 + dk * 1.2;
     for (const a of actors) {
@@ -603,12 +624,14 @@ function renderGLTop(m: M, dk: number): void {
 function drawMotes(m: M, dk: number): void {
   const pr = player.cr.root;
   view.project(pr.x[0], pr.y[0], 0, Q);
-  const qx = Q.x, qy = Q.y, reach = 110 * Q.s + 30;
+  const qx = Q.x, qy = Q.y, reach = Math.max(110 * Q.s + 30, fosse.reach * fosse.pitch), lit = 1 - fosse.pitch;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const fall = m.snow * 22;
   const near: number[] = [];
-  const mcol = gx ? hcol(gx, m.plankton, 0.5 * (1 - dk * 0.6)) : 0;
-  ctx.fillStyle = css(m.plankton, 0.5 * (1 - dk * 0.6));
+  // in the dark the stirred motes sparkle; in the Fosse the snow shows white where the light reaches
+  const fp = fosse.pitch, sparkle = `hsla(${185 + 20 * fp},${100 - 40 * fp}%,${72 + 16 * fp}%,${((0.35 + 0.25 * Math.sin(t * 5)) * (1 - fp) + 0.7 * fp).toFixed(3)})`;
+  const mcol = gx ? hcol(gx, m.plankton, 0.5 * (1 - dk * 0.6) * lit) : 0;
+  ctx.fillStyle = css(m.plankton, 0.5 * (1 - dk * 0.6) * lit);
   ctx.beginPath();
   for (const mo of motes) {
     const x = cam.x + ((((mo[0] + t * 3) % 1400) + 2100) % 1400) - 700;
@@ -616,7 +639,8 @@ function drawMotes(m: M, dk: number): void {
     if (y < 4) continue;
     view.project(x, y, mo[2], P);
     const s = Math.max(0.4, mo[3] * P.s * (1 + m.snow * 0.5));
-    if (dk > 0.2 && Math.abs(P.x - qx) < reach && Math.abs(P.y - qy) < reach) { near.push(P.x, P.y, s); continue; }
+    if (dk > 0.2 && Math.abs(P.x - qx) < reach && Math.abs(P.y - qy) < reach) { near.push(P.x, P.y, s, 1 - fosse.pitch * (1 - snowLit(Math.hypot(P.x - qx, P.y - qy), fosse.reach))); continue; }
+    if (lit < 0.03) continue;
     if (gx) { disc(gx, P.x, P.y, s, mcol); continue; }
     ctx.moveTo(P.x + s, P.y);
     ctx.arc(P.x, P.y, s, 0, TAU);
@@ -624,8 +648,7 @@ function drawMotes(m: M, dk: number): void {
   if (gx) {
     if (near.length) {
       gx.setBlend('add');
-      const c = gx.packCss(`hsla(185,100%,72%,${(0.35 + 0.25 * Math.sin(t * 5)).toFixed(3)})`);
-      for (let i = 0; i < near.length; i += 3) disc(gx, near[i], near[i + 1], near[i + 2] * 1.6, c);
+      for (let i = 0; i < near.length; i += 4) disc(gx, near[i], near[i + 1], near[i + 2] * 1.6, gx.packCss(sparkle, near[i + 3]));
       gx.setBlend('over');
     }
     return;
@@ -633,10 +656,13 @@ function drawMotes(m: M, dk: number): void {
   ctx.fill();
   if (near.length) {
     ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = `hsla(185,100%,72%,${(0.35 + 0.25 * Math.sin(t * 5)).toFixed(3)})`;
-    ctx.beginPath();
-    for (let i = 0; i < near.length; i += 3) { const s = near[i + 2] * 1.6; ctx.moveTo(near[i] + s, near[i + 1]); ctx.arc(near[i], near[i + 1], s, 0, TAU); }
-    ctx.fill();
+    ctx.fillStyle = sparkle;
+    for (let i = 0; i < near.length; i += 4) {
+      const s = near[i + 2] * 1.6;
+      ctx.globalAlpha = near[i + 3];
+      ctx.beginPath(); ctx.arc(near[i], near[i + 1], s, 0, TAU); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
   }
 }
@@ -1038,7 +1064,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto,
-  biomes: BIOMES, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
+  biomes: BIOMES, fosse, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },

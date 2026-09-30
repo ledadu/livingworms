@@ -4,6 +4,7 @@
 
 import { clamp, lerp, lerpHue, noise1 } from '../engine';
 import type { HSL, Mood } from './palette';
+import { FOSSE } from './fosse';
 
 export interface Biome extends Mood {
   id: string;
@@ -134,10 +135,11 @@ export const BIOMES: Biome[] = [
       ['meduseBoite', 'swim', 1, 0.8]],
     pop: 24,
     schools: [{ body: { h: 260, s: 20, l: 30 }, belly: { h: 250, s: 20, l: 50 }, n: 24, size: 1.1, glow: true }]
-  }
+  },
+  FOSSE
 ];
 
-export const X0 = -800, X1 = 22000;
+export const X0 = -800, X1 = 25600;
 const BLEND = 1400;
 
 function mixHSL(a: HSL, b: HSL, t: number): HSL {
@@ -200,7 +202,7 @@ export function moodAt(x: number): Mood & { dark: number; snow: number } {
 /** depth of the floor along the swimming plane: [x, depth] control points, eased between */
 const PROFILE: [number, number][] = [
   [X0, 600], [2800, 620], [3800, 690], [7000, 700], [7800, 450], [11100, 440], [11700, 470],
-  [12250, 1480], [12900, 1820], [14600, 1980], [17600, 2280], [18600, 2520], [X1, 2560]
+  [12250, 1480], [12900, 1820], [14600, 1980], [17600, 2280], [18600, 2520], [21200, 2560], [22600, 3000], [X1, 3150]
 ];
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
@@ -212,7 +214,7 @@ function baseDepth(x: number): number {
 }
 
 /** relief amplitude by biome: dunes, boulder fields, reef heads, ledges, plains */
-const HILLS = [60, 90, 70, 110, 80, 50], BUMPS = [10, 30, 60, 50, 30, 36], DUNES = [3, 2, 0, 0, 0, 0];
+const HILLS = [60, 90, 70, 110, 80, 50, 40], BUMPS = [10, 30, 60, 50, 30, 36, 30], DUNES = [3, 2, 0, 0, 0, 0, 0];
 
 /** a per-biome value at x, blended across the borders so that nothing steps */
 export function blendOf(x: number, v: number[]): number {
