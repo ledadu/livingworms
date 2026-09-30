@@ -30,7 +30,12 @@ La Nurserie et la Carcasse n'ont pas d'obstacle : on y trouve quand même un par
 - Un court moment de nage synchronisée : tu suis ou imites le partenaire (le suivre sans le perdre, passer dans son sillage, tourner avec lui).
 - Environ 20 secondes, **sans échec possible**, seulement plus ou moins réussie.
 - La qualité de la parade influence la portée : bien réussie, les enfants héritent davantage des traits voulus.
-- Appui dans le code : les animaux savent déjà suivre une cible (`steer`, `src/engine3/creature3.ts`) et nager chacun à sa façon (glisse, cloche, jets, marche). La mesure de la qualité est à construire.
+- **Le début** : on reste un moment (1,2 s) à moins de 130 d'un partenaire du chapitre ; il nous remarque (quelques lueurs montent de lui), puis il vient dans notre plan et mène la danse. Rien ne commence pendant qu'un texte est à l'écran.
+- **La danse** : le partenaire dessine un grand huit (240 × 95 de demi-axes) autour de l'endroit de la rencontre, en partant du côté opposé à nous, pour qu'on se retrouve derrière lui. Il avance à son aise (selon sa vitesse de nage), attend quand il prend du retard et ralentit quand on s'éloigne : on peut toujours le rattraper. Un marcheur (crabe, homard) fait l'aller-retour sur le fond.
+- **La qualité**, mesurée à chaque instant puis moyennée sur les 20 s : **le suivre** (près de lui : plein jusqu'à 120, nul au-delà de 360, 40 %), **son sillage** (passer là où il était il y a 0,3 à 1,5 s, 30 %), **tourner avec lui** (aller dans la même direction que lui, 30 %). Le suivre du doigt donne environ 0,95 ; rester à côté sans bouger, 0,3 à 0,4 ; s'en aller, presque 0.
+- **Ce qu'on voit** (pas de chiffres) : son sillage brille de sa couleur ; le nôtre s'allume de la même couleur quand on danse en rythme ; à la fin, un éclat de lumière d'autant plus grand que la parade était belle.
+- **Le résultat**, pour la portée : `monde.parade.last` (`partner` : l'id de l'espèce, `spec` : sa définition, `chapter`, `quality` de 0 à 1, `parts` : les trois mesures), et `monde.parade.onEnd(f)` appelé à la fin de chaque parade.
+- Dans le code : les règles dans `src/monde/parade.ts` (pures, testées), le jeu dans `src/monde/parade-jeu.ts`. Les partenaires viennent pour l'instant d'une table de `parade-jeu.ts` (celle de [chapitres.md](chapitres.md)) ; `initParade({ isPartner })` accepte le marqueur des espèces compatibles quand il existera. Pour les tests : `monde.parade.start(animal, monde.player.cr)`, `monde.parade.state`, `monde.parade.quiet = () => false`.
 
 ### La portée
 
