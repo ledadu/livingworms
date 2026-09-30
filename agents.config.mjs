@@ -15,9 +15,9 @@ export default {
 
   // The game has no server: the « server » of an agent serves the built single file (vite preview, what gets
   // published), its « client » the dev build with hot reload. Ports away from Allèle's (7800/5300, dashboard 7800),
-  // whose agents may run at the same time: agent n gets 8100 + n and 5600 + n, the dashboard 8000 (Makefile).
+  // whose agents may run at the same time: agent n gets 8200 + n and 5600 + n, the dashboard 8200 (Makefile).
   services: {
-    server: { command: 'npm run dev:server', portBase: 8100 },
+    server: { command: 'npm run dev:server', portBase: 8200 },
     client: { command: 'npm run dev:client', portBase: 5600 },
   },
 

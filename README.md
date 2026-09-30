@@ -1,28 +1,38 @@
-# La Lignée — Le Grand Monde
+# La Lignée
 
-A side-scrolling sea in 2.5D: animals built from whips (verlet chains) swim,
-crawl and drift through six biomes, from the surface to the abyss. The
-Atelier edits any species and lets you swim as it.
+Une larve naît à la surface. Le courant l'emporte vers le fond. Elle n'arrivera jamais en bas, mais ses enfants, oui.
 
-## Run
+Un jeu de navigateur, sur téléphone d'abord : tu joues une lignée de créatures marines, génération après génération, de la surface au fond de la fosse, puis la remontée. Les créatures sont faites de fouets (chaînes de Verlet) en 2.5D. Tout est dans [docs/](docs/README.md) : la [vision](docs/vision.md), les [chapitres](docs/chapitres.md), les [mécaniques](docs/mecaniques.md), la [feuille de route](docs/roadmap.md) et le [backlog](docs/backlog.md).
 
-    npm install
-    npm run dev      # http://localhost:5173
-    npm run check    # type check
-    npm run play     # build one self-contained file into play/lignee-monde.html
+## Lancer
 
-## Layout
+```bash
+npm install
+make dev      # le jeu avec rechargement à chaud, http://localhost:5180
+make check    # typecheck et tests
+make play     # la page jouable en un seul fichier : play/lignee-monde.html
+make help     # toutes les commandes, dont celles des agents
+```
 
-- `src/engine/` — species definitions: types, defaults and patterns (`defs`),
-  labels (`names`), measures and variations (`tools`), and the drawing of one
-  projected part (`render`).
-- `src/engine3/` — the 3D whip engine: `creature3` (simulation, locomotion:
-  glide, bell, jet, crawl; parts with a drive), `flow` (water between bodies),
-  `view` (perspective), `render3` (canvas, levels of detail), `paint-gl` and
-  `gfx` (WebGL2), `snapshot3` (portraits).
-- `src/content/` — the bestiary: parts library, 43 species, catalogue,
-  generator and fusion.
-- `src/editor/` — the Atelier (species editor).
-- `src/monde/` — the game: `main` (loop, actors, drawing), `biomes`, `world`
-  (floor, rocks, plants, decor), `plants`, `sprites`, `palette`, `scene-gl`,
-  `input`, `bench` (`?bench`, `?bench=compare`).
+## Le code
+
+- `src/engine/` : les définitions d'espèces et le dessin d'une partie.
+- `src/engine3/` : le moteur de fouets 3D (simulation, locomotions, eau, perspective, rendu canvas et WebGL2, portraits).
+- `src/content/` : le bestiaire (parties, 43 espèces, catalogue, générateur, fusion).
+- `src/editor/` : l'Atelier, l'éditeur d'espèces.
+- `src/monde/` : le jeu (boucle, biomes, décors, plantes, lumière, banc de performance `?bench`).
+
+Détails dans la [consigne des agents](docs/agents.md#architecture).
+
+## Les agents
+
+Le dossier `agents/` est le cadriciel [game-agents](https://github.com/ledadu/game-agents), monté en git subtree : une équipe d'agents Claude Code avance en parallèle sur le backlog, chacun dans son worktree, avec un tableau de bord.
+
+```bash
+make agent-dashboard          # le tableau de bord, http://localhost:8200
+make agent-new NAME=x         # un agent à la main : worktree ../livingworms.worktrees/x, branche agent/x
+```
+
+Dans Claude Code : `/agent-team`. Mettre à jour le cadriciel : `git subtree pull --prefix=agents https://github.com/ledadu/game-agents.git main --squash`.
+
+Les premiers prototypes (les démos whip.js, Hydra, le jeu 2D, les pages 2.5D et Three.js) sont dans l'historique git.

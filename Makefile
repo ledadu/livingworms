@@ -24,7 +24,7 @@ build: ## The single self-contained file, in dist/index.html
 play: ## Rebuilds the playable page play/lignee-monde.html
 	@npm run play
 
-# the dashboard of La Lignée's agents: http://localhost:8000 (Allèle's is on 7800)
-PORT ?= 8000
+# the dashboard of La Lignée's agents: http://localhost:8200 (Allèle's is on 7800)
+PORT ?= 8200
 
 include agents/agents.mk
