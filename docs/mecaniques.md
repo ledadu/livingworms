@@ -98,6 +98,7 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
 - Le chant sert à ouvrir des passages (certains animaux répondent), à appeler les ancêtres, et c'est la clé de la fin.
 - Le chant complet : une note par chapitre de descente, soit 9 notes avec la Grotte et le Glacier (proposition, voir la question 3 des [décisions](decisions.md#questions-ouvertes)).
 - On chante avec un bouton en bas de l'écran, qui ouvre un cercle de notes à tracer du doigt.
+- À la Remontée, la créature finale joue d'elle-même le chant complet, les neuf notes l'une après l'autre, chacune de la couleur de son chapitre (`NOTE_COLOUR`, `src/monde/remontee.ts`).
 
 ## L'arbre de la lignée
 
@@ -116,7 +117,7 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
 
 - Chaque parent laissé derrière toi reste dans le monde. En revenant en arrière, tu le retrouves qui nage là où tu l'as quitté.
 - Plus bas, tu trouves des traces de ta lignée : une carcasse de parent devenue récif, une mue, des œufs non éclos.
-- À la Remontée, tous les ancêtres remontent avec toi, en formation.
+- À la Remontée, tous les ancêtres remontent avec toi, en formation : chacun vient avec la note qu'il a apprise, puis la lignée remonte en V derrière toi (voir [chapitres.md](chapitres.md#10-la-remontée-du-fond-à-la-surface)).
 
 ## Contrôles et interface
 
@@ -125,7 +126,7 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
 - **Chanter** : un bouton en bas, qui ouvre le cercle de notes.
 - **Écran de la lignée** : l'arbre, accessible à tout moment par le bouton en haut à gauche (voir « L'arbre de la lignée »).
 - **Interface minimale** : pas de chiffres. Le texte narratif est la seule vraie interface.
-- **L'Atelier** n'est pas dans l'histoire : il est débloqué après la fin, dans la « Balade libre » (décision validée). Son bouton ✎ est caché pendant l'histoire ; il revient quand `lignee.balade` vaut `1` dans le stockage du navigateur (`unlockBalade()`, `src/monde/atelier-access.ts`, à appeler à la fin de l'histoire). Pour le développement, `?atelier` ou `?dev` (qui montre aussi le voyage du panneau ⚙) dans l'adresse le montre toujours ; `monde.unlockBalade()` débloque la Balade dans la console.
+- **L'Atelier** n'est pas dans l'histoire : il est débloqué après la fin, dans la « Balade libre » (décision validée). Son bouton ✎ est caché pendant l'histoire ; il revient quand `lignee.balade` vaut `1` dans le stockage du navigateur (`unlockBalade()`, `src/monde/atelier-access.ts`, appelé à la fin de la Remontée). Pour le développement, `?atelier` ou `?dev` (qui montre aussi le voyage du panneau ⚙) dans l'adresse le montre toujours ; `monde.unlockBalade()` débloque la Balade dans la console.
 
 ## Durée et sauvegarde
 

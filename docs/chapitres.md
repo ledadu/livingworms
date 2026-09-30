@@ -221,6 +221,16 @@ Le retournement :
 
 - **La remontée** : ta créature finale joue le chant complet. Tous tes ancêtres apparaissent, de la larve à la dernière génération, et remontent avec toi, en formation. Chaque biome traversé en sens inverse s'illumine à ton passage.
 - **Dernière image** : ta lignée perce la surface. Tu vois la larve du chapitre 1 naître, et le cycle recommence.
+- **Dans le jeu** (`src/monde/remontee.ts`, en jeu `remontee-jeu.ts`, dessin `remontee-draw.ts`) : une scène d'environ deux minutes, sans rien à faire, comme l'adieu (les boutons s'effacent ; on peut zoomer).
+  - **Le puits** : au milieu du chapitre (x = 29 200), une colonne de lumière dorée tombe de tout en haut jusqu'au sable, où elle fait une flaque de lumière ; des grains de lumière y montent. Autour de lui, le noir s'ouvre sur 1 500 px. Il se voit dès qu'on passe le fond de la Fosse.
+  - **Le retournement** : entrer dans sa lumière commence la scène. Le nageur est mené au milieu du puits et se tourne vers le haut ; il nage sur place, face à la lumière, et « Le retournement » est dit.
+  - **Le chant complet** : neuf notes, une par chapitre de la descente, chacune un anneau de lumière de la couleur du chapitre. À chaque note viennent, dans un éclat, les ancêtres qui l'ont apprise (ceux qui ont donné naissance dans ce chapitre), en couronne autour du nageur, du plus récent (en haut) au plus ancien (en bas). Les parents laissés en chemin répondent aussi : ils quittent leur place pour venir. Sans ancêtre dans la sauvegarde, la première larve vient seule. Chaque note appelle `monde.remontee.onNote(f)` : le son du chant pourra s'y brancher.
+  - **La remontée** : un courant emporte la lignée, d'abord droit vers le haut du puits, puis à travers tous les chapitres à l'envers, à mi-hauteur, sans jamais redescendre (sauf sous la voûte de la Grotte), à l'écart des reliefs, jusque sous la surface, là où la première larve est née (x = 420). La couronne s'ouvre en V derrière le nageur, le plus ancien au bout ; chacun garde un halo doré. Le courant prend de la vitesse, porte vite (un peu plus d'une minute pour tout le chemin) et ralentit près de la surface. Chacun nage à son rythme dans le courant : les méduses battent, les crabes pédalent.
+  - **Chaque chapitre s'illumine** quand la lignée y entre : son eau s'éclaircit dans sa propre couleur, le noir se lève (même celui de la Fosse et des galeries de la Grotte), une lumière dorée tombe d'en haut, des rais dorés l'entourent, un grand anneau de la couleur de sa note part du nageur et son nom passe. La lumière reste tant que la scène dure, puis s'efface doucement.
+  - **La surface** : la lumière perce (un éclat blanc et doré), les ancêtres s'étalent sous la surface de part et d'autre du nageur. Un œuf de lumière apparaît parmi eux et bat de plus en plus vite ; la caméra s'en approche ; il éclot, et une larve en sort, qui brille un moment. Puis le texte final est dit, et la caméra s'élargit sur toute la lignée.
+  - **Après** : on reprend la main, avec la créature finale, parmi ses ancêtres qui restent là, sous la surface de la Nurserie ; la nouvelle larve nous suit. La Balade libre est débloquée (`unlockBalade`, le bouton ✎ revient) et `monde.remontee.onEnd(f)` est appelé (pour le générique). La scène ne revient pas dans la même visite.
+  - **La sauvegarde** : pendant la scène, le chapitre sauvé reste la Remontée (une page rechargée reprend au puits, et la scène recommence) ; à la fin, la partie reprend à la Nurserie avec la créature finale et toute la lignée.
+  - **Pour les tests** : `monde.remontee.start()` (au puits, la scène commence), `monde.remontee.jump(x)` (pendant la remontée, portés jusqu'à x), `monde.remontee.phase` (`idle`, `well`, `rise`, `surface`, `after`).
 
 Texte final :
 
@@ -243,13 +253,13 @@ La carte du Grand Monde (`src/monde/biomes.ts`) suit la trame : les 10 chapitres
 | 7 | Le Glacier | 19 000 à 22 000 | 340–400 m | *provisoire* : fond de glace pâle, blocs de glace bleue, éponges blanches, suintements froids, cristaux qui tombent | calmar géant |
 | 8 | Le Jardin de méduses | 22 000 à 25 200 | 400–500 m (pleine eau) | sans fond (`abyss`) : des milliers de méduses lointaines qui pulsent, montent et s'éclairent par vagues, siphonophores géants au loin (`jardin.ts`) ; la vie reste en pleine eau | siphonophore géant |
 | 9 | La Fosse | 25 200 à 28 400 | 500–650 m | le noir total sauf sa propre lumière, les lueurs, la neige marine dans la lumière ; décor du fond *provisoire* | dragon abyssal, calmar (géants, en silhouettes) |
-| 10 | La Remontée | 28 400 à 30 000 | 650 m et plus | le fond, d'où part la Remontée (le puits de lumière est à faire) | — |
+| 10 | La Remontée | 28 400 à 30 000 | 650 m et plus | le fond, et le puits de lumière d'où part la Remontée (voir le chapitre 10) | — |
 
 ### Les bornes du monde
 
-Le monde qu'on joue commence à la surface de la Nurserie (x = −600) et finit au fond de la Fosse (x = 27 600, avant que la lumière de la Remontée n'arrive) : `src/monde/limites.ts`. Chaque chapitre qui a un obstacle barre la descente à sa fin (le Récif, la Forêt, la Grotte, les Sources, le Glacier, le Jardin) ; celui de la Fosse garde le fond, et le franchir ouvrira la Remontée. Près d'une borne, l'eau retient le nageur sur 420 px et un léger courant le repousse : rien ne heurte ni ne blesse. Un obstacle franchi le reste (on peut remonter et redescendre), même pour un enfant qui n'a plus le trait. Qui franchit quoi : voir « Les obstacles-clés » ci-dessous.
+Le monde qu'on joue commence à la surface de la Nurserie (x = −600) et finit au fond de la Remontée (x = 29 800), un peu après son puits de lumière : `src/monde/limites.ts`. Chaque chapitre qui a un obstacle barre la descente à sa fin (le Récif, la Forêt, la Grotte, les Sources, le Glacier, le Jardin) ; celui de la Fosse garde son fond (x = 27 600, avant que la lumière de la Remontée n'arrive), et le franchir ouvre la Remontée. Près d'une borne, l'eau retient le nageur sur 420 px et un léger courant le repousse : rien ne heurte ni ne blesse. Un obstacle franchi le reste (on peut remonter et redescendre), même pour un enfant qui n'a plus le trait. Qui franchit quoi : voir « Les obstacles-clés » ci-dessous.
 
-Le voyage du panneau de réglages (⚙) sert aux tests : il n'apparaît qu'avec `?dev` dans l'adresse. Voyager (le panneau, `monde.gotoBiome`, `monde.teleport`) compte comme franchis les obstacles d'avant l'arrivée ; au-delà du fond de la Fosse, toute la carte s'ouvre jusqu'au rechargement.
+Le voyage du panneau de réglages (⚙) sert aux tests : il n'apparaît qu'avec `?dev` dans l'adresse. Voyager (le panneau, `monde.gotoBiome`, `monde.teleport`) compte comme franchis les obstacles d'avant l'arrivée ; au-delà du fond de la Remontée, toute la carte s'ouvre jusqu'au rechargement.
 
 ### Les obstacles-clés
 
@@ -267,7 +277,7 @@ Chaque obstacle barre la descente tant que le corps qu'on joue n'a pas l'un des 
 
 - **Avec le trait**, l'obstacle se sent encore un peu (le courant tire, l'eau épaisse freine) mais on passe ; le noir ne se referme plus.
 - **La première fois qu'un obstacle retient** (à mi-chemin de son approche), la lignée dit ce qu'il aurait fallu : la citation « Devant l'obstacle : » du chapitre, dans ce document.
-- **La Fosse** garde la fin du monde : même avec une lanterne, on n'y va pas plus loin tant que la Remontée n'existe pas. Le chant (étape 5) n'est pas un trait du corps.
+- **La Fosse** garde son fond : une lanterne le franchit, et derrière s'ouvre la Remontée. Le chant (étape 5) n'est pas un trait du corps : il ouvrira aussi ce passage.
 - **Les traits du corps** sont lus sur l'arbre de parties (`traitsOf`). En attendant la fonction des traits de l'étape 3, `obstacles-traits.ts` en donne une version approchée, avec les mêmes noms. La larve de départ n'a aucun trait : sans naissance, elle s'arrête au courant du Récif.
 - **Pour les tests** : `monde.keys.traits` (les traits du corps joué), `monde.keys.force = ['nageoires']` (jouer comme si on les avait, `null` pour revenir), `monde.becomes(…)`.
 

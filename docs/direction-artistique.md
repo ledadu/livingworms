@@ -24,8 +24,7 @@ Le Grand Monde (`src/monde/`) a déjà :
 Il manque, pour le plan :
 
 - le premier plan sombre et flou ;
-- le décor propre à la Fosse (elle a aujourd'hui un décor provisoire tiré de l'existant) ;
-- le puits de lumière de la Remontée.
+- le décor propre à la Fosse (elle a aujourd'hui un décor provisoire tiré de l'existant).
 
 ### Le premier plan
 
@@ -82,6 +81,16 @@ Les chapitres profonds (Sources, Remontée) assombrissent l'écran sans jamais l
 - **La neige marine** ne se voit que dans la lumière, blanche, plus forte près du nageur.
 - **Les grandes silhouettes** (un dragon abyssal ×7 et un calmar géant ×9, les visiteurs du chapitre) passent au loin : des corps noirs devant une faible lueur bleu électrique, avec leurs propres photophores.
 - Le passage du Jardin de méduses à la Fosse, puis de la Fosse à la Remontée, se fait en fondu sur les frontières.
+
+## La Remontée : tout s'éclaire
+
+Réalisé dans `src/monde/remontee.ts` (dessin `remontee-draw.ts`, voir [chapitres.md](chapitres.md#10-la-remontée-du-fond-à-la-surface)) :
+
+- **Le puits de lumière** : une colonne dorée un peu derrière le plan de nage, du haut de l'écran jusqu'au sable, plus vive au milieu, qui s'élargit en bas et frémit lentement ; une flaque de lumière sur le sable, des grains de lumière qui montent. Autour de lui, l'eau s'éclaircit et le noir s'ouvre.
+- **Un chapitre illuminé** (`litMood`) : son eau plus claire et un peu plus dans sa couleur (le bleu électrique de la Fosse, le violet du Jardin, l'orange des Sources), le noir levé, une grande lueur dorée qui tombe d'en haut et des rais dorés, obliques, tout autour de la lignée. Le décor lointain reste dans la couleur de l'eau d'avant : il se découpe, un peu plus sombre, sur l'eau claire.
+- **Le chant** : des anneaux de points de lumière qui s'ouvrent autour du nageur, de la couleur de chaque note ; un éclat doré à l'arrivée de chaque ancêtre, puis un halo doré qui respire autour de lui.
+- **La surface** : un éclat blanc et doré couvre l'écran puis s'efface (une couche CSS, `#remonteeFlash`) ; un œuf de lumière bat parmi la lignée et éclot.
+- **Coût** : quelques formes ajoutées par image (la colonne, une dizaine de rais), et des lumières ; la lignée compte une dizaine de créatures en plus, dessinées comme les autres.
 
 ## Le son
 
