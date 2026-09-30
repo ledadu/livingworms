@@ -13,9 +13,10 @@ La fin de l'histoire, d'un seul tenant : le puits de lumière au fond, le retour
   4. Chaque chapitre s'illumine quand la lignée y entre (`reached`, `litAt`, `litMood`) : eau plus claire et plus dans sa couleur, noir levé (celui de la Fosse et des galeries de la Grotte aussi : `open` passé à `pushCave`), lueur dorée d'en haut, rais dorés, grand anneau de la couleur de sa note et son nom.
   5. Les lumières qui ont répondu dans la Fosse (voisin `lumieres-qui-repondent`) viennent avec nous : le courant les porte aussi et les ramène vers la lignée si elles traînent (`carry(c, true)`).
   6. À la surface : un éclat blanc et doré (`#remonteeFlash`), les ancêtres s'étalent sous la surface, un œuf de lumière bat de plus en plus vite, la caméra s'en approche, il éclot et une larve en sort (elle brille un moment, puis nous suit) ; le texte final est dit.
-  7. On reprend la main avec la créature finale, parmi ses ancêtres qui restent sous la surface de la Nurserie. La Balade libre est débloquée (`unlockBalade`, le bouton ✎ revient) et `onEnd` est appelé (pour le générique).
+  7. Le générique passe (`generique.play()`, voisin `generique-image-souvenir`), la Balade libre est débloquée (`unlockBalade`, le bouton ✎ revient) ; après le générique, on reprend la main avec la créature finale, parmi ses ancêtres qui restent sous la surface de la Nurserie.
 - **La caméra** : proche au retournement, plus large pendant le chant, puis cadrée pour que toute la formation tienne sur le côté le plus étroit de l'écran (téléphone tenu droit compris), et près de l'œuf à la naissance.
-- **La sauvegarde** : pendant la scène, la partie reste au chapitre de la Remontée (un rechargement reprend au puits, la scène recommence) ; à la fin, elle reprend à la Nurserie avec la créature finale et toute la lignée. Le chant n'apprend pas de note pendant la remontée.
+- **La sauvegarde** : pendant la scène, la partie reste au chapitre de la Remontée (un rechargement reprend au puits, la scène recommence) ; à la fin, elle reprend à la Nurserie avec la créature finale et toute la lignée.
+- **Le calme** : pendant la scène, le chant n'apprend pas de note, et ni les traces, ni la cousine de la Carcasse, ni les lumières de la Fosse ne prennent la parole ; seuls les noms des chapitres passent.
 - **Pour le voir** : `?dev`, puis dans la console `monde.remontee.start()` (au puits, la scène commence) ; `monde.remontee.jump(x)` pendant la remontée pour être porté plus loin ; `monde.remontee.phase`. Pour une vraie lignée : quelques `monde.farewell()` dans des chapitres différents avant.
 - **Tests** : `remontee.test.ts` (le puits, les notes et l'appel des ancêtres, la couronne et le V, le chemin : du puits à la surface, à travers les 10 chapitres, toujours dans l'eau, hors des reliefs, sans marche ; la durée du courant ; la lumière des chapitres), `limites.test.ts`, `obstacles-jeu.test.ts`, `traces.test.ts` adaptés.
 - **Mesures** (Chrome Windows, GPU de bureau, 1280 × 720) : 55 à 60 images/s, un creux à 47 dans le Récif quand le courant porte vite (les plantes poussent en chemin). Pas mesuré sur un vrai téléphone.
@@ -49,7 +50,7 @@ Aucune question n'a été posée sur le tableau de bord : tous les choix sont tr
 | La durée | ~2 min, dont un peu plus d'une minute de remontée | Assez pour voir chaque chapitre (~7 s chacun), pas trop pour une scène sans main |
 | Percer la surface | Un éclat blanc et doré sur tout l'écran | Le monde ne se dessine pas au-dessus de l'eau ; l'éclat dit la même chose |
 | La larve | Un œuf de lumière qui bat puis éclot parmi la lignée ; la larve nous suit ensuite | « Tu vois la larve naître » : la caméra s'approche |
-| Après la fin | On garde la créature finale, parmi ses ancêtres, et la Balade libre est débloquée | Rien n'est perdu ; la Balade libre (étape 6) partira de là |
+| Après la fin | Le générique, puis on garde la créature finale, parmi ses ancêtres ; la Balade libre est débloquée | Rien n'est perdu ; la Balade libre (étape 6) partira de là |
 | La sauvegarde pendant la scène | La partie reste à la Remontée jusqu'à la fin | Une page rechargée rejoue la fin au lieu de nous laisser au milieu |
 | Les lumières qui ont répondu | Portées par le courant et ramenées vers la lignée | Une idée du voisin ; une ligne, et la Fosse nous accompagne |
 
@@ -103,7 +104,6 @@ Aucune question n'a été posée sur le tableau de bord : tous les choix sont tr
 
 ## Reste à faire / limites
 
-- **Le générique** (voisin `generique-image-souvenir`) : `monde.remontee.onEnd(f)` est appelé à la fin de la scène ; il n'y est pas encore branché.
 - **Le son** : le chant complet sonne avec la voix du chant ; ni musique ni bruit propre à la remontée (étape 6).
 - Les ancêtres restent sous la surface de la Nurserie pour la session seulement ; au rechargement, ils retrouvent leur place dans le monde (`ancetres-jeu.ts`).
 - La scène ne se rejoue pas dans la même visite (seulement après un rechargement, ou par `monde.remontee.start()`).
@@ -114,7 +114,7 @@ Aucune question n'a été posée sur le tableau de bord : tous les choix sont tr
 
 ## Risques de fusion
 
-- `src/monde/main.ts` : branchements courts. L'import, le genre d'acteur `ancestor`, `remontee.on` dans le calme de la parade, `lead`, `carry` du nageur, la branche des acteurs `ancestor`, `carry(c, true)` dans la branche `answer`, `partie.reach` et `chant.step` suspendus pendant la scène, `mood`, `lights`, `items`, le noir multiplié par `open` (et passé à `pushCave`), `showChapter` qui respecte `holds`, le bloc `initRemontee` après les lumières, `onNote` vers la voix du chant, la caméra, `api.remontee` et `onEnd(api.unlockBalade)`.
+- `src/monde/main.ts` : branchements courts. L'import, le genre d'acteur `ancestor`, `remontee.on` dans le calme de la parade, `lead`, `carry` du nageur, la branche des acteurs `ancestor`, `carry(c, true)` dans la branche `answer`, `partie.reach` suspendu pendant la scène, `remontee.on` ajouté à ce qui fait taire le chant (`busy`), les traces, la cousine et les lumières de la Fosse, `mood`, `lights`, `items`, le noir multiplié par `open` (et passé à `pushCave`), `showChapter` qui respecte `holds`, le bloc `initRemontee` après les lumières, `onNote` vers la voix du chant, la caméra, `api.remontee` et `onEnd` (la Balade, puis le générique).
 - `src/monde/limites.ts` : `WORLD_END` n'est plus le fond de la Fosse mais la fin de la Remontée (29 800) ; `FOSSE_BOTTOM` (27 600) le remplace pour la borne de la Fosse. Tout code qui lisait `WORLD_END` comme « le fond de la Fosse » doit lire `FOSSE_BOTTOM` : c'est fait pour `traces.ts` (et son test).
 - `src/monde/grotte-draw.ts` : `CaveScene.open`, facultatif, qui éclaircit le noir et le voile de la Grotte.
 - Tests adaptés : `limites.test.ts`, `obstacles-jeu.test.ts`, `traces.test.ts`.

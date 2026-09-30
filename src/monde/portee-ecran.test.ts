@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SPECIES, firstAncestor } from '../content/species';
 import { brood, type Child } from '../content/portee';
-import { inherited, traitWords } from './portee-ecran';
+import { broodNote, inherited, traitWords } from './portee-ecran';
 
 describe('inherited', () => {
   it('names the body on the side it comes from, then the parts', () => {
@@ -27,5 +27,22 @@ describe('traitWords', () => {
     const c = { traits: ['nageoires', 'pinces'] } as unknown as Child;
     expect(traitWords(c, ['pinces', 'corpsFin'])).toEqual([{ word: 'Nageoires', key: false }, { word: 'Pinces', key: true }]);
     expect(traitWords(c)).toEqual([{ word: 'Nageoires', key: false }, { word: 'Pinces', key: false }]);
+  });
+});
+
+describe('broodNote', () => {
+  const kid = (traits: string[]) => ({ traits }) as unknown as Child;
+
+  it('says that the traits in gold cross the obstacle, when a child has one', () => {
+    expect(broodNote([kid(['cils']), kid(['nageoires'])], ['nageoires', 'pulsation'], 'le courant de passe')).toBe('Les traits en or franchissent le courant de passe.');
+  });
+
+  it('says when no child would cross, and that the eggs may wait', () => {
+    expect(broodNote([kid(['cils']), kid([])], ['pinces', 'corpsFin'], 'le mur d’algues')).toMatch(/^Aucun ne franchira le mur d’algues : tu peux laisser les œufs/);
+  });
+
+  it('says nothing where there is no obstacle', () => {
+    expect(broodNote([kid(['cils'])], [], undefined)).toBe('');
+    expect(broodNote([kid(['cils'])], ['cils'])).toBe('');
   });
 });

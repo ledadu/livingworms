@@ -17,6 +17,7 @@ Les profondeurs sont indicatives : le monde est une descente continue, pas une c
 - La voix est celle de la lignée, un « nous », comme si les ancêtres parlaient.
 - **Dans le jeu** (`src/monde/textes.ts`, affichage dans `narration.ts`) : les textes sont lus dans ce document même, au build. Sous le titre `## N. Nom` d'un chapitre, la citation (`> …`) qui suit une ligne « Ouverture : », « Adieu … : », « Le retournement : » (l'ouverture de la Remontée) ou « Texte final : » ou « Devant l'obstacle : » (dit la première fois que l'obstacle du chapitre nous retient) devient ce texte ; pour en changer un, il suffit de l'écrire ici. Une phrase par ligne ; une phrase seule et longue se coupe à la virgule la plus proche de son milieu ; quatre lignes au plus. L'ouverture s'écrit la première fois qu'on entre dans le chapitre, ligne après ligne, sous son nom en petites capitales, puis s'efface ; en y revenant, seul le nom passe. Elle attend qu'aucun panneau (Nouveautés, Atelier) ne couvre la mer. L'adieu se dit pendant la scène de l'adieu au parent ([mécaniques](mecaniques.md#ladieu)) ; tant qu'il est à l'écran, une ouverture attend qu'il s'efface et rien d'autre ne se dit.
 - « La rencontre : » donne le texte dit la première fois qu'on croise la cousine de la lignée rivale, à la Carcasse (voir le chapitre 5).
+- « L'indice : » donne ce que la lignée se rappelle quand on ressort de la portée d'un obstacle qui nous a retenus : qui, dans le chapitre, avait de quoi le franchir ([mécaniques](mecaniques.md#les-indices)). Il nomme les partenaires dont les enfants passent vraiment, et parfois celui qui ne servirait à rien.
 - La ligne « Note : « … » » de chaque chapitre donne son nom à la note du chant qu'on y apprend (`chant.ts`, voir [mécaniques](mecaniques.md#le-chant)).
 
 ## Vue d'ensemble
@@ -69,6 +70,10 @@ Devant l'obstacle :
 
 > Le courant de la passe nous renvoyait vers le récif. Il fallait des nageoires pour le remonter, ou battre comme les méduses.
 
+L'indice (proposition) :
+
+> Les poissons du récif remontaient le courant à coups de nageoires. La méduse-boîte, elle, battait parmi les coraux. Il nous fallait danser avec l'un d'eux.
+
 Adieu (proposition) :
 
 > Tu nous as appris à passer sans nous retourner. Pour toi, une seule fois, nous nous sommes retournés.
@@ -88,6 +93,10 @@ Ouverture :
 Devant l'obstacle :
 
 > Les algues se serraient en un mur. Il fallait des pinces pour l'ouvrir, ou un corps assez fin pour s'y glisser.
+
+L'indice (proposition) :
+
+> Le homard ouvrait les algues de ses pinces. Le dragon feuillu était assez fin pour s'y glisser. La seiche, elle, n'y pouvait rien.
 
 Adieu (proposition) :
 
@@ -109,6 +118,10 @@ Ouverture :
 Devant l'obstacle :
 
 > La galerie s'enfonçait dans un noir sans bord. Il fallait un corps fin pour s'y faufiler, ou une lueur pour voir le passage.
+
+L'indice (proposition) :
+
+> Le serpent cilié se faufilait partout. Le cténophore portait sa propre lueur. L'anguille, si fine, n'aurait pas eu d'enfants aussi fins.
 
 Adieu (proposition) :
 
@@ -157,6 +170,10 @@ Devant l'obstacle :
 
 > L'eau brûlait et nous faisait reculer. Il fallait une carapace pour la supporter, ou des cils pour passer par la vase.
 
+L'indice (proposition) :
+
+> Le ver de feu, la crevette-mante et le homard ne craignaient pas la chaleur, sous leurs plaques. Le serpent cilié glissait dans la vase. Il nous fallait l'un d'eux.
+
 Adieu (proposition) :
 
 > Tu restes près des feux du fond. Nous emportons un peu de ta chaleur, pour le froid qui vient.
@@ -178,6 +195,10 @@ Devant l'obstacle :
 
 > Le froid figeait tout ce qu'il touchait. Il fallait une carapace contre lui, ou des filaments pour s'y laisser porter.
 
+L'indice (proposition) :
+
+> Le krill ne sentait pas le froid, sous sa carapace. La méduse ortie s'y laissait porter par ses filaments. L'ange de mer, lui, n'y pouvait rien.
+
 Adieu (proposition) :
 
 > Le froid descend encore, et nous avec lui. Toi, tu restes au bord de la glace. Nous n'aurons pas froid : tu viens un peu avec nous.
@@ -197,6 +218,10 @@ Ouverture :
 Devant l'obstacle :
 
 > Plus rien sous nous, rien où s'appuyer. Il fallait battre comme les méduses, ou des filaments pour se laisser porter.
+
+L'indice (proposition) :
+
+> La méduse lune battait dans le vide. Le siphonophore et le cténophore s'y laissaient porter par leurs fils. Il nous fallait danser avec l'un d'eux.
 
 Adieu (proposition) :
 
@@ -235,6 +260,10 @@ Devant l'obstacle :
 
 > Le noir, et rien pour lui répondre. Il nous faudrait une lumière à nous, ou un chant.
 
+L'indice (proposition) :
+
+> La baudroie et le dragon abyssal portaient leur propre lumière. Le nautile, lui, n'en avait pas. Ou bien chanter ce que nous avions appris, et attendre qu'on nous réponde.
+
 Les lumières qui répondent (quand chaque note apprise a eu sa réponse, *proposition*) :
 
 > Nous avons chanté ce que chacun de nous avait appris. Dans le noir, d'autres lignées ont répondu. Le silence n'était pas vide.
@@ -260,7 +289,7 @@ Le retournement :
   - **La remontée** : un courant emporte la lignée, d'abord droit vers le haut du puits, puis à travers tous les chapitres à l'envers, à mi-hauteur, sans jamais redescendre (sauf sous la voûte de la Grotte), à l'écart des reliefs, jusque sous la surface, là où la première larve est née (x = 420). La couronne s'ouvre en V derrière le nageur, le plus ancien au bout ; chacun garde un halo doré. Le courant prend de la vitesse, porte vite (un peu plus d'une minute pour tout le chemin) et ralentit près de la surface. Chacun nage à son rythme dans le courant : les méduses battent, les crabes pédalent.
   - **Chaque chapitre s'illumine** quand la lignée y entre : son eau s'éclaircit dans sa propre couleur, le noir se lève (même celui de la Fosse et des galeries de la Grotte), une lumière dorée tombe d'en haut, des rais dorés l'entourent, un grand anneau de la couleur de sa note part du nageur et son nom passe. La lumière reste tant que la scène dure, puis s'efface doucement.
   - **La surface** : la lumière perce (un éclat blanc et doré), les ancêtres s'étalent sous la surface de part et d'autre du nageur. Un œuf de lumière apparaît parmi eux et bat de plus en plus vite ; la caméra s'en approche ; il éclot, et une larve en sort, qui brille un moment. Puis le texte final est dit, et la caméra s'élargit sur toute la lignée.
-  - **Après** : on reprend la main, avec la créature finale, parmi ses ancêtres qui restent là, sous la surface de la Nurserie ; la nouvelle larve nous suit. La Balade libre est débloquée (`unlockBalade`, le bouton ✎ revient) et `monde.remontee.onEnd(f)` est appelé (pour le générique). La scène ne revient pas dans la même visite.
+  - **Après** : on reprend la main, avec la créature finale, parmi ses ancêtres qui restent là, sous la surface de la Nurserie ; la nouvelle larve nous suit. Le générique passe aussitôt (`generique.play()`, voir « Générique » ci-dessous), la Balade libre est débloquée (`unlockBalade`, le bouton ✎ revient) et `monde.remontee.onEnd(f)` est appelé. La scène ne revient pas dans la même visite.
   - **La sauvegarde** : pendant la scène, le chapitre sauvé reste la Remontée (une page rechargée reprend au puits, et la scène recommence) ; à la fin, la partie reprend à la Nurserie avec la créature finale et toute la lignée.
   - **Pour les tests** : `monde.remontee.start()` (au puits, la scène commence), `monde.remontee.jump(x)` (pendant la remontée, portés jusqu'à x), `monde.remontee.phase` (`idle`, `well`, `rise`, `surface`, `after`).
 
@@ -268,7 +297,7 @@ Texte final :
 
 > Nous sommes remontés. Pas un seul d'entre nous n'avait fait tout le chemin. Et pourtant, nous l'avions fait ensemble.
 
-**Générique** : l'arbre complet de ta lignée, génération par génération.
+**Générique** : l'arbre complet de ta lignée, génération par génération. Puis l'arbre devient une image souvenir, à garder (voir [mécaniques](mecaniques.md#le-générique-et-limage-souvenir)).
 
 ## Les traces de la lignée
 
@@ -324,9 +353,9 @@ Chaque obstacle barre la descente tant que le corps qu'on joue n'a pas l'un des 
 | La Fosse | le noir et le silence | cache le chemin | le noir complet | lanterne, chant |
 
 - **Avec le trait**, l'obstacle se sent encore un peu (le courant tire, l'eau épaisse freine) mais on passe ; le noir ne se referme plus.
-- **La première fois qu'un obstacle retient** (à mi-chemin de son approche), la lignée dit ce qu'il aurait fallu : la citation « Devant l'obstacle : » du chapitre, dans ce document.
+- **La première fois qu'un obstacle retient** (à mi-chemin de son approche), la lignée dit ce qu'il aurait fallu : la citation « Devant l'obstacle : » du chapitre, dans ce document. Quand on s'en éloigne, elle dit qui l'avait (« L'indice : »), et un fil de lumière dorée mène au bon partenaire ([mécaniques](mecaniques.md#les-indices)).
 - **La Fosse** garde son fond : une lanterne le franchit, et derrière s'ouvre la Remontée. Le chant n'est pas un trait du corps : il ouvre aussi l'obstacle de la Fosse quand chaque note apprise a eu sa lumière (voir « Les lumières qui répondent », chapitre 9).
-- **Les traits du corps** sont lus sur l'arbre de parties (`traitsOf`). En attendant la fonction des traits de l'étape 3, `obstacles-traits.ts` en donne une version approchée, avec les mêmes noms. La larve de départ n'a aucun trait : sans naissance, elle s'arrête au courant du Récif.
+- **Les traits du corps** sont lus sur l'arbre de parties (`traitsOf` de `src/content/traits.ts`, la même fonction que la portée, qui marque en or ce qui franchit l'obstacle). La version approchée d'avant (`obstacles-traits.ts`) n'est plus lue par le jeu. La larve de départ n'a aucun trait : sans naissance, elle s'arrête au courant du Récif.
 - **Pour les tests** : `monde.keys.traits` (les traits du corps joué), `monde.keys.force = ['nageoires']` (jouer comme si on les avait, `null` pour revenir), `monde.becomes(…)`.
 
 ## À écrire

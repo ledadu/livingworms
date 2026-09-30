@@ -4,7 +4,7 @@ import { SPECIES, firstAncestor } from '../content/species';
 import { BIOMES, type ChapterId } from './biomes';
 import { OBSTACLES } from './limites';
 import { KEYS, OBSTACLE, crossWith, crosses, feel, keyOf } from './obstacles';
-import { traitsOf } from './obstacles-traits';
+import { traitsOf } from '../content/traits';
 import { MAX_LINES, parseChapterTexts, textsOf } from './textes';
 
 /** the overview table of chapitres.md: chapter name → the traits of its obstacle */

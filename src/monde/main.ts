@@ -9,7 +9,7 @@
 
 import { STEP, TAU, clamp, detail, rand, rng, spec as makeSpec, type Spec } from '../engine';
 import { Atelier } from '../editor';
-import { applyAtelierAccess, unlockBalade } from './atelier-access';
+import { applyAtelierAccess, baladeUnlocked, unlockBalade } from './atelier-access';
 import { Creature3, swimFactor3 } from '../engine3/creature3';
 import { Flow } from '../engine3/flow';
 import { draw3, eachGlow3, lodOf, lodSize, prepare3 } from '../engine3/render3';
@@ -43,16 +43,19 @@ import { createNarrator } from './narration';
 import { initPartie } from './partie-jeu';
 import { GLOW_HUE, PARTNERS, marksPartner, partnerGlow, partnerSpawns } from './partenaires';
 import { createPortee } from './portee-ecran';
-import { KEYS } from './obstacles';
+import { KEYS, OBSTACLE, crosses } from './obstacles';
 import { initParade } from './parade-jeu';
 import { initAdieu, testChild } from './adieu-jeu';
 import { mateFor } from './arbre';
 import { initArbre } from './arbre-ecran';
 import { initRemontee } from './remontee-jeu';
+import { initGenerique, souvenirButton } from './generique-ecran';
 import { ancestorsIn } from './ancetres-jeu';
 import { placeOf } from './ancetres';
 import { initTraces } from './traces-jeu';
 import { initRivale } from './rivale-jeu';
+import { initPonte } from './ponte-jeu';
+import { initIndices } from './indices-jeu';
 import { initChant } from './chant-jeu';
 import { noteOf, notesOfGeneration } from './chant';
 import { initLumieres } from './lumieres-jeu';
@@ -169,19 +172,30 @@ function becomes(sp: Spec, born = false): void {
   if (born) partie.born(sp); else partie.becomes(sp);
 }
 // the brood (portee-ecran.ts): the chosen child is played from now on, its parent joins the lineage and stays
-// where it is, in the farewell scene (farewell, below)
-const portee = createPortee((sp, _, mate) => farewell(sp, mate));
-/** four children with a partner (a species id of the bestiary, or a species), after a parade of this quality;
+// where it is, in the farewell scene (farewell, below); left for later, its eggs wait in the water (ponte, below)
+const portee = createPortee((sp, _, mate) => { ponte.hatched(); farewell(sp, mate); }, (kids) => {
+  ponte.later(kids);
+  if (!ponte.clutch?.crosses) indices.feel(BIOMES[biomeIndex(player.cr.root.x[0])].id);
+});
+/** the four children of eggs of this partner, after a parade of this quality (the same seed, the same children);
  * the parade favours the limbs that bring the traits crossing the chapter's obstacle */
+function broodOf(partner: Spec, quality: number, seed: number): void {
+  const b = BIOMES[biomeIndex(player.cr.root.x[0])], keys = KEYS[b.id]?.filter((k) => k !== 'chant');
+  portee.open(player.cr.spec, partner, { quality, keys, seed, obstacle: OBSTACLE[b.id]?.name });
+}
+/** a brood with a partner (a species id of the bestiary, or a species) now, its eggs laid by the swimmer */
 function openPortee(partner: string | Spec, quality = 0.5): void {
-  const keys = KEYS[BIOMES[biomeIndex(player.cr.root.x[0])].id]?.filter((k) => k !== 'chant');
-  portee.open(player.cr.spec, typeof partner === 'string' ? SPECIES[partner]() : partner, { quality, keys });
+  ponte.lay(typeof partner === 'string' ? SPECIES[partner]() : partner, quality, { x: player.cr.root.x[0], y: player.cr.root.y[0] }, true);
 }
 let paused = false;
 const atBtn = document.getElementById('atBtn');
 applyAtelierAccess(atBtn);
 // the lineage tree (arbre-ecran.ts), at any time: the sea waits while it is open
 const arbre = initArbre({ partie, chapters: BIOMES, live: () => player.cr.spec, notes: (rank) => notesOfGeneration(partie.saved, rank), onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); } });
+// the credits and the keepsake image (generique-ecran.ts), at the end of the story: then the Balade opens, and the tree
+// shows the image again
+const generique = initGenerique({ partie, chapters: BIOMES, live: () => player.cr.spec, notes: (rank) => notesOfGeneration(partie.saved, rank), onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); }, onEnd: () => { unlockBalade(); applyAtelierAccess(atBtn); } });
+arbre.more = () => (baladeUnlocked() || travelShown(location.search) ? souvenirButton(() => { arbre.close(); generique.souvenir(); }) : null);
 atBtn?.addEventListener('click', () => {
   paused = true;
   Atelier.open(player.cr.spec, {
@@ -370,8 +384,25 @@ const parade = initParade({
     return { x, y: floor ? floorAt(x, 0) - 12 : clamp(y, Math.max(40, ceilAt(x, 0) + 50), floorAt(x, 0) - 70) };
   }
 });
-// then the brood, with its quality, once the last light has bloomed
-parade.onEnd((r) => setTimeout(() => openPortee(r.spec, r.quality), 1600));
+// then its eggs, laid where it ended (ponte-jeu.ts): the brood opens when we stay by them, and may wait
+const ponte = initPonte({
+  open: broodOf,
+  keep: (x, y) => ({ x, y: clamp(y, Math.max(40, ceilAt(x, 0) + 40), floorAt(x, 0) - 40) }),
+  busy: () => paused || portee.isOpen || adieu.on || parade.active || chant.isOpen,
+  crosses: (kids, x) => kids.some((c) => crosses(BIOMES[biomeIndex(x)].id, c.traits))
+});
+parade.onEnd((r) => ponte.lay(r.spec, r.quality, r.at));
+// the hints (indices-jeu.ts): once an obstacle held us back, who would bring what it takes, and a thread toward them
+const indices = initIndices({
+  chapter: (x) => { const i = biomeIndex(x); return { id: BIOMES[i].id, i }; },
+  near: (x) => keys.near(x),
+  open: (c) => limits.beyond || limits.crossed.has(c) || keys.can(c),
+  animals: () => actors,
+  parent: () => player.cr.spec,
+  eggs: () => ponte.calling,
+  say: (i) => !narrator.quiet() && !chapterEl.classList.contains('show') && narrator.tell(i, 'hint'),
+  busy: () => paused || portee.isOpen || adieu.on || parade.active || chant.isOpen
+});
 
 const counts = { near: 0, live: 0, plants: 0, items: 0 };
 
@@ -401,6 +432,8 @@ function update(): void {
   collide(p);
   const px = r.x[0], py = r.y[0];
   parade.step(p, actors);
+  ponte.step(px, py, STEP);
+  indices.step(px, py);
   rivale.step({ x: px, y: py }, t);
   lumieres.step({ x: px, y: py }, t);
 
@@ -509,8 +542,7 @@ function update(): void {
   if (bi >= 0) showChapter(bi);
   if (chapters.shown >= 0 && !remontee.on) partie.reach(BIOMES[chapters.shown].id);
   traces.step(px, py);
-  // the song learns no note while the lineage goes up
-  if (!remontee.on) chant.step(t, p, actors, chapters.shown);
+  chant.step(t, p, actors, chapters.shown);
 }
 
 // ----- drawing ----- //
@@ -545,7 +577,8 @@ const glacier: GlacierScene = { view, ctx, gx, dpr, t: 0, plane: 0 };
 /** a partner glows softly around the middle of its body when the swimmer comes near */
 function pushPartnerLight(a: Actor): void {
   const r = a.cr.root, pr = player.cr.root, k = r.x.length >> 1;
-  const al = partnerGlow(Math.hypot(r.x[k] - pr.x[0], r.y[k] - pr.y[0]), t, a.cr.root.x.length + a.hx * 0.01);
+  // while it dances and just after, the lights of the parade speak for it (parade-jeu.ts)
+  const al = partnerGlow(Math.hypot(r.x[k] - pr.x[0], r.y[k] - pr.y[0]), t, a.cr.root.x.length + a.hx * 0.01) * (parade.danced(a) ? 0.3 : 1);
   if (al < 0.01) return;
   view.project(r.x[k], r.y[k], r.z[k], P);
   // clear bright water swallows an added light: it glows a little more there
@@ -558,6 +591,7 @@ function render(): void {
   lights.length = 0;
   parade.lights(view, lights, P);
   remontee.lights(view, lights, P, W, H);
+  if (!skip.has('guide')) indices.lights(view, lights, P);
   rivale.lights(view, lights, P, t, { x: pr.x[0], y: pr.y[0] });
   if (!skip.has('answer')) lumieres.lights(view, lights, P, t);
   if (gx) {
@@ -634,6 +668,7 @@ function render(): void {
   }
   pushReliefs(items, { view, gx, ctx, dpr, plane }, cam.x, cam.y);
   traces.items({ view, dpr, plane, draw: drawSprite, lights }, cam.x, (d, fn) => items.push({ d, fn, k: 'trace' }));
+  ponte.items({ view, draw: drawSprite, lights }, cam.x, (d, fn) => items.push({ d, fn, k: 'eggs' }));
   let np = 0;
   for (const pl of plants) {
     if (!pl.cr) continue;
@@ -1143,7 +1178,7 @@ function showChapter(i: number): void { if (!remontee.holds(i)) narrator.chapter
 
 const adieu = initAdieu(narrator);
 // the traces of the past generations, further down (traces-jeu.ts); no words of theirs during a farewell
-const traces = initTraces(() => partie.lineage, (name, lines) => !adieu.on && narrator.say(name, lines));
+const traces = initTraces(() => partie.lineage, (name, lines) => !adieu.on && !remontee.on && narrator.say(name, lines));
 /** a child is born, of this partner: it is played from now on, the parent stays where it is (without a child: one for the tests) */
 function farewell(child?: Spec, mate?: Spec): void {
   if (adieu.on) return;
@@ -1173,7 +1208,7 @@ for (const { spec, home, k } of ancestorsIn(partie.lineage)) {
 const rivale = initRivale({
   lineage: () => partie.lineage, swimmer: () => player.cr, narrator,
   add: (sp, x, y, scale) => addActor(sp, x, y, 'rival', scale).cr,
-  quiet: () => paused || portee.isOpen || adieu.on || narrator.quiet() || chapterEl.classList.contains('show'),
+  quiet: () => paused || portee.isOpen || adieu.on || remontee.on || narrator.quiet() || chapterEl.classList.contains('show'),
   aside: () => adieu.on || parade.active
 });
 // the lights that answer in the Fosse (lumieres-jeu.ts): each note sung there brings an ancestor of another lineage;
@@ -1189,7 +1224,7 @@ const lumieres = initLumieres({
   },
   room: (d) => { const r = player.cr.root, S = view.project(r.x[0], r.y[0], 0, { x: 0, y: 0, s: 1, d: 1 }); return roomAlong(S.x, S.y, d, W, H, S.s); },
   open: () => { limits.crossed.add('fosse'); bounds = keys.bounds(); },
-  say: (name, lines) => !adieu.on && narrator.say(name, lines)
+  say: (name, lines) => !adieu.on && !remontee.on && narrator.say(name, lines)
 });
 
 // ----- the song (chant-jeu.ts) ----- //
@@ -1197,7 +1232,7 @@ const lumieres = initLumieres({
 // each chapter's note, learned once its opening has been told; the circle of notes; the animals that answer
 const chant = initChant({
   partie, order: BIOMES.map((b) => b.id), view,
-  busy: () => paused || adieu.on || narrator.quiet() || chapterEl.classList.contains('show') || !narrator.told.has(chapters.shown),
+  busy: () => paused || adieu.on || remontee.on || narrator.quiet() || chapterEl.classList.contains('show') || !narrator.told.has(chapters.shown),
   held: (a) => parade.leads(a as Actor)
 });
 chant.onNote((c) => lumieres.hear(c));
@@ -1308,7 +1343,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, traces, rivale, chant, lumieres, remontee,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, generique, traces, rivale, chant, lumieres, ponte, indices, remontee,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
@@ -1319,8 +1354,8 @@ export const api = {
   ancestors: () => actors.filter((a) => a.kind === 'parent')
 };
 (window as unknown as { monde: typeof api }).monde = api;
-// the end of the story: the free swim opens
-remontee.onEnd(api.unlockBalade);
+// the end of the story: the credits, and the free swim opens (at once, should the credits be closed early)
+remontee.onEnd(() => { api.unlockBalade(); generique.play(); });
 
 // ----- settings panel ----- //
 
@@ -1355,6 +1390,10 @@ porteeBtn.addEventListener('click', () => {
   panel.hidden = true;
   openPortee(ids[Math.floor(Math.random() * ids.length)], 0.7);
 });
+// the credits of the end, for the tests (?dev)
+const generiqueBtn = document.getElementById('generiqueBtn')!;
+generiqueBtn.hidden = !travelShown(location.search);
+generiqueBtn.addEventListener('click', () => { panel.hidden = true; generique.play(); });
 const benchOut = document.getElementById('benchOut')!;
 document.getElementById('benchBtn')!.addEventListener('click', () => { panel.hidden = true; void runBench(api, benchOut); });
 for (const el of [panel, gear, benchOut, document.getElementById('atBtn')!]) for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'wheel']) el.addEventListener(ev, (e) => e.stopPropagation());
@@ -1362,7 +1401,7 @@ const hint = document.getElementById('hint')!;
 setTimeout(() => hint.classList.add('gone'), 6000);
 document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).closest('#panel, #atelier, #benchOut')) e.preventDefault(); }, { passive: false });
 const nouveautes = initNouveautes(() => !Atelier.isOpen && benchOut.hidden === true);
-narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen || portee.isOpen || arbre.isOpen || chant.isOpen;
+narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen || portee.isOpen || arbre.isOpen || chant.isOpen || generique.isOpen;
 
 // back where the game was left: the start of its chapter, the obstacles before it crossed (teleport)
 const resumeAt = chapterIndex(partie.chapter as (typeof BIOMES)[number]['id']);
