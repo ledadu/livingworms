@@ -22,7 +22,9 @@ import { disc, paint3 } from '../engine3/paint-gl';
 import { causticsGL, fishAtlas, fishGL, glowsGL, hcol, raysGL, rings, rowGL, screenGfx, shadowGL, spriteGL, surfaceGL, waterGL } from './scene-gl';
 import { bakeCreature, bakeRock, causticTile, env, fishSprites, fogOf, glowSprite, makeCanvas, type Plant, type Sprite } from './sprites';
 import { ChapterWatch, faunaX } from './transitions';
-import { holdBack, newLimits, pass, reach, travel, travelShown } from './limites';
+import { holdBack, newLimits, pass, travel, travelShown } from './limites';
+import { createKeys } from './obstacles-jeu';
+import { obstacleItems } from './obstacles-draw';
 import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, chapterIndex, floorAt, liftAt, metres, moodAt, openFloor } from './biomes';
 import { Jardin } from './jardin';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
@@ -287,7 +289,7 @@ const cam = { x: 420, y: 180 };
 
 function steer(a: Actor, dvx: number, dvy: number, accel: number): void {
   const r = a.cr.root;
-  if (a === player) dvx = holdBack(r.x[0], dvx, bounds);
+  if (a === player) { [dvx, dvy] = keys.steer(r.x[0], dvx, dvy); dvx = holdBack(r.x[0], dvx, bounds); }
   a.cr.steer(t, dvx, dvy, clamp((a.z - r.z[0]) * 0.035, -0.5, 0.5), accel);
 }
 
@@ -313,7 +315,9 @@ function collide(cr: Creature3): void {
 
 // the ends of the world and the obstacles not crossed yet (limites.ts)
 const limits = newLimits();
-let bounds = reach(limits);
+// the key obstacles: the traits of the swimmer's body open them (obstacles-jeu.ts)
+const keys = createKeys(limits, () => player.cr.spec);
+let bounds = keys.bounds();
 
 const counts = { near: 0, live: 0, plants: 0, items: 0 };
 
@@ -335,7 +339,8 @@ function update(): void {
     steer(player, (kd.x / d) * 2.6, (kd.y / d) * 2.6, 0.08);
   } else steer(player, 0, 0, 0.03);
   pass(limits, r.x[0]);
-  bounds = reach(limits);
+  bounds = keys.bounds();
+  keys.update(r.x[0]);
   r.x[0] = clamp(r.x[0], bounds[0], bounds[1]);
   collide(p);
   const px = r.x[0], py = r.y[0];
@@ -556,6 +561,7 @@ function render(): void {
   jardin.collect(cam.x, cam.y, t, (d, fn) => items.push({ d, fn, k: 'jellies' }), { dpr, W, H, plane });
   glacier.dpr = dpr; glacier.t = t; glacier.plane = plane;
   glacierItems(glacier, cam.x, (d, fn) => items.push({ d, fn, k: 'glacier' }));
+  obstacleItems(glacier, cam.x, cam.y, (d, fn) => items.push({ d, fn, k: 'obstacle' }));
   if (m.rays * open > 0.02 && cam.y < 1400) items.push({ d: view.depth(300, 700), fn: () => drawRays(open < 1 ? { ...m, rays: m.rays * open } : m), k: 'rays' });
   pushCave(items, { view, ctx, gx, dpr, W, H, t, lights, px: pr.x[0], py: pr.y[0] }, m, cam.x, plane);
   items.sort((a, b) => b.d - a.d);
@@ -567,7 +573,7 @@ function render(): void {
   if (!skip.has('front')) drawFrontLayer(m);
 
   // the deep closes in around the swimmer: the dark is painted over everything, the lights come after
-  const dk = Math.max(m.dark * clamp((cam.y - 250) / 900, 0, 1), caveDark(cam.x));
+  const dk = Math.max(m.dark * clamp((cam.y - 250) / 900, 0, 1), caveDark(cam.x), keys.dark(pr.x[0]));
   view.project(pr.x[0], pr.y[0], 0, P);
   // in the Fosse only the swimmer's own light opens the dark
   fosse.glow = glowOf(player.cr.list);
@@ -1020,6 +1026,7 @@ function drawFrontLayer(m: M): void {
 const chapters = new ChapterWatch();
 const chapterEl = document.getElementById('chapter')!, hudEl = document.getElementById('hud')!;
 const narrator = createNarrator(chapterEl, BIOMES);
+keys.onBarred = (c) => !narrator.quiet() && narrator.tell(chapterIndex(c), 'obstacle');
 /** entering a chapter: its opening, told once (narration.ts) */
 function showChapter(i: number): void { narrator.chapter(i); }
 
@@ -1077,7 +1084,7 @@ function frame(now: number): void {
 function teleport(x: number, y: number): void {
   const cr = player.cr;
   travel(limits, x);
-  bounds = reach(limits);
+  bounds = keys.bounds();
   cr.translate(x - cr.root.x[0], y - cr.root.y[0], 0);
   cr.vx = cr.vy = 0;
   cam.x = x; cam.y = y;
@@ -1115,7 +1122,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
