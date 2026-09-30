@@ -1,0 +1,73 @@
+/* The versions tabs: entries to publish, generations in preparation, published ones. */
+.view { padding: 16px 20px; }
+.view[hidden], #grid[hidden] { display: none; }
+.entries { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.card.entry.t-new { --status: var(--say); }
+.card.entry.t-improved { --status: var(--ok); }
+.card.entry.t-fixed { --status: var(--warn); }
+.card.entry.invalid, .card.entry.missing { --status: var(--bad); }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; white-space: nowrap; font-weight: 600; color: #0b1220; background: var(--status); }
+.entry .title { font-weight: 600; font-size: 15px; }
+.entry .pitch { color: #d5dae2; }
+.entry img.hero { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); background: var(--panel2); }
+.entry .noimg { aspect-ratio: 16 / 9; display: grid; place-items: center; border-radius: 6px; border: 1px dashed var(--line); color: var(--muted); font-size: 12px; }
+ul.errors { margin: 0; padding-left: 18px; color: var(--bad); font-size: 12px; }
+select.assign, .form input, .form textarea { font: inherit; font-size: 12px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
+.vhead { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; margin-bottom: 12px; }
+.vhead h2, .view h2 { font-size: 18px; margin: 0; }
+.view h3 { font-size: 13px; margin: 0 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+.vcols { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.form { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; font-size: 12px; color: var(--muted); }
+.form textarea { min-height: 56px; resize: vertical; }
+.form input.bad { border-color: var(--bad); }
+.problems { margin: 0; padding-left: 18px; color: var(--bad); font-size: 13px; }
+.btn.publish { background: var(--ok); border-color: var(--ok); color: #0d1f16; font-weight: 700; font-size: 14px; padding: 8px 14px; }
+.btn.publish:disabled { opacity: .45; cursor: not-allowed; }
+.btn.danger:hover { border-color: var(--bad); color: var(--bad); }
+/* The preview, as the players will see it in « Nouvelles mutations ». */
+.players { background: linear-gradient(160deg, #1d2a22, #16201b); border: 1px solid #2f4a3b; border-radius: 10px; padding: 12px 14px; }
+.players .gen { font-size: 17px; font-weight: 700; }
+.players .intro { color: #cfe3d6; margin: 4px 0 8px; }
+.players article { border-top: 1px solid #2f4a3b; padding: 10px 0; }
+.players article img { max-width: 100%; border-radius: 6px; }
+.players .md p { margin: 4px 0; color: #d5dae2; }
+.players .md img { max-width: 100%; border-radius: 6px; }
+pre.changelog { background: var(--panel2); border-radius: 6px; padding: 8px 10px; max-height: 360px; overflow: auto; }
+.release { margin-bottom: 18px; }
+.release .meta { color: var(--muted); font-size: 12px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin: 4px 0 10px; }
+.release .entries { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.banner { padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; font-size: 13px; }
+.banner.ok { background: color-mix(in srgb, var(--ok) 18%, var(--panel)); border: 1px solid var(--ok); }
+.banner.bad { background: color-mix(in srgb, var(--bad) 18%, var(--panel)); border: 1px solid var(--bad); white-space: pre-wrap; }
+.tab.version { color: var(--say); }
+.tab.version.on { color: var(--text); }
+@media (max-width: 900px) { .vcols { grid-template-columns: 1fr; } }
+/* « À publier »: selection and grouped actions. */
+.bulk { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; margin-bottom: 12px; font-size: 13px; }
+.bulk label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.bulk .btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.publish.small { font-size: 12px; padding: 3px 10px; }
+.pick { display: inline-flex; align-items: center; cursor: pointer; }
+.pick input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+.pick.off { color: var(--bad); font-size: 12px; cursor: not-allowed; }
+.card.entry.picked { outline: 2px solid var(--accent); outline-offset: -1px; }
+/* « Branches »: the version branches release/X.Y and the test servers. */
+.branches { display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); gap: 14px; }
+.card.rbranch { --status: var(--ok); }
+.card.rbranch.diverged { --status: var(--bad); }
+.card.rbranch.todo { --status: var(--warn); }
+.rbranch .name { font-family: ui-monospace, monospace; }
+.rbranch h4 { margin: 4px 0 0; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+.rbranch ul.fixes { list-style: none; margin: 0; padding: 4px 8px; background: var(--panel2); border-radius: 6px; font-size: 12px; }
+.rbranch ul.fixes li { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; }
+.rbranch ul.fixes li + li { border-top: 1px solid var(--line); }
+.rbranch ul.fixes li.done { opacity: .55; }
+.rbranch .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+.rbranch input[type=text] { font: inherit; font-size: 12px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; min-width: 160px; }
+.pill.bad { color: #2a0b0b; background: var(--bad); }
+.pill.say { color: #0b1220; background: var(--say); }
+.servers { display: flex; flex-direction: column; gap: 6px; }
+.server { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; background: var(--panel2); border-radius: 6px; padding: 4px 8px; }
+.flowhelp { font-size: 12px; color: var(--muted); background: var(--panel); border: 1px dashed var(--line); border-radius: 10px; padding: 8px 12px; margin-bottom: 12px; }
+.flowhelp code { color: var(--text); }

@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Questions · Agents __PROJECT__</title>
+<style>
+  :root {
+    --bg: #111418; --panel: #1a1f26; --panel2: #222933; --line: #2e3744; --text: #e6e9ee; --muted: #8b95a5;
+    --ok: #4cc38a; --warn: #e5b454; --off: #5b6472; --accent: #7aa7ff; --bad: #ef6b6b; --say: #c8b6ff; --ask: #ff8ad8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; background: var(--bg); z-index: 2; flex-wrap: wrap; }
+  h1 { font-size: 18px; margin: 0; }
+  h2 { font-size: 15px; margin: 0 0 10px; display: flex; gap: 8px; align-items: baseline; }
+  h2 .n { font-size: 12px; color: var(--muted); font-weight: 400; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .spacer { flex: 1; }
+  .muted, .summary { color: var(--muted); }
+  .summary b { color: var(--text); }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px 20px 40px; display: flex; flex-direction: column; gap: 26px; }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: var(--panel2); color: var(--muted); white-space: nowrap; }
+  .pill.agent { color: var(--text); font-weight: 600; background: color-mix(in srgb, var(--accent) 22%, var(--panel2)); }
+  .pill.t-choice { color: #2a0b22; background: var(--ask); }
+  .pill.t-validation { color: #0b1220; background: var(--accent); }
+  .pill.t-feedback { color: var(--say); background: color-mix(in srgb, var(--say) 18%, var(--panel2)); }
+  .pill.s-pending { color: #2a0b22; background: var(--ask); }
+  .pill.s-answered { color: #0d1f16; background: var(--ok); }
+  .pill.s-auto { color: #2a1f05; background: var(--warn); }
+  .pill.s-expired { color: var(--text); background: var(--off); }
+  .pill.s-withdrawn { color: var(--muted); background: var(--panel2); text-decoration: line-through; }
+  .pill.g-important { color: #2a1f05; background: var(--warn); }
+  .pill.g-critical { color: #2a0b0b; background: var(--bad); }
+  .btn { font: inherit; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel2);
+    color: var(--text); cursor: pointer; }
+  .btn:hover { border-color: var(--accent); }
+  .btn:disabled { opacity: .6; cursor: wait; }
+  .btn.yes { background: var(--ok); border-color: var(--ok); color: #0d1f16; font-weight: 600; }
+  .btn.no { background: color-mix(in srgb, var(--bad) 25%, var(--panel2)); border-color: color-mix(in srgb, var(--bad) 60%, transparent); }
+  .empty { color: var(--muted); font-style: italic; font-size: 13px; }
+  .note.bad { color: var(--bad); font-size: 12px; }
+  /* A question waiting for the user: the colour that calls the eye. */
+  .ask { background: linear-gradient(135deg, color-mix(in srgb, var(--ask) 9%, var(--panel)) 0%, var(--panel) 60%);
+    border: 1px solid var(--line); border-left: 3px solid var(--ask); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .ask + .ask { margin-top: 12px; }
+  .meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .title { font-size: 17px; font-weight: 600; }
+  .context { white-space: pre-wrap; color: #c9d1dc; font-size: 13px; }
+  .impact { font-size: 13px; color: var(--warn); }
+  .impact::before { content: 'Impact · '; color: var(--muted); }
+  .options { display: flex; flex-direction: column; gap: 8px; }
+  .option { display: flex; gap: 12px; align-items: center; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+  .option.recommended { border-color: color-mix(in srgb, var(--ok) 70%, transparent); background: color-mix(in srgb, var(--ok) 10%, var(--panel2)); }
+  .option .what { flex: 1; min-width: 0; }
+  .option .label { font-weight: 600; }
+  .option .label .star { color: var(--ok); font-size: 11px; font-weight: 600; margin-left: 6px; text-transform: uppercase; letter-spacing: .04em; }
+  .option .desc { font-size: 12px; color: var(--muted); }
+  .option.recommended .btn { background: var(--ok); border-color: var(--ok); color: #0d1f16; font-weight: 600; }
+  textarea { font: inherit; font-size: 13px; width: 100%; min-height: 38px; resize: vertical; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .deadline.soon { color: var(--warn); }
+  /* The strategic feedback: a thread. */
+  .thread { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .fb { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--say); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .fb.read { opacity: .65; border-left-color: var(--off); }
+  .fb .title { font-size: 14px; }
+  /* History: every question, filterable. */
+  .filters { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); flex-wrap: wrap; margin-bottom: 8px; }
+  select, input[type=number] { font: inherit; font-size: 12px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
+  input[type=number] { width: 60px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td.when { white-space: nowrap; color: var(--muted); font-size: 12px; }
+  td .sub { font-size: 12px; color: var(--muted); }
+  .switch { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+  .switch input { appearance: none; width: 34px; height: 19px; border-radius: 99px; background: var(--off); position: relative; cursor: pointer; transition: background .2s; margin: 0; }
+  .switch input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: var(--text); transition: left .2s; }
+  .switch input:checked { background: var(--ok); }
+  .switch input:checked::after { left: 17px; }
+  .switch b { font-weight: 600; }
+  .agents { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+  .agent-set { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+  .agent-set .nm { flex: 1; font-weight: 600; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { font: inherit; font-size: 11px; padding: 2px 7px; border: none; background: var(--panel2); color: var(--muted); cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--accent); color: #0b1220; font-weight: 600; }
+  .explain { font-size: 12px; color: var(--muted); max-width: 70ch; }
+  @media (max-width: 600px) { header, main { padding-left: 16px; padding-right: 16px; } td.when { white-space: normal; } }
+  nav.site { display: flex; gap: 4px; flex-wrap: wrap; }
+  nav.site a { color: var(--muted); padding: 2px 10px; border-radius: 99px; font-size: 13px; }
+  nav.site a:hover { color: var(--text); background: var(--panel2, #222933); text-decoration: none; }
+  nav.site a.on { color: #0b1220; background: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Agents __PROJECT__</h1>
+  <nav class="site"><a href="/">Accueil</a><a href="/agents">Agents</a><a href="/journal">Journal</a><a href="/versions">Versions</a><a href="/roadmap">Backlog</a><a href="/questions">Questions</a></nav><script>document.querySelector(`nav.site a[href="${location.pathname}"]`)?.classList.add('on');</script>
+  <span class="summary" id="summary">…</span>
+  <span class="spacer"></span>
+  <label class="switch" title="Activé : les agents prennent l'option recommandée sans attendre (comme avant). Désactivé : ils te posent leurs choix structurants et attendent ta réponse.">
+    <input type="checkbox" id="global"><b>Décider seul</b></label>
+  <span class="muted" style="font-size:12px">réponse auto au bout de <input type="number" id="timeout" min="1" max="600"> min</span>
+  <button class="btn" id="bell" hidden>🔔 Notifications</button>
+  <span class="summary" id="updated" style="font-size:12px"></span>
+</header>
+<main>
+  <section>
+    <h2>En attente de ta réponse <span class="n" id="n-pending"></span></h2>
+    <div id="pending"></div>
+  </section>
+  <section>
+    <h2>Retours stratégiques <span class="n" id="n-feedback"></span></h2>
+    <ul class="thread" id="feedback"></ul>
+  </section>
+  <section>
+    <h2>Qui décide seul ?</h2>
+    <p class="explain">Chaque agent suit le réglage global « Décider seul », sauf s'il a son propre réglage. Un agent qui décide seul enregistre quand même ses questions (statut « auto ») : tu les retrouves dans l'historique.</p>
+    <div class="agents" id="agents"></div>
+  </section>
+  <section>
+    <h2>Historique <span class="n" id="n-history"></span></h2>
+    <div class="filters">
+      Agent <select id="f-agent"><option value="">tous</option></select>
+      Type <select id="f-type"><option value="">tous</option><option value="choice">choix</option><option value="validation">validation</option><option value="feedback">retour</option></select>
+      Statut <select id="f-status"><option value="">tous</option><option value="pending">en attente</option><option value="answered">répondu / lu</option><option value="auto">décidé seul</option><option value="expired">expiré</option><option value="withdrawn">retiré</option></select>
+    </div>
+    <table><thead><tr><th>Quand</th><th>Agent</th><th>Type</th><th>Question</th><th>Réponse</th><th>Statut</th></tr></thead><tbody id="history"></tbody></table>
+  </section>
+</main>
+<script>
+const escapeHtml = (text) => String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const TYPE = { choice: 'choix', validation: 'validation', feedback: 'retour' };
+const STATUS = { pending: 'en attente', answered: 'répondu', auto: 'décidé seul', expired: 'expiré', withdrawn: 'retiré' };
+const SEVERITY = { info: 'info', important: 'important', critical: 'critique' };
+let clockOffset = 0;
+let data = { questions: [], settings: { autonomous: true, agents: {} }, byAgent: {} };
+let agentNames = [];
+const baseTitle = document.title;
+
+function ago(iso) {
+  const s = Math.max(0, Math.round((Date.now() + clockOffset - Date.parse(iso)) / 1000));
+  if (s < 60) return `il y a ${s} s`;
+  if (s < 3600) return `il y a ${Math.round(s / 60)} min`;
+  if (s < 86400) return `il y a ${(s / 3600).toFixed(1)} h`;
+  return new Date(iso).toLocaleString('fr-FR');
+}
+function remaining(iso) {
+  const s = Math.round((Date.parse(iso) - Date.now() - clockOffset) / 1000);
+  if (s <= 0) return 'délai dépassé : l’agent prend l’option recommandée';
+  return `réponse auto dans ${s < 120 ? `${s} s` : `${Math.round(s / 60)} min`}`;
+}
+function patch(element, html) {
+  if (element.__html !== html) {
+    element.innerHTML = html;
+    element.__html = html;
+  }
+}
+const pill = (cls, text) => `<span class="pill ${cls}">${escapeHtml(text)}</span>`;
+
+// Filters come from the address (?agent=…), so a badge of the agents page opens this page on its questions.
+const params = new URLSearchParams(location.search);
+for (const key of ['agent', 'type', 'status']) {
+  const select = document.getElementById(`f-${key}`);
+  if (params.get(key)) {
+    if (![...select.options].some((o) => o.value === params.get(key))) select.add(new Option(params.get(key), params.get(key)));
+    select.value = params.get(key);
+  }
+  select.addEventListener('change', () => {
+    const next = new URLSearchParams(location.search);
+    select.value ? next.set(key, select.value) : next.delete(key);
+    history.replaceState(null, '', `${location.pathname}${next.size ? `?${next}` : ''}`);
+    render();
+  });
+}
+const filterOf = (key) => document.getElementById(`f-${key}`).value;
+const matches = (q, keys) => keys.every((key) => !filterOf(key) || q[key] === filterOf(key));
+
+async function post(url, body) {
+  const response = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body ?? {}) });
+  const result = await response.json();
+  if (!response.ok || result.ok === false) throw new Error(result.error || response.statusText);
+  return result;
+}
+
+// --- Pending choices and validations: built once per question, so that a comment being typed survives the refresh.
+const askCards = new Map();
+
+function buildAsk(q) {
+  const card = document.createElement('article');
+  card.className = 'ask';
+  card.dataset.id = q.id;
+  const options = q.type === 'choice'
+    ? `<div class="options">${q.options.map((o, i) => `<div class="option${o.recommended ? ' recommended' : ''}">
+        <div class="what"><div class="label">${i + 1}. ${escapeHtml(o.label)}${o.recommended ? '<span class="star">★ recommandée</span>' : ''}</div>
+        ${o.description ? `<div class="desc">${escapeHtml(o.description)}</div>` : ''}</div>
+        <button class="btn" data-answer="option" data-option="${i}">Choisir</button></div>`).join('')}</div>`
+    : '';
+  const validation = q.type === 'validation'
+    ? `<div class="row"><button class="btn ${q.recommended === 'no' ? 'no' : 'yes'}" data-answer="${q.recommended === 'no' ? 'no' : 'yes'}">${q.recommended === 'no' ? '✗ Non' : '✓ Oui'} <small>(recommandé)</small></button>
+        <button class="btn ${q.recommended === 'no' ? 'yes' : 'no'}" data-answer="${q.recommended === 'no' ? 'yes' : 'no'}">${q.recommended === 'no' ? '✓ Oui' : '✗ Non'}</button></div>`
+    : '';
+  card.innerHTML = `
+    <div class="meta">${pill('agent', q.agent)}${pill(`t-${q.type}`, TYPE[q.type])}${q.task ? `<span>${escapeHtml(q.task)}</span>` : ''}
+      <span class="spacer"></span><span data-part="when"></span></div>
+    <div class="title">${escapeHtml(q.title)}</div>
+    ${q.context ? `<div class="context">${escapeHtml(q.context)}</div>` : ''}
+    ${q.impact ? `<div class="impact">${escapeHtml(q.impact)}</div>` : ''}
+    ${options}
+    <textarea placeholder="${q.type === 'choice' ? 'Précision pour l’option choisie, ou ta propre réponse' : 'Commentaire (facultatif)'}"></textarea>
+    ${validation}
+    <div class="row">${q.type === 'choice' ? '<button class="btn" data-answer="free">Envoyer ma réponse libre</button>' : ''}
+      <button class="btn" data-answer="withdraw" title="La question n'a plus lieu d'être : l'agent décide seul">Retirer</button>
+      <span class="note bad" data-part="error"></span></div>`;
+  card.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-answer]');
+    if (!button) return;
+    const comment = card.querySelector('textarea').value;
+    const kind = button.dataset.answer;
+    const body = kind === 'option' ? { option: Number(button.dataset.option), comment }
+      : kind === 'free' ? { comment }
+      : kind === 'yes' || kind === 'no' ? { approved: kind === 'yes', comment }
+      : { reason: comment };
+    for (const b of card.querySelectorAll('button')) b.disabled = true;
+    try {
+      await post(`/api/questions/${q.id}/${kind === 'withdraw' ? 'withdraw' : 'answer'}`, body);
+      card.remove();
+      askCards.delete(q.id);
+      refresh();
+    } catch (error) {
+      card.querySelector('[data-part="error"]').textContent = error.message;
+      for (const b of card.querySelectorAll('button')) b.disabled = false;
+    }
+  });
+  return card;
+}
+
+function renderPending() {
+  const box = document.getElementById('pending');
+  const pending = data.questions.filter((q) => q.status === 'pending' && q.type !== 'feedback' && matches(q, ['agent', 'type']));
+  // Oldest first: the agent that has waited longest.
+  pending.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  for (const [id, card] of askCards) if (!pending.some((q) => q.id === id)) (card.remove(), askCards.delete(id));
+  let empty = box.querySelector('.empty');
+  if (pending.length && empty) empty.remove();
+  // A card is only moved when it is out of place: moving a node takes the focus away from the answer being typed.
+  // Should one still have to move, the focus and the cursor are put back.
+  const focused = document.activeElement;
+  const typing = focused?.tagName === 'TEXTAREA' && box.contains(focused) ? { element: focused, start: focused.selectionStart, end: focused.selectionEnd, scroll: focused.scrollTop } : null;
+  pending.forEach((q, index) => {
+    const card = askCards.get(q.id) ?? buildAsk(q);
+    askCards.set(q.id, card);
+    if (box.children[index] !== card) box.insertBefore(card, box.children[index] ?? null);
+    const when = card.querySelector('[data-part="when"]');
+    when.className = `deadline${Date.parse(q.expiresAt) - Date.now() - clockOffset < 5 * 60_000 ? ' soon' : ''}`;
+    when.textContent = `${ago(q.createdAt)} · ${remaining(q.expiresAt)}`;
+  });
+  if (typing && typing.element.isConnected && document.activeElement !== typing.element) {
+    typing.element.focus({ preventScroll: true });
+    typing.element.setSelectionRange(typing.start, typing.end);
+    typing.element.scrollTop = typing.scroll;
+  }
+  if (!pending.length && !empty) box.insertAdjacentHTML('beforeend', `<div class="empty">Aucune question en attente${data.settings.autonomous !== false ? ' : les agents décident seuls (« Décider seul » activé)' : ''}.</div>`);
+  document.getElementById('n-pending').textContent = pending.length ? String(pending.length) : '';
+}
+
+// --- Strategic feedback, newest first; the unread ones stand out, with « Lu ».
+function renderFeedback() {
+  const list = document.getElementById('feedback');
+  const items = data.questions.filter((q) => q.type === 'feedback' && q.status !== 'withdrawn' && matches(q, ['agent'])).slice(0, 40);
+  const unread = items.filter((q) => q.status === 'pending').length;
+  document.getElementById('n-feedback').textContent = items.length ? `${unread} non lu${unread > 1 ? 's' : ''} sur ${items.length}` : '';
+  patch(list, items.length ? items.map((q) => `<li class="fb${q.status === 'pending' ? '' : ' read'}" data-id="${q.id}">
+      <div class="meta">${pill('agent', q.agent)}${q.severity && q.severity !== 'info' ? pill(`g-${q.severity}`, SEVERITY[q.severity]) : ''}${q.task ? `<span>${escapeHtml(q.task)}</span>` : ''}
+        <span class="spacer"></span><span>${ago(q.createdAt)}</span>
+        ${q.status === 'pending' ? '<button class="btn" data-read>✓ Lu</button>' : '<span>lu</span>'}</div>
+      <div class="title">${escapeHtml(q.title)}</div>
+      ${q.context ? `<div class="context">${escapeHtml(q.context)}</div>` : ''}
+      ${q.impact ? `<div class="impact">${escapeHtml(q.impact)}</div>` : ''}</li>`).join('') : '<li class="empty">Aucun retour pour l’instant.</li>');
+}
+document.getElementById('feedback').addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-read]');
+  if (!button) return;
+  button.disabled = true;
+  try {
+    await post(`/api/questions/${button.closest('[data-id]').dataset.id}/read`);
+  } catch {}
+  refresh();
+});
+
+// --- Who decides alone: the global switch, then one control per agent (as global / alone / asks).
+function renderAgents() {
+  const names = [...new Set([...agentNames, ...data.questions.map((q) => q.agent), ...Object.keys(data.settings.agents ?? {})])].sort();
+  const select = document.getElementById('f-agent');
+  for (const name of names) if (![...select.options].some((o) => o.value === name)) select.add(new Option(name, name));
+  const global = data.settings.autonomous !== false;
+  patch(document.getElementById('agents'), names.map((name) => {
+    const own = data.settings.agents?.[name]?.autonomous;
+    const mode = typeof own === 'boolean' ? (own ? 'alone' : 'asks') : 'global';
+    const button = (value, label, title) => `<button class="${mode === value ? 'on' : ''}" data-mode="${value}" title="${title}">${label}</button>`;
+    return `<div class="agent-set" data-agent="${escapeHtml(name)}"><span class="nm">${escapeHtml(name)}</span><span class="seg">
+      ${button('global', `global (${global ? 'seul' : 'demande'})`, 'Suit le réglage global')}${button('alone', '🤖 seul', 'Décide seul, quel que soit le réglage global')}${button('asks', '🙋 demande', 'Te pose ses choix, quel que soit le réglage global')}</span></div>`;
+  }).join('') || '<span class="empty">Aucun agent.</span>');
+}
+document.getElementById('agents').addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-mode]');
+  if (!button) return;
+  const name = button.closest('[data-agent]').dataset.agent;
+  const mode = button.dataset.mode;
+  data.settings = await (await fetch('/api/questions/settings', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ agents: { [name]: mode === 'global' ? null : mode === 'alone' } }) })).json();
+  render();
+});
+
+function answerText(q) {
+  const a = q.answer;
+  if (!a) return '';
+  if (q.type === 'feedback') return a.read ? `lu${a.comment ? ` · ${escapeHtml(a.comment)}` : ''}` : '';
+  if (q.status === 'withdrawn') return a.comment ? escapeHtml(a.comment) : '—';
+  const head = q.type === 'choice' ? (a.label ? escapeHtml(a.label) : '<i>réponse libre</i>') : a.approved ? '✓ oui' : '✗ non';
+  const by = a.by === 'auto' ? (a.reason === 'timeout' ? 'délai dépassé, option recommandée' : 'décidé seul, option recommandée') : 'toi';
+  return `${head}<div class="sub">${by}${a.comment ? ` · « ${escapeHtml(a.comment)} »` : ''}</div>`;
+}
+
+function renderHistory() {
+  const rows = data.questions.filter((q) => matches(q, ['agent', 'type', 'status']));
+  document.getElementById('n-history').textContent = `${rows.length} sur ${data.questions.length}`;
+  patch(document.getElementById('history'), rows.length ? rows.slice(0, 300).map((q) => `<tr>
+      <td class="when">${ago(q.createdAt)}</td><td>${pill('agent', q.agent)}</td><td>${pill(`t-${q.type}`, TYPE[q.type])}</td>
+      <td>${escapeHtml(q.title)}${q.type === 'choice' ? `<div class="sub">${q.options.map((o) => escapeHtml(o.label)).join(' · ')}</div>` : ''}</td>
+      <td>${answerText(q)}</td><td>${pill(`s-${q.status}`, q.type === 'feedback' && q.status === 'answered' ? 'lu' : q.type === 'feedback' && q.status === 'pending' ? 'non lu' : STATUS[q.status])}</td></tr>`).join('')
+    : '<tr><td colspan="6" class="empty">Rien pour ces filtres.</td></tr>');
+}
+
+function render() {
+  const global = document.getElementById('global');
+  global.checked = data.settings.autonomous !== false;
+  const timeout = document.getElementById('timeout');
+  if (document.activeElement !== timeout) timeout.value = data.settings.timeoutMinutes ?? 30;
+  renderPending();
+  renderFeedback();
+  renderAgents();
+  renderHistory();
+  const total = (data.pending ?? 0) + (data.unread ?? 0);
+  document.title = total ? `(${total}) ${baseTitle}` : baseTitle;
+  patch(document.getElementById('summary'), `<b>${data.pending ?? 0}</b> en attente · <b>${data.unread ?? 0}</b> retours non lus · <b>${data.questions.length}</b> au total`);
+  document.getElementById('bell').hidden = !('Notification' in window) || Notification.permission !== 'default';
+}
+
+let known = null;
+function notify() {
+  const pending = data.questions.filter((q) => q.status === 'pending');
+  const fresh = known ? pending.filter((q) => !known.has(q.id)) : [];
+  known = new Set(pending.map((q) => q.id));
+  if (!fresh.length || !('Notification' in window) || Notification.permission !== 'granted') return;
+  new Notification(`${TYPE[fresh[0].type]} de ${fresh[0].agent}${fresh.length > 1 ? ` (+${fresh.length - 1})` : ''}`, { body: fresh[0].title, tag: 'agents-questions' });
+}
+
+let refreshing = false;
+async function refresh() {
+  if (refreshing) return;
+  refreshing = true;
+  try {
+    data = await (await fetch('/api/questions', { cache: 'no-store' })).json();
+    clockOffset = data.now - Date.now();
+    notify();
+    render();
+    document.getElementById('updated').textContent = `à jour ${new Date().toLocaleTimeString('fr-FR')}`;
+  } catch (error) {
+    document.getElementById('updated').textContent = `injoignable, nouvel essai… (${error.message})`;
+  } finally {
+    refreshing = false;
+  }
+}
+
+async function loadAgents() {
+  try {
+    const snapshot = await (await fetch('/api/agents', { cache: 'no-store' })).json();
+    agentNames = snapshot.agents.filter((a) => !a.AGENT_ARCHIVED).map((a) => a.AGENT_NAME);
+    render();
+  } catch {}
+}
+
+document.getElementById('global').addEventListener('change', async (event) => {
+  data.settings = await (await fetch('/api/questions/settings', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ autonomous: event.target.checked }) })).json();
+  render();
+});
+document.getElementById('timeout').addEventListener('change', async (event) => {
+  data.settings = await (await fetch('/api/questions/settings', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ timeoutMinutes: Number(event.target.value) }) })).json();
+  render();
+});
+document.getElementById('bell').addEventListener('click', () => Notification.requestPermission().then(render));
+
+refresh();
+loadAgents();
+setInterval(refresh, 3000);
+setInterval(loadAgents, 30000);
+</script>
+</body>
+</html>

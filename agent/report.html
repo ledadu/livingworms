@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rapport __SLUG__</title>
+<style>
+  :root { --bg: #111418; --panel: #1a1f26; --panel2: #222933; --line: #2e3744; --text: #e6e9ee; --muted: #8b95a5; --accent: #7aa7ff; --bad: #ef6b6b; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, sans-serif; }
+  header { padding: 14px 20px; border-bottom: 1px solid var(--line); display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+  h1.top { font-size: 18px; margin: 0; }
+  .muted { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; }
+  main { max-width: 980px; margin: 0 auto; padding: 8px 20px 40px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .md h1 { font-size: 20px; margin: 16px 0 6px; }
+  .md h2 { font-size: 16px; margin: 20px 0 6px; color: var(--accent); }
+  .md h3 { font-size: 14px; margin: 12px 0 4px; }
+  .md p, .md li { color: #d5dae2; }
+  .md ul { padding-left: 20px; margin: 4px 0; }
+  .md code { background: var(--panel2); padding: 1px 4px; border-radius: 4px; font-size: 12px; }
+  .md pre { background: var(--panel2); padding: 8px; border-radius: 6px; overflow: auto; font-size: 12px; }
+  .md table { border-collapse: collapse; margin: 8px 0; font-size: 13px; display: block; overflow-x: auto; }
+  .md th, .md td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
+  .md th { background: var(--panel2); }
+  .md img { max-width: 100%; border-radius: 6px; border: 1px solid var(--line); margin: 6px 0; }
+  .bad { color: var(--bad); }
+</style>
+</head>
+<body>
+<header>
+  <h1 class="top">Rapport « __SLUG__ »</h1>
+  <span class="muted">__CHANGES__/__FOLDER__/__SLUG__/report.md</span>
+  <a href="/">← Tableau de bord</a>
+</header>
+<main class="md" id="report">chargement…</main>
+<script src="/markdown.js"></script>
+<script>
+const base = '/changes/__FOLDER__/__SLUG__/';
+fetch(`${base}report.md`, { cache: 'no-store' })
+  .then((response) => (response.ok ? response.text() : Promise.reject(new Error('pas de report.md'))))
+  .then((text) => (document.getElementById('report').innerHTML = window.renderMarkdown(text, base)))
+  .catch((error) => (document.getElementById('report').innerHTML = `<p class="bad">${error.message}</p>`));
+</script>
+</body>
+</html>
