@@ -1,7 +1,7 @@
 ---
 type: new
 title: Ceux qui pourraient t'accompagner
-pitch: Dans chaque chapitre, quelques créatures s'illuminent doucement quand tu t’approches d’elles 🐠
+pitch: Dans chaque chapitre, quelques créatures s'illuminent doucement quand tu t'approches d'elles 🐠
 audience: players
 images:
   - img/avant-apres-recif-grotte-fosse.jpg
