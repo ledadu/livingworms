@@ -100,6 +100,7 @@
     pointer-events: none;
   }
 #atelier .meter.warn { color: var(--amber); }
+#atelier .meter.traits { top: 26px; }
 #atelier #atFlash {
     position: absolute;
     top: 8px; right: 12px;
