@@ -20,6 +20,7 @@ import { hsl01 } from '../engine3/gfx';
 import { disc, paint3 } from '../engine3/paint-gl';
 import { causticsGL, fishAtlas, fishGL, glowsGL, hcol, raysGL, rings, rowGL, screenGfx, shadowGL, spriteGL, surfaceGL, waterGL } from './scene-gl';
 import { bakeCreature, bakeRock, causticTile, env, fishSprites, fogOf, glowSprite, makeCanvas, type Plant, type Sprite } from './sprites';
+import { ChapterWatch, faunaX } from './transitions';
 import { holdBack, newLimits, pass, reach, travel, travelShown } from './limites';
 import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, floorAt, liftAt, metres, moodAt, openFloor } from './biomes';
 import { Jardin } from './jardin';
@@ -165,14 +166,13 @@ function homeY(kind: Actor['kind'], x: number, z: number, R: () => number): numb
   const R = rng(3);
   for (let i = 0; i < 5; i++) addActor(firstAncestor(), 420 + rand(-200, 200), rand(120, 260), 'sib', 0.45 + R() * 0.15, rand(-40, 60));
   BIOMES.forEach((b, bi) => {
-    const x0 = Math.max(X0 + 300, b.x0 + 200), x1 = (bi + 1 < BIOMES.length ? BIOMES[bi + 1].x0 : X1) - 200;
     let total = 0;
     for (const f of b.fauna) total += f[2];
     for (let k = 0; k < b.pop; k++) {
       let f = b.fauna[k];
       if (!f) { let u = R() * total; f = b.fauna.find((g) => (u -= g[2]) <= 0) || b.fauna[0]; }
       const [id, kind, , scale] = f;
-      const x = x0 + R() * (x1 - x0), z = [0, 0, 0, 70, 150, 260, 400][Math.floor(R() * 7)];
+      const x = faunaX(bi, R), z = [0, 0, 0, 70, 150, 260, 400][Math.floor(R() * 7)];
       addActor(SPECIES[id](), x, homeY(kind, x, z, R), kind, scale, z);
     }
   });
@@ -407,8 +407,8 @@ function update(): void {
   }
 
   // entering a biome
-  const bi = biomeIndex(px);
-  if (bi !== here.i && Math.abs(px - BIOMES[bi].x0) > 150) { here.i = bi; showChapter(bi); }
+  const bi = chapters.step(px);
+  if (bi >= 0) showChapter(bi);
 }
 
 // ----- drawing ----- //
@@ -1010,7 +1010,7 @@ function drawFrontLayer(m: M): void {
 
 // ----- chapters and the depth gauge ----- //
 
-const here = { i: 0 };
+const chapters = new ChapterWatch();
 const chapterEl = document.getElementById('chapter')!, hudEl = document.getElementById('hud')!;
 const narrator = createNarrator(chapterEl, BIOMES);
 /** entering a chapter: its opening, told once (narration.ts) */
@@ -1082,6 +1082,7 @@ function teleport(x: number, y: number): void {
 function gotoBiome(i: number): void {
   const { x, y } = arrival(i);
   teleport(x, y);
+  showChapter(chapters.jump(x));
 }
 
 /** a crowd of animals around the swimmer, in its plane (for the load test) */
@@ -1150,7 +1151,7 @@ document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).c
 const nouveautes = initNouveautes(() => !Atelier.isOpen && benchOut.hidden === true);
 narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen;
 
-setTimeout(() => showChapter(0), 400);
+setTimeout(() => showChapter(chapters.jump(player.cr.root.x[0])), 400);
 requestAnimationFrame(frame);
 // ?lod=0: without the levels of detail (to compare)
 if (new URLSearchParams(location.search).get('lod') === '0') opts.lod = false;
