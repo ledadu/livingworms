@@ -29,6 +29,8 @@ export interface Arbre {
   close(): void;
   /** name the generation of this rank (1: the first), as typing it would */
   rename(rank: number, name: string): void;
+  /** something more under the tree, at each opening (the keepsake image, once the story is over) */
+  more: (() => HTMLElement | null) | null;
 }
 
 const ICON = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">'
@@ -203,6 +205,8 @@ export function initArbre(d: ArbreDeps): Arbre {
     foot.className = 'ar-foot';
     foot.textContent = gens.length > 1 ? 'Touche un nom pour le changer.' : 'À chaque naissance, une génération de plus. Touche un nom pour le changer.';
     root.append(head, close, tree, foot);
+    const more = arbre.more?.();
+    if (more) root.append(more);
     return current;
   }
 
@@ -217,6 +221,7 @@ export function initArbre(d: ArbreDeps): Arbre {
   const arbre: Arbre = {
     get isOpen() { return !root.hidden; },
     button,
+    more: null,
     open() {
       if (arbre.isOpen) return;
       d.onOpen?.();

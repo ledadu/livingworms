@@ -258,7 +258,7 @@ Texte final :
 
 > Nous sommes remontés. Pas un seul d'entre nous n'avait fait tout le chemin. Et pourtant, nous l'avions fait ensemble.
 
-**Générique** : l'arbre complet de ta lignée, génération par génération.
+**Générique** : l'arbre complet de ta lignée, génération par génération. Puis l'arbre devient une image souvenir, à garder (voir [mécaniques](mecaniques.md#le-générique-et-limage-souvenir)).
 
 ## Les traces de la lignée
 
