@@ -9,6 +9,7 @@
 
 import { STEP, TAU, clamp, detail, rand, rng, spec as makeSpec, type Spec } from '../engine';
 import { Atelier } from '../editor';
+import { applyAtelierAccess, unlockBalade } from './atelier-access';
 import { Creature3, swimFactor3 } from '../engine3/creature3';
 import { Flow } from '../engine3/flow';
 import { draw3, eachGlow3, lodOf, lodSize, prepare3 } from '../engine3/render3';
@@ -147,7 +148,9 @@ function becomes(sp: Spec): void {
   partie.becomes(sp);
 }
 let paused = false;
-document.getElementById('atBtn')?.addEventListener('click', () => {
+const atBtn = document.getElementById('atBtn');
+applyAtelierAccess(atBtn);
+atBtn?.addEventListener('click', () => {
   paused = true;
   Atelier.open(player.cr.spec, {
     playLabel: 'Nager',
@@ -1117,7 +1120,8 @@ export const api = {
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
   get size() { return [W, H, canvas.width, canvas.height]; },
-  setFrameHook: (f: typeof onFrame) => { onFrame = f; }
+  setFrameHook: (f: typeof onFrame) => { onFrame = f; },
+  unlockBalade: () => { unlockBalade(); applyAtelierAccess(atBtn); }
 };
 (window as unknown as { monde: typeof api }).monde = api;
 
