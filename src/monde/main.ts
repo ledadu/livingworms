@@ -48,6 +48,10 @@ import { initParade } from './parade-jeu';
 import { initAdieu, testChild } from './adieu-jeu';
 import { mateFor } from './arbre';
 import { initArbre } from './arbre-ecran';
+import { ancestorsIn } from './ancetres-jeu';
+import { placeOf } from './ancetres';
+import { initTraces } from './traces-jeu';
+import { initRivale } from './rivale-jeu';
 import { initChant } from './chant-jeu';
 import { notesOfGeneration } from './chant';
 import './style.css';
@@ -125,7 +129,7 @@ const causticCv = causticTile(256, 7, 5);
 const caustic = ctx.createPattern(causticCv, 'repeat')!;
 
 interface Actor {
-  cr: Creature3; kind: 'player' | 'swim' | 'floor' | 'surface' | 'sib' | 'parent';
+  cr: Creature3; kind: 'player' | 'swim' | 'floor' | 'surface' | 'sib' | 'parent' | 'rival';
   z: number; hx: number; hy: number; tx: number; ty: number; next: number;
   buf: HTMLCanvasElement | null;
   /** last baked image and the frame it was made (far animals are re-baked only every few frames) */
@@ -155,7 +159,7 @@ const player = addActor(savedPlayer() || firstAncestor(), 420, 180, 'player', 0.
 /** the swimmer becomes this species: changed in the Atelier, or a child chosen in a brood (born) */
 function becomes(sp: Spec, born = false): void {
   const old = player.cr, r = old.root;
-  const cr = new Creature3(sp, r.x[0], r.y[0], 0, { dir: { x: old.yaw > 1.57 ? -1 : 1, y: 0, z: 0 }, scale: 0.8 });
+  const cr = new Creature3(sp, r.x[0], r.y[0], 0, { dir: { x: Math.cos(old.yaw) < 0 ? -1 : 1, y: 0, z: 0 }, scale: 0.8 });
   cr.yaw = cr.yawGoal = old.yaw;
   for (let i = 0; i < 60; i++) cr.steer(i * STEP, old.vx, old.vy, 0, 0.2);
   player.cr = cr;
@@ -393,6 +397,7 @@ function update(): void {
   collide(p);
   const px = r.x[0], py = r.y[0];
   parade.step(p, actors);
+  rivale.step({ x: px, y: py }, t);
 
   flow.clear();
   const near = (x: number) => Math.abs(x - px) < 1100;
@@ -404,6 +409,12 @@ function update(): void {
     nNear++;
     const c = a.cr, cr = c.root, x = cr.x[0], y = cr.y[0];
     if (parade.leads(a)) { steer(a, parade.goal.x, parade.goal.y, 0.06); collide(c); continue; }
+    if (a.kind === 'rival') {
+      const v = rivale.goal(c, t, { x: px, y: py });
+      steer(a, v.x, v.y, 0.05);
+      collide(c);
+      continue;
+    }
     if (a.kind === 'parent') {
       const v = adieu.parentGoal(c, t, { x: px, y: py });
       steer(a, v.x, v.y, 0.04);
@@ -477,6 +488,7 @@ function update(): void {
   const bi = chapters.step(px);
   if (bi >= 0) showChapter(bi);
   if (chapters.shown >= 0) partie.reach(BIOMES[chapters.shown].id);
+  traces.step(px, py);
   chant.step(t, p, actors, chapters.shown);
 }
 
@@ -524,6 +536,7 @@ function render(): void {
   env.water = clamp((waterAt(m, cam.y).l - 28) / 30, 0, 1);
   lights.length = 0;
   parade.lights(view, lights, P);
+  rivale.lights(view, lights, P, t, { x: pr.x[0], y: pr.y[0] });
   if (gx) {
     const [r, g, b] = hsl01(m.deep.h, m.deep.s, m.deep.l);
     gx.begin(r, g, b);
@@ -597,6 +610,7 @@ function render(): void {
     if (bl) { view.project(d.x, y - bl[0], d.z, P); lights.push(P.x, P.y, bl[1] * P.s, bl[2], bl[3]); }
   }
   pushReliefs(items, { view, gx, ctx, dpr, plane }, cam.x, cam.y);
+  traces.items({ view, dpr, plane, draw: drawSprite, lights }, cam.x, (d, fn) => items.push({ d, fn, k: 'trace' }));
   let np = 0;
   for (const pl of plants) {
     if (!pl.cr) continue;
@@ -1102,6 +1116,8 @@ function showChapter(i: number): void { narrator.chapter(i); }
 // ----- the farewell to the parent (adieu.ts) ----- //
 
 const adieu = initAdieu(narrator);
+// the traces of the past generations, further down (traces-jeu.ts); no words of theirs during a farewell
+const traces = initTraces(() => partie.lineage, (name, lines) => !adieu.on && narrator.say(name, lines));
 /** a child is born, of this partner: it is played from now on, the parent stays where it is (without a child: one for the tests) */
 function farewell(child?: Spec, mate?: Spec): void {
   if (adieu.on) return;
@@ -1116,8 +1132,24 @@ function farewell(child?: Spec, mate?: Spec): void {
   adieu.start(old, cr, t, bi, floorAt(x + 1000, 0));
   // a new game has not saved its first creature yet: it is the parent all the same
   if (!partie.creature) partie.becomes(old.spec);
-  partie.born(sp, BIOMES[bi].id, mate && mateFor(mate));
+  partie.born(sp, BIOMES[bi].id, mate && mateFor(mate), placeOf(x, y, BIOMES[bi].x0));
 }
+// the parents left in earlier visits swim where they were left (ancetres.ts); the first one's siblings stay with it
+for (const { spec, home, k } of ancestorsIn(partie.lineage)) {
+  adieu.stay(addActor(spec, home.x, home.y, 'parent', 0.8).cr, home);
+  if (k === 0) for (const a of actors) if (a.kind === 'sib') {
+    a.kind = 'swim'; a.hx = home.x; a.hy = home.y;
+    a.cr.translate(home.x + rand(-80, 80) - a.cr.root.x[0], home.y + rand(-50, 50) - a.cr.root.y[0], 0);
+  }
+}
+
+// the rival lineage of the Carcasse (rivale-jeu.ts): its cousin, made from the creature of ours that got there
+const rivale = initRivale({
+  lineage: () => partie.lineage, swimmer: () => player.cr, narrator,
+  add: (sp, x, y, scale) => addActor(sp, x, y, 'rival', scale).cr,
+  quiet: () => paused || portee.isOpen || adieu.on || narrator.quiet() || chapterEl.classList.contains('show'),
+  aside: () => adieu.on || parade.active
+});
 
 // ----- the song (chant-jeu.ts) ----- //
 
@@ -1224,14 +1256,15 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, chant,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, traces, rivale, chant,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
   get size() { return [W, H, canvas.width, canvas.height]; },
   setFrameHook: (f: typeof onFrame) => { onFrame = f; },
   unlockBalade: () => { unlockBalade(); applyAtelierAccess(atBtn); },
-  partners: () => actors.filter((a) => a.partner !== undefined)
+  partners: () => actors.filter((a) => a.partner !== undefined),
+  ancestors: () => actors.filter((a) => a.kind === 'parent')
 };
 (window as unknown as { monde: typeof api }).monde = api;
 

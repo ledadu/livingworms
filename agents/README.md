@@ -11,7 +11,6 @@ Une équipe d'agents Claude Code qui avancent **en parallèle** sur le backlog d
   - les questions des agents à l'utilisateur ;
   - les versions à publier et les branches de version.
 - **À distance** : le tableau de bord demande un jeton à tout accès qui ne vient pas de la machine ; avec Tailscale, il s'ouvre depuis un téléphone sans rien exposer sur Internet ([docs/agents.md](docs/agents.md#depuis-une-autre-machine)).
-- **Miroir sur claude.ai** : une page Artifact privée, en lecture seule, qui montre le dernier état envoyé depuis la machine, pour quand celle-ci n'est pas joignable ([docs/agents.md](docs/agents.md#miroir-sur-claudeai)).
 - **Orchestration** : le mode d'emploi d'une session Claude Code qui découpe, lance, suit, intègre et publie ([docs/orchestration.md](docs/orchestration.md)), repris par le skill [`/agent-team`](skills/agent-team/SKILL.md).
 - **Changements et versions** : une entrée par tâche livrée, un changelog, des versions planifiées, publiées avec un tag, et leurs branches de correctifs ([docs/changes.md](docs/changes.md)). Le jeu en tire son « Quoi de neuf » (`whatsNew()`).
 

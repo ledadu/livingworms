@@ -130,6 +130,23 @@
   .stale { color: var(--warn); }
   .err { color: var(--bad); }
   @media (max-width: 480px) { main { grid-template-columns: 1fr; padding: 12px 16px; } header { padding: 12px 16px; } }
+  /* « Fusion en série » : the finished agents picked on their card, accepted one after the other (merge-train.mjs). */
+  .train { margin: 12px 20px 0; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid var(--ok); border-radius: 10px; background: var(--panel); display: flex; flex-direction: column; gap: 8px; }
+  .train .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+  .train .title { font-weight: 600; }
+  .train ol { margin: 0; padding-left: 22px; font-size: 13px; }
+  .train li { padding: 2px 0; }
+  .train li .msg { color: var(--muted); margin-left: 6px; }
+  .pill.t-waiting { background: var(--panel2); color: var(--muted); }
+  .pill.t-accepting, .pill.t-fixing { color: #0b1220; background: var(--accent); }
+  .pill.t-fixing { color: #2a1f05; background: var(--warn); }
+  .pill.t-accepted { color: #0d1f16; background: var(--ok); }
+  .pill.t-failed { color: #2a0b0b; background: var(--bad); }
+  .pill.t-skipped { background: var(--panel2); color: var(--muted); text-decoration: line-through; }
+  .pick { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; color: var(--muted); cursor: pointer; flex: none; }
+  .pick input { accent-color: var(--ok); margin: 0; }
+  .card.to-merge { outline: 2px solid color-mix(in srgb, var(--ok) 60%, transparent); outline-offset: -1px; }
+  @media (max-width: 480px) { .train { margin: 12px 16px 0; } }
   /* The navigation shared by the dashboard pages (hub.html, doc.html). */
   nav.site { display: flex; gap: 4px; flex-wrap: wrap; }
   nav.site a { color: var(--muted); padding: 2px 10px; border-radius: 99px; font-size: 13px; }
@@ -158,6 +175,7 @@
   <button class="tab" data-tab="released">Publiées<span class="n" id="count-released"></span></button>
   <button class="tab" data-tab="branches" title="Les branches de version release/X.Y : correctifs, report vers __INTEGRATION__, serveurs de test">Branches<span class="n" id="count-branches"></span></button>
 </nav>
+<section class="train" id="train" hidden></section>
 <main id="grid"></main>
 <div class="view" id="view-banner" hidden></div>
 <section class="view" id="view-pending" hidden></section>
@@ -213,6 +231,7 @@ function showTab(tab) {
   } catch {}
   for (const button of document.querySelectorAll('.tab')) button.classList.toggle('on', button.dataset.tab === tab);
   document.getElementById('grid').hidden = tab !== 'active';
+  document.getElementById('train').hidden = tab !== 'active' || !document.getElementById('train').__html;
   document.getElementById('view-pending').hidden = tab !== 'pending';
   document.getElementById('view-version').hidden = !tab.startsWith('v:');
   document.getElementById('view-released').hidden = tab !== 'released';
@@ -265,7 +284,7 @@ function createCard(name) {
   const card = document.createElement('section');
   card.className = 'card';
   card.innerHTML = `
-    <div class="top"><span class="name">${escapeHtml(name)}</span><span class="branch" data-part="branch"></span><span class="spacer"></span><span data-part="state"></span></div>
+    <div class="top"><label class="pick" data-part="pick" hidden title="À accepter dans la fusion en série (en haut de la liste)"><input type="checkbox" data-pick> à fusionner</label><span class="name">${escapeHtml(name)}</span><span class="branch" data-part="branch"></span><span class="spacer"></span><span data-part="train"></span><span data-part="state"></span></div>
     <div class="goal" data-part="goal"></div>
     <div class="task" data-part="task"></div>
     <div class="stats" data-part="stats"></div>
@@ -430,6 +449,17 @@ function updateCard(agent) {
   const fixButton = card.querySelector('[data-action="fix-conflicts"]');
   fixButton.hidden = archived || run?.state === 'running' || status[0] === 'working' || !(agent.deliverables?.behind > 0 || state?.conflict);
   fixButton.disabled = Boolean(state?.working);
+  // « Fusion en série » : a finished task that « Accepter » would take can be picked; one in the train shows its turn.
+  // A pick survives the refreshes, even while the card briefly looks busy (a file touched in its worktree): only
+  // the train or the archive take it back.
+  const trainItem = trainItems.find((item) => item.name === name && !TRAIN_FINAL.has(item.state));
+  const pickable = !acceptButton.hidden && !trainItem;
+  card.dataset.pickable = pickable ? '1' : '';
+  if (trainItem || archived) unpick(name);
+  part('pick').hidden = !pickable && !picked.has(name);
+  part('pick').querySelector('input').checked = picked.has(name);
+  card.classList.toggle('to-merge', picked.has(name));
+  patch(part('train'), trainItem ? `<span class="pill t-${trainItem.state}" title="${escapeHtml(trainItem.message)}">🔀 ${escapeHtml(TRAIN_STATES[trainItem.state])}</span>` : '');
   const orderButton = card.querySelector('[data-action="order-open"]');
   orderButton.hidden = run?.state === 'running' || status[0] === 'working' || !card.querySelector('[data-part="order"]').hidden;
   orderButton.disabled = Boolean(state?.working);
@@ -656,6 +686,84 @@ document.addEventListener('click', (event) => {
   }
 });
 
+// « Fusion en série » : the agents picked on their card (in the order of the cards), then the train of the server,
+// which accepts them one after the other and has each conflict fixed by its agent before accepting it again.
+// Kept in the browser, so that a reload of the page keeps them too.
+const picked = new Set();
+try {
+  for (const name of JSON.parse(localStorage.getItem('agents.picked') || '[]')) picked.add(name);
+} catch {}
+function savePicked() {
+  try {
+    localStorage.setItem('agents.picked', JSON.stringify([...picked]));
+  } catch {}
+}
+function unpick(name) {
+  if (picked.delete(name)) savePicked();
+}
+const TRAIN_FINAL = new Set(['accepted', 'failed', 'skipped']);
+const TRAIN_STATES = { waiting: 'en attente', accepting: 'fusion…', fixing: 'règle ses conflits', accepted: 'acceptée', failed: 'échec', skipped: 'sautée' };
+let trainItems = [];
+let train = null;
+let trainNote = '';
+
+function pickedInOrder() {
+  return [...cards.entries()].filter(([name, { card }]) => picked.has(name) && card.isConnected).map(([name]) => name);
+}
+
+function renderTrain() {
+  const box = document.getElementById('train');
+  const pickable = [...cards.values()].filter(({ card }) => card.dataset.pickable).length;
+  const running = train && !train.finishedAt;
+  const count = pickedInOrder().length;
+  const list = train ? `<ol>${train.items.map((item) => `<li><b>${escapeHtml(item.name)}</b> <span class="pill t-${item.state}">${escapeHtml(TRAIN_STATES[item.state] ?? item.state)}</span><span class="msg">${escapeHtml(item.message)}</span></li>`).join('')}</ol>` : '';
+  const done = train ? train.items.filter((item) => TRAIN_FINAL.has(item.state)).length : 0;
+  const head = train
+    ? `<span class="title">🔀 Fusion en série${running ? ` : ${done}/${train.items.length}` : train.stopped ? ' arrêtée' : ' terminée'}</span>${running ? '<button class="btn" data-train="stop" title="Les agents pas encore traités sont sautés ; un agent en train de régler ses conflits finit seul">■ Arrêter la file</button>' : '<button class="btn" data-train="clear">✕ Fermer</button>'}`
+    : '<span class="title">🔀 Fusion en série</span>';
+  const pick = pickable || count
+    ? `<span class="note">${count ? `${count} sélectionnée${count > 1 ? 's' : ''}` : 'coche « à fusionner » sur les tâches terminées'}</span>
+      <button class="btn" data-train="all">Cocher les terminées (${pickable})</button>${count ? '<button class="btn" data-train="none">Tout décocher</button>' : ''}
+      <button class="btn accept" data-train="start" ${count ? '' : 'disabled'} title="Accepte les tâches cochées l'une après l'autre (dans l'ordre des cartes). Un conflit : l'agent fusionne sa base et le règle, puis la tâche est acceptée à nouveau avant de passer à la suivante.">✓ ${running ? 'Ajouter à la file' : 'Accepter et corriger en série'}${count ? ` (${count})` : ''}</button>`
+    : '';
+  const blocked = running && train.blocked ? `<div class="note bad">⏸ En pause : ${escapeHtml(train.blocked)} La file reprend d'elle-même une fois le dépôt principal réparé.</div>` : '';
+  const html = train || pick ? `<div class="row">${head}<span class="spacer"></span>${pick}</div>${trainNote ? `<div class="note bad">${escapeHtml(trainNote)}</div>` : ''}${blocked}${list}` : '';
+  patch(box, html);
+  box.hidden = currentTab !== 'active' || !html;
+}
+
+document.getElementById('train').addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-train]');
+  if (!button) return;
+  const what = button.dataset.train;
+  if (what === 'all') for (const [name, { card }] of cards) if (card.dataset.pickable) picked.add(name);
+  if (what === 'none') picked.clear();
+  savePicked();
+  if (what === 'start' || what === 'stop' || what === 'clear') {
+    const names = pickedInOrder();
+    if (what === 'start' && !confirm(`Accepter l'une après l'autre : ${names.join(', ')} ?\n\nChaque branche est fusionnée dans sa base, dans le dépôt principal. Sur un conflit, l'agent fusionne sa base et le règle lui-même, puis la fusion reprend avant de passer à la suivante.`)) return;
+    button.disabled = true;
+    try {
+      const result = await (await fetch(`/api/merge-train${what === 'start' ? '' : `/${what}`}`, { method: 'POST', body: JSON.stringify({ names }) })).json();
+      trainNote = result.ok ? '' : result.error;
+      if (result.ok && what === 'start') (picked.clear(), savePicked());
+    } catch (error) {
+      trainNote = `Échec : ${error.message}`;
+    }
+  }
+  refresh();
+});
+
+document.getElementById('grid').addEventListener('change', (event) => {
+  const box = event.target.closest('[data-pick]');
+  if (!box) return;
+  const name = box.closest('.card').dataset.agent;
+  box.checked ? picked.add(name) : picked.delete(name);
+  savePicked();
+  box.closest('.card').classList.toggle('to-merge', box.checked);
+  renderTrain();
+});
+
 let refreshing = false;
 async function refresh() {
   if (refreshing) return;
@@ -665,6 +773,8 @@ async function refresh() {
     serverNow = data.now;
     clockOffset = data.now - Date.now();
     const agents = data.agents;
+    train = data.mergeTrain ?? null;
+    trainItems = train?.items ?? [];
     for (const agent of agents) {
       updateCard(agent);
       cards.get(agent.AGENT_NAME).card.dataset.port = agent.CLIENT_PORT;
@@ -675,6 +785,8 @@ async function refresh() {
         cards.delete(name);
       }
     }
+    for (const name of picked) if (!agents.some((a) => a.AGENT_NAME === name)) unpick(name);
+    renderTrain();
     const archivedCount = agents.filter((a) => a.AGENT_ARCHIVED).length;
     document.getElementById('count-active').textContent = String(agents.length - archivedCount);
     const lastMove = (a) => Math.max(a.activity || 0, a.progress?.updated || 0);

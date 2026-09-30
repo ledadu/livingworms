@@ -8,87 +8,67 @@ Les documents de conception : [vision](vision.md), [chapitres](chapitres.md), [m
 
 ## Étape 2 — Structure
 
-### Un monde fini, du début à la fin
-
-Le monde commence à la surface de la Nurserie et finit au fond de la Fosse ; on ne peut pas aller plus loin qu'un obstacle non franchi (en attendant l'étape 3, un obstacle se franchit librement). Le voyage vers les biomes du panneau de réglages reste pour les tests, caché aux joueurs.
-
-### Les textes narratifs : ouvertures et adieux
-
-L'affichage des textes : lettres fines, apparition lente, deux à quatre lignes, au début de chaque chapitre et au moment de l'adieu ([chapitres.md](chapitres.md#les-textes)). Les textes eux-mêmes viennent de [chapitres.md](chapitres.md) (données, pas dans le code de l'affichage). Remplace le titre de biome actuel (`showChapter`, `src/monde/main.ts`).
-
-### Les transitions entre chapitres
-
-Le passage d'un chapitre à l'autre : la lumière, la couleur de l'eau et la faune qui changent progressivement, le texte d'ouverture qui arrive au bon moment.
-
-### La sauvegarde automatique
-
-Sauver la partie à chaque naissance dans le stockage du navigateur : chapitre, créature jouée, et plus tard la lignée entière. Reprendre là où on en était à l'ouverture de la page. Aujourd'hui seule la créature est gardée (`lignee.player`).
-
-### L'Atelier hors de l'histoire
-
-Cacher le bouton de l'Atelier (✎) pendant l'histoire ; le rendre dans la « Balade libre », débloquée après la fin ([décisions](decisions.md)). Garder un moyen de l'ouvrir pour le développement (paramètre d'URL).
-
 ## Étape 3 — Hérédité
-
-### Les traits du corps
-
-Déduire les traits d'une espèce de son arbre de parties (table de [mecaniques.md](mecaniques.md#lhérédité--les-traits)) : une fonction pure, testée, qui dit quels traits a une créature. Seuils à définir pour le corps fin, la carapace, la pulsation.
-
-### Les obstacles-clés
-
-Un obstacle par chapitre, qui barre la descente tant qu'on n'a pas l'un des traits qui le franchissent ([chapitres.md](chapitres.md#vue-densemble)). Aucun dégât (zéro danger) : l'obstacle repousse, ralentit ou cache le chemin. Chaque obstacle a au moins deux traits qui le franchissent.
-
-### Les espèces compatibles et leur lueur
-
-Marquer les partenaires de chaque chapitre ; ils brillent doucement quand on s'approche. S'assurer que chaque chapitre propose les partenaires qui apportent les traits de son obstacle (on ne peut jamais se bloquer).
-
-### La parade
-
-Environ 20 secondes de nage synchronisée avec le partenaire : le suivre sans le perdre, passer dans son sillage, tourner avec lui. Sans échec possible ; une qualité de 0 à 1 qui passe à la portée ([mecaniques.md](mecaniques.md#la-parade)).
-
-### La portée : 4 enfants, en choisir un
-
-4 œufs éclosent ; 4 enfants générés par la fusion du parent et du partenaire (`fuse`, `src/content/generate.ts`), environ 60 % du parent et 40 % du partenaire, plus fidèles aux traits voulus quand la parade est réussie. L'écran montre ce que chacun a hérité. On en choisit un, qu'on joue ensuite.
-
-### L'adieu au parent
-
-Le moment où l'on quitte le parent : le texte d'adieu, l'enfant qui s'éloigne, le parent qui reste. Il doit toucher ([vision](vision.md#les-trois-piliers)).
 
 ## Étape 4 — Lignée
 
 ### L'arbre de la lignée
+> 🟠 fusionné · agent arbre-lignee
 
 Un écran accessible à tout moment : le portrait de chaque ancêtre (`snapshot3`), son nom, le partenaire, le lieu de naissance. On peut nommer chaque génération.
 
 ### Les ancêtres restent dans le monde
+> 🟠 fusionné · agent ancetres-restent-monde
 
 Chaque parent quitté reste là où on l'a quitté, et y nage quand on revient en arrière.
 
 ### Les traces de la lignée
+> 🟠 fusionné · agent traces-lignee
 
 Plus bas, des traces des générations passées : une carcasse de parent devenue récif, une mue, des œufs non éclos.
 
 ### La lignée rivale de la Carcasse
+> 🔵 en cours · agent lignee-rivale-carcasse
 
 À la Carcasse, une autre lignée, aux choix différents : une créature étrange, cousine lointaine, générée à partir d'autres partenaires.
 
 ## Étape 5 — Chant et fin
 
 ### Le chant : une note par chapitre
+> 🟣 en file · agent chant-note-chapitre
 
 Chaque génération apprend la note de son chapitre ; un bouton en bas ouvre un cercle de notes à tracer du doigt. Certains animaux répondent et ouvrent un passage. Nombre de notes : voir la question 3 des [décisions](decisions.md#questions-ouvertes).
 
 ### Les lumières qui répondent dans la Fosse
+> 🟣 en file · agent lumieres-qui-repondent
 
 On joue les notes apprises et, une à une, des lumières répondent dans le noir : les ancêtres des autres lignées.
 
 ### La Remontée
+> 🟣 en file · agent remontee
 
 Le puits de lumière au fond, le retournement, puis la remontée : la créature finale joue le chant complet, tous les ancêtres apparaissent et remontent en formation, chaque chapitre s'illumine au passage, la lignée perce la surface et une larve naît ([chapitres.md](chapitres.md)).
 
 ### Le générique et l'image souvenir
+> 🟣 en file · agent generique-image-souvenir
 
 L'arbre complet de la lignée en générique, puis en image téléchargeable (sauf dans le lien Artifact).
+
+### lueur de l'accouplement
+> 🟣 en file · agent lueur-accouplement
+
+Il faut que cela soit moin eblouisant et ajuter plein d'autre effets qui ne sont pas forcement les meme a chaque fois , un peu de random et peut etre aussi en fonction des genes des accouplé?
+
+### Titre du chantier
+> 🟣 en file · agent titre-chantier
+
+quand les bestiole se retourne mettre de l'aleatoire sur le sens, elle pevent se retouné en passant par le dos ou en passant de face...
+
+### Titre du chantier
+> 🟣 en file · agent titre-chantier-2
+
+le forcage de changement pour passer dans un mode et vachement intrusif, et pas du tout smooth..
+le moment ou on est obligé d'accepter un oeuf!! on pourrait pas diriger le joueur plus.. et meme si il refuse alors il doit encore s'accouple et peut etre luis donner des indice pour qu'il trouve la bonne bestionle avec qui il doit faire l'enfant..
 
 ## Étape 6 — Son et finitions
 
@@ -110,7 +90,67 @@ Après la fin : le monde entier ouvert, l'Atelier disponible, sans histoire.
 
 ## Autour du jeu
 
+## Livré
+
+Les chantiers publiés, du plus récent au plus ancien.
+
+### Les traits du corps
+> 🟢 livré · v0.4.0 · agent traits-corps
+
+Déduire les traits d'une espèce de son arbre de parties (table de [mecaniques.md](mecaniques.md#lhérédité--les-traits)) : une fonction pure, testée, qui dit quels traits a une créature. Seuils à définir pour le corps fin, la carapace, la pulsation.
+
+### Les obstacles-clés
+> 🟢 livré · v0.4.0 · agent obstacles-cles
+
+Un obstacle par chapitre, qui barre la descente tant qu'on n'a pas l'un des traits qui le franchissent ([chapitres.md](chapitres.md#vue-densemble)). Aucun dégât (zéro danger) : l'obstacle repousse, ralentit ou cache le chemin. Chaque obstacle a au moins deux traits qui le franchissent.
+
+### Les espèces compatibles et leur lueur
+> 🟢 livré · v0.4.0 · agent especes-compatibles-leur
+
+Marquer les partenaires de chaque chapitre ; ils brillent doucement quand on s'approche. S'assurer que chaque chapitre propose les partenaires qui apportent les traits de son obstacle (on ne peut jamais se bloquer).
+
+### La parade
+> 🟢 livré · v0.4.0 · agent parade
+
+Environ 20 secondes de nage synchronisée avec le partenaire : le suivre sans le perdre, passer dans son sillage, tourner avec lui. Sans échec possible ; une qualité de 0 à 1 qui passe à la portée ([mecaniques.md](mecaniques.md#la-parade)).
+
+### La portée : 4 enfants, en choisir un
+> 🟢 livré · v0.4.0 · agent portee-4-enfants
+
+4 œufs éclosent ; 4 enfants générés par la fusion du parent et du partenaire (`fuse`, `src/content/generate.ts`), environ 60 % du parent et 40 % du partenaire, plus fidèles aux traits voulus quand la parade est réussie. L'écran montre ce que chacun a hérité. On en choisit un, qu'on joue ensuite.
+
+### L'adieu au parent
+> 🟢 livré · v0.4.0 · agent adieu-parent
+
+Le moment où l'on quitte le parent : le texte d'adieu, l'enfant qui s'éloigne, le parent qui reste. Il doit toucher ([vision](vision.md#les-trois-piliers)).
+
+### Un monde fini, du début à la fin
+> 🟢 livré · v0.3.0 · agent monde-fini-debut
+
+Le monde commence à la surface de la Nurserie et finit au fond de la Fosse ; on ne peut pas aller plus loin qu'un obstacle non franchi (en attendant l'étape 3, un obstacle se franchit librement). Le voyage vers les biomes du panneau de réglages reste pour les tests, caché aux joueurs.
+
+### Les textes narratifs : ouvertures et adieux
+> 🟢 livré · v0.3.0 · agent textes-narratifs
+
+L'affichage des textes : lettres fines, apparition lente, deux à quatre lignes, au début de chaque chapitre et au moment de l'adieu ([chapitres.md](chapitres.md#les-textes)). Les textes eux-mêmes viennent de [chapitres.md](chapitres.md) (données, pas dans le code de l'affichage). Remplace le titre de biome actuel (`showChapter`, `src/monde/main.ts`).
+
+### Les transitions entre chapitres
+> 🟢 livré · v0.3.0 · agent transitions-entre
+
+Le passage d'un chapitre à l'autre : la lumière, la couleur de l'eau et la faune qui changent progressivement, le texte d'ouverture qui arrive au bon moment.
+
+### La sauvegarde automatique
+> 🟢 livré · v0.3.0 · agent sauvegarde-automatique
+
+Sauver la partie à chaque naissance dans le stockage du navigateur : chapitre, créature jouée, et plus tard la lignée entière. Reprendre là où on en était à l'ouverture de la page. Aujourd'hui seule la créature est gardée (`lignee.player`).
+
+### L'Atelier hors de l'histoire
+> 🟢 livré · v0.3.0 · agent atelier-hors-histoire
+
+Cacher le bouton de l'Atelier (✎) pendant l'histoire ; le rendre dans la « Balade libre », débloquée après la fin ([décisions](decisions.md)). Garder un moyen de l'ouvrir pour le développement (paramètre d'URL).
+
 ### Les nouveautés dans le jeu
+> 🟢 livré · v0.3.0 · agent nouveautes-jeu
 
 Montrer dans le jeu ce que racontent les entrées de `changes/` : chaque version publiée, avec ses nouveautés, leurs captures et leur texte. Aujourd'hui elles n'existent que dans `CHANGELOG.md` et le tableau de bord des agents, alors que la version 0.2 est publiée (8 nouveautés). Le cadriciel fournit les données sans rien dessiner : `whatsNew(loadChanges(), { base, includeUnreleased })` (`agents/release/changes.mjs`, types dans `changes.d.mts`, voir `agents/docs/changes.md`, section « Dans le jeu »).
 
@@ -128,10 +168,6 @@ Montrer dans le jeu ce que racontent les entrées de `changes/` : chaque version
   - la version 0.2 s'affiche avec ses 8 nouveautés et leurs images, en dev et dans la page jouable reconstruite ;
   - le panneau s'ouvre tout seul une seule fois après une nouvelle version ;
   - le bouton le rouvre à tout moment.
-
-## Livré
-
-Les chantiers publiés, du plus récent au plus ancien.
 
 ### Les 10 chapitres dans le monde
 > 🟢 livré · v0.2.0 · agent 10-chapitres-monde

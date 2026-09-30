@@ -37,6 +37,8 @@ export function initAdieu(narrator: Narrator) {
       if (!shot) { end(); return null; }
       return shot.child;
     },
+    /** a parent left in an earlier visit (ancetres.ts): it stays by its home */
+    stay(cr: Creature3, home: Pt): void { homes.set(cr, { home: { ...home }, seed: Math.abs(home.x) % 7 }); },
     /** is this creature a parent left behind */
     isParent: (cr: Creature3) => homes.has(cr),
     /** each step: the wished velocity of a parent left behind */
