@@ -248,13 +248,19 @@ export function initRemontee(w: RemonteeWorld) {
     },
 
     /** each frame: where the camera looks and from how far (eased from the player's own distance), or null */
-    camera(own: number): { focus: Pt | null; dist: number } | null {
+    camera(own: number, W: number, H: number): { focus: Pt | null; dist: number } | null {
       if (phase === 'idle' || (phase === 'after' && Math.abs(camDist - own) < 2)) { camDist = 0; return null; }
       if (!camDist) camDist = own;
       const p = at(w.swimmer());
       let want = own, focus: Pt | null = null;
       if (phase === 'well') { want = own * lerp(0.95, 1.3, smooth((now - t0 - T.song) / 4)); focus = { x: WELL_X, y: anchor.y - 20 }; }
-      else if (phase === 'rise') { want = own * 1.4; focus = { x: p.x + dir.x * 300, y: p.y + dir.y * 300 }; }
+      else if (phase === 'rise') {
+        // the whole formation in view, across the narrower side of the screen (as adieu-jeu.ts measures it); the camera,
+        // a little late behind the current, keeps it in the middle
+        const across = (W < H ? 0.975 * W : 0.81 * H) / Math.max(1, H);
+        want = Math.max(own * 1.3, 800 / across);
+        focus = { x: p.x + dir.x * 40, y: p.y + dir.y * 40 };
+      }
       else if (phase === 'surface') {
         // close on the egg while the larva is born, then wide on the whole lineage for the last words
         const u = now - tSurf, e = egg ?? p;

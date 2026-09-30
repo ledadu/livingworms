@@ -1158,7 +1158,7 @@ function frame(now: number): void {
   const ut = performance.now() - u0;
   stats.update = stats.update * 0.9 + ut * 0.1;
   if (steps === 3) acc = 0;
-  const r = player.cr.root, shot = remontee.camera(900 / input.zoomMul) ?? adieu.camera(900 / input.zoomMul, W, H), dist = shot.dist, pitch = (settings.angle * Math.PI) / 180;
+  const r = player.cr.root, shot = remontee.camera(900 / input.zoomMul, W, H) ?? adieu.camera(900 / input.zoomMul, W, H), dist = shot.dist, pitch = (settings.angle * Math.PI) / 180;
   if (shot.focus) { cam.x += (shot.focus.x - cam.x) * 0.04; cam.y += (shot.focus.y - cam.y) * 0.04; }
   else {
     cam.x += (r.x[0] + player.cr.vx * 20 - cam.x) * 0.07;
