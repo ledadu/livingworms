@@ -183,6 +183,12 @@ La carte du Grand Monde (`src/monde/biomes.ts`) suit la trame : les 10 chapitres
 | 9 | La Fosse | 25 200 à 28 400 | 500–650 m | le noir total sauf sa propre lumière, les lueurs, la neige marine dans la lumière ; décor du fond *provisoire* | dragon abyssal, calmar (géants, en silhouettes) |
 | 10 | La Remontée | 28 400 à 30 000 | 650 m et plus | le fond, d'où part la Remontée (le puits de lumière est à faire) | — |
 
+### Les bornes du monde
+
+Le monde qu'on joue commence à la surface de la Nurserie (x = −600) et finit au fond de la Fosse (x = 27 600, avant que la lumière de la Remontée n'arrive) : `src/monde/limites.ts`. Chaque chapitre qui a un obstacle barre la descente à sa fin (le Récif, la Forêt, la Grotte, les Sources, le Glacier, le Jardin) ; celui de la Fosse garde le fond, et le franchir ouvrira la Remontée. Près d'une borne, l'eau retient le nageur sur 420 px et un léger courant le repousse : rien ne heurte ni ne blesse. Un obstacle franchi le reste (on peut remonter et redescendre). En attendant les traits de l'étape 3 (`CanCross`), tous les obstacles se franchissent librement : seuls le début et la fin du monde retiennent.
+
+Le voyage du panneau de réglages (⚙) sert aux tests : il n'apparaît qu'avec `?dev` dans l'adresse. Voyager (le panneau, `monde.gotoBiome`, `monde.teleport`) compte comme franchis les obstacles d'avant l'arrivée ; au-delà du fond de la Fosse, toute la carte s'ouvre jusqu'au rechargement.
+
 ## À écrire
 
 - Les adieux des chapitres 2 à 9 (le plan v1 n'a que celui de la Nurserie ; celui de la Grotte est une proposition).

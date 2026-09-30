@@ -5,12 +5,12 @@
 - **Les textes viennent de `docs/chapitres.md`** : `src/monde/textes.ts` lit le document (importé en `?raw`, donc inclus dans le fichier unique) et en tire, pour chaque `## N. Nom`, la citation qui suit « Ouverture : », « Adieu … : », « Le retournement : » (ouverture de la Remontée) ou « Texte final : ». Aucun texte dans le code : on les change en écrivant dans le doc.
 - **Mise en lignes** (`toLines`) : une phrase par ligne, apostrophes typographiques, une phrase seule et longue coupée à la virgule la plus proche du milieu, 4 lignes au plus. Temps de lecture (`holdTime`) selon la longueur.
 - **Affichage** (`src/monde/narration.ts`, CSS dans `style.css`) : Cormorant Garamond 300 (graisse ajoutée au lien Google Fonts de `index.html`), le nom du chapitre en petites capitales espacées au-dessus, puis chaque ligne apparaît lentement (fondu + léger flou qui se dissipe, 1,7 s d'écart), reste, puis tout s'efface. Un halo sombre très doux garde le texte lisible dans l'eau claire de la Nurserie.
-- **Quand** : l'ouverture, la première fois qu'on entre dans un chapitre (y compris par ⚙ Voyage) ; en y revenant, seul le nom passe. Si le panneau des Nouveautés ou l'Atelier couvre la mer, l'ouverture attend qu'il se ferme.
+- **Quand** : l'ouverture, la première fois qu'on entre dans un chapitre (y compris par le Voyage de ⚙, réservé à `?dev` depuis `monde-fini-debut`, ou `monde.gotoBiome`) ; en y revenant, seul le nom passe. Si le panneau des Nouveautés ou l'Atelier couvre la mer, l'ouverture attend qu'il se ferme.
 - **Adieu** : prêt mais sans déclencheur (le jeu n'a pas encore de générations) : `monde.narrator.tell(i, 'farewell')` (ou `'final'`). Seuls la Nurserie et la Grotte ont un adieu dans le doc.
 - `showChapter` (`main.ts`) ne fait plus qu'appeler le narrateur ; `narrator` est exposé dans `window.monde`.
 - Tests : `src/monde/textes.test.ts` (chaque chapitre de la carte a son ouverture dans le doc, 2 à 4 lignes partout, adieux, retournement, texte final, coupures).
 
-Pour voir : lancer le jeu, attendre l'ouverture de la Nurserie ; ⚙ Voyage vers un autre chapitre ; dans la console, `monde.narrator.tell(0, 'farewell')`.
+Pour voir : lancer le jeu, attendre l'ouverture de la Nurserie ; avec `?dev`, ⚙ Voyage vers un autre chapitre ; dans la console, `monde.narrator.tell(0, 'farewell')`.
 
 ![Ouverture de la Grotte, sur téléphone](img/grotte.jpg)
 ![Ouverture de la Nurserie, dans l'eau claire](img/nurserie.jpg)
@@ -51,6 +51,13 @@ Aucune question posée à l'utilisateur ; tout est tranché seul (option recomma
 - Au tout premier lancement après une nouvelle version, le panneau des Nouveautés s'ouvre à 1,8 s, par-dessus l'ouverture de la Nurserie déjà commencée (l'ouverture n'attend que si le panneau est ouvert avant).
 - Le champ `sub` des biomes n'est plus affiché.
 - Le fichier unique embarque tout `chapitres.md` (~15 Ko de texte).
+
+- Depuis les bornes du monde (`monde-fini-debut`, fusionné), le monde s'arrête au fond de la Fosse : l'ouverture de la Remontée (« le retournement ») ne se lit plus en jouant, seulement en voyageant (`?dev`). Elle reviendra quand franchir la Fosse ouvrira la Remontée.
+
+## Fusion avec `backlog` (après `monde-fini-debut`)
+
+- Conflit unique : `src/monde/main.ts`, la ligne de l'objet `api` ; les deux côtés gardés (`narrator` et `limits`, `bounds`).
+- Sans conflit : `docs/chapitres.md` (« Les bornes du monde » et mon point dans « Les textes » cohabitent), `index.html` (le lien des polices et la consigne raccourcie). Revérifié : l'ouverture de la Nurserie s'affiche toujours au départ, à la surface.
 
 ## Risques de fusion
 
