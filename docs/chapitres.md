@@ -22,7 +22,7 @@ Les profondeurs sont indicatives : le monde est une descente continue, pas une c
 | # | Chapitre | Profondeur | Obstacle | Traits qui le franchissent | Note |
 | --- | --- | --- | --- | --- | --- |
 | 1 | La Nurserie | 0–40 m | aucun (apprentissage) | — | l'éclat |
-| 2 | Le Récif | 40–90 m | courant de passe | nageoires | le battement |
+| 2 | Le Récif | 40–90 m | courant de passe | nageoires, pulsation | le battement |
 | 3 | La Forêt | 90–200 m | mur d'algues dense | pinces, corps fin | le frôlement |
 | 4 | La Grotte *(nouveau)* | 200–250 m | galerie étroite et noire | corps fin, lanterne | l'écho *(proposition)* |
 | 5 | La Carcasse | 250 m | aucun (souvenir) | — | le souvenir |
@@ -63,6 +63,10 @@ Ouverture :
 
 > Ici, tout le monde a une maison. Nous n'en avions pas. Alors nous sommes devenus de ceux qui passent.
 
+Devant l'obstacle :
+
+> Le courant de la passe nous renvoyait vers le récif. Il fallait des nageoires pour le remonter, ou battre comme battent les méduses.
+
 ## 3. La Forêt (90–200 m)
 
 - **Décor** : kelp géant jusqu'à la surface, lumière verte filtrée, épaisseur, silence.
@@ -74,6 +78,10 @@ Ouverture :
 Ouverture :
 
 > La forêt ne pousse pas vers le fond. Elle pousse vers ce qu'elle a quitté.
+
+Devant l'obstacle :
+
+> Les algues se serraient en un mur. Il fallait des pinces pour l'ouvrir, ou un corps assez fin pour s'y glisser.
 
 ## 4. La Grotte (200–250 m) *— nouveau chapitre, tout est proposition*
 
@@ -91,6 +99,10 @@ Ouverture :
 Adieu (proposition, les autres adieux sont à écrire) :
 
 > Tu resteras à l'entrée, là où il fait encore un peu jour. Nous emportons le reste.
+
+Devant l'obstacle :
+
+> La galerie s'enfonçait dans un noir sans bord. Il fallait un corps fin pour s'y faufiler, ou une lueur pour trouver le passage large.
 
 ## 5. La Carcasse (250 m)
 
@@ -118,6 +130,10 @@ Ouverture :
 
 > Ici, la chaleur ne vient pas du ciel. Elle monte d'en dessous, comme une promesse.
 
+Devant l'obstacle :
+
+> L'eau brûlait et nous faisait reculer. Il fallait une carapace pour la supporter, ou des cils pour passer par la vase.
+
 ## 7. Le Glacier (340–400 m) *— nouveau chapitre, tout est proposition*
 
 - **Décor** : juste après la chaleur des Sources, une langue d'eau glacée et salée descend d'une banquise lointaine et plonge vers le fond. Parois de glace bleue, aiguilles de givre qui poussent autour du courant froid, cristaux en suspension, lumière froide et diffuse.
@@ -131,6 +147,10 @@ Ouverture :
 
 > Le froid est venu d'un monde que nous ne verrions jamais. Il descendait, lui aussi.
 
+Devant l'obstacle :
+
+> Le froid figeait tout ce qu'il touchait. Il fallait une carapace pour lui résister, ou des filaments pour se laisser emporter.
+
 ## 8. Le Jardin de méduses (400–500 m)
 
 - **Décor** : plus de fond visible, des milliers de méduses qui pulsent et s'éclairent, des siphonophores géants.
@@ -143,6 +163,10 @@ Ouverture :
 
 > Ceux qui vivent ici n'ont jamais touché le sol. Ils nous ont appris à ne plus en avoir besoin.
 
+Devant l'obstacle :
+
+> Plus rien sous nous, rien où s'appuyer. Il fallait battre comme les méduses, ou des filaments pour se laisser porter.
+
 ## 9. La Fosse (500–650 m)
 
 - **Décor** : noir total, seulement ta propre lumière. Des silhouettes immenses passent. La neige marine tombe.
@@ -154,6 +178,10 @@ Ouverture :
 Ouverture :
 
 > Nous n'avions jamais été aussi loin de la lumière. Nous n'avions jamais autant brillé.
+
+Devant l'obstacle :
+
+> Le noir, et rien pour lui répondre. Il nous faudrait une lumière à nous, ou un chant.
 
 ## 10. La Remontée (du fond à la surface)
 
