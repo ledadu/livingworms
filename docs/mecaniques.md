@@ -8,9 +8,10 @@ Comment on joue : la boucle d'un chapitre, la reproduction, l'hérédité, le ch
 Arriver dans un nouveau biome (texte d'ouverture)
    → Explorer, observer la vie locale
    → Trouver l'OBSTACLE qui bloque la descente
-   → Découvrir quelle ESPÈCE locale sait le franchir
+   → Découvrir quelle ESPÈCE locale sait le franchir (les INDICES y mènent)
    → La rejoindre, nager avec elle : la PARADE
-   → La PORTÉE : choisir 1 enfant parmi 4
+   → La PONTE : ses œufs dans l'eau, qu'on ouvre quand on veut
+   → La PORTÉE : choisir 1 enfant parmi 4, ou plus tard
    → L'ADIEU au parent (texte)
    → L'enfant franchit l'obstacle → chapitre suivant
 ```
@@ -59,6 +60,29 @@ Rien n'est imposé : la portée ne se jette plus sur la mer à la fin de la para
 - Les **traits voulus** sont ceux qui franchissent l'obstacle du chapitre (`KEYS`, `src/monde/obstacles.ts`) ; sans obstacle, ceux du partenaire que le parent n'a pas. Les membres du partenaire qui les apportent (`limbTraits`, lu avec `traitsOf` de `src/content/traits.ts`) vont à 1 enfant après une parade ratée, 2 à mi-chemin, 3 après une parade parfaite (`carriers`) : jamais à aucun, jamais aux 4, pour qu'il reste un choix.
 - L'écran (`src/monde/portee-ecran.ts`) : quatre œufs qui tremblent puis fondent, chacun sur son portrait (`snapshot3`), son nom (le début du nom du parent, la fin de celui du partenaire) « de Première : Corps, Cil… / de Méduse lune : Filament… », puis ses traits, en or ceux qui franchissent l'obstacle du chapitre. Sous le titre, une ligne le dit (`broodNote`) : « Les traits en or franchissent le mur d'algues. », ou, quand aucun enfant ne passerait, « Aucun ne franchira le mur d'algues : tu peux laisser les œufs et chercher un autre partenaire. ». On touche un enfant, puis « Continuer avec … » : il devient la créature jouée, et le parent rejoint la lignée de la sauvegarde (`partie.born`). Ou « Plus tard » (voir « La ponte »).
 - Pour l'ouvrir : `monde.openPortee(partenaire, qualité)` (un id du bestiaire ou une espèce, qualité de 0 à 1), ou, avec `?dev`, le bouton « Une portée avec un partenaire d'ici » du panneau ⚙ (un partenaire du chapitre, `PARTNERS`). Après une parade, ce sont ses œufs qui l'ouvrent, avec sa qualité (« La ponte »).
+
+### Les indices
+
+Le jeu guide vers le bon partenaire, sans flèche ni chiffre, dans la voix de la lignée et par la lumière (`src/monde/indices.ts`, pures et testées ; jeu `indices-jeu.ts`).
+
+- **Quand** : les indices d'un chapitre s'éveillent la première fois que son obstacle nous retient (là où il dit ses mots, à mi-chemin de son approche), ou quand on laisse pour plus tard une portée dont aucun enfant ne le franchirait. Ils se taisent dès que le corps joué le franchit.
+- **Les mots** : quand on ressort de la portée de l'obstacle, la lignée dit qui avait ce qu'il fallait : la citation « L'indice : » du chapitre, dans [chapitres.md](chapitres.md), une fois par chapitre et par visite, dès qu'aucun autre texte n'est à l'écran.
+- **Le fil de lumière** : tant qu'on ne peut pas franchir, toutes les 3,4 s, huit petites lueurs dorées (l'or des partenaires) partent du nageur et filent vers le partenaire le plus proche qui ferait l'affaire, à la vitesse de la nage, en ondulant ; elles s'éteignent au bout de 2,4 s. Des œufs pondus qu'on n'a pas encore ouverts, ou dont un enfant franchirait, passent avant. À moins de 420 de lui, le fil s'arrête et ce partenaire appelle : deux lueurs montent de lui toutes les 1,5 s. Rien pendant une parade, la portée ou l'adieu.
+- **Le bon partenaire** : un partenaire qui a le trait ne le transmet pas toujours, car le corps fin, la pulsation et la carapace tiennent au tronc, et un enfant peut garder le nôtre (l'anguille est fine, ses enfants avec la larve ne le sont jamais). Le fil mène donc aux partenaires dont quatre portées d'essai avec la créature jouée (`SAMPLE`, qualité 0,5) ont le plus souvent un enfant qui franchit ; ces portées se calculent une par pas de jeu (1 à 3 ms), la première fois ; en attendant, ceux qui ont le trait.
+- **Pour les tests** : `monde.indices.felt` et `told` (les chapitres éveillés, ceux dont l'indice est dit), `monde.indices.lead` (où mène le fil), `monde.indices.right(chapitre)`, `monde.skip.add('guide')` (sans le fil).
+
+### L'adieu
+
+- Un texte de deux à quatre lignes, dans la voix du « nous » (voir [chapitres.md](chapitres.md)).
+- Le parent reste dans le monde, là où tu l'as quitté (voir « Les ancêtres »).
+- **Dans le jeu** (`src/monde/adieu.ts`, branché par `adieu-jeu.ts` et `farewell` dans `main.ts`) : une scène d'une dizaine de secondes, sans rien à faire.
+  - L'enfant naît à côté du parent et fait une fois le tour de lui, pendant que le parent le suit de la tête. La caméra se rapproche des deux, les bords de la mer s'assombrissent et les boutons s'effacent (`adieu.css`).
+  - Le texte d'adieu du chapitre arrive (une ouverture de chapitre attend qu'il s'efface).
+  - L'enfant s'en va vers la suite de la descente, de plus en plus vite ; le parent l'accompagne un peu, s'arrête et le regarde partir. La caméra s'élargit, puis suit l'enfant.
+  - On reprend la main quand l'enfant est à environ 700 px, ou au bout de 11 s.
+  - Le parent reste là où on l'a quitté, d'une visite à l'autre (voir « Les ancêtres ») : il y dérive doucement, et quand on revient il se tourne vers nous et vient un peu à notre rencontre, jusqu'à 90 px de nous (`ROOM`). Les larves-sœurs de la première génération restent avec lui.
+  - La naissance est enregistrée dans la partie (`partie.born`).
+  - Pour l'essayer : `monde.farewell(enfant)` ; sans enfant, un enfant d'essai est fait par `fuse` avec la première espèce du chapitre. En jeu, le choix d'un enfant de la portée la lance ; la parade ne commence pas pendant la scène, et aucun autre texte (celui d'un obstacle, une ouverture) ne passe par-dessus l'adieu.
 
 ## L'hérédité : les traits
 

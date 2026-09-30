@@ -53,6 +53,7 @@ import { placeOf } from './ancetres';
 import { initTraces } from './traces-jeu';
 import { initRivale } from './rivale-jeu';
 import { initPonte } from './ponte-jeu';
+import { initIndices } from './indices-jeu';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -166,7 +167,10 @@ function becomes(sp: Spec, born = false): void {
 }
 // the brood (portee-ecran.ts): the chosen child is played from now on, its parent joins the lineage and stays
 // where it is, in the farewell scene (farewell, below); left for later, its eggs wait in the water (ponte, below)
-const portee = createPortee((sp, _, mate) => { ponte.hatched(); farewell(sp, mate); }, (kids) => ponte.later(kids));
+const portee = createPortee((sp, _, mate) => { ponte.hatched(); farewell(sp, mate); }, (kids) => {
+  ponte.later(kids);
+  if (!ponte.clutch?.crosses) indices.feel(BIOMES[biomeIndex(player.cr.root.x[0])].id);
+});
 /** the four children of eggs of this partner, after a parade of this quality (the same seed, the same children);
  * the parade favours the limbs that bring the traits crossing the chapter's obstacle */
 function broodOf(partner: Spec, quality: number, seed: number): void {
@@ -378,6 +382,17 @@ const ponte = initPonte({
   crosses: (kids, x) => kids.some((c) => crosses(BIOMES[biomeIndex(x)].id, c.traits))
 });
 parade.onEnd((r) => ponte.lay(r.spec, r.quality, r.at));
+// the hints (indices-jeu.ts): once an obstacle held us back, who would bring what it takes, and a thread toward them
+const indices = initIndices({
+  chapter: (x) => { const i = biomeIndex(x); return { id: BIOMES[i].id, i }; },
+  near: (x) => keys.near(x),
+  open: (c) => limits.beyond || limits.crossed.has(c) || keys.can(c),
+  animals: () => actors,
+  parent: () => player.cr.spec,
+  eggs: () => ponte.calling,
+  say: (i) => !narrator.quiet() && !chapterEl.classList.contains('show') && narrator.tell(i, 'hint'),
+  busy: () => paused || portee.isOpen || adieu.on || parade.active
+});
 
 const counts = { near: 0, live: 0, plants: 0, items: 0 };
 
@@ -407,6 +422,7 @@ function update(): void {
   const px = r.x[0], py = r.y[0];
   parade.step(p, actors);
   ponte.step(px, py, STEP);
+  indices.step(px, py);
   rivale.step({ x: px, y: py }, t);
 
   flow.clear();
@@ -545,6 +561,7 @@ function render(): void {
   env.water = clamp((waterAt(m, cam.y).l - 28) / 30, 0, 1);
   lights.length = 0;
   parade.lights(view, lights, P);
+  if (!skip.has('guide')) indices.lights(view, lights, P);
   rivale.lights(view, lights, P, t, { x: pr.x[0], y: pr.y[0] });
   if (gx) {
     const [r, g, b] = hsl01(m.deep.h, m.deep.s, m.deep.l);
@@ -1256,7 +1273,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, traces, rivale, ponte,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, traces, rivale, ponte, indices,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
