@@ -41,7 +41,9 @@ import { CARCASSE, boneLight, carcasseDwellers, carcasseSchool } from './carcass
 import { initNouveautes } from './nouveautes';
 import { createNarrator } from './narration';
 import { initPartie } from './partie-jeu';
-import { GLOW_HUE, marksPartner, partnerGlow, partnerSpawns } from './partenaires';
+import { GLOW_HUE, PARTNERS, marksPartner, partnerGlow, partnerSpawns } from './partenaires';
+import { createPortee } from './portee-ecran';
+import { KEYS } from './obstacles';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -144,13 +146,26 @@ function savedPlayer(): Spec | null {
 }
 const player = addActor(savedPlayer() || firstAncestor(), 420, 180, 'player', 0.8);
 
-function becomes(sp: Spec): void {
+/** the swimmer becomes this species: changed in the Atelier, or a child chosen in a brood (born) */
+function becomes(sp: Spec, born = false): void {
   const old = player.cr, r = old.root;
   const cr = new Creature3(sp, r.x[0], r.y[0], 0, { dir: { x: old.yaw > 1.57 ? -1 : 1, y: 0, z: 0 }, scale: 0.8 });
   cr.yaw = cr.yawGoal = old.yaw;
   for (let i = 0; i < 60; i++) cr.steer(i * STEP, old.vx, old.vy, 0, 0.2);
   player.cr = cr;
-  partie.becomes(sp);
+  if (born) partie.born(sp); else partie.becomes(sp);
+}
+// the brood (portee-ecran.ts): the chosen child is played from now on, its parent joins the lineage
+// (the first ancestor is not saved until then)
+const portee = createPortee((sp) => {
+  if (!partie.creature) partie.becomes(player.cr.spec);
+  becomes(sp, true);
+});
+/** four children with a partner (a species id of the bestiary, or a species), after a parade of this quality;
+ * the parade favours the limbs that bring the traits crossing the chapter's obstacle */
+function openPortee(partner: string | Spec, quality = 0.5): void {
+  const keys = KEYS[BIOMES[biomeIndex(player.cr.root.x[0])].id]?.filter((k) => k !== 'chant');
+  portee.open(player.cr.spec, typeof partner === 'string' ? SPECIES[partner]() : partner, { quality, keys });
 }
 let paused = false;
 const atBtn = document.getElementById('atBtn');
@@ -1148,7 +1163,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
@@ -1184,6 +1199,14 @@ BIOMES.forEach((b, i) => {
   btn.addEventListener('click', () => gotoBiome(i));
   trip.append(btn);
 });
+// a brood with a partner of the chapter (else an animal of it), for the tests (?dev), until the parade leads to it
+const porteeBtn = document.getElementById('porteeBtn')!;
+porteeBtn.hidden = !travelShown(location.search);
+porteeBtn.addEventListener('click', () => {
+  const b = BIOMES[biomeIndex(player.cr.root.x[0])], ids = PARTNERS[b.id].length ? PARTNERS[b.id].map((q) => q.id) : b.fauna.map((f) => f[0]);
+  panel.hidden = true;
+  openPortee(ids[Math.floor(Math.random() * ids.length)], 0.7);
+});
 const benchOut = document.getElementById('benchOut')!;
 document.getElementById('benchBtn')!.addEventListener('click', () => { panel.hidden = true; void runBench(api, benchOut); });
 for (const el of [panel, gear, benchOut, document.getElementById('atBtn')!]) for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'wheel']) el.addEventListener(ev, (e) => e.stopPropagation());
@@ -1191,7 +1214,7 @@ const hint = document.getElementById('hint')!;
 setTimeout(() => hint.classList.add('gone'), 6000);
 document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).closest('#panel, #atelier, #benchOut')) e.preventDefault(); }, { passive: false });
 const nouveautes = initNouveautes(() => !Atelier.isOpen && benchOut.hidden === true);
-narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen;
+narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen || portee.isOpen;
 
 // back where the game was left: the start of its chapter, the obstacles before it crossed (teleport)
 const resumeAt = chapterIndex(partie.chapter as (typeof BIOMES)[number]['id']);
