@@ -6,7 +6,7 @@
 help: ## This list
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
-dev: ## The game with hot reload on http://localhost:5173
+dev: ## The game with hot reload on http://localhost:5180
 	@npm run dev
 
 check: ## Typecheck, then every test (the game's and the agents framework's)
@@ -23,5 +23,8 @@ build: ## The single self-contained file, in dist/index.html
 
 play: ## Rebuilds the playable page play/lignee-monde.html
 	@npm run play
+
+# the dashboard of La Lignée's agents: http://localhost:8000 (Allèle's is on 7800)
+PORT ?= 8000
 
 include agents/agents.mk

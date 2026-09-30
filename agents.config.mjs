@@ -1,6 +1,6 @@
 // What the agents framework (agents/, see agents/README.md) needs to know of La Lignée. Only what differs from the
 // defaults of agents/config.mjs; `node agents/config.mjs` prints the merged settings.
-const GAME = { client: 'http://localhost:5173' };
+const GAME = { client: 'http://localhost:5180' };
 
 export default {
   name: 'La Lignée',
@@ -14,10 +14,11 @@ export default {
   },
 
   // The game has no server: the « server » of an agent serves the built single file (vite preview, what gets
-  // published), its « client » the dev build with hot reload.
+  // published), its « client » the dev build with hot reload. Ports away from Allèle's (7800/5300, dashboard 7800),
+  // whose agents may run at the same time: agent n gets 8100 + n and 5600 + n, the dashboard 8000 (Makefile).
   services: {
-    server: { command: 'npm run dev:server', portBase: 7800 },
-    client: { command: 'npm run dev:client', portBase: 5300 },
+    server: { command: 'npm run dev:server', portBase: 8100 },
+    client: { command: 'npm run dev:client', portBase: 5600 },
   },
 
   check: { typecheck: 'npm run typecheck --silent', test: 'npx vitest run' },
