@@ -46,6 +46,7 @@ import { createPortee } from './portee-ecran';
 import { KEYS } from './obstacles';
 import { initParade } from './parade-jeu';
 import { initAdieu, testChild } from './adieu-jeu';
+import { initTraces } from './traces-jeu';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -471,6 +472,7 @@ function update(): void {
   const bi = chapters.step(px);
   if (bi >= 0) showChapter(bi);
   if (chapters.shown >= 0) partie.reach(BIOMES[chapters.shown].id);
+  traces.step(px, py);
 }
 
 // ----- drawing ----- //
@@ -590,6 +592,7 @@ function render(): void {
     if (bl) { view.project(d.x, y - bl[0], d.z, P); lights.push(P.x, P.y, bl[1] * P.s, bl[2], bl[3]); }
   }
   pushReliefs(items, { view, gx, ctx, dpr, plane }, cam.x, cam.y);
+  traces.items({ view, dpr, plane, draw: drawSprite, lights }, cam.x, (d, fn) => items.push({ d, fn, k: 'trace' }));
   let np = 0;
   for (const pl of plants) {
     if (!pl.cr) continue;
@@ -1095,6 +1098,8 @@ function showChapter(i: number): void { narrator.chapter(i); }
 // ----- the farewell to the parent (adieu.ts) ----- //
 
 const adieu = initAdieu(narrator);
+// the traces of the past generations, further down (traces-jeu.ts); no words of theirs during a farewell
+const traces = initTraces(() => partie.lineage, (name, lines) => !adieu.on && narrator.say(name, lines));
 /** a child is born: it is played from now on, the parent stays where it is (without a child: one for the tests) */
 function farewell(child?: Spec): void {
   if (adieu.on) return;
@@ -1207,7 +1212,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, traces,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
