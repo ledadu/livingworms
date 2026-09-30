@@ -1,0 +1,67 @@
+/* The song (chant-cercle.ts): its button at the bottom, the words when a note is learned, and the circle of notes
+   around the swimmer, each note in the colour of its chapter */
+#chBtn {
+  --c: #f6d98a;
+  position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: 54px; height: 54px; margin-left: -27px;
+  border-radius: 50%; border: 1px solid rgba(246,217,138,0.5); background: rgba(6,40,56,0.5); color: #f6d98a; padding: 0;
+  display: grid; place-items: center; cursor: pointer; backdrop-filter: blur(6px); transition: opacity 1.6s ease;
+}
+#chBtn::after {
+  content: ''; position: absolute; inset: -1px; border-radius: 50%; border: 2px solid var(--c); opacity: 0; pointer-events: none;
+}
+#chBtn.new { color: var(--c); border-color: var(--c); transition: opacity 1.6s ease, color 3s ease 6s, border-color 3s ease 6s; }
+#chBtn.new::after { animation: chCall 2.4s ease-out 3; }
+@keyframes chCall { 0% { opacity: 0.9; transform: scale(1); } 100% { opacity: 0; transform: scale(1.9); } }
+#chBtn:focus-visible { outline: 2px solid #f6d98a; outline-offset: 2px; }
+body.adieu #chBtn, body:has(#portee.show) #chBtn, body:has(#arbre.show) #chBtn, body:has(#chant.show) #chBtn { opacity: 0; pointer-events: none; }
+/* the first words of the game leave the button its place */
+body:has(#chBtn:not([hidden])) #hint { bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
+
+#chSay {
+  --c: #f6d98a;
+  position: fixed; left: 16px; right: 16px; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); margin: 0; text-align: center; pointer-events: none;
+  font-weight: 300; font-size: clamp(18px, 4.6vw, 23px); letter-spacing: 0.015em; text-shadow: 0 1px 12px rgba(0,20,30,0.95), 0 0 3px rgba(0,20,30,0.8);
+  opacity: 0; filter: blur(2px); transition: opacity 2s ease, filter 2s ease;
+}
+#chSay em { color: var(--c); font-weight: 500; }
+#chSay.show { opacity: 0.95; filter: none; }
+body.adieu #chSay, body:has(#chant.show) #chSay, body:has(#arbre.show) #chSay, body:has(#portee.show) #chSay { opacity: 0; }
+
+#chant {
+  position: fixed; inset: 0; z-index: 16; touch-action: none; cursor: crosshair;
+  background: radial-gradient(circle at 50% 50%, rgba(2,14,22,0) 18%, rgba(2,14,22,0.28) 45%, rgba(2,10,18,0.62) 100%);
+  opacity: 0; transition: opacity 0.5s ease;
+}
+#chant.show { opacity: 1; }
+#chant:focus { outline: none; }
+#chant svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+#chant .ch-ring { fill: none; stroke: rgba(244,239,226,0.16); stroke-width: 1; stroke-dasharray: 2 7; }
+#chant text { font-family: 'Cormorant Garamond', Georgia, serif; fill: #f4efe2; text-anchor: middle; paint-order: stroke; stroke: rgba(0,16,24,0.55); stroke-width: 3px; }
+#chant .ch-title { font-size: 14px; font-weight: 500; letter-spacing: 0.32em; text-transform: uppercase; opacity: 0.6; }
+#chant .ch-hint { font-size: clamp(16px, 4vw, 19px); font-style: italic; opacity: 0.75; }
+#chant .ch-note { cursor: pointer; color: var(--c); }
+#chant .ch-note:focus { outline: none; }
+#chant .ch-note:focus-visible .ch-halo { stroke: #f6d98a; stroke-width: 2; }
+#chant .ch-halo { fill: rgba(4,26,38,0.72); stroke: var(--c); stroke-opacity: 0.5; stroke-width: 1; transition: fill 0.4s ease; }
+#chant .ch-glyph { fill: none; stroke: var(--c); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 4px var(--c)); }
+#chant .ch-name { font-size: 16px; font-style: italic; fill: var(--c); }
+#chant .ch-unknown circle { fill: rgba(244,239,226,0.28); }
+#chant .ch-note.on .ch-halo { animation: chTouch 0.9s ease-out; }
+@keyframes chTouch { 0% { fill: var(--c); fill-opacity: 0.85; } 100% { fill: rgba(4,26,38,0.72); } }
+#chant .ch-line, #chant .ch-line line { fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+#chant .ch-line line { filter: drop-shadow(0 0 6px currentColor); opacity: 0.85; }
+#chant .ch-live { opacity: 0.45; stroke-dasharray: 3 6; }
+#chant .ch-close {
+  position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); right: 12px; width: 44px; height: 44px; border-radius: 50%;
+  border: 1px solid rgba(244,239,226,0.3); background: rgba(6,40,56,0.6); color: #f4efe2; font-size: 26px; line-height: 1; cursor: pointer;
+}
+#chant .ch-close:focus-visible { outline: 2px solid #f6d98a; outline-offset: 2px; }
+/* the words of the chapter wait while we sing */
+body:has(#chant.show) #chapter { opacity: 0; }
+
+/* the lights of the song in the sea (chant-jeu.ts), over the dark of the deep */
+#chantSea { position: fixed; inset: 0; pointer-events: none; }
+body:has(#arbre.show) #chantSea, body:has(#portee.show) #chantSea { opacity: 0; }
+
+/* in the lineage tree, the notes each generation learned */
+#arbre .ar-notes { display: block; font-style: italic; font-size: 16px; color: #f6d98a; opacity: 0.8; margin-top: 1px; }
