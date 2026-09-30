@@ -43,7 +43,7 @@ import { createNarrator } from './narration';
 import { initPartie } from './partie-jeu';
 import { GLOW_HUE, PARTNERS, marksPartner, partnerGlow, partnerSpawns } from './partenaires';
 import { createPortee } from './portee-ecran';
-import { KEYS } from './obstacles';
+import { KEYS, OBSTACLE, crosses } from './obstacles';
 import { initParade } from './parade-jeu';
 import { initAdieu, testChild } from './adieu-jeu';
 import { mateFor } from './arbre';
@@ -53,6 +53,8 @@ import { ancestorsIn } from './ancetres-jeu';
 import { placeOf } from './ancetres';
 import { initTraces } from './traces-jeu';
 import { initRivale } from './rivale-jeu';
+import { initPonte } from './ponte-jeu';
+import { initIndices } from './indices-jeu';
 import { initChant } from './chant-jeu';
 import { notesOfGeneration } from './chant';
 import { initLumieres } from './lumieres-jeu';
@@ -169,13 +171,20 @@ function becomes(sp: Spec, born = false): void {
   if (born) partie.born(sp); else partie.becomes(sp);
 }
 // the brood (portee-ecran.ts): the chosen child is played from now on, its parent joins the lineage and stays
-// where it is, in the farewell scene (farewell, below)
-const portee = createPortee((sp, _, mate) => farewell(sp, mate));
-/** four children with a partner (a species id of the bestiary, or a species), after a parade of this quality;
+// where it is, in the farewell scene (farewell, below); left for later, its eggs wait in the water (ponte, below)
+const portee = createPortee((sp, _, mate) => { ponte.hatched(); farewell(sp, mate); }, (kids) => {
+  ponte.later(kids);
+  if (!ponte.clutch?.crosses) indices.feel(BIOMES[biomeIndex(player.cr.root.x[0])].id);
+});
+/** the four children of eggs of this partner, after a parade of this quality (the same seed, the same children);
  * the parade favours the limbs that bring the traits crossing the chapter's obstacle */
+function broodOf(partner: Spec, quality: number, seed: number): void {
+  const b = BIOMES[biomeIndex(player.cr.root.x[0])], keys = KEYS[b.id]?.filter((k) => k !== 'chant');
+  portee.open(player.cr.spec, partner, { quality, keys, seed, obstacle: OBSTACLE[b.id]?.name });
+}
+/** a brood with a partner (a species id of the bestiary, or a species) now, its eggs laid by the swimmer */
 function openPortee(partner: string | Spec, quality = 0.5): void {
-  const keys = KEYS[BIOMES[biomeIndex(player.cr.root.x[0])].id]?.filter((k) => k !== 'chant');
-  portee.open(player.cr.spec, typeof partner === 'string' ? SPECIES[partner]() : partner, { quality, keys });
+  ponte.lay(typeof partner === 'string' ? SPECIES[partner]() : partner, quality, { x: player.cr.root.x[0], y: player.cr.root.y[0] }, true);
 }
 let paused = false;
 const atBtn = document.getElementById('atBtn');
@@ -374,8 +383,25 @@ const parade = initParade({
     return { x, y: floor ? floorAt(x, 0) - 12 : clamp(y, Math.max(40, ceilAt(x, 0) + 50), floorAt(x, 0) - 70) };
   }
 });
-// then the brood, with its quality, once the last light has bloomed
-parade.onEnd((r) => setTimeout(() => openPortee(r.spec, r.quality), 1600));
+// then its eggs, laid where it ended (ponte-jeu.ts): the brood opens when we stay by them, and may wait
+const ponte = initPonte({
+  open: broodOf,
+  keep: (x, y) => ({ x, y: clamp(y, Math.max(40, ceilAt(x, 0) + 40), floorAt(x, 0) - 40) }),
+  busy: () => paused || portee.isOpen || adieu.on || parade.active || chant.isOpen,
+  crosses: (kids, x) => kids.some((c) => crosses(BIOMES[biomeIndex(x)].id, c.traits))
+});
+parade.onEnd((r) => ponte.lay(r.spec, r.quality, r.at));
+// the hints (indices-jeu.ts): once an obstacle held us back, who would bring what it takes, and a thread toward them
+const indices = initIndices({
+  chapter: (x) => { const i = biomeIndex(x); return { id: BIOMES[i].id, i }; },
+  near: (x) => keys.near(x),
+  open: (c) => limits.beyond || limits.crossed.has(c) || keys.can(c),
+  animals: () => actors,
+  parent: () => player.cr.spec,
+  eggs: () => ponte.calling,
+  say: (i) => !narrator.quiet() && !chapterEl.classList.contains('show') && narrator.tell(i, 'hint'),
+  busy: () => paused || portee.isOpen || adieu.on || parade.active || chant.isOpen
+});
 
 const counts = { near: 0, live: 0, plants: 0, items: 0 };
 
@@ -404,6 +430,8 @@ function update(): void {
   collide(p);
   const px = r.x[0], py = r.y[0];
   parade.step(p, actors);
+  ponte.step(px, py, STEP);
+  indices.step(px, py);
   rivale.step({ x: px, y: py }, t);
   lumieres.step({ x: px, y: py }, t);
 
@@ -551,6 +579,7 @@ function render(): void {
   env.water = clamp((waterAt(m, cam.y).l - 28) / 30, 0, 1);
   lights.length = 0;
   parade.lights(view, lights, P);
+  if (!skip.has('guide')) indices.lights(view, lights, P);
   rivale.lights(view, lights, P, t, { x: pr.x[0], y: pr.y[0] });
   if (!skip.has('answer')) lumieres.lights(view, lights, P, t);
   if (gx) {
@@ -627,6 +656,7 @@ function render(): void {
   }
   pushReliefs(items, { view, gx, ctx, dpr, plane }, cam.x, cam.y);
   traces.items({ view, dpr, plane, draw: drawSprite, lights }, cam.x, (d, fn) => items.push({ d, fn, k: 'trace' }));
+  ponte.items({ view, draw: drawSprite, lights }, cam.x, (d, fn) => items.push({ d, fn, k: 'eggs' }));
   let np = 0;
   for (const pl of plants) {
     if (!pl.cr) continue;
@@ -1290,7 +1320,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, generique, traces, rivale, chant, lumieres,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, generique, traces, rivale, chant, lumieres, ponte, indices,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
