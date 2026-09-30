@@ -14,7 +14,7 @@
 
 ![Une vague de lumière traverse le jardin](img/jardin-vague.jpg)
 ![Les siphonophores géants au loin](img/jardin-siphonophores.jpg)
-![Le bord du Glacier : le fond tombe dans le vide](img/jardin-bord.jpg)
+![Le bord du Glacier : ses murs de glace au-dessus du vide et des méduses](img/jardin-bord.jpg)
 ![Après la fusion avec la carte des 10 chapitres : −424 m, le siphonophore géant simulé et les méduses lointaines](img/jardin-fusion.jpg)
 
 ### Budget (Chrome Windows, GPU réel, WebGL2, build de dev)
@@ -32,6 +32,7 @@
 - **Relu hors conflits** : les bancs de poissons (`Shoal`) prennent `openFloor` ; le premier plan sombre (`foreground.ts`) ne fait plus surgir de silhouettes dans un chapitre sans fond ; les tests de `foreground.test.ts` qui visaient les anciens biomes (`kelp`, `abysses`) visent `foret` et `fosse` ; celui de la jauge (`biomes.test.ts`) lit la profondeur de la vie sur `openFloor`.
 - Mesure après fusion (PC, 1280×800) : ≈ 520 méduses et 3 siphonophores dessinés, 1,5 ms pour le champ, 59 img/s.
 - **Seconde fusion (Grotte, Carcasse)** : `main.ts` (imports de `grotte`, `grotte-draw`, `carcasse` gardés ; `jardin.collect` posé avant les rayons atténués par la grotte et `pushCave` ; `jardin` et `carcasse` tous deux dans l'API), `foreground.test.ts` (ma vérification « aucun premier plan dans le Jardin » gardée à côté des nouveaux identifiants), `direction-artistique.md` (il ne reste que les décors du Glacier et de la Fosse : Grotte, Carcasse et Jardin sont faits). Rendu du Jardin inchangé : ≈ 370 méduses, 1,4 ms, 57 img/s.
+- **Troisième fusion (Glacier)** : `main.ts` seul en conflit, les deux lignes gardées (`jardin.collect` puis `glacierItems`, imports combinés) ; `direction-artistique.md` : il ne reste que le décor de la Fosse. Relu `glacier.ts` : la langue d'eau froide et les murs de glace suivent `floorAt`, donc au bout du Glacier ils descendent avec la pente du vide ; à l'œil, les murs de glace dominent le jardin de méduses (capture `img/jardin-bord.jpg` refaite). Champ : ≈ 370 méduses, 1,6 ms, 53 img/s.
 
 ## Choix retenus
 
