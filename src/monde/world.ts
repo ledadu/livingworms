@@ -159,9 +159,9 @@ export function makeDecor(): Decor[] {
   const out: Decor[] = [];
   const add = (kind: Decor['kind'], x: number, z: number, h = 0) => out.push({ kind, x, z, seed: seedOf(Math.round(x), Math.round(z)), h, sprite: null, spriteD: 0 });
   // black smokers: a field of chimneys at several depths
-  const R = rng(2024);
-  for (const [x, z] of [[18900, 90], [19250, 420], [19700, 160], [20150, 700], [20900, 60], [21250, 300], [21600, 900]] as const) add('vent', x, z, 180 + R() * 180);
-  add('whale', 20450, 150);
+  const R = rng(2024), ab = (BIOMES.find((b) => b.id === 'abysses')?.x0 ?? 18200) - 18200;
+  for (const [x, z] of [[18900, 90], [19250, 420], [19700, 160], [20150, 700], [20900, 60], [21250, 300], [21600, 900]] as const) add('vent', x + ab, z, 180 + R() * 180);
+  add('whale', 20450 + ab, 150);
   add('wreck', 13350, 330);
   // cold seeps: streams of bubbles from the sand
   for (const [x, z] of [[1250, 60], [2600, 240], [4900, 140], [6300, 30], [9100, 50], [10400, 260], [12000, 120]] as const) add('seep', x, z);

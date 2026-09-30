@@ -15,7 +15,7 @@ import { Ortho } from '../engine3/view';
 import { Gfx } from '../engine3/gfx';
 import { paint3 } from '../engine3/paint-gl';
 import { makeCanvas } from './sprites';
-import { biomeMid, floorAt } from './biomes';
+import { biomeMid, openFloor } from './biomes';
 import type { FrameSample, api as Api } from './main';
 
 type A = typeof Api;
@@ -142,7 +142,7 @@ export async function runBench(api: A, out: HTMLElement): Promise<BenchResult | 
     const b = api.biomes[i];
     say(`Tour du monde : ${b.name}…`);
     api.gotoBiome(i);
-    const x = biomeMid(i), y = Math.max(120, floorAt(x, 0) - 260);
+    const x = biomeMid(i), y = Math.max(120, openFloor(x, 0) - 260);
     api.auto.on = true; api.auto.x = x + 900; api.auto.y = y;
     await frames(api, 90);
     const rec = newRec();

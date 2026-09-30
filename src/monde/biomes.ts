@@ -27,6 +27,10 @@ export interface Biome extends Mood {
   pop: number;
   /** fish schools: body, belly, count, glowing dots */
   schools: { body: HSL; belly: HSL; n: number; size: number; glow?: boolean }[];
+  /** how far the floor falls away out of sight (px), for the open water with no bottom */
+  abyss?: number;
+  /** far jellyfish drawn as images around the swimmer at full presence (jardin.ts) */
+  jellies?: number;
 }
 
 export const BIOMES: Biome[] = [
@@ -120,7 +124,23 @@ export const BIOMES: Biome[] = [
     schools: [{ body: { h: 225, s: 30, l: 35 }, belly: { h: 200, s: 30, l: 55 }, n: 40, size: 0.9, glow: true }]
   },
   {
-    id: 'abysses', name: 'Les Abysses', sub: 'fumeurs noirs et silence', x0: 18200,
+    id: 'jardin', name: 'Le Jardin de méduses', sub: 'le vide, sans fond', x0: 18200,
+    top: { h: 282, s: 42, l: 17 }, deep: { h: 300, s: 50, l: 6 }, sky: { h: 320, s: 60, l: 60 },
+    sand: { h: 285, s: 14, l: 18 }, rock: { h: 290, s: 12, l: 14 },
+    accents: [{ h: 320, s: 70, l: 62 }, { h: 280, s: 60, l: 60 }, { h: 190, s: 70, l: 60 }],
+    blades: [{ h: 300, s: 30, l: 34 }, { h: 270, s: 30, l: 30 }],
+    rays: 0, caustics: 0, plankton: { h: 315, s: 60, l: 84 },
+    dark: 0.3, snow: 0.35, encrust: 0,
+    rocks: { every: 900, r: [12, 24] },
+    flora: { every: 700, kinds: [['seapen', 1]], front: [['seapen', 1]] },
+    fauna: [['meduse', 'swim', 3, 0.8], ['ctenophore', 'swim', 2, 0.8], ['siphonophore', 'swim', 1.5, 0.9], ['chrysaora', 'swim', 1.5, 0.8],
+      ['meduseBoite', 'swim', 1, 0.8], ['clione', 'swim', 1, 0.8]],
+    pop: 26,
+    schools: [],
+    abyss: 3400, jellies: 2400
+  },
+  {
+    id: 'abysses', name: 'Les Abysses', sub: 'fumeurs noirs et silence', x0: 21800,
     top: { h: 250, s: 40, l: 10 }, deep: { h: 258, s: 50, l: 3 }, sky: { h: 20, s: 70, l: 50 },
     sand: { h: 25, s: 12, l: 20 }, rock: { h: 15, s: 10, l: 13 },
     accents: [{ h: 22, s: 90, l: 55 }, { h: 50, s: 20, l: 85 }, { h: 0, s: 80, l: 45 }],
@@ -137,7 +157,7 @@ export const BIOMES: Biome[] = [
   }
 ];
 
-export const X0 = -800, X1 = 22000;
+export const X0 = -800, X1 = 25600;
 const BLEND = 1400;
 
 function mixHSL(a: HSL, b: HSL, t: number): HSL {
@@ -200,7 +220,7 @@ export function moodAt(x: number): Mood & { dark: number; snow: number } {
 /** depth of the floor along the swimming plane: [x, depth] control points, eased between */
 const PROFILE: [number, number][] = [
   [X0, 600], [2800, 620], [3800, 690], [7000, 700], [7800, 450], [11100, 440], [11700, 470],
-  [12250, 1480], [12900, 1820], [14600, 1980], [17600, 2280], [18600, 2520], [X1, 2560]
+  [12250, 1480], [12900, 1820], [14600, 1980], [17600, 2280], [18600, 2400], [21400, 2440], [22200, 2520], [X1, 2560]
 ];
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
@@ -212,7 +232,8 @@ function baseDepth(x: number): number {
 }
 
 /** relief amplitude by biome: dunes, boulder fields, reef heads, ledges, plains */
-const HILLS = [60, 90, 70, 110, 80, 50], BUMPS = [10, 30, 60, 50, 30, 36], DUNES = [3, 2, 0, 0, 0, 0];
+const HILLS = [60, 90, 70, 110, 80, 0, 50], BUMPS = [10, 30, 60, 50, 30, 0, 36], DUNES = [3, 2, 0, 0, 0, 0, 0];
+const ABYSS = BIOMES.map((b) => b.abyss ?? 0);
 
 /** a per-biome value at x, blended across the borders so that nothing steps */
 export function blendOf(x: number, v: number[]): number {
@@ -224,6 +245,11 @@ export function blendOf(x: number, v: number[]): number {
 
 /** depth of the floor (y down) at x and at depth z */
 export function floorAt(x: number, z: number): number {
+  return openFloor(x, z) + blendOf(x, ABYSS);
+}
+
+/** the floor as if nothing fell away: where the animals of the open water keep their depth */
+export function openFloor(x: number, z: number): number {
   const hills = (noise1(x / 1300, 1789) - 0.5) * blendOf(x, HILLS) * 2;
   const mid = (noise1(x / 330, 1790) - 0.5) * blendOf(x, BUMPS) * 2;
   // sand ripples in the shallows

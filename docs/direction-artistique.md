@@ -29,6 +29,17 @@ Il manque, pour le plan :
 - les décors propres à la Grotte, la Carcasse, le Glacier, le Jardin de méduses et la Fosse ;
 - les palettes du plan, chapitre par chapitre.
 
+### Le Jardin de méduses
+
+Réalisé dans `src/monde/jardin.ts` (biome `jardin` de `biomes.ts`, entre le Crépuscule et les Abysses en attendant la nouvelle carte) :
+
+- **Sans fond** : le champ `abyss` d'un biome fait tomber le fond hors de vue (`floorAt`) ; les animaux de pleine eau gardent leur profondeur d'avant (`openFloor`).
+- **Des milliers de méduses lointaines**, bon marché : une image par méduse, tirée d'un petit atlas (trois teintes, quatre temps de pulsation, un point lumineux pour les plus petites), en neuf plans de profondeur entre lesquels passent les animaux simulés. Le champ se répète autour de la caméra : il n'a de bord ni en haut, ni en bas, ni sur les côtés. Sa densité suit le champ `jellies` des biomes et s'éclaircit aux frontières.
+- **Elles pulsent et montent** : chaque battement les soulève un peu, et le jardin entier monte lentement.
+- **Elles s'éclairent par vagues** : toutes les quelques secondes, une onde de lumière part d'un point et traverse le jardin.
+- **Des siphonophores géants** : de longues chaînes lumineuses au loin, avec leurs cloches nageuses en tête et une lumière qui court le long du corps.
+- **Les proches** sont les créatures simulées de la faune du biome (méduse lune, cténophore, siphonophore, chrysaora, cuboméduse, clione).
+
 ## Une palette par chapitre
 
 | Chapitre | Palette |
