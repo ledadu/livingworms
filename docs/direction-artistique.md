@@ -23,7 +23,6 @@ Le Grand Monde (`src/monde/`) a déjà :
 
 Il manque, pour le plan :
 
-- les reliefs composés (arches, grottes, failles, surplombs, piliers) ;
 - le premier plan sombre et flou ;
 - le décor propre à la Fosse (elle a aujourd'hui un décor provisoire tiré de l'existant) ;
 - le puits de lumière de la Remontée.
@@ -36,6 +35,17 @@ Entre l'œil et le plan de nage (`src/monde/foreground.ts`) : des silhouettes so
 - **Sombre et flou** : chaque silhouette est cuite une fois, petite et floutée, d'une seule couleur (l'eau autour, très assombrie), puis agrandie ; elle ondule doucement depuis son pied.
 - **Le plan de nage reste lisible** : les silhouettes montent du bas de l'écran (ou de leur sol quand il est visible) et s'effacent presque en approchant du nageur.
 - **Coût** : quelques images par trame, en WebGL comme en canvas. Couche `front` de `monde.skip` pour la comparer.
+
+### Les reliefs composés
+
+Les formes de terrain qu'une ligne de fond ne sait pas faire (`src/monde/relief.ts`, dessin dans `relief-draw.ts`) :
+
+- **Quatre types** : les **piliers** (colonnes de roche empilée) ; les **arches**, vues de face au loin ou posées en travers du plan de nage (un pied devant, un pied derrière, la voûte au-dessus du nageur) ; les **surplombs**, une corniche au-dessus d'un creux où s'abriter ; les **failles**, des tranchées creusées dans le fond lui-même, de l'avant jusqu'au loin, où l'on peut plonger.
+- **Devant, en travers et derrière le plan de nage** : chaque relief est un volume en vraie perspective (des facettes éclairées d'en haut, un contour d'encre, le brouillard de l'eau), trié tranche par tranche avec le reste de la scène. On passe derrière le pied avant d'une arche, sous sa voûte, devant son pied arrière ; un pilier du premier rang cache le nageur un instant. Ce qui vient trop près de l'œil s'efface.
+- **Solides** : le nageur et les animaux butent sur la coupe du relief à leur profondeur, et glissent le long. Les failles sont dans le fond (`floorAt`), donc déjà solides. Le plan de nage n'est jamais fermé : on passe dessus ou dessous.
+- **La vie dessus** : une plante dont le pied tombe dans un relief pousse sur son sommet, un rocher n'y est pas posé. Là où le chapitre est couvert de vie (`encrust`), des plaques de polypes couvrent le haut des reliefs : les arches du Récif.
+- **Par chapitre** (`PLANS`, par id de chapitre) : la Nurserie reste ouverte (quelques arches au loin) ; le Récif a ses arches à traverser ; la Forêt ses piliers, comme une cathédrale ; la Carcasse repose dans un creux de surplombs ; les Sources ont des colonnes de basalte au loin ; le Glacier des corniches de glace entre ses falaises ; la Fosse ses failles, qu'on ne voit que dans sa propre lumière. La Grotte a sa propre voûte (`grotte.ts`), le Jardin n'a pas de fond.
+- **Coût** : une fraction de milliseconde par image en WebGL, quelques millisecondes en canvas (le repli). Couche `relief` de `monde.skip` pour comparer.
 
 ### Le Jardin de méduses
 

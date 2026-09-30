@@ -24,6 +24,8 @@ import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, floorAt, liftAt, metres,
 import { Jardin } from './jardin';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
 import { compareSpecies, runBench } from './bench';
+import { bump, initReliefs } from './relief';
+import { pushReliefs } from './relief-draw';
 import { darkStops, glowOf, lightReach, pitchOf, snowLit } from './fosse';
 import { drawShape } from './fosse-draw';
 import { drawCrystals, glacierItems, type GlacierScene } from './glacier';
@@ -90,6 +92,8 @@ input.zoomMul = 900 / settings.dist;
 // ----- world ----- //
 
 const decor: Decor[] = makeDecor();
+// the reliefs keep clear of the set pieces (a tuft of frost may end up under one)
+initReliefs(BIOMES, X1, floorAt, decor.filter((d) => d.kind !== 'frost').map((d) => ({ x: d.x, z: d.z, r: d.kind === 'seep' ? 40 : d.kind === 'ice' ? 120 : 220 })));
 const vents = decor.filter((d) => d.kind === 'vent');
 const rocks: RockX[] = makeRocks().sort((a, b) => a.x - b.x);
 /** first rock at or after x (the rocks are sorted along x) */
@@ -288,6 +292,7 @@ function collide(cr: Creature3): void {
     const dx = r.x[0] - k.x, dy = (r.y[0] - cy) / 0.8, d = Math.hypot(dx, dy), m = rs + rad;
     if (d < m && d > 0.01) { r.x[0] = k.x + (dx / d) * m; r.y[0] = cy + (dy / d) * m * 0.8; }
   }
+  bump(cr);
   const cy = ceilAt(r.x[0], z) + rad;
   if (r.y[0] < cy) { r.y[0] = cy; if (cr.vy < 0) cr.vy *= -0.3; }
   cr.stand(floorAt(r.x[0], z));
@@ -501,6 +506,7 @@ function render(): void {
     const bl = d.kind === 'bone' && boneLight(d);
     if (bl) { view.project(d.x, y - bl[0], d.z, P); lights.push(P.x, P.y, bl[1] * P.s, bl[2], bl[3]); }
   }
+  pushReliefs(items, { view, gx, ctx, dpr, plane }, cam.x, cam.y);
   let np = 0;
   for (const pl of plants) {
     if (!pl.cr) continue;

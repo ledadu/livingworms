@@ -7,6 +7,7 @@
 
 import { clamp, lerp, lerpHue, noise1 } from '../engine';
 import type { HSL, Mood } from './palette';
+import { carve } from './relief';
 
 /** the chapters, in the order of the descent */
 export type ChapterId = 'nurserie' | 'recif' | 'foret' | 'grotte' | 'carcasse' | 'sources' | 'glacier' | 'jardin' | 'fosse' | 'remontee';
@@ -377,7 +378,7 @@ export function openFloor(x: number, z: number): number {
   const back = smooth(clamp((z - 250) / 700, 0, 1)) * (180 + 240 * noise1(x / 520 + z / 400, 77));
   const front = z < 0 ? -z * 0.12 : 0;
   const ripple = (noise1(x / 170 + z / 90, 78) - 0.5) * 30 * clamp(z / 400, 0, 1);
-  return baseDepth(x) + hills + mid + dunes + front - back + ripple;
+  return baseDepth(x) + hills + mid + dunes + front - back + ripple + carve(x, z);
 }
 
 /** how much higher than usual the swimmers and schools live above the floor at x (open water) */
