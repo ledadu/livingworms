@@ -9,10 +9,10 @@ import { BIOMES, X1, floorAt } from './biomes';
 
 const smooth = (t: number) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 
-/** where the cave runs along x: the Grotte chapter of the map, or (until the map has one) the end of the kelp forest */
+/** where the cave runs along x: the Grotte chapter of the map (or, were it gone, the end of the Forêt) */
 export function caveSpan(biomes = BIOMES): [number, number] {
   const i = biomes.findIndex((b) => b.id === 'grotte' || b.name === 'La Grotte');
-  if (i < 0) return [4300, 7500];
+  if (i < 0) return [7300, 10400];
   const end = i + 1 < biomes.length ? biomes[i + 1].x0 : X1;
   return [biomes[i].x0 + 250, end - 150];
 }

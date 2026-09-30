@@ -1,6 +1,7 @@
 // Le Grand Monde: a whole world for the 2.5D engine, to see it and to measure
-// it. Six biomes along x, from the sunny grass beds down a drop-off to the
-// black smokers; all the species of the catalogue live somewhere in it.
+// it. The ten chapters of the story along x (biomes.ts), from the sunny grass
+// beds down to the bottom of the Fosse; all the species of the catalogue live
+// somewhere in it.
 // Same drawing as the 2.5D prototype (our own small 3D, painter from far to
 // near, far things baked into small images washed by the water), on WebGL2
 // when there is one (engine3/gfx: the canvas pays a fixed price per path, the
@@ -19,11 +20,12 @@ import { hsl01 } from '../engine3/gfx';
 import { disc, paint3 } from '../engine3/paint-gl';
 import { causticsGL, fishAtlas, fishGL, glowsGL, hcol, raysGL, rings, rowGL, screenGfx, shadowGL, spriteGL, surfaceGL, waterGL } from './scene-gl';
 import { bakeCreature, bakeRock, causticTile, env, fishSprites, fogOf, glowSprite, makeCanvas, type Plant, type Sprite } from './sprites';
-import { BIOMES, X0, X1, biomeIndex, biomeMid, floorAt, metres, moodAt } from './biomes';
+import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, floorAt, liftAt, metres, moodAt } from './biomes';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
 import { compareSpecies, runBench } from './bench';
 import { caveCover, caveDark, caveKeeps, caveRepel, ceilAt } from './grotte';
 import { pushCave } from './grotte-draw';
+import { drawFront, frontColour, frontCount, frontPainter, makeFront } from './foreground';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -92,6 +94,7 @@ function rockFrom(x: number): number {
   return lo;
 }
 const plants: Plant[] = makePlants(vents).filter(caveKeeps);
+const front = makeFront();
 const causticCv = causticTile(256, 7, 5);
 const caustic = ctx.createPattern(causticCv, 'repeat')!;
 
@@ -142,7 +145,7 @@ function homeY(kind: Actor['kind'], x: number, z: number, R: () => number): numb
   const fy = floorAt(x, z);
   if (kind === 'floor') return fy - 12;
   if (kind === 'surface') return 12 + R() * 16;
-  return clamp(fy - 90 - R() * 560, 40, fy - 80);
+  return clamp(fy - liftAt(x) - 90 - R() * 560, 40, fy - 80);
 }
 
 // the animals of every biome: each species of its list at least once, then by weight
@@ -163,13 +166,10 @@ function homeY(kind: Actor['kind'], x: number, z: number, R: () => number): numb
   });
 }
 
-// big animals passing far away, one or two per biome
+// big animals passing far away, across their chapter
 interface Visitor { cr: Creature3; z: number; x0: number; x1: number; y: number; dir: number; buf: HTMLCanvasElement; }
-const visitors: Visitor[] = ([
-  ['tortue', 800, 3200, 260, 1500, 2.4], ['tortue', 4200, 7000, 300, 1300, 2.2], ['manta', 7600, 11000, 200, 1600, 2.6],
-  ['requinBaleine', 11600, 14500, 520, 1500, 3], ['manta', 12200, 14400, 900, 1100, 2.2],
-  ['calmar', 15000, 18000, 1500, 1300, 3.5], ['dragonAbyssal', 18600, 21600, 1950, 1400, 3]
-] as [string, number, number, number, number, number][]).map(([id, x0, x1, y, z, s]) => {
+const visitors: Visitor[] = BIOMES.flatMap((b, bi) => b.visitors.map(([id, y, z, s]) =>
+  [id, Math.max(X0 + 300, b.x0 + 300), (bi + 1 < BIOMES.length ? BIOMES[bi + 1].x0 : X1) - 300, y, z, s] as const)).map(([id, x0, x1, y, z, s]) => {
   const cr = new Creature3(SPECIES[id](), (x0 + x1) / 2, y, z, { dir: { x: 1, y: 0, z: 0 }, scale: s });
   for (let i = 0; i < 90; i++) cr.update(i * STEP, 0.5, 0, 0, 0.2);
   return { cr, z, x0, x1, y, dir: 1, buf: makeCanvas(8, 8) };
@@ -182,7 +182,7 @@ class Shoal {
   spr: HTMLCanvasElement[]; cx = 0; cy = 0; size: number;
   constructor(home: number, z: number, n: number, body: HSL, belly: HSL, size: number, glow: boolean, seed: number) {
     this.n = n; this.z = z; this.home = home; this.glow = glow; this.seed = seed; this.size = size;
-    const fy = floorAt(home, z);
+    const fy = floorAt(home, z) - liftAt(home);
     this.y0 = Math.max(40, fy - 420); this.y1 = fy - 90;
     this.x = new Float32Array(n); this.y = new Float32Array(n); this.vx = new Float32Array(n); this.vy = new Float32Array(n); this.ph = new Float32Array(n);
     for (let i = 0; i < n; i++) { this.x[i] = home + rand(-60, 60); this.y[i] = (this.y0 + this.y1) / 2 + rand(-40, 40); this.vx[i] = rand(-1, 1); this.ph[i] = rand(0, TAU); }
@@ -522,6 +522,7 @@ function render(): void {
   lodTally.fill(0);
   for (const it of items) if (!it.k || !skip.has(it.k)) it.fn();
   for (let k = 0; k < 4; k++) lodCount[k] = lodTally[k];
+  if (!skip.has('front')) drawFrontLayer(m);
 
   // the deep closes in around the swimmer: the dark is painted over everything, the lights come after
   const dk = Math.max(m.dark * clamp((cam.y - 250) / 900, 0, 1), caveDark(cam.x));
@@ -937,6 +938,18 @@ function drawRays(m: M): void {
   ctx.globalCompositeOperation = 'source-over';
 }
 
+/** the dark foreground between the eye and the swimmer (foreground.ts) */
+const frontPaint = frontPainter(gx, ctx, () => dpr);
+function drawFrontLayer(m: M): void {
+  const pr = player.cr.root;
+  view.project(pr.x[0], pr.y[0], 0, Q);
+  drawFront(front, {
+    project: (x, y, z) => view.project(x, y, z, P), xRange: (z, mg) => view.xRange(z, mg), floorAt,
+    W, H, px: Q.x, py: Q.y, clear: Math.max(110, Math.min(W, H) * 0.24), t, alpha: 0.92 * (1 - m.dark * 0.5),
+    colour: (x) => css(frontColour(waterAt(moodAt(x), floorAt(x, 0) * 0.6)))
+  }, frontPaint);
+}
+
 // ----- chapters and the depth gauge ----- //
 
 const here = { i: 0 };
@@ -1017,7 +1030,7 @@ function teleport(x: number, y: number): void {
 
 /** swim into the middle of a biome, at mid water */
 function gotoBiome(i: number): void {
-  const x = biomeMid(i), y = Math.max(120, floorAt(x, 0) - 260);
+  const { x, y } = arrival(i);
   teleport(x, y);
 }
 
@@ -1043,7 +1056,7 @@ function clearCrowd(): void {
 }
 
 export const api = {
-  settings, opts, detail, onlySp, player, stats, counts, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto,
+  settings, opts, detail, onlySp, player, stats, counts, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
   biomes: BIOMES, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,

@@ -6,7 +6,7 @@ const inside = (n: number) => Array.from({ length: n }, (_, i) => CAVE_A + ((CAV
 
 describe('la Grotte', () => {
   it('runs along the Grotte chapter when the map has one', () => {
-    const map = [{ ...BIOMES[0], x0: 0 }, { ...BIOMES[1], id: 'grotte', x0: 5000 }, { ...BIOMES[2], x0: 9000 }];
+    const map = [{ ...BIOMES[0], x0: 0 }, { ...BIOMES[1], id: 'grotte' as const, x0: 5000 }, { ...BIOMES[2], x0: 9000 }];
     expect(caveSpan(map)).toEqual([5250, 8850]);
     expect(CAVE_B - CAVE_A).toBeGreaterThan(2000);
   });
