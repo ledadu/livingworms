@@ -23,26 +23,31 @@ La Nurserie et la Carcasse n'ont pas d'obstacle : on y trouve quand même un par
 
 - Dans chaque biome, une ou deux espèces compatibles (la liste par chapitre est dans [chapitres.md](chapitres.md)).
 - Elles émettent une lueur quand tu es proche.
-- Aujourd'hui, les animaux de chaque biome viennent de sa `fauna` (`src/monde/biomes.ts`). Le partenaire compatible est à construire : un marqueur sur l'espèce et sa lueur.
+- **Dans le jeu** (`src/monde/partenaires.ts`) : `PARTNERS` donne les partenaires de chaque chapitre. Un animal d'une de ces espèces est un partenaire (`actor.partner`, l'index du chapitre) s'il vit dans le plan de nage, là où on peut le rejoindre : dans son chapitre, avant la retenue de son obstacle (`meetRange`). Chaque chapitre en a au moins deux de chaque espèce (`PER_PARTNER`), répartis sur sa longueur, en plus de sa faune.
+- **La lueur** : un halo doré (`GLOW_HUE`) autour du milieu du corps, qui naît à 650 px du nageur, est plein à 160 px, et respire lentement (`partnerGlow`). Un peu plus fort en eau claire, où une lumière ajoutée se voit moins. `monde.partners()` les liste ; `monde.skip.add('partner')` éteint leur lueur (captures avant / après).
+- **On ne se bloque jamais** : les partenaires d'un chapitre apportent, par leur corps, chacun des traits qui franchissent son obstacle (`uncovered`, testé contre les traits de chaque espèce). Le chant de la Fosse n'est pas un trait du corps : il viendra à l'étape 5.
 
 ### La parade
 
 - Un court moment de nage synchronisée : tu suis ou imites le partenaire (le suivre sans le perdre, passer dans son sillage, tourner avec lui).
 - Environ 20 secondes, **sans échec possible**, seulement plus ou moins réussie.
 - La qualité de la parade influence la portée : bien réussie, les enfants héritent davantage des traits voulus.
-- **Le début** : on reste un moment (1,2 s) à moins de 130 d'un partenaire du chapitre ; il nous remarque (quelques lueurs montent de lui), puis il vient dans notre plan et mène la danse. Rien ne commence pendant qu'un texte est à l'écran.
+- **Le début** : on reste un moment (1,2 s) à moins de 130 d'un partenaire (`actor.partner`, voir « Les espèces compatibles ») ; il nous remarque (quelques lueurs montent de lui), puis mène la danse. Rien ne commence pendant qu'un texte est à l'écran ou que la portée est ouverte.
 - **La danse** : le partenaire dessine un grand huit (240 × 95 de demi-axes) autour de l'endroit de la rencontre, en partant du côté opposé à nous, pour qu'on se retrouve derrière lui. Il avance à son aise (selon sa vitesse de nage), attend quand il prend du retard et ralentit quand on s'éloigne : on peut toujours le rattraper. Un marcheur (crabe, homard) fait l'aller-retour sur le fond.
 - **La qualité**, mesurée à chaque instant puis moyennée sur les 20 s : **le suivre** (près de lui : plein jusqu'à 120, nul au-delà de 360, 40 %), **son sillage** (passer là où il était il y a 0,3 à 1,5 s, 30 %), **tourner avec lui** (aller dans la même direction que lui, 30 %). Le suivre du doigt donne environ 0,95 ; rester à côté sans bouger, 0,3 à 0,4 ; s'en aller, presque 0.
 - **Ce qu'on voit** (pas de chiffres) : son sillage brille de sa couleur ; le nôtre s'allume de la même couleur quand on danse en rythme ; à la fin, un éclat de lumière d'autant plus grand que la parade était belle.
-- **Le résultat**, pour la portée : `monde.parade.last` (`partner` : l'id de l'espèce, `spec` : sa définition, `chapter`, `quality` de 0 à 1, `parts` : les trois mesures), et `monde.parade.onEnd(f)` appelé à la fin de chaque parade.
-- Dans le code : les règles dans `src/monde/parade.ts` (pures, testées), le jeu dans `src/monde/parade-jeu.ts`. Les partenaires viennent pour l'instant d'une table de `parade-jeu.ts` (celle de [chapitres.md](chapitres.md)) ; `initParade({ isPartner })` accepte le marqueur des espèces compatibles quand il existera. Pour les tests : `monde.parade.start(animal, monde.player.cr)`, `monde.parade.state`, `monde.parade.quiet = () => false`.
+- **Le résultat** : `monde.parade.last` (`partner` : l'id de l'espèce, `spec` : sa définition, `chapter`, `quality` de 0 à 1, `parts` : les trois mesures), et `monde.parade.onEnd(f)` appelé à la fin de chaque parade. Le jeu y ouvre la portée avec le partenaire et cette qualité, 1,6 s après la fin (le temps de l'éclat).
+- Dans le code : les règles dans `src/monde/parade.ts` (pures, testées), le jeu dans `src/monde/parade-jeu.ts`. Seuls les animaux marqués partenaires dansent. Pour les tests : `monde.parade.start(animal, monde.player.cr)`, `monde.parade.state`, `monde.parade.quiet = () => false`.
 
 ### La portée
 
 - 4 œufs éclosent, avec 4 enfants générés par la fusion du parent et du partenaire.
 - L'écran montre ce que chacun a hérité du parent et du partenaire.
 - Tu choisis 1 enfant parmi 4 : c'est lui que tu joues ensuite.
-- Appui dans le code : la fusion de deux espèces existe (`fuse`, `src/content/generate.ts`, modes et part de B) et sert à l'onglet « Inventer » de l'Atelier. Les portraits se font avec `snapshot3` (`src/engine3/snapshot3.ts`).
+- Dans le code : `brood` (`src/content/portee.ts`) fait les 4 enfants avec `fuse` en mode « mélange », une part du partenaire de 30, 37, 43 et 50 % (40 % en moyenne), et note d'où vient chaque membre et à qui ressemble le corps. Chaque enfant reçoit au moins un membre du côté qui ne lui a pas donné son corps.
+- Les **traits voulus** sont ceux qui franchissent l'obstacle du chapitre (`KEYS`, `src/monde/obstacles.ts`) ; sans obstacle, ceux du partenaire que le parent n'a pas. Les membres du partenaire qui les apportent (`limbTraits`, lu avec `traitsOf` de `src/content/traits.ts`) vont à 1 enfant après une parade ratée, 2 à mi-chemin, 3 après une parade parfaite (`carriers`) : jamais à aucun, jamais aux 4, pour qu'il reste un choix.
+- L'écran (`src/monde/portee-ecran.ts`) : quatre œufs qui tremblent puis fondent, chacun sur son portrait (`snapshot3`), son nom (le début du nom du parent, la fin de celui du partenaire) « de Première : Corps, Cil… / de Méduse lune : Filament… », puis ses traits, en or ceux qui franchissent l'obstacle du chapitre. On touche un enfant, puis « Continuer avec … » : il devient la créature jouée, et le parent rejoint la lignée de la sauvegarde (`partie.born`).
+- Pour l'ouvrir : `monde.openPortee(partenaire, qualité)` (un id du bestiaire ou une espèce, qualité de 0 à 1), ou, avec `?dev`, le bouton « Une portée avec un partenaire d'ici » du panneau ⚙ (un partenaire du chapitre, `PARTNERS`). La parade l'ouvre à sa fin, avec sa qualité.
 
 ### L'adieu
 
@@ -53,16 +58,18 @@ La Nurserie et la Carcasse n'ont pas d'obstacle : on y trouve quand même un par
 
 Chaque partie du corps apporte un trait utile, qui sert aussi de clé pour franchir les obstacles.
 
-| Trait | Vient de… | Permet | Dans le code (proposition) |
+| Trait | Vient de… | Permet | Dans le code (`traitsOf`, `src/content/traits.ts`) |
 | --- | --- | --- | --- |
-| Nageoires | poissons, raie | Remonter un courant fort | parties `nageoire`, `caudale`, `rayons`, `aile`, `collerette` (rôle `fin`) |
-| Lanterne / photophores | baudroie, cténophore | Voir dans le noir, attirer, ouvrir des passages sombres | parties `lanterne`, `photophore`, et toute lueur (`color.glow`) |
-| Pinces | crabe, homard | Écarter des algues denses, briser du corail mort | parties `pince`, `pinceHomard` (rôle `jaw`) |
-| Corps fin (ver) | vers, anguille | Passer dans les failles étroites | tronc long et mince (formes `worm`, `sansue`…), seuil à définir sur longueur et largeur |
-| Carapace / plaques | crustacés, nautile | Supporter la chaleur des sources, le froid, la pression | tronc en `plates` |
-| Pulsation (ombrelle) | méduses | Monter ou descendre verticalement, flotter dans les zones sans fond | tronc en mouvement `pulse`, ou nage `bell` |
-| Filaments | méduses, siphonophores | Se laisser porter par le courant, s'accrocher | parties `filament`, `tentacule`, `brasOral` |
-| Cils | cténophore, vers | Écarter la vase, trouver ce qui est enfoui | parties `cils`, `peigne` (rôle `cilia`) |
+| Nageoires | poissons, raie | Remonter un courant fort | une partie de rôle `fin` : `nageoire`, `caudale`, `rayons`, `aile`, `collerette`, mais aussi les pléopodes et l'éventail des crustacés |
+| Lanterne / photophores | baudroie, cténophore | Voir dans le noir, attirer, ouvrir des passages sombres | une partie de rôle `light` (`lanterne`, `photophore`), ou toute lueur (`color.glow`), tronc compris |
+| Pinces | crabe, homard | Écarter des algues denses, briser du corail mort | une partie de rôle `jaw` en `plates` (`pince`, `pinceHomard`, patte ravisseuse) ; pas la tête de la tortue |
+| Corps fin (ver) | vers, anguille | Passer dans les failles étroites | tronc dont la longueur fait au moins **15 fois** son plus grand rayon (anguille 19, axolotl 12) |
+| Carapace / plaques | crustacés, nautile | Supporter la chaleur des sources, le froid, la pression | au moins **40 %** de la surface de l'animal (chaque copie de chaque partie) en `plates` : le crabe l'a par ses pattes et ses pinces |
+| Pulsation (ombrelle) | méduses | Monter ou descendre verticalement, flotter dans les zones sans fond | nage `bell`, ou tronc en mouvement `pulse` d'ampleur au moins **0,15** (les méduses battent à 0,16 et plus, le manteau du calmar à 0,1) |
+| Filaments | méduses, siphonophores | Se laisser porter par le courant, s'accrocher | un long fil souple : partie de rôle `whip`, `sting` ou `deco` d'au moins **8 maillons** et de souplesse (`flex`) au moins **0,3** (`filament`, `tentacule`, `brasOral`, `bras`, `couronne`…) ; pas les piquants raides |
+| Cils | cténophore, vers | Écarter la vase, trouver ce qui est enfoui | une partie de rôle `cilia` (`cils`, `peigne`) |
+
+Les traits se lisent sur le rôle, le style et la forme des parties, jamais sur leur nom (les espèces les renomment). Une partie marquée `bud` (« ébauche ») n'apporte aucun trait : ce sont la queue, la lueur et les cils de la larve de départ, qui naît donc sans trait ; ses enfants gardent ces ébauches, et leurs traits leur viennent du partenaire. Les seuils sont dans `TRAIT_THRESHOLDS`. Dans le bestiaire, la larve, l'étoile de mer et l'oursin n'ont aucun trait ; la tortue n'a pas de carapace (son tronc n'est pas en plaques).
 
 - Un enfant hérite d'environ **60 % des traits de son parent** et d'environ **40 % du partenaire**. Des traits peuvent donc se perdre, et c'est un choix.
 - **Toujours une solution** : chaque obstacle a au moins deux traits capables de le franchir, et le biome propose les partenaires qu'il faut. On ne peut jamais se bloquer.
@@ -110,4 +117,4 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
 - Durée visée : environ 1 h 30 à 2 h, soit 9 à 12 minutes par chapitre sur 10 chapitres, avec une fin qu'on n'a pas envie de rater.
 - Sauvegarde automatique dans le stockage du navigateur (`lignee.partie`, `src/monde/partie.ts`) : le chapitre atteint, la créature jouée et la lignée (les parents, chacun avec le chapitre où il a donné naissance). La partie est sauvée à chaque naissance, à chaque nouveau chapitre et quand l'Atelier change la créature.
 - À l'ouverture de la page, on reprend au début du chapitre sauvé, avec sa créature ; une ancienne sauvegarde (`lignee.player`, la créature seule) est reprise à la Nurserie. Le panneau ⚙ a un bouton « Recommencer depuis la Nurserie » (deux touches), et `?nouvelle` fait de même pour les tests.
-- Les naissances n'existent pas encore : l'hérédité appellera `monde.partie.born(enfant)`, qui range le parent dans la lignée. Les portraits, s'ils sont gardés, iront plutôt dans IndexedDB ([décisions](decisions.md)).
+- À chaque naissance (le choix d'un enfant de la portée), `monde.partie.born(enfant)` range le parent dans la lignée. Les portraits, s'ils sont gardés, iront plutôt dans IndexedDB ([décisions](decisions.md)).

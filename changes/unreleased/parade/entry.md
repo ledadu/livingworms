@@ -6,5 +6,6 @@ audience: players
 images:
   - img/parade-recif.jpg
   - img/parade-fosse.jpg
+  - img/parade-portee.jpg
 ---
-Dans chaque chapitre, certains animaux attendent un compagnon. Reste un moment tout près de l'un d'eux : quelques lueurs montent de lui, puis il se met à nager en grandes boucles et t'invite à le suivre. Pendant une vingtaine de secondes, suis-le, glisse dans son sillage, tourne avec lui. Son sillage brille de sa couleur, et le tien s'allume de la même lumière quand vous nagez ensemble. Tu ne peux pas rater : il t'attend si tu te laisses distancer. À la fin, un éclat de lumière, d'autant plus beau que la danse l'était.
+Dans chaque chapitre, les animaux qui brillent doucement en or attendent un compagnon. Reste un moment tout près de l'un d'eux : quelques lueurs montent de lui, puis il se met à nager en grandes boucles et t'invite à le suivre. Pendant une vingtaine de secondes, suis-le, glisse dans son sillage, tourne avec lui. Son sillage brille de sa couleur, et le tien s'allume de la même lumière quand vous nagez ensemble. Tu ne peux pas rater : il t'attend si tu te laisses distancer. À la fin, un éclat de lumière, d'autant plus beau que la danse l'était, puis quatre œufs éclosent : plus la danse était belle, plus tes enfants ont de chances d'hériter de ce qui t'aidera à descendre.

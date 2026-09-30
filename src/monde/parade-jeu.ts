@@ -8,22 +8,12 @@ import type { Proj, View } from '../engine3/view';
 import { SPECIES } from '../content';
 import { START_HOLD, START_NEAR, approach, lead, newParade, partsOf, quality, stepParade, type Parade, type Parts, type Pt } from './parade';
 
-/** the partners of each chapter (docs/chapitres.md), until the species carry their own mark */
-export const PARTNERS: Record<string, string[]> = {
-  nurserie: ['copepode', 'larve'],
-  recif: ['poissonClown', 'poissonLion', 'hippocampe'],
-  foret: ['dragonFeuillu', 'seiche', 'homard'],
-  grotte: ['anguille', 'serpentCilie', 'ctenophore'],
-  carcasse: ['plumeau', 'crabe'],
-  sources: ['verDeFeu', 'crevetteMante', 'homard'],
-  glacier: ['clione', 'krill', 'chrysaora'],
-  jardin: ['meduse', 'ctenophore', 'siphonophore'],
-  fosse: ['baudroie', 'dragonAbyssal', 'nautile'],
-  remontee: []
-};
-
 /** an animal of the world, as the parade sees it */
-export interface Dancer { cr: Creature3; kind: string; z: number; hx: number; hy: number; }
+export interface Dancer {
+  cr: Creature3; kind: string; z: number; hx: number; hy: number;
+  /** a compatible species of this chapter index (partenaires.ts): only these dance */
+  partner?: number;
+}
 
 export interface ParadeResult {
   /** the partner's species id, and its definition (for the fusion) */
@@ -38,8 +28,6 @@ interface Deps {
   chapter(): string;
   /** a point the partner may be led to: in the water, before the obstacles; on the floor for a walker */
   keep(x: number, y: number, floor: boolean): Pt;
-  /** a partner of this chapter (the species id); by default the table above */
-  isPartner?(id: string, chapter: string): boolean;
   /** while this is true (words on the screen, a panel open), no partner notices us */
   quiet?(): boolean;
 }
@@ -56,7 +44,6 @@ const hueOf = (sp: Spec) => sp.palette?.hue ?? 45;
 const MOTE = 8, MAX_MOTES = 220;
 
 export function initParade(deps: Deps) {
-  const isPartner = deps.isPartner || ((id: string, ch: string) => !!PARTNERS[ch]?.includes(id));
   let cur: { a: Dancer; p: Parade; z0: number; id: string; chapter: string; hue: number } | null = null;
   let last: ParadeResult | null = null;
   let hold = 0, noticing: Dancer | null = null, rest = 0, after: Dancer | null = null, tick = 0;
@@ -142,15 +129,14 @@ export function initParade(deps: Deps) {
       if (after && Math.hypot(after.cr.root.x[0] - px, after.cr.root.y[0] - py) > 500) after = null;
       if (rest > 0 || tick % 6) return;
       if (game.quiet()) { hold = 0; noticing = null; return; }
-      // the nearest partner of the chapter notices us when we stay near it a moment
-      const ch = deps.chapter();
+      // the nearest partner notices us when we stay near it a moment
       let best: Dancer | null = null, bd = Infinity;
       for (const a of actors) {
-        if (a === after || a.kind === 'player' || a.kind === 'sib') continue;
+        if (a.partner === undefined || a === after) continue;
         const r = a.cr.root, dx = r.x[0] - px;
         if (dx > START_NEAR * 2 || dx < -START_NEAR * 2) continue;
         const d = Math.hypot(dx, r.y[0] - py, r.z[0] - pr.z[0]);
-        if (d < bd && isPartner(idOf(a.cr.spec), ch)) { bd = d; best = a; }
+        if (d < bd) { bd = d; best = a; }
       }
       if (best !== noticing) { hold = 0; noticing = best; }
       hold = approach(hold, bd, STEP * 6);

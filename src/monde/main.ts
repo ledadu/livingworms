@@ -22,7 +22,9 @@ import { disc, paint3 } from '../engine3/paint-gl';
 import { causticsGL, fishAtlas, fishGL, glowsGL, hcol, raysGL, rings, rowGL, screenGfx, shadowGL, spriteGL, surfaceGL, waterGL } from './scene-gl';
 import { bakeCreature, bakeRock, causticTile, env, fishSprites, fogOf, glowSprite, makeCanvas, type Plant, type Sprite } from './sprites';
 import { ChapterWatch, faunaX } from './transitions';
-import { holdBack, newLimits, pass, reach, travel, travelShown } from './limites';
+import { holdBack, newLimits, pass, travel, travelShown } from './limites';
+import { createKeys } from './obstacles-jeu';
+import { obstacleItems } from './obstacles-draw';
 import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, chapterIndex, floorAt, liftAt, metres, moodAt, openFloor } from './biomes';
 import { Jardin } from './jardin';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
@@ -39,6 +41,9 @@ import { CARCASSE, boneLight, carcasseDwellers, carcasseSchool } from './carcass
 import { initNouveautes } from './nouveautes';
 import { createNarrator } from './narration';
 import { initPartie } from './partie-jeu';
+import { GLOW_HUE, PARTNERS, marksPartner, partnerGlow, partnerSpawns } from './partenaires';
+import { createPortee } from './portee-ecran';
+import { KEYS } from './obstacles';
 import { initParade } from './parade-jeu';
 import './style.css';
 
@@ -122,6 +127,8 @@ interface Actor {
   spr: Sprite | null; bakedAt: number;
   /** added by a test */
   temp?: boolean;
+  /** a compatible species of this chapter index (partenaires.ts): it glows when the swimmer comes near */
+  partner?: number;
 }
 const actors: Actor[] = [];
 function addActor(sp: Spec, x: number, y: number, kind: Actor['kind'], scale = 1, z = 0): Actor {
@@ -140,13 +147,26 @@ function savedPlayer(): Spec | null {
 }
 const player = addActor(savedPlayer() || firstAncestor(), 420, 180, 'player', 0.8);
 
-function becomes(sp: Spec): void {
+/** the swimmer becomes this species: changed in the Atelier, or a child chosen in a brood (born) */
+function becomes(sp: Spec, born = false): void {
   const old = player.cr, r = old.root;
   const cr = new Creature3(sp, r.x[0], r.y[0], 0, { dir: { x: old.yaw > 1.57 ? -1 : 1, y: 0, z: 0 }, scale: 0.8 });
   cr.yaw = cr.yawGoal = old.yaw;
   for (let i = 0; i < 60; i++) cr.steer(i * STEP, old.vx, old.vy, 0, 0.2);
   player.cr = cr;
-  partie.becomes(sp);
+  if (born) partie.born(sp); else partie.becomes(sp);
+}
+// the brood (portee-ecran.ts): the chosen child is played from now on, its parent joins the lineage
+// (the first ancestor is not saved until then)
+const portee = createPortee((sp) => {
+  if (!partie.creature) partie.becomes(player.cr.spec);
+  becomes(sp, true);
+});
+/** four children with a partner (a species id of the bestiary, or a species), after a parade of this quality;
+ * the parade favours the limbs that bring the traits crossing the chapter's obstacle */
+function openPortee(partner: string | Spec, quality = 0.5): void {
+  const keys = KEYS[BIOMES[biomeIndex(player.cr.root.x[0])].id]?.filter((k) => k !== 'chant');
+  portee.open(player.cr.spec, typeof partner === 'string' ? SPECIES[partner]() : partner, { quality, keys });
 }
 let paused = false;
 const atBtn = document.getElementById('atBtn');
@@ -170,7 +190,13 @@ function homeY(kind: Actor['kind'], x: number, z: number, R: () => number): numb
 
 // the animals of every biome: each species of its list at least once, then by weight
 {
-  const R = rng(3);
+  const R = rng(3), met = new Map<string, number>();
+  /** the actors of a chapter's compatible species, in the plane where they can be met, are its partners */
+  const mark = (a: Actor, bi: number, id: string, x: number, z: number) => {
+    if (!marksPartner(bi, id, x, z)) return;
+    a.partner = bi;
+    met.set(bi + id, (met.get(bi + id) || 0) + 1);
+  };
   for (let i = 0; i < 5; i++) addActor(firstAncestor(), 420 + rand(-200, 200), rand(120, 260), 'sib', 0.45 + R() * 0.15, rand(-40, 60));
   BIOMES.forEach((b, bi) => {
     let total = 0;
@@ -180,10 +206,16 @@ function homeY(kind: Actor['kind'], x: number, z: number, R: () => number): numb
       if (!f) { let u = R() * total; f = b.fauna.find((g) => (u -= g[2]) <= 0) || b.fauna[0]; }
       const [id, kind, , scale] = f;
       const x = faunaX(bi, R), z = [0, 0, 0, 70, 150, 260, 400][Math.floor(R() * 7)];
-      addActor(SPECIES[id](), x, homeY(kind, x, z, R), kind, scale, z);
+      const a = addActor(SPECIES[id](), x, homeY(kind, x, z, R), kind, scale, z);
+      mark(a, bi, id, x, z);
     }
   });
-  for (const [id, kind, x, z, scale] of carcasseDwellers()) addActor(SPECIES[id](), x, homeY(kind, x, z, R), kind, scale, z);
+  for (const [id, kind, x, z, scale] of carcasseDwellers()) {
+    const a = addActor(SPECIES[id](), x, homeY(kind, x, z, R), kind, scale, z);
+    mark(a, biomeIndex(x), id, x, z);
+  }
+  // the partners of each chapter, always there in the swimming plane
+  for (const [bi, q, x] of partnerSpawns(R, (bi, id) => met.get(bi + id) || 0)) addActor(SPECIES[q.id](), x, homeY(q.kind, x, 0, R), q.kind, q.scale).partner = bi;
 }
 
 // big animals passing far away, across their chapter
@@ -288,7 +320,7 @@ const cam = { x: 420, y: 180 };
 
 function steer(a: Actor, dvx: number, dvy: number, accel: number): void {
   const r = a.cr.root;
-  if (a === player) dvx = holdBack(r.x[0], dvx, bounds);
+  if (a === player) { [dvx, dvy] = keys.steer(r.x[0], dvx, dvy); dvx = holdBack(r.x[0], dvx, bounds); }
   a.cr.steer(t, dvx, dvy, clamp((a.z - r.z[0]) * 0.035, -0.5, 0.5), accel);
 }
 
@@ -314,17 +346,21 @@ function collide(cr: Creature3): void {
 
 // the ends of the world and the obstacles not crossed yet (limites.ts)
 const limits = newLimits();
-let bounds = reach(limits);
+// the key obstacles: the traits of the swimmer's body open them (obstacles-jeu.ts)
+const keys = createKeys(limits, () => player.cr.spec);
+let bounds = keys.bounds();
 
 // the parade with a partner of the chapter (parade-jeu.ts): it leads, we follow
 const parade = initParade({
   chapter: () => BIOMES[biomeIndex(player.cr.root.x[0])].id,
-  quiet: () => paused || !!document.getElementById('chapter')?.classList.contains('show'),
+  quiet: () => paused || portee.isOpen || !!document.getElementById('chapter')?.classList.contains('show'),
   keep: (x, y, floor) => {
     x = clamp(x, bounds[0] + 40, bounds[1] - 40);
     return { x, y: floor ? floorAt(x, 0) - 12 : clamp(y, Math.max(40, ceilAt(x, 0) + 50), floorAt(x, 0) - 70) };
   }
 });
+// then the brood, with its quality, once the last light has bloomed
+parade.onEnd((r) => setTimeout(() => openPortee(r.spec, r.quality), 1600));
 
 const counts = { near: 0, live: 0, plants: 0, items: 0 };
 
@@ -346,7 +382,8 @@ function update(): void {
     steer(player, (kd.x / d) * 2.6, (kd.y / d) * 2.6, 0.08);
   } else steer(player, 0, 0, 0.03);
   pass(limits, r.x[0]);
-  bounds = reach(limits);
+  bounds = keys.bounds();
+  keys.update(r.x[0]);
   r.x[0] = clamp(r.x[0], bounds[0], bounds[1]);
   collide(p);
   const px = r.x[0], py = r.y[0];
@@ -460,6 +497,16 @@ const glowPts: number[] = [];
 const lights: number[] = [];
 const glacier: GlacierScene = { view, ctx, gx, dpr, t: 0, plane: 0 };
 
+/** a partner glows softly around the middle of its body when the swimmer comes near */
+function pushPartnerLight(a: Actor): void {
+  const r = a.cr.root, pr = player.cr.root, k = r.x.length >> 1;
+  const al = partnerGlow(Math.hypot(r.x[k] - pr.x[0], r.y[k] - pr.y[0]), t, a.cr.root.x.length + a.hx * 0.01);
+  if (al < 0.01) return;
+  view.project(r.x[k], r.y[k], r.z[k], P);
+  // clear bright water swallows an added light: it glows a little more there
+  lights.push(P.x, P.y, (80 * P.s + 16) * (0.85 + 0.15 * al), GLOW_HUE, 0.5 * al * (1 + env.water));
+}
+
 function render(): void {
   const m = moodAt(cam.x), pr = player.cr.root, plane = settings.dist;
   env.water = clamp((waterAt(m, cam.y).l - 28) / 30, 0, 1);
@@ -553,6 +600,7 @@ function render(): void {
     if (x < x0 || x > x1) continue;
     const rz = a.cr.root.z[0];
     items.push({ d: view.depth(a.cr.root.y[0], rz) - 0.2, fn: () => drawActor(a, plane), k: 'actor' });
+    if (a.partner !== undefined && !skip.has('partner')) pushPartnerLight(a);
     const fy = floorAt(x, rz), h = fy - a.cr.root.y[0];
     if (h < 260 && h > -8 && rz < 900 && m.dark < 0.6) items.push({ d: view.depth(fy, rz) + 0.3, fn: () => drawShadow(a, fy, h), k: 'shadow' });
   }
@@ -570,6 +618,7 @@ function render(): void {
   jardin.collect(cam.x, cam.y, t, (d, fn) => items.push({ d, fn, k: 'jellies' }), { dpr, W, H, plane });
   glacier.dpr = dpr; glacier.t = t; glacier.plane = plane;
   glacierItems(glacier, cam.x, (d, fn) => items.push({ d, fn, k: 'glacier' }));
+  obstacleItems(glacier, cam.x, cam.y, (d, fn) => items.push({ d, fn, k: 'obstacle' }));
   if (m.rays * open > 0.02 && cam.y < 1400) items.push({ d: view.depth(300, 700), fn: () => drawRays(open < 1 ? { ...m, rays: m.rays * open } : m), k: 'rays' });
   pushCave(items, { view, ctx, gx, dpr, W, H, t, lights, px: pr.x[0], py: pr.y[0] }, m, cam.x, plane);
   items.sort((a, b) => b.d - a.d);
@@ -581,7 +630,7 @@ function render(): void {
   if (!skip.has('front')) drawFrontLayer(m);
 
   // the deep closes in around the swimmer: the dark is painted over everything, the lights come after
-  const dk = Math.max(m.dark * clamp((cam.y - 250) / 900, 0, 1), caveDark(cam.x));
+  const dk = Math.max(m.dark * clamp((cam.y - 250) / 900, 0, 1), caveDark(cam.x), keys.dark(pr.x[0]));
   view.project(pr.x[0], pr.y[0], 0, P);
   // in the Fosse only the swimmer's own light opens the dark
   fosse.glow = glowOf(player.cr.list);
@@ -1034,6 +1083,7 @@ function drawFrontLayer(m: M): void {
 const chapters = new ChapterWatch();
 const chapterEl = document.getElementById('chapter')!, hudEl = document.getElementById('hud')!;
 const narrator = createNarrator(chapterEl, BIOMES);
+keys.onBarred = (c) => !narrator.quiet() && narrator.tell(chapterIndex(c), 'obstacle');
 /** entering a chapter: its opening, told once (narration.ts) */
 function showChapter(i: number): void { narrator.chapter(i); }
 
@@ -1091,7 +1141,7 @@ function frame(now: number): void {
 function teleport(x: number, y: number): void {
   const cr = player.cr;
   travel(limits, x);
-  bounds = reach(limits);
+  bounds = keys.bounds();
   cr.translate(x - cr.root.x[0], y - cr.root.y[0], 0);
   cr.vx = cr.vy = 0;
   cam.x = x; cam.y = y;
@@ -1129,13 +1179,14 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
   get size() { return [W, H, canvas.width, canvas.height]; },
   setFrameHook: (f: typeof onFrame) => { onFrame = f; },
-  unlockBalade: () => { unlockBalade(); applyAtelierAccess(atBtn); }
+  unlockBalade: () => { unlockBalade(); applyAtelierAccess(atBtn); },
+  partners: () => actors.filter((a) => a.partner !== undefined)
 };
 (window as unknown as { monde: typeof api }).monde = api;
 
@@ -1164,6 +1215,14 @@ BIOMES.forEach((b, i) => {
   btn.addEventListener('click', () => gotoBiome(i));
   trip.append(btn);
 });
+// a brood with a partner of the chapter (else an animal of it), for the tests (?dev), without a parade
+const porteeBtn = document.getElementById('porteeBtn')!;
+porteeBtn.hidden = !travelShown(location.search);
+porteeBtn.addEventListener('click', () => {
+  const b = BIOMES[biomeIndex(player.cr.root.x[0])], ids = PARTNERS[b.id].length ? PARTNERS[b.id].map((q) => q.id) : b.fauna.map((f) => f[0]);
+  panel.hidden = true;
+  openPortee(ids[Math.floor(Math.random() * ids.length)], 0.7);
+});
 const benchOut = document.getElementById('benchOut')!;
 document.getElementById('benchBtn')!.addEventListener('click', () => { panel.hidden = true; void runBench(api, benchOut); });
 for (const el of [panel, gear, benchOut, document.getElementById('atBtn')!]) for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'wheel']) el.addEventListener(ev, (e) => e.stopPropagation());
@@ -1171,7 +1230,7 @@ const hint = document.getElementById('hint')!;
 setTimeout(() => hint.classList.add('gone'), 6000);
 document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).closest('#panel, #atelier, #benchOut')) e.preventDefault(); }, { passive: false });
 const nouveautes = initNouveautes(() => !Atelier.isOpen && benchOut.hidden === true);
-narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen;
+narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen || portee.isOpen;
 
 // back where the game was left: the start of its chapter, the obstacles before it crossed (teleport)
 const resumeAt = chapterIndex(partie.chapter as (typeof BIOMES)[number]['id']);
