@@ -10,7 +10,7 @@
 #generique:focus { outline: none; }
 #generique button:focus-visible, #generique a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 /* nothing else over the credits: the words of the chapter, the depth, the buttons of the corners */
-body:has(#generique.show) :is(#chapter, #hud, #hint, #arBtn, #atBtn, #gear, #nvBtn) { opacity: 0; pointer-events: none; }
+body:has(#generique.show) :is(#chapter, #hud, #hint, #arBtn, #atBtn, #gear, #nvBtn, #chBtn, #chSay) { opacity: 0; pointer-events: none; }
 
 #generique .gq-roll {
   position: absolute; top: 0; left: 0; right: 0; padding: 0 20px; box-sizing: border-box;
@@ -40,6 +40,7 @@ body:has(#generique.show) :is(#chapter, #hud, #hint, #arBtn, #atBtn, #gear, #nvB
 #generique .gq-now small { opacity: 0.9; }
 #generique .gq-name { margin: 4px 0 2px; font-weight: 500; font-size: clamp(30px, 8vw, 40px); line-height: 1.1; overflow-wrap: anywhere; }
 #generique .gq-born { margin: 0; font-style: italic; font-size: 20px; opacity: 0.8; }
+#generique .gq-notes { margin: 2px 0 0; font-style: italic; font-size: 18px; color: var(--gold); opacity: 0.85; }
 
 /* between a parent and its child: the thread, and the partner on it */
 #generique .gq-join { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 16px 0; color: var(--mate); }

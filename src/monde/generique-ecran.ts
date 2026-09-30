@@ -8,6 +8,7 @@ import { spec as makeSpec, type Spec } from '../engine';
 import { snapshot3 } from '../engine3/snapshot3';
 import { SPECIES } from '../content/species';
 import { bornWords, generationLabel, generations, type Generation } from './arbre';
+import { wordsOf } from './chant';
 import type { Ancestor, Mate } from './partie';
 import { css, type HSL } from './palette';
 import { parseChapterTexts, textsOf } from './textes';
@@ -20,6 +21,8 @@ export interface GeneriqueDeps {
   chapters: readonly { id: string; name: string; top: HSL; deep: HSL }[];
   /** the creature played now: the last generation */
   live(): Spec;
+  /** the names of the notes of the song this generation learned (chant.ts) */
+  notes?(rank: number): string[];
   /** the credits cover the sea: the game waits */
   onOpen?(): void;
   onClose?(): void;
@@ -87,6 +90,8 @@ export function initGenerique(d: GeneriqueDeps): Generique {
   let run = 0;
 
   const chapter = (id: string) => d.chapters.find((c) => c.id === id) ?? d.chapters[0];
+  /** « a appris l’éclat », as in the tree, or '' */
+  const learned = (g: Generation) => { const n = d.notes?.(g.rank); return n?.length ? `a appris ${wordsOf(n)}` : ''; };
 
   const creatureOf = (g: Generation): Spec | null => {
     if (g.current) return live;
@@ -159,6 +164,8 @@ export function initGenerique(d: GeneriqueDeps): Generique {
       born.className = 'gq-born';
       born.textContent = bornWords(chapter(g.bornIn).name);
       gen.append(frame('gq-portrait', water, () => portraitOf(g)), label, name, born);
+      const notes = learned(g);
+      if (notes) gen.append(Object.assign(document.createElement('p'), { className: 'gq-notes', textContent: notes }));
       list.append(gen);
       if (i === gens.length - 1) return;
       const join = document.createElement('div');
@@ -243,7 +250,7 @@ export function initGenerique(d: GeneriqueDeps): Generique {
     await fontsReady();
     if (run !== at || !g.isOpen) return;
     const title = TITLE, foot = END_WORDS;
-    const { canvas } = drawSouvenir({ gens, chapters: d.chapters, portrait: portraitOf, mate: mateOf, title, foot });
+    const { canvas } = drawSouvenir({ gens, chapters: d.chapters, portrait: portraitOf, mate: mateOf, notes: learned, title, foot });
     image = canvas;
     const img = document.createElement('img');
     img.alt = 'L’arbre de la lignée, en image';

@@ -13,6 +13,8 @@ export interface SouvenirInput {
   /** the portrait of a generation, and the small one of a partner (null: none) */
   portrait(g: Generation): HTMLCanvasElement | null;
   mate(m: Mate): HTMLCanvasElement | null;
+  /** the notes of the song it learned, in words (« a appris l’éclat »), or '' */
+  notes?(g: Generation): string;
   title: string;
   /** the words at the bottom, one per line */
   foot: string[];
@@ -153,8 +155,9 @@ export function drawSouvenir(inp: SouvenirInput): { canvas: HTMLCanvasElement; l
   }
 
   gens.forEach((g, i) => {
-    const y = L.gens[i];
+    const y = L.gens[i], notes = inp.notes?.(g), ty = notes ? y - 18 : y;
     medallion(ctx, TX, y, PR, water(g), inp.portrait(g), g.current ? `rgba(${GOLD},0.95)` : `rgba(${GOLD},0.4)`, g.current ? 4 : 2, g.current ? 30 : 0);
+    // the words beside the portrait, a little higher when a line of notes follows them
     ctx.save();
     ctx.textAlign = 'left';
     ctx.fillStyle = INK;
@@ -163,14 +166,19 @@ export function drawSouvenir(inp: SouvenirInput): { canvas: HTMLCanvasElement; l
     ctx.globalAlpha = g.current ? 0.9 : 0.62;
     spaced(ctx, 4);
     ctx.font = `500 25px ${SERIF}`;
-    ctx.fillText(generationLabel(g.rank).toUpperCase(), TEXT_X, y - 44);
+    ctx.fillText(generationLabel(g.rank).toUpperCase(), TEXT_X, ty - 44);
     spaced(ctx, 0);
     ctx.globalAlpha = 1;
     fit(ctx, g.name, (px) => `500 ${px}px ${SERIF}`, 62, RIGHT - TEXT_X);
-    ctx.fillText(g.name, TEXT_X, y + 14);
+    ctx.fillText(g.name, TEXT_X, ty + 14);
     ctx.globalAlpha = 0.82;
     fit(ctx, bornWords(chapter(g.bornIn).name), (px) => `italic 400 ${px}px ${SERIF}`, 38, RIGHT - TEXT_X);
-    ctx.fillText(bornWords(chapter(g.bornIn).name), TEXT_X, y + 60);
+    ctx.fillText(bornWords(chapter(g.bornIn).name), TEXT_X, ty + 60);
+    if (notes) {
+      ctx.fillStyle = `rgb(${GOLD})`;
+      fit(ctx, notes, (px) => `italic 400 ${px}px ${SERIF}`, 32, RIGHT - TEXT_X);
+      ctx.fillText(notes, TEXT_X, ty + 100);
+    }
     ctx.restore();
 
     const my = L.mates[i], m = g.partner;

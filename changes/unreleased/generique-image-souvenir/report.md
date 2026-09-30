@@ -6,7 +6,7 @@
 
 - **Le générique** (`src/monde/generique-ecran.ts`, `generique.css`) : toute la lignée monte lentement à l'écran, comme un générique de film, sur la mer assombrie. Le jeu est en pause, comme pour l'arbre.
   - En tête, « La Lignée » et « Tous ceux que nous avons été ».
-  - Puis chaque génération, de la première larve à la dernière (cerclée d'or) : son portrait dans un médaillon teinté de l'eau de son chapitre de naissance, « Troisième génération », son nom et « née au Récif ».
+  - Puis chaque génération, de la première larve à la dernière (cerclée d'or) : son portrait dans un médaillon teinté de l'eau de son chapitre de naissance, « Troisième génération », son nom, « née au Récif » et, en or, les notes du chant qu'elle a apprises (« a appris l'éclat », comme dans l'arbre).
   - Entre deux générations, un bout de fil d'or et le partenaire (petit portrait, « avec Copépode », en bleu pâle). Les mots et les couleurs sont ceux de l'arbre (`arbre.ts`).
   - Il finit sur « La Lignée », seul au milieu de l'écran, puis l'image souvenir prend sa place en fondu.
   - Il défile à environ 52 px/s (plus vite pour une très longue lignée, deux minutes au plus), soit une quarantaine de secondes pour dix générations. Le défilement est une animation Web Animations sur `transform`, donc fluide même quand un portrait se dessine.
@@ -18,7 +18,7 @@
 
 - **L'image souvenir** (`src/monde/generique-image.ts`) : l'arbre dessiné dans un canvas de 1 080 px de large, comme une tranche de la mer descendue.
   - L'eau derrière chaque génération est celle de son chapitre (`bandColour`) : claire sous la surface, de plus en plus sombre jusqu'à la Fosse, avec des rayons et de la neige marine.
-  - Le fil d'or, les médaillons avec les portraits (`snapshot3`), les noms, les lieux de naissance et les partenaires, comme dans l'arbre.
+  - Le fil d'or, les médaillons avec les portraits (`snapshot3`), les noms, les lieux de naissance, les notes apprises et les partenaires, comme dans l'arbre.
   - En bas, le texte final de la Remontée, lu dans `docs/chapitres.md` comme les autres textes (`textes.ts`), puis « La Lignée ».
   - Elle est montrée dans un cadre qu'on fait défiler (une `<img>` : un appui long l'enregistre aussi, là où le navigateur le permet), avec « Garder l'image » et « Continuer ».
   - Le bouton télécharge un JPEG (qualité 0,9, environ 370 Ko pour dix générations, 90 Ko pour la larve seule). Le fichier porte le nom de la dernière génération : `la-lignee-aube.jpg`.
@@ -48,6 +48,23 @@
   - après la fin, `lignee.balade` vaut 1 et ✎ est revenu.
 - La doc de conception est à jour : `docs/mecaniques.md`, nouvelle section « Le générique et l'image souvenir », et une phrase dans `docs/chapitres.md`.
 
+## Fusion avec `backlog` (le chant et les lumières de la Fosse)
+
+`backlog` avait reçu le chant (`chant-note-chapitre`) et les lumières qui répondent dans la Fosse (`lumieres-qui-repondent`). La fusion avait trois conflits, tous dans `src/monde/main.ts` :
+
+- **`initArbre(…)`** : `backlog` y avait ajouté `notes: (rank) => notesOfGeneration(partie.saved, rank)` (l'arbre dit les notes apprises). J'ai gardé sa ligne telle quelle, suivie de mes deux lignes (`initGenerique(…)` et `arbre.more = …`).
+- **`api`** : les deux côtés ajoutaient des noms à la même ligne. J'ai combiné : `arbre, generique, traces, rivale, chant, lumieres`.
+- **`narrator.quiet`** : combiné, `… || arbre.isOpen || chant.isOpen || generique.isOpen`.
+
+Fusionnés sans conflit et relus : `arbre-ecran.ts` (le crochet `more` et la ligne des notes cohabitent), `docs/mecaniques.md`, `docs/chapitres.md` (le texte final de la Remontée, que l'image lit, n'a pas bougé), `partie.ts` (le champ `notes`).
+
+Ce que la fusion a changé dans mon chantier :
+
+- **Les notes apprises** : le générique et l'image disent aussi, en or, les notes de chaque génération. C'est la même phrase que l'arbre (`wordsOf`, `notesOfGeneration`), passée par `notes` à `initGenerique`. Dans l'image, les mots remontent un peu pour garder la ligne des notes à côté du médaillon.
+- **Le bouton du chant** (`#chBtn`) et sa phrase (`#chSay`) sont cachés pendant le générique, comme les autres boutons.
+
+![Les notes apprises dans le générique](img/generations.jpg)
+
 ## Choix retenus
 
 Une seule question envoyée au tableau de bord : un retour (pas de choix à trancher) sur le branchement avec la Remontée. Tous les choix ci-dessous sont `auto`.
@@ -66,6 +83,7 @@ Une seule question envoyée au tableau de bord : un retour (pas de choix à tran
 | Le texte en bas de l'image | Le texte final de la Remontée, lu dans `chapitres.md` | Il dit la même chose que l'image. Les textes restent dans le document. |
 | La fin de l'histoire | `unlockBalade()` à la fin du générique | La doc le demande « à la fin de l'histoire », et le générique en est le dernier moment. C'est sans effet si la Remontée le fait aussi. |
 | Revoir l'image | Un bouton sous l'arbre, après la fin | Sinon elle serait perdue en touchant « Continuer ». L'arbre est l'endroit où elle a un sens. |
+| Les notes du chant, arrivées avec la fusion | Dans le générique et l'image, en or, avec les mots de l'arbre | L'image est l'arbre à garder : il y manquerait ce que l'arbre montre. Le coût est une ligne par génération. |
 
 ## Options non retenues
 
@@ -102,6 +120,9 @@ Une seule question envoyée au tableau de bord : un retour (pas de choix à tran
   - Une date : un souvenir en a souvent, mais « pas de chiffres ».
 - **La fin de l'histoire**
   - Laisser `unlockBalade()` à la Remontée : c'est plus propre si elle le fait, mais rien ne le ferait si elle l'oublie.
+- **Les notes du chant**
+  - Ne pas les montrer : moins chargé, mais l'image dirait moins que l'arbre.
+  - Leur forme dessinée (éclat, vague…) plutôt que leur nom : plus beau, mais il faudrait redessiner les formes du cercle dans le canvas.
 - **Revoir l'image**
   - Nulle part : c'est plus simple, mais l'image serait perdue.
   - Dans le panneau ⚙ : ce panneau sert surtout aux tests.
@@ -119,13 +140,14 @@ Une seule question envoyée au tableau de bord : un retour (pas de choix à tran
 ## Risques de fusion
 
 - **`src/monde/main.ts`** : des branchements courts.
+  - `notes` passé à `initGenerique`, comme à `initArbre` ;
   - 1 import et `baladeUnlocked` ajouté à l'import d'`atelier-access` ;
   - 2 lignes après `initArbre(…)` : `initGenerique(…)` et `arbre.more = …` ;
   - `generique` dans `api` ;
   - `generique.isOpen` dans `narrator.quiet` ;
   - 4 lignes pour le bouton de test, après celui de la portée.
 
-  La Remontée, le chant et les lumières toucheront sans doute les mêmes lignes (`api`, `narrator.quiet`) : il faut garder les deux côtés. Point à ne pas oublier : à la fin de la Remontée, appeler `generique.play()`.
+  Le chant et les lumières touchaient déjà les mêmes lignes (`api`, `narrator.quiet`, `initArbre`) : c'est réglé dans la fusion ci-dessus. La Remontée les touchera sans doute aussi : il faut garder les deux côtés. Point à ne pas oublier : à la fin de la Remontée, appeler `generique.play()`.
 - **`src/monde/arbre-ecran.ts`** : un champ `more` dans l'interface `Arbre` et 2 lignes dans `build()`, en ajout seulement.
 - **`index.html`** : un bouton `#generiqueBtn` dans le panneau ⚙, après `#porteeBtn`.
 - **`docs/mecaniques.md`** : une sous-section « Le générique et l'image souvenir » à la fin de « L'arbre de la lignée », et une phrase de cette section qui change. **`docs/chapitres.md`** : une phrase après « Générique ».
