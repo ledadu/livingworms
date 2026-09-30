@@ -41,3 +41,8 @@ Aucune question posée à l'utilisateur (tout `auto`).
 - `src/monde/main.ts` : 5 branchements courts (import, placement de la faune, entrée dans un biome, `gotoBiome`, titre du début) ; la variable `here` disparaît au profit de `chapters`.
 - `src/monde/biomes.ts` : `BLEND` exporté (un mot).
 - `docs/chapitres.md` : une section ajoutée avant « Les textes ».
+
+## Fusion avec `backlog` (après `textes-narratifs` et `monde-fini-debut`)
+
+- Seul conflit : les imports de `src/monde/main.ts` (`transitions` et `limites`), gardés tous les deux.
+- `showChapter` passe maintenant par le narrateur (`narration.ts`) : `ChapterWatch` décide **quand** un chapitre commence (lumière gagnée à 85 %), le narrateur **ce qu'on dit** (ouverture racontée une fois). Les deux se complètent sans changement.
