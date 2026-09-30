@@ -10,12 +10,17 @@
 // « mark … launched » claims the task: it fails when the task is no longer queued, for instance launched meanwhile with
 // the « ▶ Lancer » button of the dashboard (launch.mjs), which then runs it itself. Such a task never leaves `wait`.
 //
+// Each entry comes with the agent's effort and model as they are now (settings.mjs: its own, else the project's
+// defaults, null for Claude Code's) and the agent type to launch it with: chantier-<effort> (claude-agents/), or
+// general-purpose without an effort. The model goes to the model parameter of the Agent tool.
+//
 // AGENTS_REGISTRY points at another registry (tests).
 import { execFileSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { claimQueue } from './launch.mjs';
 import { markQueue, readQueue } from './roadmap.mjs';
+import { agentType, effectiveSettings } from './settings.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -25,7 +30,12 @@ function registry() {
   return join(resolve(here, common), 'agents');
 }
 
-const queueDir = join(registry(), 'queue');
+const registryDir = registry();
+const queueDir = join(registryDir, 'queue');
+const withSettings = (entry) => {
+  const settings = effectiveSettings(registryDir, entry.name);
+  return { ...entry, ...settings, agentType: agentType(settings.effort) };
+};
 const [command = 'list', ...args] = process.argv.slice(2);
 const option = (name) => {
   const index = args.indexOf(name);
@@ -36,7 +46,7 @@ if (command === 'wait') {
   const timeout = Number(option('--timeout') ?? 0) * 1000;
   const started = Date.now();
   for (;;) {
-    const queued = readQueue(queueDir).filter((entry) => entry.status === 'queued');
+    const queued = readQueue(queueDir).filter((entry) => entry.status === 'queued').map(withSettings);
     if (queued.length) {
       console.log(JSON.stringify(queued, null, 2));
       process.exit(0);
@@ -48,10 +58,11 @@ if (command === 'wait') {
     await new Promise((done) => setTimeout(done, 1000));
   }
 } else if (command === 'list') {
-  const entries = readQueue(queueDir);
+  const entries = readQueue(queueDir).map(withSettings);
+  const settings = (entry) => [entry.effort ?? '-', entry.model ?? '-'].join('/');
   if (args.includes('--json')) console.log(JSON.stringify(entries, null, 2));
   else if (!entries.length) console.log('queue: empty');
-  else for (const entry of entries) console.log(`${entry.status.padEnd(9)} ${entry.name.padEnd(24)} ${entry.base.padEnd(10)} ${entry.createdAt}  ${entry.title}`);
+  else for (const entry of entries) console.log(`${entry.status.padEnd(9)} ${entry.name.padEnd(24)} ${entry.base.padEnd(10)} ${settings(entry).padEnd(14)} ${entry.createdAt}  ${entry.title}`);
 } else if (command === 'mark') {
   const [name, status] = args;
   try {

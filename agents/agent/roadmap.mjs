@@ -7,6 +7,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { briefPath, project } from '../config.mjs';
+import { checkSettings, writeSettings } from './settings.mjs';
 
 // ---------------------------------------------------------------------------------------------------------------
 // Words
@@ -493,14 +494,22 @@ export function removeQueueEntry(dir, name) {
 }
 
 /**
- * Queues tasks, one after the other: checks the name, creates the worktree (`createWorktree(name, base)`, which
- * rejects on failure: agent.sh new), then writes the entry. Returns one result per task; a failure stops nothing else.
+ * Queues tasks, one after the other: checks the name and the settings, creates the worktree (`createWorktree(name,
+ * base)`, which rejects on failure: agent.sh new), records the effort and model in the agent's registry file
+ * (settings.mjs), then writes the entry. Returns one result per task; a failure stops nothing else.
  */
 export async function enqueue(tasks, { queueDir, registry, createWorktree, now = () => new Date().toISOString() }) {
   const results = [];
   const names = new Set();
   for (const task of tasks) {
     const { name, base = project.branches.integration, title, prompt } = task;
+    let settings;
+    try {
+      settings = checkSettings({ effort: task.effort, model: task.model });
+    } catch (error) {
+      results.push({ name, ok: false, error: error.message });
+      continue;
+    }
     const fail = (error) => results.push({ name, ok: false, error });
     if (!NAME_PATTERN.test(name ?? '')) {
       fail(`nom invalide « ${name} » : minuscules, chiffres et tirets`);
@@ -521,7 +530,9 @@ export async function enqueue(tasks, { queueDir, registry, createWorktree, now =
       fail(`worktree non créé : ${String(error?.message ?? error).trim().split('\n').slice(-3).join(' ')}`);
       continue;
     }
-    const entry = writeQueueEntry(queueDir, { name, title, prompt, base, id: task.id ?? null, createdAt: now(), status: 'queued' });
+    if (existsSync(join(registry, `${name}.env`))) writeSettings(registry, name, settings);
+    const own = Object.fromEntries(Object.entries(settings).filter(([, value]) => value));
+    const entry = writeQueueEntry(queueDir, { name, title, prompt, base, id: task.id ?? null, ...own, createdAt: now(), status: 'queued' });
     results.push({ name, ok: true, entry });
   }
   return results;

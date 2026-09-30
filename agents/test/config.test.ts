@@ -46,6 +46,7 @@ describe('the settings of the project', () => {
     expect(page).toContain('<script>window.PROJECT = {');
     expect(renderText("confirm(`Publier la __RELEASE__ ?`)")).toBe('confirm(`Publier la génération ?`)');
     expect(clientSettings()).toMatchObject({ name: 'Jeu de test', release: { Word: 'Génération' } });
+    expect(clientSettings()).toMatchObject({ efforts: ['low', 'medium', 'high', 'xhigh', 'max'], defaults: { effort: null, model: null }, models: ['opus', 'sonnet', 'fable', 'haiku'] });
   });
 
   it('hands agent.sh its variables, quoted for the shell', () => {

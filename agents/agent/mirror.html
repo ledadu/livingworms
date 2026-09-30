@@ -1,0 +1,245 @@
+<title>Miroir des agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  /* One column read on a phone: the summary, then the agents, the questions, the queue and backlog, the releases.
+     The colours of the agents' dashboard: blue at work, green done, amber waiting for someone, red in trouble. */
+  :root {
+    --bg: #f5f6f8; --panel: #ffffff; --panel2: #eef1f5; --line: #dce1e8; --fg: #1a2029; --muted: #5b6676;
+    --accent: #2f62d6; --ok: #1d8553; --warn: #9a6400; --err: #c43b3b; --queued: #6a4fc4;
+    --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1216; --panel: #161b22; --panel2: #1c232c; --line: #2a323d; --fg: #e6e9ee; --muted: #8e98a8;
+      --accent: #7aa7ff; --ok: #4cc38a; --warn: #e5b454; --err: #ef6b6b; --queued: #b8a3ff; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1216; --panel: #161b22; --panel2: #1c232c; --line: #2a323d; --fg: #e6e9ee; --muted: #8e98a8;
+    --accent: #7aa7ff; --ok: #4cc38a; --warn: #e5b454; --err: #ef6b6b; --queued: #b8a3ff; color-scheme: dark;
+  }
+  body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--sans); }
+  .wrap { max-width: 860px; margin: 0 auto; padding-inline: 16px; padding-block: 0 48px; }
+  header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2; background: var(--bg); padding-block: 14px 10px; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 20px; margin: 0; font-weight: 700; text-wrap: balance; }
+  h1 .project { color: var(--accent); }
+  .taken { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; color: var(--muted); font-size: 13px; margin-top: 2px; }
+  nav { display: flex; gap: 6px; overflow-x: auto; margin-top: 10px; scrollbar-width: none; }
+  nav a { flex: none; color: var(--fg); text-decoration: none; font-size: 13px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); }
+  nav a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  nav a b { color: var(--accent); font-weight: 600; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 28px 0 10px; font-weight: 600; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 1px 9px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+  .pill::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .s-working { color: var(--accent); } .s-done { color: var(--ok); } .s-calm { color: var(--warn); } .s-error, .s-lost { color: var(--err); }
+  .s-stopped, .s-archived { color: var(--muted); } .s-queued { color: var(--queued); } .s-stale { color: var(--warn); } .s-fresh { color: var(--ok); }
+  .chip { font: 12px var(--mono); color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; background: var(--panel2); white-space: nowrap; }
+  .figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 14px; }
+  .fig { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; min-width: 0; }
+  .fig b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .fig span { color: var(--muted); font-size: 12px; }
+  .fig.alert b { color: var(--warn); }
+  .cards { display: grid; gap: 10px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 8px; min-width: 0; }
+  .card.working { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+  .card.error, .card.lost { border-color: color-mix(in srgb, var(--err) 55%, var(--line)); }
+  .row { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; min-width: 0; }
+  .name { font: 600 15px var(--mono); overflow-wrap: anywhere; }
+  .spacer { flex: 1; }
+  .goal { font-weight: 600; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .now { background: var(--panel2); border-radius: 8px; padding: 8px 10px; overflow-wrap: anywhere; }
+  .now small { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  ol.steps { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+  ol.steps li { display: grid; grid-template-columns: 22px 1fr; gap: 4px; font-size: 13px; overflow-wrap: anywhere; }
+  ol.steps .k-error { color: var(--err); }
+  .checks { display: flex; flex-wrap: wrap; gap: 6px; }
+  .check { font-size: 12px; color: var(--muted); }
+  .check.on { color: var(--ok); }
+  .options { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+  .options .rec { font-weight: 600; }
+  .options .rec::after { content: ' ★ recommandée'; color: var(--warn); font-weight: 500; font-size: 12px; }
+  ul.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  ul.plain li { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; overflow-wrap: anywhere; }
+  .bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--panel2); margin: 4px 0 8px; }
+  .bar span { display: block; height: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+  .empty { background: var(--panel); border: 1px dashed var(--line); border-radius: 12px; padding: 18px; color: var(--muted); }
+  .empty b { color: var(--fg); }
+  .hint { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
+  @media (prefers-reduced-motion: no-preference) { .pill.s-working::before { animation: pulse 1.6s ease-in-out infinite; } }
+  @keyframes pulse { 50% { opacity: .35; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Agents <span class="project" id="project"></span></h1>
+    <div class="taken" id="taken">Chargement…</div>
+    <nav id="nav" hidden>
+      <a href="#agents">Agents <b id="n-agents"></b></a>
+      <a href="#questions">Questions <b id="n-questions"></b></a>
+      <a href="#file">File et backlog <b id="n-file"></b></a>
+      <a href="#versions">Versions <b id="n-versions"></b></a>
+    </nav>
+  </header>
+  <main id="main">
+    <div class="empty" style="margin-top:18px"><b>Aucun instantané pour l'instant.</b><br>Cette page montre le tableau de bord des agents tel qu'il était au dernier envoi : les agents et leur tâche du moment, les questions en attente, la file, le backlog et les versions. Écris « miroir » dans la conversation Claude Code pour l'envoyer ici.</div>
+  </main>
+</div>
+
+<script>
+// The snapshot lives in the page's database (document mirror/state), written by Claude from the machine
+// (agent/mirror.mjs, then ArtifactData set); the page only reads it, live.
+const $ = (id) => document.getElementById(id);
+const esc = (text) => String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const STATUS = { working: 'au travail', calm: 'calme', done: 'terminé', error: 'en erreur', lost: 'processus disparu', stopped: 'arrêté', archived: 'archivé' };
+const QUEUE = { queued: 'en file', launched: 'lancée', done: 'terminée', cancelled: 'annulée' };
+const KIND = { say: '💬', tool: '🔧', in: '↘', error: '⚠' };
+const TYPE = { choice: 'Choix', validation: 'Validation', feedback: 'Retour' };
+let snap = null;
+
+function ago(ms) {
+  if (!ms) return '';
+  const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+  if (s < 60) return `il y a ${s} s`;
+  if (s < 3600) return `il y a ${Math.round(s / 60)} min`;
+  if (s < 48 * 3600) return `il y a ${Math.round(s / 3600)} h`;
+  return `il y a ${Math.round(s / 86400)} j`;
+}
+const time = (value) => (value ? new Date(value).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
+
+function header() {
+  if (!snap) return;
+  $('project').textContent = snap.project ?? '';
+  const taken = Date.parse(snap.takenAt);
+  const stale = Date.now() - taken > 60 * 60 * 1000;
+  $('taken').innerHTML = `<span>Instantané du ${esc(time(taken))}</span><span class="pill ${stale ? 's-stale' : 's-fresh'}">${esc(ago(taken))}</span>${stale ? '<span>Pour du frais : « miroir » dans la conversation.</span>' : ''}`;
+}
+
+function figures() {
+  const s = snap.summary ?? {};
+  const figs = [
+    { value: `${s.working ?? 0}/${s.agents ?? 0}`, text: 'agents au travail' },
+    { value: s.questions ?? 0, text: 'questions en attente', alert: s.questions > 0 },
+    { value: s.unread ?? 0, text: 'retours à lire', alert: s.unread > 0 },
+    { value: s.queued ?? 0, text: 'tâches en file' },
+    { value: s.pending ?? 0, text: `entrées sans ${snap.word ?? 'version'}` },
+    ...(s.figures ?? []).map((figure) => ({ value: figure.value, text: `${figure.icon ?? ''} ${figure.text}` })),
+  ];
+  const integration = s.integration ? `<p class="hint">Intégration : <span class="chip">${esc(s.integration.sha)}</span> ${esc(s.integration.subject)} · ${esc(ago(s.integration.time))}${s.integration.ahead ? ` · ${plural(s.integration.ahead, 'commit')} d'avance` : ''}</p>` : '';
+  return `<div class="figures">${figs.map((f) => `<div class="fig${f.alert ? ' alert' : ''}"><b>${esc(f.value)}</b><span>${esc(f.text)}</span></div>`).join('')}</div>${integration}`;
+}
+
+function agentCard(agent) {
+  const settings = [agent.effort ? `effort ${agent.effort}` : '', agent.model ?? ''].filter(Boolean);
+  const d = agent.deliverables;
+  const checks = d ? [
+    [agent.commits > 0, plural(agent.commits, 'commit')],
+    [d.report, 'rapport'],
+    [d.entry, 'entrée'],
+    [d.captures > 0, plural(d.captures, 'capture')],
+    ...(d.behind === null ? [] : [[d.behind === 0, d.behind === 0 ? `à jour avec ${d.base ?? 'sa base'}` : `${plural(d.behind, 'commit')} de ${d.base ?? 'sa base'} à fusionner`]]),
+  ] : [];
+  return `<article class="card ${esc(agent.status)}">
+    <div class="row"><span class="name">${esc(agent.name)}</span><span class="spacer"></span><span class="pill s-${esc(agent.status)}">${esc(STATUS[agent.status] ?? agent.status)}${agent.run?.code ? ` (code ${esc(agent.run.code)})` : ''}</span></div>
+    <div class="row">${agent.branch ? `<span class="chip">${esc(agent.branch)}</span>` : ''}${settings.map((one) => `<span class="chip">${esc(one)}</span>`).join('')}${agent.activity ? `<span class="muted">actif ${esc(ago(agent.activity))}</span>` : ''}</div>
+    ${agent.goal ? `<div class="goal">${esc(agent.goal)}${agent.where ? `<div class="muted">${esc(agent.where)}</div>` : ''}</div>` : ''}
+    ${agent.task ? `<div class="now"><small>Maintenant</small>${esc(agent.task)}</div>` : ''}
+    ${checks.length ? `<div class="checks">${checks.map(([on, label]) => `<span class="check${on ? ' on' : ''}">${on ? '✓' : '○'} ${esc(label)}</span>`).join('')}</div>` : ''}
+    ${agent.lastCommit ? `<div class="muted">Dernier commit : ${esc(agent.lastCommit)}${agent.diffstat ? ` · ${esc(agent.diffstat)}` : ''}</div>` : ''}
+    ${agent.dirty ? `<div class="muted">${plural(agent.dirty, 'fichier')} en cours</div>` : ''}
+    ${agent.events?.length ? `<details><summary>Dernières étapes</summary><ol class="steps">${agent.events.map((event) => `<li class="k-${esc(event.kind)}"><span>${KIND[event.kind] ?? '·'}</span><span>${esc(event.text)}</span></li>`).join('')}</ol></details>` : ''}
+  </article>`;
+}
+
+function agents() {
+  const list = snap.agents ?? [];
+  if (!list.length) return '<div class="empty">Aucun agent dans le registre.</div>';
+  return `<div class="cards">${list.map(agentCard).join('')}</div>`;
+}
+
+function questions() {
+  const q = snap.questions ?? {};
+  const mode = q.autonomous === null || q.autonomous === undefined ? '' : `<p class="hint">« Décider seul » : ${q.autonomous ? 'activé, les agents prennent l\'option recommandée' : 'désactivé, les agents attendent ta réponse'}.</p>`;
+  const waiting = q.waiting ?? [];
+  if (!waiting.length) return `<div class="empty">Aucune question en attente.</div>${mode}`;
+  return `<div class="cards">${waiting.map((one) => `<article class="card">
+    <div class="row"><span class="pill ${one.type === 'feedback' ? 's-calm' : 's-queued'}">${esc(TYPE[one.type] ?? one.type)}${one.severity ? ` · ${esc(one.severity)}` : ''}</span><span class="name">${esc(one.agent)}</span><span class="spacer"></span><span class="muted">${esc(ago(Date.parse(one.createdAt)))}</span></div>
+    <div class="goal">${esc(one.title)}</div>
+    ${one.context ? `<div>${esc(one.context)}</div>` : ''}
+    ${one.options?.length ? `<ol class="options">${one.options.map((option) => `<li class="${option.recommended ? 'rec' : ''}">${esc(option.label)}${option.why ? `<div class="muted">${esc(option.why)}</div>` : ''}</li>`).join('')}</ol>` : ''}
+    ${one.impact ? `<div class="muted">Impact : ${esc(one.impact)}</div>` : ''}
+  </article>`).join('')}</div>${mode}<p class="hint">Pour répondre, écris ta réponse dans la conversation Claude Code : je la transmets à l'agent.</p>`;
+}
+
+function queueAndBacklog() {
+  const queue = snap.queue ?? [];
+  const b = snap.backlog ?? { counts: {} };
+  const c = b.counts ?? {};
+  const total = ['todo', 'active', 'merged', 'done', 'paused'].reduce((sum, key) => sum + (c[key] ?? 0), 0) || 1;
+  const parts = [['done', 'livrés', 'var(--ok)'], ['merged', 'fusionnés', 'var(--warn)'], ['active', 'en cours', 'var(--accent)'], ['paused', 'en pause', 'var(--muted)'], ['todo', 'à faire', 'var(--line)']];
+  const queueHtml = queue.length
+    ? `<ul class="plain">${queue.map((entry) => `<li><div class="row"><span class="name">${esc(entry.name)}</span><span class="pill s-${entry.run === 'running' ? 'working' : entry.status === 'queued' ? 'queued' : entry.run === 'error' ? 'error' : 'done'}">${esc(entry.run === 'running' ? 'au travail' : QUEUE[entry.status] ?? entry.status)}</span>${entry.effort ? `<span class="chip">effort ${esc(entry.effort)}</span>` : ''}${entry.model ? `<span class="chip">${esc(entry.model)}</span>` : ''}</div><div class="muted">${esc(entry.title)}</div></li>`).join('')}</ul>`
+    : '<div class="empty">File vide.</div>';
+  const sections = new Map();
+  for (const item of b.todo ?? []) sections.set(item.section, [...(sections.get(item.section) ?? []), item.title]);
+  return `${queueHtml}
+    <h2>Backlog</h2>
+    <div class="bar" role="img" aria-label="Chantiers du backlog par état">${parts.map(([key, , color]) => (c[key] ? `<span style="width:${(c[key] / total) * 100}%;background:${color}"></span>` : '')).join('')}</div>
+    <div class="legend">${parts.map(([key, label, color]) => `<span><i style="background:${color}"></i>${c[key] ?? 0} ${label}</span>`).join('')}</div>
+    ${b.active?.length ? `<ul class="plain" style="margin-top:10px">${b.active.map((item) => `<li>${esc(item.title)}<div class="muted">${esc(item.label)}${item.agent ? ` · ${esc(item.agent)}` : ''}</div></li>`).join('')}</ul>` : ''}
+    ${sections.size ? `<details style="margin-top:10px"><summary>${plural(c.todo ?? 0, 'chantier')} à faire</summary>${[...sections].map(([section, titles]) => `<p class="muted" style="margin:10px 0 4px">${esc(section)}</p><ul class="plain">${titles.map((title) => `<li>${esc(title)}</li>`).join('')}</ul>`).join('')}</details>` : ''}`;
+}
+
+function versions() {
+  const v = snap.versions ?? {};
+  const word = snap.word ?? 'version';
+  const pending = v.pending?.length ? `<ul class="plain">${v.pending.map((entry) => `<li>${esc(entry.title)} <span class="chip">${esc(entry.type ?? '')}</span></li>`).join('')}</ul>` : `<div class="empty">Toutes les entrées ont leur ${esc(word)}.</div>`;
+  const planned = (v.planned ?? []).map((one) => `<li><b>${esc(one.name ?? one.version)}</b>${one.title ? ` · ${esc(one.title)}` : ''}<div class="muted">${esc(plural(one.entries.length, 'entrée'))} : ${esc(one.entries.join(', '))}</div></li>`).join('');
+  const released = (v.released ?? []).map((one) => `<li><b>${esc(one.name ?? one.version)}</b>${one.title ? ` · ${esc(one.title)}` : ''}<div class="muted">${esc(one.date ?? '')} · ${esc(plural(one.entries, 'entrée'))}</div></li>`).join('');
+  return `<p class="hint" style="margin-top:0">Version actuelle <span class="chip">v${esc(v.current ?? '?')}</span>${v.proposal ? ` · prochaine proposée <span class="chip">v${esc(v.proposal)}</span>` : ''}</p>
+    <h2>À publier</h2>${pending}
+    <h2>En préparation</h2>${planned ? `<ul class="plain">${planned}</ul>` : `<div class="empty">Aucune ${esc(word)} en préparation.</div>`}
+    <h2>Publiées</h2>${released ? `<ul class="plain">${released}</ul>` : '<div class="empty">Rien de publié.</div>'}`;
+}
+
+function render() {
+  if (!snap) return;
+  header();
+  const s = snap.summary ?? {};
+  $('nav').hidden = false;
+  $('n-agents').textContent = s.agents ?? '';
+  $('n-questions').textContent = (s.questions ?? 0) + (s.unread ?? 0) || '';
+  $('n-file').textContent = (snap.queue ?? []).length || '';
+  $('n-versions').textContent = s.pending || '';
+  $('main').innerHTML = `${figures()}
+    <h2 id="agents">Agents</h2>${agents()}
+    <h2 id="questions">Questions et retours</h2>${questions()}
+    <h2 id="file">File</h2>${queueAndBacklog()}
+    <h2 id="versions">Versions</h2>${versions()}`;
+}
+
+setInterval(header, 30_000);
+
+(async () => {
+  const db = window.claude?.use ? await window.claude.use('db') : null;
+  if (!db) {
+    $('taken').textContent = 'La base de la page ne répond pas ici : ouvre-la sur claude.ai.';
+    return;
+  }
+  db.doc('mirror/state').onSnapshot(
+    (doc) => {
+      snap = doc.exists ? doc.data() : null;
+      if (snap) render();
+      else $('taken').textContent = 'Pas encore d\'instantané.';
+    },
+    (error) => ($('taken').textContent = `Lecture impossible (${error.code}).`),
+  );
+})();
+</script>

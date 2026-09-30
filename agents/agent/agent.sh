@@ -29,7 +29,8 @@ Inside a worktree created here, [name] may be left out: it is read from its .env
 
   new <name> [base]     worktree $WORKTREES/<name> on the branch ${BRANCH_PREFIX}<name> (from [base], default HEAD),
                         node_modules hard-linked, dev data copied (seed of agents.config.mjs), ports reserved
-                        (AGENT_KIND=release AGENT_REF=<ref>: a version's test server, kept out of the agents page)
+                        (AGENT_EFFORT=low|medium|high|xhigh|max, AGENT_MODEL=<model>: its claude settings;
+                        AGENT_KIND=release AGENT_REF=<ref>: a version's test server, kept out of the agents page)
   list                  every agent: branch, ports, running or not, commits since its base, uncommitted files
   env [name]            the agent's variables (eval "\$(agent/agent.sh env <name>)")
   up [name]             starts its server and client in the background (logs in .agent/), waits until they answer
@@ -118,6 +119,9 @@ seed_data() {
 cmd_new() {
   local name="${1:-}" base="${2:-HEAD}"
   [[ "$name" =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "name must be lowercase letters, digits and dashes"
+  [[ -z "${AGENT_EFFORT:-}" || " low medium high xhigh max " == *" $AGENT_EFFORT "* ]] || die "effort must be low, medium, high, xhigh or max"
+  local model_pattern='^[A-Za-z0-9][]A-Za-z0-9.[-]*$'
+  [[ -z "${AGENT_MODEL:-}" || "$AGENT_MODEL" =~ $model_pattern ]] || die "invalid model '$AGENT_MODEL'"
   [[ -f "$REGISTRY/$name.env" ]] && die "agent '$name' already exists"
   local dir="$WORKTREES/$name" branch="$BRANCH_PREFIX$name" slot
   mkdir -p "$REGISTRY" "$WORKTREES"
@@ -147,6 +151,9 @@ CLIENT_PORT=$client_port
 EOF
   # A test server of a version (release-servers.mjs): AGENT_KIND=release and the branch or tag it serves.
   [[ -n "${AGENT_KIND:-}" ]] && echo "AGENT_KIND=$AGENT_KIND" >>"$REGISTRY/$name.env"
+  # Its claude settings (settings.mjs), when given.
+  [[ -n "${AGENT_EFFORT:-}" ]] && echo "AGENT_EFFORT=$AGENT_EFFORT" >>"$REGISTRY/$name.env"
+  [[ -n "${AGENT_MODEL:-}" ]] && echo "AGENT_MODEL=$AGENT_MODEL" >>"$REGISTRY/$name.env"
   [[ -n "${AGENT_REF:-}" ]] && echo "AGENT_REF=$AGENT_REF" >>"$REGISTRY/$name.env"
   cp "$REGISTRY/$name.env" "$dir/.env.agent"
   info "ready: $dir (branch $branch, server $server_port, client http://localhost:$client_port)"
