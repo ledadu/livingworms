@@ -46,6 +46,7 @@ import { createPortee } from './portee-ecran';
 import { KEYS } from './obstacles';
 import { initParade } from './parade-jeu';
 import { initAdieu, testChild } from './adieu-jeu';
+import { initRivale } from './rivale-jeu';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -121,7 +122,7 @@ const causticCv = causticTile(256, 7, 5);
 const caustic = ctx.createPattern(causticCv, 'repeat')!;
 
 interface Actor {
-  cr: Creature3; kind: 'player' | 'swim' | 'floor' | 'surface' | 'sib' | 'parent';
+  cr: Creature3; kind: 'player' | 'swim' | 'floor' | 'surface' | 'sib' | 'parent' | 'rival';
   z: number; hx: number; hy: number; tx: number; ty: number; next: number;
   buf: HTMLCanvasElement | null;
   /** last baked image and the frame it was made (far animals are re-baked only every few frames) */
@@ -387,6 +388,7 @@ function update(): void {
   collide(p);
   const px = r.x[0], py = r.y[0];
   parade.step(p, actors);
+  rivale.step({ x: px, y: py }, t);
 
   flow.clear();
   const near = (x: number) => Math.abs(x - px) < 1100;
@@ -398,6 +400,12 @@ function update(): void {
     nNear++;
     const c = a.cr, cr = c.root, x = cr.x[0], y = cr.y[0];
     if (parade.leads(a)) { steer(a, parade.goal.x, parade.goal.y, 0.06); collide(c); continue; }
+    if (a.kind === 'rival') {
+      const v = rivale.goal(c, t, { x: px, y: py });
+      steer(a, v.x, v.y, 0.05);
+      collide(c);
+      continue;
+    }
     if (a.kind === 'parent') {
       const v = adieu.parentGoal(c, t, { x: px, y: py });
       steer(a, v.x, v.y, 0.04);
@@ -517,6 +525,7 @@ function render(): void {
   env.water = clamp((waterAt(m, cam.y).l - 28) / 30, 0, 1);
   lights.length = 0;
   parade.lights(view, lights, P);
+  rivale.lights(view, lights, P, t, { x: pr.x[0], y: pr.y[0] });
   if (gx) {
     const [r, g, b] = hsl01(m.deep.h, m.deep.s, m.deep.l);
     gx.begin(r, g, b);
@@ -1112,6 +1121,13 @@ function farewell(child?: Spec): void {
   partie.born(sp, BIOMES[bi].id);
 }
 
+// the rival lineage of the Carcasse (rivale-jeu.ts): its cousin, made from the creature of ours that got there
+const rivale = initRivale({
+  lineage: () => partie.lineage, played: () => player.cr.spec, narrator,
+  add: (sp, x, y) => addActor(sp, x, y, 'rival', 0.8).cr,
+  quiet: () => paused || portee.isOpen || adieu.on || narrator.quiet() || chapterEl.classList.contains('show')
+});
+
 // ----- loop ----- //
 
 let last = performance.now(), acc = 0, fn = 0, fsum = 0;
@@ -1207,7 +1223,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, rivale,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
