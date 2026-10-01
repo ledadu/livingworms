@@ -302,6 +302,7 @@ function createCard(name) {
       <button class="btn" data-action="stop" hidden>■ Arrêter</button>
       <button class="btn" data-action="rebase" title="git pull --rebase sur la base choisie en haut (__MAIN__ par défaut) ; une tâche terminée passe ensuite dans les archives">⟳ Rebase</button>
       <button class="btn accept" data-action="accept" hidden title="Fusionne sa branche dans sa base (__INTEGRATION__) dans le dépôt principal et archive la tâche : elle passe dans « À publier »">✓ Accepter</button>
+      <button class="btn fix" data-action="fix-accept" hidden title="« Accepter » a refusé sa branche pour une raison de son côté (fichiers non commités…) : l'agent reçoit l'erreur, la corrige et commite, puis on accepte à nouveau">🛠 Faire corriger par l’agent</button>
       <button class="btn fix" data-action="fix-conflicts" hidden title="L'agent fusionne sa base (__INTEGRATION__) dans sa branche et règle lui-même les conflits, en gardant les deux côtés, puis vérifie et commite">🔀 Corriger les conflits</button>
       <button class="btn" data-action="order-open" hidden title="Donner un nouvel ordre à l'agent pour peaufiner ou prolonger son chantier (même session quand c'est possible)">✎ Nouvel ordre</button>
       <button class="btn primary" data-action="resume" hidden title="Reprend la même session claude (--resume) : après une coupure réseau, une erreur d'API ou un arrêt">↻ Relancer l'agent</button>
@@ -453,6 +454,9 @@ function updateCard(agent) {
   const fixButton = card.querySelector('[data-action="fix-conflicts"]');
   fixButton.hidden = archived || run?.state === 'running' || status[0] === 'working' || !(agent.deliverables?.behind > 0 || state?.conflict);
   fixButton.disabled = Boolean(state?.working);
+  const fixAcceptButton = card.querySelector('[data-action="fix-accept"]');
+  fixAcceptButton.hidden = archived || run?.state === 'running' || !state?.fixable;
+  fixAcceptButton.disabled = Boolean(state?.working);
   // « Fusion en série » : a finished task that « Accepter » would take can be picked; one in the train shows its turn.
   // A pick survives the refreshes, even while the card briefly looks busy (a file touched in its worktree): only
   // the train or the archive take it back.
@@ -564,7 +568,7 @@ async function acceptAgent(name) {
   refresh();
   try {
     const result = await (await fetch(`/api/accept/${encodeURIComponent(name)}`, { method: 'POST' })).json();
-    busy.set(name, result.ok ? { info: result.message } : { error: result.error, conflict: Boolean(result.conflict) });
+    busy.set(name, result.ok ? { info: result.message } : { error: result.error, conflict: Boolean(result.conflict), fixable: Boolean(result.fixable) });
     setTimeout(() => busy.get(name)?.info && (busy.delete(name), refresh()), 8000);
   } catch (error) {
     busy.set(name, { error: `Échec : ${error.message}` });
@@ -578,6 +582,20 @@ async function fixConflicts(name) {
   refresh();
   try {
     const result = await (await fetch(`/api/fix-conflicts/${encodeURIComponent(name)}`, { method: 'POST' })).json();
+    busy.set(name, result.ok ? { info: result.message } : { error: result.error });
+    setTimeout(() => busy.get(name)?.info && (busy.delete(name), refresh()), 8000);
+  } catch (error) {
+    busy.set(name, { error: `Échec : ${error.message}` });
+  }
+  refresh();
+}
+
+// « 🛠 Faire corriger par l'agent » : the agent gets the error « Accepter » logged, fixes it, then « Accepter » again.
+async function fixAccept(name) {
+  busy.set(name, { working: true, label: 'Envoi de l’erreur à l’agent…' });
+  refresh();
+  try {
+    const result = await (await fetch(`/api/fix-accept/${encodeURIComponent(name)}`, { method: 'POST' })).json();
     busy.set(name, result.ok ? { info: result.message } : { error: result.error });
     setTimeout(() => busy.get(name)?.info && (busy.delete(name), refresh()), 8000);
   } catch (error) {
@@ -706,6 +724,7 @@ document.addEventListener('click', (event) => {
   if (button.dataset.action === 'resume') resumeAgent(name);
   if (button.dataset.action === 'accept') acceptAgent(name);
   if (button.dataset.action === 'fix-conflicts') fixConflicts(name);
+  if (button.dataset.action === 'fix-accept') fixAccept(name);
   if (button.dataset.action.startsWith('order-')) orderAction(button.closest('.card'), name, button.dataset.action);
   if (button.dataset.action === 'rebase') rebaseAgent(name);
   if (button.dataset.action === 'unarchive') {

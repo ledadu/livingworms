@@ -16,7 +16,7 @@ function registry() {
   return dir;
 }
 
-type Answer = { ok: boolean; conflict?: boolean; message?: string; error?: string };
+type Answer = { ok: boolean; conflict?: boolean; fixable?: boolean; message?: string; error?: string };
 
 // A fake dashboard: accept answers from a script per agent, fix records its calls, runs are set by hand.
 function fakes(script: Record<string, Answer[]>) {
@@ -27,7 +27,7 @@ function fakes(script: Record<string, Answer[]>) {
     runs,
     deps: {
       accept: async (name: string) => (calls.push(`accept ${name}`), script[name].shift() ?? { ok: false, error: 'plus de réponse' }),
-      fix: async (name: string) => (calls.push(`fix ${name}`), (runs[name] = 'running'), { ok: true }),
+      fix: async (name: string, result?: Answer) => (calls.push(`fix ${name}${result?.fixable ? ' (accept)' : ''}`), (runs[name] = 'running'), { ok: true }),
       runState: (name: string) => (runs[name] ? { state: runs[name] } : null),
       now: () => '2026-09-30T12:00:00.000Z',
     },
@@ -63,6 +63,18 @@ describe('merge train', () => {
     await stepTrain(dir, deps);
     expect(calls).toEqual(['accept a', 'fix a', 'accept a', 'accept b']);
     expect(states(dir)).toEqual(['a:accepted', 'b:accepted']);
+  });
+
+  it('has the agent fix a refusal on its side (files left uncommitted), then accepts it again', async () => {
+    const dir = registry();
+    const { calls, runs, deps } = fakes({ a: [{ ok: false, fixable: true, error: 'fichiers non commités' }, { ok: true }] });
+    startTrain(dir, ['a']);
+    await stepTrain(dir, deps);
+    expect(readTrain(dir).items[0]).toMatchObject({ state: 'fixing', message: expect.stringContaining('fichiers non commités') });
+    runs.a = 'done';
+    await stepTrain(dir, deps);
+    expect(calls).toEqual(['accept a', 'fix a (accept)', 'accept a']);
+    expect(states(dir)).toEqual(['a:accepted']);
   });
 
   it('fails an agent whose fix stopped, or that still conflicts after the last fix, and goes on', async () => {

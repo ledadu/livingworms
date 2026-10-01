@@ -1,7 +1,7 @@
 // Live view of the agent worktrees: node agent/dashboard.mjs [port], default 7800.
 // No dependency: reads the registry in .git/agents and asks git about each worktree.
 import { execFile, spawn } from 'node:child_process';
-import { closeSync, existsSync, openSync, readdirSync, readFileSync, readSync, statSync, writeFileSync } from 'node:fs';
+import { appendFileSync, closeSync, existsSync, openSync, readdirSync, readFileSync, readSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { homedir } from 'node:os';
 import { createConnection } from 'node:net';
@@ -14,7 +14,7 @@ import { handleQuestions } from './questions-routes.mjs';
 import { roadmapRoutes } from './roadmap-routes.mjs';
 import { branchesRoutes } from './branches-routes.mjs';
 import { isReleaseServer } from './release-servers.mjs';
-import { mergeOrder, orderTask, runState, sessionTranscript } from './launch.mjs';
+import { acceptOrder, mergeOrder, orderTask, runState, sessionTranscript } from './launch.mjs';
 import { cleanAgents, orphanBranches } from './clean.mjs';
 import { clearTrain, readTrain, startTrain, stepTrain, stopTrain } from './merge-train.mjs';
 import { parseGoal } from './goal.mjs';
@@ -443,11 +443,45 @@ function baseBranchOf(name) {
 // `blocked`: the main checkout itself stops the merge (another branch, changes in its index, local changes the merge
 // would overwrite), whatever the agent; the merge train waits for it to be fixed instead of failing every task.
 async function acceptAgent(name) {
+  let result;
+  try {
+    result = await acceptOnce(name);
+  } catch (error) {
+    result = { ok: false, fixable: true, error: error.message };
+  }
+  if (!result.ok) logAcceptError(name, result);
+  return result;
+}
+
+// Every refused « Accepter », one line each in .git/agents/<name>.accept.log: what the agent reads to fix it
+// (« 🛠 Faire corriger par l'agent »), and what is left to read once the card has moved on.
+const acceptLog = (name) => join(registry, `${name}.accept.log`);
+function logAcceptError(name, result) {
+  const kind = result.conflict ? 'conflit' : result.blocked ? 'dépôt principal' : 'agent';
+  try {
+    appendFileSync(acceptLog(name), `${new Date().toISOString()}\t${kind}\t${String(result.error).replace(/\s*\n\s*/g, ' ')}\n`);
+  } catch {}
+  console.error(`accept ${name} (${kind}): ${result.error}`);
+}
+function lastAcceptError(name) {
+  try {
+    const line = readFileSync(acceptLog(name), 'utf8').trim().split('\n').at(-1);
+    return line.split('\t').slice(2).join('\t') || null;
+  } catch {
+    return null;
+  }
+}
+
+async function acceptOnce(name) {
   const envFile = join(registry, `${name}.env`);
   if (!existsSync(envFile)) return { ok: false, error: `agent inconnu ${name}` };
   const env = readEnv(envFile);
   if (runState(runsRegistry, name)?.state === 'running') return { ok: false, error: 'l’agent tourne encore : attends qu’il ait fini, ou arrête-le' };
-  if (existsSync(env.AGENT_DIR) && (await git(env.AGENT_DIR, 'status', '--porcelain'))) return { ok: false, error: 'fichiers non commités dans son worktree : l’agent n’a pas fini' };
+  const dirty = existsSync(env.AGENT_DIR) ? await git(env.AGENT_DIR, 'status', '--porcelain') : '';
+  if (dirty) {
+    const files = dirty.split('\n').map((line) => line.slice(3));
+    return { ok: false, fixable: true, error: `fichiers non commités dans son worktree (${files.slice(0, 6).join(', ')}${files.length > 6 ? '…' : ''}) : l’agent n’a pas fini. Clique « 🛠 Faire corriger par l’agent » : il les commite ou les retire, puis accepte à nouveau.` };
+  }
   const base = baseBranchOf(name);
   const current = await git(mainRoot, 'symbolic-ref', '--short', 'HEAD');
   if (current !== base) return { ok: false, blocked: true, error: `le dépôt principal est sur ${current || 'un commit détaché'}, pas sur ${base} : passe-le sur ${base} pour accepter` };
@@ -468,7 +502,7 @@ async function acceptAgent(name) {
       const detail = String(error.stderr || error.message).trim().split('\n').slice(0, 3).join(' ');
       // Local changes of the main checkout that the merge would overwrite: nothing the agent can fix.
       if (/would be overwritten|serait écrasé|seraient écrasés/.test(detail)) return { ok: false, blocked: true, error: `le dépôt principal a des changements locaux que la fusion écraserait : ${detail}. Commite-les ou mets-les de côté (git stash), puis accepte à nouveau.` };
-      return { ok: false, error: detail };
+      return { ok: false, fixable: true, error: detail };
     }
   }
   setArchived(name, true);
@@ -513,6 +547,14 @@ function fixConflicts(name) {
   return result.ok ? { ...result, message: `${name} fusionne ${base} et règle les conflits.` } : result;
 }
 
+// « 🛠 Faire corriger par l'agent » : « Accepter » refused for a reason on the agent's side; it gets the last logged error.
+function fixAccept(name) {
+  const error = lastAcceptError(name);
+  if (!error) return { ok: false, error: 'aucune erreur d’acceptation enregistrée pour cet agent' };
+  const result = orderAgent(name, acceptOrder(error, { base: baseBranchOf(name), log: acceptLog(name) }));
+  return result.ok ? { ...result, message: `${name} corrige ce qui bloquait l’acceptation.` } : result;
+}
+
 // « ✓ Accepter la sélection » (merge-train.mjs): one step every few seconds, never two at once; an accept can take a
 // while (the merge, then agent.sh down).
 let trainStep = null;
@@ -520,7 +562,7 @@ setInterval(() => {
   if (trainStep) return;
   const train = readTrain(registry);
   if (!train || train.finishedAt) return;
-  trainStep = stepTrain(registry, { accept: acceptAgent, fix: async (name) => fixConflicts(name), runState: (name) => runState(runsRegistry, name) })
+  trainStep = stepTrain(registry, { accept: acceptAgent, fix: async (name, result) => (result?.conflict ? fixConflicts(name) : fixAccept(name)), runState: (name) => runState(runsRegistry, name) })
     .catch((error) => console.error(`merge train: ${error.message}`))
     .finally(() => (trainStep = null));
 }, 3000).unref();
@@ -656,6 +698,12 @@ async function handle(request, response) {
   const accept = /^\/api\/accept\/([a-z0-9-]+)$/.exec(path);
   if (accept && request.method === 'POST') {
     const result = await acceptAgent(accept[1]);
+    latest = await snapshot();
+    return json(result);
+  }
+  const fixAcceptPath = /^\/api\/fix-accept\/([a-z0-9-]+)$/.exec(path);
+  if (fixAcceptPath && request.method === 'POST') {
+    const result = fixAccept(fixAcceptPath[1]);
     latest = await snapshot();
     return json(result);
   }

@@ -110,18 +110,18 @@ export async function stepTrain(registry, { accept, fix, runState, now = () => n
     train.blocked = result.error ?? 'le dépôt principal refuse la fusion';
   } else if (result?.ok) {
     Object.assign(item, { state: 'accepted', message: result.message ?? 'acceptée' });
-  } else if (result?.conflict && item.fixes < MAX_FIXES) {
+  } else if ((result?.conflict || result?.fixable) && item.fixes < MAX_FIXES) {
     let order;
     try {
-      order = await fix(item.name);
+      order = await fix(item.name, result);
     } catch (error) {
       order = { ok: false, error: error.message };
     }
     Object.assign(item, order?.ok
-      ? { state: 'fixing', fixes: item.fixes + 1, message: `conflit : l’agent fusionne sa base et le règle (correction ${item.fixes + 1}/${MAX_FIXES})` }
-      : { state: 'failed', message: `conflit, et l’ordre de correction a échoué : ${order?.error ?? 'refusé'}` });
+      ? { state: 'fixing', fixes: item.fixes + 1, message: `${result.conflict ? 'conflit : l’agent fusionne sa base et le règle' : `refusée (${result.error}) : l’agent corrige`} (correction ${item.fixes + 1}/${MAX_FIXES})` }
+      : { state: 'failed', message: `${result.conflict ? 'conflit' : 'refusée'}, et l’ordre de correction a échoué : ${order?.error ?? 'refusé'}` });
   } else {
-    Object.assign(item, { state: 'failed', message: result?.conflict ? `encore en conflit après ${MAX_FIXES} corrections` : result?.error ?? 'refusée' });
+    Object.assign(item, { state: 'failed', message: result?.conflict ? `encore en conflit après ${MAX_FIXES} corrections` : item.fixes >= MAX_FIXES ? `encore refusée après ${MAX_FIXES} corrections : ${result?.error ?? 'refusée'}` : result?.error ?? 'refusée' });
   }
   // The train may have been stopped during the accept: its result goes into the train as it is now.
   const fresh = readTrain(registry);

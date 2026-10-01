@@ -87,6 +87,7 @@ export function cleanAgents({ mainRoot, registry, base = project.branches.integr
       execFileSync(agentSh, ['rm', agent.name], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 120_000 });
       if (agent.branch) git(mainRoot, 'branch', '-d', agent.branch);
       rmSync(join(registry, 'runs', agent.name), { recursive: true, force: true });
+      rmSync(join(registry, `${agent.name}.accept.log`), { force: true });
       const queueDir = join(registry, 'queue');
       if (readQueue(queueDir).some((entry) => entry.name === agent.name)) removeQueueEntry(queueDir, agent.name);
       cleaned.push(agent);

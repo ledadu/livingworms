@@ -202,6 +202,18 @@ export function mergeOrder(base = project.branches.integration) {
 Puis \`npm run typecheck\`, la suite de tests (\`make check\`) et commite la fusion. Ta réponse finale liste les fichiers en conflit et comment tu les as réglés.`;
 }
 
+/**
+ * The order of « 🛠 Faire corriger par l'agent »: « Accepter » refused the agent's branch for a reason on its side (files
+ * left uncommitted, a merge git refused…); `error` is that refusal, `log` the file that keeps every refusal.
+ */
+export function acceptOrder(error, { base = project.branches.integration, log = null } = {}) {
+  return `« ✓ Accepter » a refusé ta branche, avec cette erreur :
+
+> ${String(error).trim().replace(/\n/g, '\n> ')}
+${log ? `\nToutes les erreurs d'acceptation de ta tâche sont dans \`${log}\`.\n` : ''}
+Corrige ce qui la cause, de ton côté : par exemple des fichiers non commités (ton rapport, ton entrée, tes captures dans \`img/\` : commite-les s'ils font partie du chantier, après avoir vérifié que l'entrée ne cite que des images qui existent ; supprime-les sinon), ou une fusion que git refuse. Puis \`git merge ${base}\`, \`make check\`, et vérifie que \`git status --porcelain\` est vide. Ta réponse finale dit ce qui bloquait et ce que tu as fait.`;
+}
+
 /** What an agent receives with a new order once its task is over: the order, then what its brief still asks. */
 export function orderPrompt(order, { name, base = project.branches.integration }) {
   return `Nouvel ordre de l'utilisateur, pour peaufiner ou prolonger ton chantier :
