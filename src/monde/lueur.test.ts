@@ -117,7 +117,8 @@ describe('the lights', () => {
     for (const f of Object.keys(BURSTS) as Burst[]) for (const echo of [null, ...Object.keys(BURSTS)] as (Burst | null)[]) {
       const m = new Motes(), r = rng(5);
       burst(m, { ...base, burst: f, echo }, { x: 0, y: 0 }, 1, r);
-      let seen = 0;
+      // the strongest cell and light of the figure: one expect each, not one per light (some 280 000 in all)
+      let seen = 0, cell = 0, light = 0;
       for (let i = 0; i < 180; i++) {
         m.step();
         if (i % 6) continue;
@@ -125,10 +126,12 @@ describe('the lights', () => {
         for (const gain of [1, 1.5, 3]) {
           const { lights, cells } = shown(m, gain);
           seen = Math.max(seen, lights.length);
-          for (const c of cells) expect(c).toBeLessThanOrEqual(CELL_CAP + 1e-9);
-          for (const l of lights) expect(l.al).toBeLessThanOrEqual(PEAK_MAX + 1e-9);
+          for (const c of cells) cell = Math.max(cell, c);
+          for (const l of lights) light = Math.max(light, l.al);
         }
       }
+      expect(cell, `${f} ${echo}`).toBeLessThanOrEqual(CELL_CAP + 1e-9);
+      expect(light, `${f} ${echo}`).toBeLessThanOrEqual(PEAK_MAX + 1e-9);
       expect(seen).toBeGreaterThan(10);
     }
   });
