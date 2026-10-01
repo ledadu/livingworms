@@ -9,7 +9,11 @@
 // itself looks like a canvas fill (one coverage), not darker at the fold.
 //
 // Coordinates are in the user space of the current transform (like a canvas);
-// colours are premultiplied, packed in 4 bytes per vertex.
+// colours are premultiplied, packed in 4 bytes per vertex. Additive drawing
+// keeps the one blend (ONE, ONE_MINUS_SRC_ALPHA): its vertices are marked and
+// leave an alpha of 0, which adds their colour to what is there, so going from
+// one to the other does not cut the batch (a glow between two bodies used to
+// cost a draw call, three hundred a frame in the Glacier).
 
 type Canvas = HTMLCanvasElement | OffscreenCanvas;
 
@@ -29,17 +33,21 @@ in vec4 vCol; in vec2 vUV; in float vY; flat in int vMode;
 uniform sampler2D uTex;
 out vec4 o;
 void main() {
-  if (vMode == 1) o = texture(uTex, vUV) * vCol;
-  else if (vMode == 2) {
+  int m = vMode & 3;
+  if (m == 1) o = texture(uTex, vUV) * vCol;
+  else if (m == 2) {
     // light from above over a body: the canvas gradient of shadeBody, on the screen height of its box (uv = y0, y1)
     float t = clamp((vY - vUV.x) / max(1.0, vUV.y - vUV.x), 0.0, 1.0);
     vec4 a = vec4(1.0, 1.0, 1.0, 0.34), b = vec4(1.0, 1.0, 1.0, 0.0), c = vec4(6.0 / 255.0, 18.0 / 255.0, 40.0 / 255.0, 0.36);
     vec4 g = t < 0.42 ? mix(a, b, t / 0.42) : mix(b, c, (t - 0.42) / 0.58);
     o = vec4(g.rgb * g.a, g.a) * vCol.a;
   } else o = vCol;
+  // additive: the colour is added, what is behind is kept whole
+  if (vMode >= 4) o.a = 0.0;
 }`;
 
-const STRIDE = 28; // x y z (f32) · rgba (u8) · u v (f32) · mode (u8, 3 spare)
+const STRIDE = 28; // x y z (f32) · rgba (u8) · u v (f32) · mode (u8: 0 colour, 1 texture, 2 shading; + 4 additive; 3 spare)
+const ADD = 4;
 const ZSTEP = 1 / (1 << 22);
 
 export type Blend = 'over' | 'add';
@@ -72,7 +80,8 @@ export class Gfx {
   private nv = 0;
   private ni = 0;
   private z = 1;
-  private blend: Blend = 'over';
+  /** added to the mode of each vertex: ADD while drawing additively */
+  private addBit = 0;
   private tex: Tex | null = null;
   private texs = new Map<Canvas, Tex>();
   private frame = 0;
@@ -174,17 +183,13 @@ export class Gfx {
   /** the uniform scale of the current transform (device px per user unit) */
   get scale(): number { return Math.sqrt(Math.abs(this.a * this.d - this.b * this.c)); }
 
+  /** additive or over: the vertices that follow are marked, the batch goes on */
   setBlend(b: Blend): void {
-    if (b === this.blend) return;
-    this.flush();
-    this.blend = b;
-    this.applyBlend();
+    this.addBit = b === 'add' ? ADD : 0;
   }
 
   private applyBlend(): void {
-    const gl = this.gl;
-    if (this.blend === 'add') gl.blendFunc(gl.ONE, gl.ONE);
-    else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    this.gl.blendFunc(this.gl.ONE, this.gl.ONE_MINUS_SRC_ALPHA);
   }
 
   /** a new shape: it gets its own depth (one coverage per pixel), nearer than all before */
@@ -232,7 +237,7 @@ export class Gfx {
     fv[o + 2] = this.z;
     this.uv32[o + 3] = col;
     fv[o + 4] = u; fv[o + 5] = w;
-    this.u8[o * 4 + 24] = mode;
+    this.u8[o * 4 + 24] = mode | this.addBit;
     return i;
   }
 
@@ -243,7 +248,7 @@ export class Gfx {
     fv[o] = x; fv[o + 1] = y; fv[o + 2] = this.z;
     this.uv32[o + 3] = col;
     fv[o + 4] = u; fv[o + 5] = w;
-    this.u8[o * 4 + 24] = mode;
+    this.u8[o * 4 + 24] = mode | this.addBit;
     return i;
   }
 
