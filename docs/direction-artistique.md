@@ -98,9 +98,38 @@ Réalisé dans `src/monde/remontee.ts` (dessin `remontee-draw.ts`, voir [chapitr
 
 Tout est généré dans le code, sans fichier audio (Web Audio API, voir [decisions.md](decisions.md#technique)).
 
-- **Une ambiance musicale par chapitre** : nappes et harmoniques qui changent avec la profondeur.
+- **Un seul son pour la page** (`src/monde/son.ts`) : un contexte audio, éveillé par le premier toucher ou la première touche (le navigateur ne laisse sonner une page qu'après : avant, tout est muet), endormi quand la page est cachée. La musique et le chant ont chacun leur bus et leur volume, et partagent une réverbération faite dans le code : une réponse de 2,4 s, quelques échos proches puis un bruit qui s'éteint en s'assombrissant. Elle est en mono (une convolution coûte moitié moins que deux), le son sec garde ses côtés. Un compresseur doux en sortie.
+- **Une ambiance musicale par chapitre** : nappes et harmoniques qui changent avec la profondeur. La partition est dans `src/monde/musique.ts` (pure et testée), `musique-son.ts` la joue.
+  - **Quatre voix par chapitre** :
+    - un **bourdon** grave qui respire ;
+    - des **nappes** : des accords qui enflent et s'effacent l'un sous l'autre, chaque note doublée de deux voix un peu désaccordées, sous un filtre qui balaie lentement ;
+    - les **harmoniques** de sa fondamentale, qui vont et viennent, une moitié à gauche, l'autre à droite ;
+    - quelques **notes** çà et là, en courtes phrases.
+  - **Tout est en ré majeur**, la tonalité du chant, et les notes éparses restent sur sa gamme pentatonique : ce qu'on chante tombe toujours juste sur la musique.
+  - **Les chapitres se mêlent aux frontières** comme la lumière (`presence`, la même bande de 1 400 px), à puissance égale : la musique ne creuse ni ne gonfle au passage. Un chapitre quitté se tait, puis ses voix sont libérées 6 s plus tard.
+  - **L'eau étouffe la musique** à mesure qu'on descend : un filtre dont la coupure suit la profondeur, de 16 kHz à la surface à 5,5 kHz au fond de la Fosse.
+  - **Dans la Remontée**, chaque chapitre éclairé par la lignée qui remonte (`remontee.litAt`) s'éclaire aussi en musique : l'ambiance de la Remontée monte par-dessus la sienne, qui s'efface à moitié, et l'eau cesse d'étouffer le son.
+  - **Les moments** : pendant l'adieu, la musique baisse et ne garde que ses accords, pour laisser les mots ; pendant une parade, ses notes viennent deux fois plus souvent.
+
+| Chapitre | Ambiance | Bourdon et nappes | Notes çà et là |
+| --- | --- | --- | --- |
+| La Nurserie | la lumière : haut, ouvert | ré et la ; accords clairs (ré, sol, si mineur, la), voix douces | des cloches de lumière, tout en haut |
+| Le Récif | la ville de corail : plus chaud, plus coloré | sol ; accords de sol, la, fa dièse mineur, si mineur | de petites figures pincées sur l'accord, qui battent comme des nageoires |
+| La Forêt | la cathédrale d'algues : un orgue lent, en mi dorien | mi grave, voix creuses ; la lumière respire dans le filtre | des maillets de bois, rares |
+| La Grotte | les galeries : sombre, clairsemé, la réverbération la plus forte | si très grave ; accords minces et lents | des gouttes qui reviennent des parois en écho |
+| La Carcasse | le souvenir : tendre, deux voix proches | sol ; accords de sol, ré, mi mineur, la | les quatre premières notes du chant, une octave plus bas |
+| Les Sources | la chaleur : un bourdon brûlant | ré ; accords sur une pédale de ré, voix désaccordées comme l'eau chaude qui frémit | des braises de notes graves |
+| Le Glacier | le froid : quartes et quintes, minces et immobiles | si très grave ; voix de verre (des octaves) | des cristaux qui tintent, tout en haut |
+| Le Jardin de méduses | flotter : accords amples | la ; le bourdon pulse comme le jardin (toutes les 3 s) | des souffles lents |
+| La Fosse | le noir et le silence : presque rien | ré grave ; un accord de loin en loin | une note bleue, lointaine, en écho |
+| La Remontée | tout s'éclaire | ré, la, ré ; accords qui montent (ré, la, si mineur, sol) | le chant qui remonte, note après note |
+
 - **Le chant** : chaque note a son timbre ; joué en entier, il forme une mélodie.
-  - Dans le jeu (`src/monde/chant-son.ts`) : des oscillateurs et leurs harmoniques, sur une réverbération faite dans le code. L'éclat est une cloche claire, le battement bat comme des nageoires, le frôlement souffle, l'écho revient des parois, le souvenir est chaud et doublé, la braise grésille, le givre scintille comme du verre, la pulsation enfle et ondule, le silence est un souffle grave. Les notes descendent avec les chapitres (la gamme pentatonique de ré), et les animaux qui répondent reprennent la note une octave plus haut.
-  - Le navigateur ne laisse sonner une page qu'après un premier toucher ou une touche : avant, les notes sont muettes.
-- **Les bruits** : des bulles, le courant, des cris lointains de baleine.
+  - Dans le jeu (`src/monde/chant-son.ts`) : des oscillateurs et leurs harmoniques, sur la réverbération de la page. L'éclat est une cloche claire, le battement bat comme des nageoires, le frôlement souffle, l'écho revient des parois, le souvenir est chaud et doublé, la braise grésille, le givre scintille comme du verre, la pulsation enfle et ondule, le silence est un souffle grave. Les notes descendent avec les chapitres (la gamme pentatonique de ré), et les animaux qui répondent reprennent la note une octave plus haut.
+  - Les neuf notes ont la même force, sur un haut-parleur de téléphone aussi (à 2 dB près) : le chant complet est une seule mélodie.
+  - Le chant sonne dans l'espace du chapitre (sa part de réverbération, longue dans la Grotte, courte au Récif), et la musique recule un peu sous chaque note chantée.
+- **Les niveaux** : la musique se tient vers −27 dB (la Fosse vers −33 dB), une note chantée vers −20 dB (crête vers −10 dB) ; sous le chant, la musique recule encore de 5 dB.
+- **Les réglages** : le panneau ⚙ a une section « Son », Musique et Chant, de muet à un peu plus fort que le mélange voulu (le réglage de départ), gardés dans le stockage du navigateur (`lignee.son`). Un mot dit quand l'un est coupé, sans chiffres. La musique coupée libère aussi ses voix, pour la batterie.
+- **Le coût**, mesuré hors ligne dans le Chrome d'un ordinateur : une ambiance se calcule 26 à 36 fois plus vite que le temps réel, une frontière (deux chapitres) 20 à 25 fois. La réverbération en est la plus grosse part. Les modulations à la cadence du son (un filtre ou une hauteur que fait bouger un oscillateur) coûtent cher : le balayage des filtres avance par pas de l'horloge de la musique (0,2 s), sans modulation de hauteur.
+- **Les bruits** : des bulles, le courant, des cris lointains de baleine (chantier « Les bruitages » : leur bus viendra à côté de ceux de la musique et du chant, dans `son.ts`).
 - Proposition pour les nouveaux chapitres : la Grotte résonne (réverbération longue, gouttes), le Glacier craque et tinte (glace qui se fend, cristaux).
