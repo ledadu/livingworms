@@ -54,6 +54,13 @@
   min-width: min(320px, 100%); padding: 12px 18px; border-radius: 24px; font: inherit; font-size: 19px; cursor: pointer; color: inherit;
   border: 1px solid rgba(246,217,138,0.6); background: rgba(246,217,138,0.18); transition: opacity 0.4s ease;
 }
+#portee header p.note { margin-top: 6px; font-style: normal; font-family: system-ui, sans-serif; font-size: 13px; color: #f6d98a; opacity: 0.85; }
+#portee .later {
+  margin-top: -4px; padding: 8px 16px; border: 0; background: none; color: inherit; font: inherit; font-style: italic; font-size: 16px;
+  opacity: 0.6; cursor: pointer; transition: opacity 0.4s ease;
+}
+#portee .later:hover, #portee .later:focus-visible { opacity: 0.95; }
+#portee .later:focus-visible { outline: 2px solid #f6d98a; outline-offset: 2px; border-radius: 16px; }
 #portee .go:disabled { opacity: 0.45; cursor: default; font-style: italic; }
 #portee .go:focus-visible { outline: 2px solid #f6d98a; outline-offset: 2px; }
 #panel #porteeBtn { flex: none; padding: 10px; }

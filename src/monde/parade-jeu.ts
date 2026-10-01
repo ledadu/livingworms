@@ -1,13 +1,14 @@
 // The parade in the world (parade.ts for its rules): a partner of the chapter notices us when we stay near it, then
 // leads the dance; its wake shines, and ours takes its colours when we swim in time with it. At the end a figure of
 // light as rich as the parade was good, and the result for the litter (onEnd, last). The lights of each parade are
-// drawn from the genes of the two dancers and a little chance (lueur.ts).
+// drawn from the genes of the two dancers and a little chance (lueur.ts). Swimming away from it, we leave the
+// parade: the partner lets us go, and nothing follows.
 
 import { STEP, type Spec } from '../engine';
 import type { Creature3 } from '../engine3/creature3';
 import type { Proj, View } from '../engine3/view';
 import { SPECIES } from '../content';
-import { START_HOLD, START_NEAR, approach, lead, newParade, partsOf, quality, stepParade, type Parade, type Parts, type Pt } from './parade';
+import { LEAVE_TIME, START_HOLD, START_NEAR, approach, away, lead, newParade, partsOf, quality, stepParade, type Parade, type Parts, type Pt } from './parade';
 import { env } from './sprites';
 import { Motes, burst, genesOf, lueurOf, notice, wake, type Lueur } from './lueur';
 
@@ -22,6 +23,8 @@ export interface ParadeResult {
   /** the partner's species id, and its definition (for the fusion) */
   partner: string; spec: Spec;
   chapter: string;
+  /** where its figure of light closed the dance (the eggs are laid there) */
+  at: Pt;
   /** 0..1 */
   quality: number; parts: Parts;
 }
@@ -45,7 +48,7 @@ function idOf(sp: Spec): string {
 const hueOf = (sp: Spec) => sp.palette?.hue ?? 45;
 
 export function initParade(deps: Deps) {
-  let cur: { a: Dancer; p: Parade; z0: number; id: string; chapter: string; light: Lueur } | null = null;
+  let cur: { a: Dancer; p: Parade; z0: number; id: string; chapter: string; light: Lueur; away: number } | null = null;
   /** the light of the last parade (its figures come back rarely), and figures forced for the next one (tests) */
   let light: Lueur | null = null, force: Partial<Lueur> | null = null;
   let last: ParadeResult | null = null;
@@ -61,7 +64,7 @@ export function initParade(deps: Deps) {
     const pace = Math.min(1.9, Math.max(1.1, sp.swim.speed * 0.9));
     light = lueurOf(genesOf(sp, a.cr.list), genesOf(player.spec, player.list), Math.random, light);
     if (force) { light = { ...light, ...force }; force = null; }
-    cur = { a, p: newParade({ x: r.x[0], y: r.y[0] }, { x: pr.x[0], y: pr.y[0] }, pace), z0: a.z, id: idOf(sp), chapter: deps.chapter(), light };
+    cur = { a, p: newParade({ x: r.x[0], y: r.y[0] }, { x: pr.x[0], y: pr.y[0] }, pace), z0: a.z, id: idOf(sp), chapter: deps.chapter(), light, away: 0 };
     // it comes into our plane to dance
     a.z = 0;
     hold = 0; noticing = null;
@@ -70,14 +73,25 @@ export function initParade(deps: Deps) {
   function finish(): void {
     if (!cur) return;
     const { a, p, z0, id, chapter } = cur, r = a.cr.root, q = quality(p);
-    last = { partner: id, spec: a.cr.spec, chapter, quality: q, parts: partsOf(p) };
     // a figure of light between the two dancers, as rich as the parade was good
     const us = swimmer && Math.hypot(swimmer.x - r.x[0], swimmer.y - r.y[0]) < 300 ? swimmer : { x: r.x[0], y: r.y[0] };
-    burst(motes, cur.light, { x: (r.x[0] + us.x) / 2, y: (r.y[0] + us.y) / 2 }, q);
+    const at = { x: (r.x[0] + us.x) / 2, y: (r.y[0] + us.y) / 2 };
+    last = { partner: id, spec: a.cr.spec, chapter, at, quality: q, parts: partsOf(p) };
+    burst(motes, cur.light, at, q);
     a.z = z0; a.hx = r.x[0]; a.hy = r.y[0];
     after = a; rest = 8;
     cur = null;
     for (const f of ended) f(last);
+  }
+
+  /** we swam away: the partner goes back to its life, with a few lights, and no eggs */
+  function leave(): void {
+    if (!cur) return;
+    const { a, z0, light: l } = cur, r = a.cr.root;
+    for (let i = 0; i < 4; i++) notice(motes, { x: r.x[0], y: r.y[0] }, l.hues[0], 0.3);
+    a.z = z0; a.hx = r.x[0]; a.hy = r.y[0];
+    after = a; rest = 4;
+    cur = null;
   }
 
   const game = {
@@ -103,6 +117,8 @@ export function initParade(deps: Deps) {
     start(a: Dancer, player: Creature3) { if (cur) finish(); start(a, player); },
     /** ends the parade now, as it stands */
     finish,
+    /** leaves the parade now, as swimming away does */
+    leave,
 
     /** each step, once the swimmer has moved: the partners notice us, or the parade goes on */
     step(player: Creature3, actors: readonly Dancer[]): void {
@@ -113,8 +129,9 @@ export function initParade(deps: Deps) {
 
       if (cur) {
         const { a, p } = cur, c = a.cr, r = c.root;
-        // gone to the other end of the world (the travel of the tests): the parade ends there
-        if (Math.abs(r.x[0] - px) > 1500) { finish(); return; }
+        // gone to the other end of the world (the travel of the tests), or swum away a while: we have left
+        cur.away = away(cur.away, Math.hypot(r.x[0] - px, r.y[0] - py));
+        if (Math.abs(r.x[0] - px) > 1500 || cur.away >= LEAVE_TIME) { leave(); return; }
         const v = stepParade(p, { x: r.x[0], y: r.y[0], vx: c.vx, vy: c.vy }, { x: px, y: py, vx: player.vx, vy: player.vy });
         // lead it only where it may go: the goal is the direction to the kept point
         const g = lead(p), k = deps.keep(g.x, g.y, a.kind === 'floor');
