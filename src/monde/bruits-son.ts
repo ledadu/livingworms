@@ -8,23 +8,23 @@ import { rng } from '../engine';
 import { arrival, biomeMid, chapterIndex, floorAt, metres, type ChapterId } from './biomes';
 import {
   CAVE_ECHO, CAVE_MODES, bedAt, burst, caveAt, crack, drips, farWhale, heard, hushIn, noiseLoop, roarAt, rushOf, surfAt,
-  swellAt, tinkle, voiceOf, call, waitFor, wavesAt, type Bubble, type Unit
+  springTrains, bubblingAt, swellAt, tinkle, train, voiceOf, call, waitFor, wavesAt, type Bubble, type Unit
 } from './bruits';
+import { CLEAR, REACH, type Heard } from './ecoute';
 import type { Moment } from './musique';
 import { buildGraph, release, son, type Graph } from './son';
+import { MAX_NOISES, MAX_NOISES_STRAINED } from './voix';
 
 /** how far ahead the noises are scheduled, and how often the clock looks (s) */
 const AHEAD = 0.4, TICK = 0.1;
-/** how many noises may sound at once (beyond, the next ones wait their turn) */
-const MAX_VOICES = 28;
 
 /** the levels of the beds, as they come into the noises' bus */
 const LEVEL = { water: 0.3, surf: 1.2, rush: 0.6, roar: 0.8, modes: 0.8, echo: 0.25, bubble: 0.5, drip: 0.65, click: 1.2, groan: 0.3, boom: 0.9, tinkle: 0.14, cry: 0.5, far: 0.5 };
 
 export type Noise = 'bubbles' | 'drips' | 'cracks' | 'tinkles' | 'whales' | 'springs' | 'cries';
 
-/** a place that bubbles: a seep in the sand, a chimney of the Sources */
-export interface Spring { kind: string; x: number; z: number; }
+/** a place that bubbles: a seep in the sand, a chimney of the Sources (its seed sets its trains of bubbles) */
+export interface Spring { kind: string; x: number; z: number; seed?: number; }
 
 /** where the swimmer listens from, and what goes on there */
 export interface Here {
@@ -35,9 +35,16 @@ export interface Here {
   moment: Moment;
   /** whether the noises sound at all (their volume) */
   on: boolean;
+  /** the clock of the page (s) at the time of the sound, which the trains of bubbles follow (the bubbles one sees too) */
+  wall?: number;
+  /** the device struggles to keep up (voix.ts): fewer noises at once */
+  strained?: boolean;
 }
 
-export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1) {
+/** where a point of the world is on the screen, -1 (left edge) .. 1 (right edge) */
+export type PanAt = (x: number, y: number, z: number) => number;
+
+export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1, panAt?: PanAt) {
   const c = G.c, r = rng(seed);
   const out = c.createGain();
   out.gain.value = 0;
@@ -84,6 +91,8 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
   interface Beds {
     srcs: AudioBufferSourceNode[]; nodes: AudioNode[];
     water: GainNode; waterCut: BiquadFilterNode; surf: GainNode; rush: GainNode; rushBand: BiquadFilterNode; roar: GainNode; modes: GainNode;
+    /** the side the rumble of the chimneys comes from (none without a stereo panner) */
+    side: AudioParam | null;
     /** the narrow bands of the galleries, wired only under their vault (with the echo of their walls) */
     lo: AudioBufferSourceNode; bands: BiquadFilterNode[]; cave: boolean;
   }
@@ -95,11 +104,13 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
     lo.loop = hi.loop = true;
     const waterCut = filter('lowpass', 600), water = gain(), surfBand = filter('bandpass', 650, 0.6), surf = gain();
     const rushBand = filter('bandpass', 400, 1.1), rush = gain(), roarCut = filter('lowpass', 150), roar = gain(), modes = gain();
+    // the rumble comes from the side of the nearest chimney
+    const roarPan: AudioNode = c.createStereoPanner?.() ?? gain(1);
     lo.connect(waterCut).connect(water).connect(out);
-    lo.connect(roarCut).connect(roar).connect(out);
+    lo.connect(roarCut).connect(roar).connect(roarPan).connect(out);
     hi.connect(surfBand).connect(surf).connect(out);
     hi.connect(rushBand).connect(rush).connect(out);
-    const nodes: AudioNode[] = [lo, hi, waterCut, water, surfBand, surf, rushBand, rush, roarCut, roar, modes];
+    const nodes: AudioNode[] = [lo, hi, waterCut, water, surfBand, surf, rushBand, rush, roarCut, roar, roarPan, modes];
     // the galleries ring: the water's breath through a few narrow bands at their low notes
     const bands = CAVE_MODES.map((f) => {
       const b = filter('bandpass', f, 22);
@@ -109,7 +120,8 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
     });
     modes.connect(out);
     lo.start(now); hi.start(now);
-    return { srcs: [lo, hi], nodes, water, waterCut, surf, rush, rushBand, roar, modes, lo, bands, cave: false };
+    const side = 'pan' in roarPan ? (roarPan as StereoPannerNode).pan : null;
+    return { srcs: [lo, hi], nodes, water, waterCut, surf, rush, rushBand, roar, side, modes, lo, bands, cave: false };
   }
 
   /** under the vault of the Grotte (or out of it): its bands and the echo of its walls wired in (or let go) */
@@ -127,6 +139,7 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
     release(b.srcs[0], b.nodes);
     for (const g of [b.water, b.surf, b.rush, b.roar, b.modes]) was.delete(g.gain);
     was.delete(b.waterCut.frequency); was.delete(b.rushBand.frequency);
+    if (b.side) was.delete(b.side);
   }
 
   /**
@@ -143,18 +156,25 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
 
   // ----- the noises now and then ----- //
 
-  let voices = 0;
+  let voices = 0, room = MAX_NOISES;
   const played: Record<Noise, number> = { bubbles: 0, drips: 0, cracks: 0, tinkles: 0, whales: 0, springs: 0, cries: 0 };
+
+  /** the swimmer, where it was at the last look */
+  let ear: Here | null = null;
+  /** what the swimmer hears of a noise `dx`, `dy`, `dz` off it (ecoute.ts), from where it is on the screen */
+  function at(dx: number, dy: number, dz: number, reach: number = REACH.mid): Heard {
+    return heard(dx, dy, dz, reach, panAt && ear ? panAt(ear.x + dx, ear.y + dy, dz) : undefined);
+  }
 
   /**
    * A noise's way out: from a side, muffled by its distance, into the noises' bus; `wet`, a share of it that only goes
-   * to the reverb (a far noise), `dry` how much of it does not. Its nodes are let go once it has ended.
+   * to the reverb (more of it far away), `dry` how much of it does not. Its nodes are let go once it has ended.
    */
-  function way(h: { pan: number; cut: number }, t: number, end: number, made: AudioNode[], wet = 0, dry = 1): AudioNode {
-    // (a low-pass only where it cuts something)
-    const head: AudioNode = h.cut < 9000 ? filter('lowpass', h.cut, 0.5) : gain(1);
+  function way(h: { pan: number; cut: number; wet?: number }, t: number, end: number, made: AudioNode[], wet = h.wet ?? 0, dry = 1): AudioNode {
+    // (a low-pass only where it cuts something, a panner only off the middle)
+    const head: AudioNode = h.cut < CLEAR ? filter('lowpass', h.cut, 0.5) : gain(1);
     let tail: AudioNode = head;
-    if (c.createStereoPanner) {
+    if (c.createStereoPanner && Math.abs(h.pan) > 0.02) {
       const p = c.createStereoPanner();
       p.pan.value = h.pan;
       head.connect(p);
@@ -162,7 +182,7 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
       made.push(p);
     }
     if (dry < 1) { const g = gain(dry); tail.connect(g).connect(out); made.push(g); } else tail.connect(out);
-    if (wet > 0) { const g = gain(wet); tail.connect(g).connect(G.far); made.push(g); }
+    if (wet > 0.01) { const g = gain(wet); tail.connect(g).connect(G.far); made.push(g); }
     made.push(head);
     voices++;
     // a silent source that ends with the noise
@@ -190,7 +210,7 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
   }
 
   function drip(t: number, level: number): void {
-    const h = heard((r() * 2 - 1) * 600, -100 - 250 * r(), 300 * r()), list = drips(r), made: AudioNode[] = [];
+    const h = at((r() * 2 - 1) * 600, -100 - 250 * r(), 300 * r()), list = drips(r), made: AudioNode[] = [];
     const into = way(h, t, t + 0.8, made);
     for (const d of list) {
       const o = c.createOscillator(), env = c.createGain(), t0 = t + d.at;
@@ -207,9 +227,9 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
   }
 
   function ice(t: number, level: number): void {
-    const k = crack(r), h = heard((r() * 2 - 1) * 1400, (r() - 0.6) * 500, 300 + 1300 * r()), made: AudioNode[] = [];
+    const k = crack(r), h = at((r() * 2 - 1) * 1400, (r() - 0.6) * 500, 300 + 1300 * r(), REACH.big), made: AudioNode[] = [];
     const last = k.clicks[k.clicks.length - 1].at, end = t + Math.max(last + 0.2, k.groan?.len ?? 0, k.boom ? k.boom.at + 2 : 0) + 0.1;
-    const into = way({ pan: h.pan, cut: Math.max(h.cut, 3000) }, t, end, made, 0.6), g = h.g * level;
+    const into = way({ pan: h.pan, cut: Math.max(h.cut, 3000) }, t, end, made, Math.max(0.6, h.wet)), g = h.g * level;
     // the clicks: one burst of noise, its band and its loudness set click by click
     const src = c.createBufferSource(), band = filter('bandpass', k.clicks[0].f, k.clicks[0].q), env = gain();
     src.buffer = G.noise;
@@ -251,7 +271,7 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
   }
 
   function crystals(t: number, level: number): void {
-    const h = heard((r() * 2 - 1) * 400, (r() * 2 - 1) * 200, 200 * r()), made: AudioNode[] = [], list = tinkle(r);
+    const h = at((r() * 2 - 1) * 400, (r() * 2 - 1) * 200, 200 * r(), REACH.small), made: AudioNode[] = [], list = tinkle(r);
     const into = way(h, t, t + list[list.length - 1].at + 0.8, made);
     for (const n of list) for (const [k, g, fade] of [[1, 1, 0.12], [2.76, 0.25, 0.05]]) {
       const o = c.createOscillator(), env = gain(), t0 = t + n.at;
@@ -268,7 +288,7 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
 
   /** a whale's cries, from (dx, dy, dz) off the swimmer; `loud` how much louder than a whale unseen */
   function whale(units: Unit[], t: number, dx: number, dy: number, dz: number, level: number, loud: number): void {
-    const h = heard(dx, dy, dz), made: AudioNode[] = [], last = units[units.length - 1];
+    const h = at(dx, dy, dz), made: AudioNode[] = [], last = units[units.length - 1];
     const into = way({ pan: h.pan, cut: Math.min(h.cut, 1600) }, t, t + last.at + last.len + 0.8, made, 1, Math.min(1, h.g * 2));
     for (const u of units) {
       const o = c.createOscillator(), fm = filter('bandpass', u.pts[0][1] * u.formant, 1.4), env = gain(), t0 = t + u.at;
@@ -286,13 +306,17 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
   // ----- the clock ----- //
 
   const next: Record<'bubbles' | 'drips' | 'cracks' | 'tinkles' | 'whales', number> = { bubbles: Infinity, drips: Infinity, cracks: Infinity, tinkles: Infinity, whales: Infinity };
+  /** a train of bubbles here and there, from one place: its next burst at `at`, until `until` */
+  interface Loose { at: number; until: number; pace: number; dx: number; dy: number; dz: number; }
+  let loose: Loose[] = [];
+  /** the next burst of each seep and chimney near the swimmer */
   const springNext = new Map<Spring, number>();
   /** the noise of a kind at t, at this level */
   const PLAY: Record<keyof typeof next, (t: number, level: number, here: Here) => void> = {
-    bubbles(t, level, here) {
-      const m = metres(here.y), dy = (r() - 0.4) * 500;
-      bubbles(burst(r, 4), t, heard((r() * 2 - 1) * 700, m < 20 ? -here.y * r() : dy, 900 * r()), level);
-      played.bubbles++;
+    // a train of bubbles somewhere around, from one place
+    bubbles(t, _level, here) {
+      const m = metres(here.y), dy = (r() - 0.4) * 500, tr = train(r, 'free');
+      loose.push({ at: t, until: t + tr.len, pace: tr.pace, dx: (r() * 2 - 1) * 700, dy: m < 20 ? -here.y * r() : dy, dz: 900 * r() });
     },
     drips: (t, level) => drip(t, level),
     cracks: (t, level) => ice(t, level),
@@ -308,12 +332,16 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
   /** the rates of the noises now and then, at x (a second) */
   function rates(here: Here): Record<keyof typeof next, number> {
     const b = bedAt(here.x), surf = surfAt(metres(here.y));
-    return { bubbles: b.bubbles + surf * 0.5, drips: b.drips, cracks: b.cracks / 60, tinkles: b.tinkles, whales: b.whales / 60 };
+    // (the bubbles: trains of two or three bursts, a little fewer bursts than one by one)
+    return { bubbles: (b.bubbles + surf * 0.5) / 3, drips: b.drips, cracks: b.cracks / 60, tinkles: b.tinkles, whales: b.whales / 60 };
   }
 
   /** the noises at `now` for the swimmer where `here` says */
   function tick(t: number, here: Here): void {
     now = t;
+    ear = here;
+    // (how many noises may sound at once; beyond, the next ones are let go)
+    room = here.strained ? MAX_NOISES_STRAINED : MAX_NOISES;
     const on = here.on;
     level = on ? hushIn(here.moment) : 0;
     glide(out.gain, level, t, 0.6);
@@ -321,18 +349,24 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
       if (beds) { stopBeds(beds, t); beds = null; }
       for (const k of Object.keys(next) as (keyof typeof next)[]) next[k] = Infinity;
       springNext.clear();
+      loose = [];
       return;
     }
     beds ??= startBeds(t);
     const b = bedAt(here.x), m = metres(here.y), cave = caveAt(here.x), rush = rushOf(here.speed, here.current);
-    let nearVent = Infinity;
-    for (const s of springs) if (s.kind === 'vent') nearVent = Math.min(nearVent, Math.hypot(s.x - here.x, floorAt(s.x, s.z) - here.y, s.z * 0.6));
+    let nearVent = Infinity, vent: Spring | null = null;
+    for (const s of springs) {
+      if (s.kind !== 'vent') continue;
+      const d = Math.hypot(s.x - here.x, floorAt(s.x, s.z) - here.y, s.z * 0.6);
+      if (d < nearVent) { nearVent = d; vent = s; }
+    }
     glide(beds.water.gain, b.water * LEVEL.water * swellAt(t), t, 0.5);
     glide(beds.waterCut.frequency, b.lp, t, 0, 0.02, true);
     glide(beds.surf.gain, surfAt(m) * wavesAt(t) * LEVEL.surf, t, 0.4);
     glide(beds.rush.gain, rush.g * LEVEL.rush, t, 0.12);
     glide(beds.rushBand.frequency, rush.f, t, 0, 0.03, true);
     glide(beds.roar.gain, roarAt(nearVent) * LEVEL.roar, t, 0.5);
+    if (vent && beds.side) glide(beds.side, at(vent.x - here.x, floorAt(vent.x, vent.z) - here.y, vent.z).pan * 0.7, t, 0, 0.05, true);
     underVault(beds, cave > 0.001);
     glide(beds.modes.gain, cave * LEVEL.modes * swellAt(t + 3), t, 0.6);
     glide(caveIn.gain, cave * LEVEL.echo, t, 0.6);
@@ -344,22 +378,33 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
       if (rt[k] <= 1e-6) { next[k] = Infinity; continue; }
       if (!Number.isFinite(next[k]) || next[k] < t - TICK) next[k] = t + waitFor(r, rt[k]);
       while (next[k] < t + AHEAD) {
-        if (voices < MAX_VOICES) PLAY[k](Math.max(next[k], t + 0.02), level, here);
+        if (voices < room) PLAY[k](Math.max(next[k], t + 0.02), level, here);
         next[k] += waitFor(r, rt[k]);
       }
     }
-    // the seeps and the chimneys near the swimmer bubble
-    for (const s of springs) {
-      const fy = floorAt(s.x, s.z), dx = s.x - here.x, dy = fy - here.y;
-      if (Math.abs(dx) > 1300) { springNext.delete(s); continue; }
-      const pace = s.kind === 'vent' ? 1.4 : 0.9;
-      let at = springNext.get(s) ?? t + waitFor(r, pace);
-      if (at < t - TICK) at = t + waitFor(r, pace);
-      while (at < t + AHEAD) {
-        if (voices < MAX_VOICES) { bubbles(burst(r, 6, s.kind === 'vent' ? 1.3 : 1), Math.max(at, t + 0.02), heard(dx, dy, s.z), level); played.springs++; }
-        at += waitFor(r, pace);
+    // the trains of bubbles here and there, while they last
+    loose = loose.filter((q) => {
+      if (q.at < t - TICK) return false;
+      for (; q.at < t + AHEAD && q.at <= q.until; q.at += (0.5 + r()) / q.pace) {
+        if (voices < room) { bubbles(burst(r, 4), Math.max(q.at, t + 0.02), at(q.dx, q.dy, q.dz, REACH.small), level); played.bubbles++; }
       }
-      springNext.set(s, at);
+      return q.at <= q.until;
+    });
+    // the seeps and the chimneys near the swimmer bubble, in their trains, silences between
+    const wall = (here.wall ?? t) - t;
+    for (const s of springs) {
+      const dx = s.x - here.x, dy = floorAt(s.x, s.z) - here.y, vent = s.kind === 'vent';
+      if (Math.abs(dx) > 1000) { springNext.delete(s); continue; }
+      const tr = springTrains(s.seed ?? Math.round(s.x), vent ? 'vent' : 'seep');
+      let q = springNext.get(s) ?? t;
+      if (q < t - TICK) q = t;
+      while (q < t + AHEAD) {
+        const pace = bubblingAt(tr, q + wall);
+        if (!pace) { q += TICK; continue; }
+        if (voices < room) { bubbles(burst(r, vent ? 6 : 4, vent ? 1.3 : 1), Math.max(q, t + 0.02), at(dx, dy, s.z, REACH.small), level); played.springs++; }
+        q += (0.5 + r()) / pace;
+      }
+      springNext.set(s, q);
     }
   }
 
@@ -424,6 +469,8 @@ export interface BruitsDeps {
   moment?(): Moment;
   /** the seeps and the chimneys of the world */
   springs: readonly Spring[];
+  /** where a point of the world is on the screen (its side), if known */
+  pan?: PanAt;
 }
 
 /** the noises of the game, once the page may sound */
@@ -433,7 +480,7 @@ export function initBruits(d: BruitsDeps) {
   const here: Here = { x: 0, y: 0, speed: 0, current: 0, moment: null, on: true };
   let lastT = -1;
   s.onWake((G) => {
-    const e = (eng = bruitsEngine(G, d.springs.filter((q) => q.kind === 'vent' || q.kind === 'seep'), (Math.random() * 2 ** 31) >>> 0));
+    const e = (eng = bruitsEngine(G, d.springs.filter((q) => q.kind === 'vent' || q.kind === 'seep'), (Math.random() * 2 ** 31) >>> 0, d.pan));
     const step = () => {
       if (G.c.state !== 'running') return;
       const p = d.where(), t = G.c.currentTime;
@@ -445,6 +492,8 @@ export function initBruits(d: BruitsDeps) {
       here.current = d.current?.() ?? 0;
       here.moment = d.moment?.() ?? null;
       here.on = s.volumes.bruits > 0;
+      here.wall = performance.now() / 1000;
+      here.strained = s.strained;
       e.tick(t, here);
     };
     step();

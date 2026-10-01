@@ -3,7 +3,7 @@ import { rng } from '../engine';
 import { BIOMES, biomeMid, chapterIndex } from './biomes';
 import {
   BEDS, CAVE_ECHO, bedAt, bubble, burst, call, caveAt, crack, currentNear, currentOf, drips, farWhale, heard, hushIn, noiseLoop,
-  roarAt, rushOf, surfAt, swellAt, tinkle, voiceOf, waitFor, wavesAt
+  roarAt, rushOf, surfAt, swellAt, tinkle, train, trainsOf, bubblingAt, springTrains, voiceOf, waitFor, wavesAt
 } from './bruits';
 import { CAVE_A, CAVE_B } from './grotte';
 import { inPenta } from './musique';
@@ -230,5 +230,50 @@ describe('the noise itself', () => {
     const w = noiseLoop('white', 8000, rng(2)), b = noiseLoop('brown', 8000, rng(2));
     const rough = (d: Float32Array) => { let s = 0; for (let i = 1; i < d.length; i++) s += Math.abs(d[i] - d[i - 1]); return s / d.length; };
     expect(rough(b)).toBeLessThan(rough(w) / 5);
+  });
+});
+
+describe('the trains of bubbles', () => {
+  it('long and short, silences between; a chimney bubbles longer and more often than a seep', () => {
+    const r = rng(4), share = (kind: 'seep' | 'vent') => {
+      let on = 0, off = 0, short = 0, long = 0;
+      for (let i = 0; i < 400; i++) {
+        const t = train(r, kind);
+        expect(t.len).toBeGreaterThan(0);
+        expect(t.rest).toBeGreaterThan(1);
+        expect(t.pace).toBeGreaterThan(1);
+        on += t.len; off += t.rest;
+        if (t.len < 1.2) short++;
+        if (t.len > 2.5) long++;
+      }
+      expect(short).toBeGreaterThan(20);
+      expect(long).toBeGreaterThan(20);
+      return on / (on + off);
+    };
+    const seep = share('seep'), vent = share('vent');
+    expect(seep).toBeLessThan(0.35);
+    expect(vent).toBeGreaterThan(seep);
+  });
+
+  it('here and there: a short train, from one burst to a few', () => {
+    const r = rng(6);
+    for (let i = 0; i < 100; i++) {
+      const t = train(r, 'free');
+      expect(t.len).toBeLessThanOrEqual(1.6);
+      expect(t.len * t.pace).toBeLessThan(6);
+    }
+  });
+
+  it('a seep or a chimney keeps its trains, the same for the sound and the eye, and they come back', () => {
+    const tr = trainsOf(42, 'vent');
+    expect(tr.on.length).toBeGreaterThan(5);
+    for (let k = 1; k < tr.on.length; k++) expect(tr.on[k][0]).toBeGreaterThan(tr.on[k - 1][1] + 1);
+    const [a, b, pace] = tr.on[2];
+    expect(bubblingAt(tr, (a + b) / 2)).toBe(pace);
+    expect(bubblingAt(tr, (a + b) / 2 + tr.period * 3)).toBe(pace);
+    expect(bubblingAt(tr, b + 0.5)).toBe(0);
+    expect(springTrains(42, 'vent')).toBe(springTrains(42, 'vent'));
+    expect(springTrains(42, 'vent')).toEqual(tr);
+    expect(trainsOf(43, 'vent')).not.toEqual(tr);
   });
 });

@@ -69,7 +69,8 @@ import { initReglagesSon } from './son-reglages';
 import { initOndes } from './ondes-jeu';
 import { initVie } from './vie-jeu';
 import { initBruits } from './bruits-son';
-import { currentNear } from './bruits';
+import { panOnScreen } from './ecoute';
+import { bubblingAt, currentNear, springTrains } from './bruits';
 import { awakeOutOfSight, inSight } from './hors-champ';
 import { gpuBound } from './qualite';
 import './style.css';
@@ -561,7 +562,9 @@ function update(): void {
     }
     if (bu) {
       const y0 = d.kind === 'vent' ? fy + ventMouth(d) - 4 : fy - 2;
-      if (Math.random() < (d.kind === 'vent' ? 0.12 : 0.22)) bu.emit(d.x + rand(-8, 8), y0, 0, rand(-1.6, -0.9), rand(1.2, 3.2));
+      // (in the trains of bubbles that are heard; between them, one now and then)
+      const on = bubblingAt(springTrains(d.seed, d.kind === 'vent' ? 'vent' : 'seep'), performance.now() / 1000) > 0 ? 1 : 0.12;
+      if (Math.random() < (d.kind === 'vent' ? 0.12 : 0.22) * on) bu.emit(d.x + rand(-8, 8), y0, 0, rand(-1.6, -0.9), rand(1.2, 3.2));
       bu.step(t, 'bubble', 0.0016);
     }
   }
@@ -1335,10 +1338,12 @@ remontee.onNote((_, c) => ondes.sung('rise', player.cr, c));
 
 // ----- the noises of the sea (bruits-son.ts): water, currents, bubbles, whales far away, the Grotte, the Glacier ----- //
 
+const heardAt: Proj = { x: 0, y: 0, s: 1, d: 1 };
 const bruits = initBruits({
   where: () => ({ x: player.cr.root.x[0], y: player.cr.root.y[0] }), springs: decor,
   current: () => currentNear(keys.near(player.cr.root.x[0]), player.cr.root.x[0]),
-  moment: () => (adieu.on ? 'adieu' : parade.active ? 'parade' : null)
+  moment: () => (adieu.on ? 'adieu' : parade.active ? 'parade' : null),
+  pan: (x, y, z) => panOnScreen(view.project(x, y, z, heardAt).x, view.W)
 });
 // the big animals far away cry with their waves
 ondes.onCall((x, y, z, size) => bruits.cry(x - player.cr.root.x[0], y - player.cr.root.y[0], z, size));

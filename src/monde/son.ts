@@ -5,6 +5,7 @@
 
 import { clamp, rng } from '../engine';
 import { volumeGain } from './musique';
+import { Strain } from './voix';
 
 export interface Volumes { musique: number; chant: number; bruits: number }
 /** the volumes the mix is made for (0..1) */
@@ -49,8 +50,8 @@ export interface Graph {
   c: BaseAudioContext;
   /** where the music comes in (its level is set here), then the water's low-pass */
   music: GainNode; musicCut: BiquadFilterNode;
-  /** where the song's notes come in */
-  voice: GainNode;
+  /** where the song's notes come in, and where the far ones send what only the reverb gets of them */
+  voice: GainNode; voiceFar: GainNode;
   /** where the noises come in, and where the far ones come in that are only heard in the reverb */
   fx: GainNode; far: GainNode;
   /** how much of each goes to the reverb */
@@ -98,6 +99,10 @@ export function buildGraph(c: BaseAudioContext, v: Volumes = VOLUMES): Graph {
   voiceSend.gain.value = 0.42;
   voice.connect(voiceVol).connect(master);
   voiceVol.connect(voiceSend).connect(rev);
+  // (its gain is the song's volume)
+  const voiceFar = c.createGain();
+  voiceFar.gain.value = voiceVol.gain.value;
+  voiceFar.connect(rev);
   // the noises (bruits-son.ts sets how much of them goes to the reverb, place by place)
   const fx = c.createGain(), fxVol = c.createGain(), fxSend = c.createGain(), far = c.createGain(), farVol = c.createGain();
   fx.gain.value = far.gain.value = FX_LEVEL;
@@ -108,7 +113,7 @@ export function buildGraph(c: BaseAudioContext, v: Volumes = VOLUMES): Graph {
   far.connect(farVol).connect(rev);
   const noise = c.createBuffer(1, c.sampleRate, c.sampleRate), nd = noise.getChannelData(0), nr = rng(11);
   for (let i = 0; i < nd.length; i++) nd[i] = nr() * 2 - 1;
-  return { c, music, musicCut, voice, fx, far, musicSend, voiceSend, fxSend, duck, fade, musicVol, voiceVol, fxVol, farVol, noise, meter };
+  return { c, music, musicCut, voice, voiceFar, fx, far, musicSend, voiceSend, fxSend, duck, fade, musicVol, voiceVol, fxVol, farVol, noise, meter };
 }
 
 /** the music steps back under a note of the song at t, and comes back after `hold` s */
@@ -139,6 +144,10 @@ export interface Son {
   setVolume(k: keyof Volumes, v: number): void;
   /** the music steps back under a note of the song */
   duck(): void;
+  /** true while the device struggles to keep up (voix.ts): the engines lighten what they can */
+  readonly strained: boolean;
+  /** how many times, and how long (s), the sound went silent for want of time, where the browser counts it (measures) */
+  readonly underruns: { events: number; seconds: number } | null;
 }
 
 let one: Son | null = null;
@@ -156,13 +165,20 @@ function createSon(): Son {
   try { stored = localStorage.getItem(STORE); } catch { /* private mode */ }
   const volumes = parseVolumes(stored);
   const wakers: ((g: Graph) => void)[] = [];
+  const strain = new Strain();
+  const stats = () => (ac as unknown as { playbackStats?: { underrunEvents: number; underrunDuration: number } } | null)?.playbackStats;
 
   function wake(): void {
     if (!ac) {
       const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: AC }).webkitAudioContext;
       if (!Ctor) return;
-      try { ac = new Ctor(); } catch { return; }
+      // (on a phone, a little more room for the sound: a slower device keeps up with a larger buffer, the song a few
+      // milliseconds later)
+      const phone = window.matchMedia?.('(pointer: coarse)').matches;
+      try { ac = new Ctor({ latencyHint: phone ? 'balanced' : 'interactive' }); } catch { return; }
       graph = buildGraph(ac, volumes);
+      // the times the sound went silent for want of time (Chrome counts them)
+      if (stats()) setInterval(() => { if (ac?.state === 'running') strain.feel(stats()?.underrunEvents ?? 0, performance.now() / 1000); }, 2000);
       // the music comes in slowly
       graph.fade.gain.setTargetAtTime(1, ac.currentTime + 0.2, 2.2);
       for (const f of wakers) f(graph);
@@ -178,7 +194,7 @@ function createSon(): Son {
     else void ac.resume().catch(() => { /* waits for the next touch */ });
   });
 
-  const gainsOf = (k: keyof Volumes) => (!graph ? [] : k === 'musique' ? [graph.musicVol] : k === 'chant' ? [graph.voiceVol] : [graph.fxVol, graph.farVol]);
+  const gainsOf = (k: keyof Volumes) => (!graph ? [] : k === 'musique' ? [graph.musicVol] : k === 'chant' ? [graph.voiceVol, graph.voiceFar] : [graph.fxVol, graph.farVol]);
   return {
     get graph() { return graph; },
     get awake() { return ac?.state === 'running'; },
@@ -189,6 +205,8 @@ function createSon(): Son {
       if (ac) for (const g of gainsOf(k)) g.gain.setTargetAtTime(volumeGain(volumes[k], VOLUMES[k]), ac.currentTime, 0.05);
       try { localStorage.setItem(STORE, JSON.stringify(volumes)); } catch { /* ignore */ }
     },
-    duck() { if (graph && ac) duckAt(graph, ac.currentTime); }
+    duck() { if (graph && ac) duckAt(graph, ac.currentTime); },
+    get strained() { return strain.on(performance.now() / 1000); },
+    get underruns() { const st = stats(); return st ? { events: st.underrunEvents, seconds: st.underrunDuration } : null; }
   };
 }
