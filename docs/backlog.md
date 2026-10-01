@@ -40,7 +40,7 @@ Ajoute une jolie oage de chargemydu jeux aui arrive très vite quitte a quelle s
 ## Étape 6 — Son et finitions
 
 ### La croix de l'arbre des espèces hors de vue
-> 🔵 en cours · agent croix-arbre-especes
+> 🟠 fusionné · agent croix-arbre-especes
 
 Bug : dans l'arbre des espèces déjà rencontrées (`src/monde/arbre-ecran.ts`), la croix « × » qui ferme le panneau défile avec la liste. Une fois qu'on est descendu, on ne peut plus fermer : il faut remonter tout en haut de l'arbre pour la retrouver. La croix doit rester visible et cliquable où qu'on soit dans la liste, sur téléphone comme sur ordinateur (pouce, petite largeur) ; Échap et le clic hors du panneau continuent de fermer.
 
