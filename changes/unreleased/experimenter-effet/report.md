@@ -95,7 +95,7 @@ Pas mesuré sur un vrai téléphone.
 
 ## Choix retenus
 
-Aucune question n'a été posée sur le tableau de bord : tous les choix sont tranchés par l'agent (option recommandée). Le chantier est une expérience aux effets seulement visuels, sans règle de jeu, sans format durable : rien de structurant à soumettre.
+Aucune question n'a été posée sur le tableau de bord : tous les choix sont tranchés par l'agent (option recommandée). Le chantier est une expérience aux effets seulement visuels, sans règle de jeu, sans format durable : rien de structurant à soumettre. Un retour (non bloquant) y a été laissé : les cris muets, pour le chantier des bruitages, et la mesure sur téléphone, pour celui de la performance.
 
 | Question | Choix retenu | Pourquoi |
 | --- | --- | --- |
