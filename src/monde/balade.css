@@ -1,0 +1,9 @@
+/* La Balade libre (balade-jeu.ts): when it opens, the Atelier and the settings (the travel) glow softly a while */
+@keyframes balade-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(246,217,138,0); border-color: rgba(244,239,226,0.35); }
+  50% { box-shadow: 0 0 18px 4px rgba(246,217,138,0.55); border-color: rgba(246,217,138,0.9); }
+}
+body.balade-new :is(#atBtn, #gear) { animation: balade-glow 2.6s ease-in-out 4; }
+@media (prefers-reduced-motion: reduce) {
+  body.balade-new :is(#atBtn, #gear) { animation: none; border-color: rgba(246,217,138,0.9); }
+}
