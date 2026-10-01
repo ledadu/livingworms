@@ -1,0 +1,55 @@
+{
+  "about": "Les enregistrements de l'ambiance (docs/direction-artistique.md, « Le son »), pris sur Freesound sous licence CC0 ou CC-BY. Pour chaque fichier : son titre, son auteur, sa licence et sa source ; puis ce qu'on en a gardé et ce qu'il fait dans le jeu. Chaque fichier audio de ce dossier a sa ligne (un test le vérifie).",
+  "sounds": [
+    {
+      "file": "eau.mp3",
+      "title": "Underwater Ambience.wav",
+      "author": "Tim_Verberne",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "url": "https://freesound.org/people/Tim_Verberne/sounds/482167/",
+      "excerpt": "de 20 s à 35 s, en mono, 24 kHz, MP3 24 kb/s",
+      "use": "l'eau qui respire autour de nous, en boucle"
+    },
+    {
+      "file": "ressac.mp3",
+      "title": "Sea waves underwater, back and forth, close to the rocks with water bubbles",
+      "author": "felix.blume",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "url": "https://freesound.org/people/felix.blume/sounds/705058/",
+      "excerpt": "de 2,2 s à 16 s, en mono, 24 kHz, MP3 24 kb/s",
+      "use": "le ressac au-dessus de nous, près de la surface, en boucle"
+    },
+    {
+      "file": "bulles.mp3",
+      "title": "063015 Hydrophone water bubbles 4.wav",
+      "author": "thaighaudio",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "url": "https://freesound.org/people/thaighaudio/sounds/349885/",
+      "excerpt": "de 0 à 10,5 s, en mono, 48 kHz, MP3 40 kb/s",
+      "use": "les bulles çà et là, des suintements et des cheminées"
+    },
+    {
+      "file": "glace.mp3",
+      "title": "Ice - Lake fractures",
+      "author": "Vrymaa",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "url": "https://freesound.org/people/Vrymaa/sounds/737896/",
+      "excerpt": "quatre passages (7,8 s, 21,8 s, 38,6 s et 51,9 s, 14 s en tout) mis bout à bout, en mono, 44,1 kHz, MP3 40 kb/s",
+      "use": "la glace du Glacier qui craque au loin"
+    },
+    {
+      "file": "baleines.mp3",
+      "title": "Diving with whales.wav",
+      "author": "KEVOY",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "url": "https://freesound.org/people/KEVOY/sounds/82325/",
+      "excerpt": "de 30 s à 50 s, en mono, 24 kHz, MP3 32 kb/s",
+      "use": "les baleines au loin et les cris des grands visiteurs"
+    }
+  ]
+}

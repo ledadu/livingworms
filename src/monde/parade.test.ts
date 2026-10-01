@@ -1,33 +1,61 @@
 import { describe, expect, it } from 'vitest';
-import { FIG_H, FIG_W, LEAVE_FAR, LEAVE_TIME, PARADE_TIME, START_HOLD, START_NEAR, along, approach, away, figure, newParade, partsOf, quality, stepParade, type Mover } from './parade';
+import { FIG_H, FIG_W, LEAVE_FAR, LEAVE_TIME, READY_MAX, READY_MIN, START_HOLD, START_NEAR, along, approach, away, figure, newParade, partsOf, quality, ready, stepParade, type Mover } from './parade';
 import { STEP } from '../engine';
 
-/** a whole parade; the partner goes where it is led, the swimmer is moved by `swim` */
-function dance(swim: (partner: Mover, history: Mover[], me: Mover) => void, start = { x: 0, y: 0 }) {
+type Swim = (partner: Mover, history: Mover[], me: Mover, time: number) => void;
+const follow: Swim = (_, h, me) => Object.assign(me, h[Math.max(0, h.length - 30)]);
+
+/** a parade of `time` s; the partner goes where it is led, the swimmer is moved by `swim` */
+function dance(swim: Swim, start = { x: 0, y: 0 }, time = 20) {
   const partner: Mover = { x: 1000, y: 500, vx: 0, vy: 0 }, me: Mover = { vx: 0, vy: 0, ...start };
   me.x += 1000; me.y += 500;
   const p = newParade(partner, me, 1.6), history: Mover[] = [];
-  let steps = 0;
-  while (!p.done && steps < 5000) {
+  let steps = 0, readyAt = Infinity;
+  while (steps * STEP < time - 1e-9) {
     const v = stepParade(p, partner, me);
+    if (readyAt === Infinity && ready(p)) readyAt = p.time;
     partner.vx += (v.x - partner.vx) * 0.1; partner.vy += (v.y - partner.vy) * 0.1;
     partner.x += partner.vx; partner.y += partner.vy;
     history.push({ ...partner });
-    swim(partner, history, me);
+    swim(partner, history, me, p.time);
     steps++;
   }
-  return { p, steps, partner };
+  return { p, steps, partner, readyAt };
 }
 
 describe('the parade', () => {
-  it('lasts about twenty seconds, whatever we do', () => {
-    for (const swim of [() => {}, (_: Mover, h: Mover[], me: Mover) => Object.assign(me, h[Math.max(0, h.length - 30)])]) {
-      const { p, steps } = dance(swim, { x: -80, y: 0 });
-      expect(p.done).toBe(true);
-      expect(steps * STEP).toBeCloseTo(PARADE_TIME, 1);
+  it('goes on until we choose to mate, whatever we do', () => {
+    for (const swim of [() => {}, follow]) {
+      const { p } = dance(swim, { x: -80, y: 0 }, 40);
+      expect(p.done).toBe(false);
       expect(quality(p)).toBeGreaterThanOrEqual(0);
       expect(quality(p)).toBeLessThanOrEqual(1);
     }
+  });
+
+  it('makes us ready to mate soon when we dance well, and in a while anyway', () => {
+    const good = dance(follow, { x: -80, y: 0 }, 12).readyAt, idle = dance(() => {}, { x: -80, y: 0 }, 12).readyAt;
+    expect(good).toBeGreaterThanOrEqual(READY_MIN - 1e-6);
+    expect(good).toBeLessThan(READY_MIN + 1.5);
+    expect(idle).toBeGreaterThan(good + 2);
+    expect(idle).toBeLessThanOrEqual(READY_MAX + 1e-6);
+  });
+
+  it('measures the quality before the mating, and keeps it after', () => {
+    const { p, partner } = dance(follow, { x: -80, y: 0 }, 8);
+    const q = quality(p), s = p.s;
+    p.done = true;
+    expect(ready(p)).toBe(false);
+    for (let i = 0; i < 100; i++) stepParade(p, partner, { x: 0, y: 0, vx: 3, vy: 0 });
+    expect(quality(p)).toBe(q);
+    expect(p.s).toBe(s);
+  });
+
+  it('makes up for a poor start when we dance on', () => {
+    const late = quality(dance((pa, h, me, t) => { if (t > 10) follow(pa, h, me, t); }, { x: -80, y: 0 }, 40).p);
+    const idle = quality(dance(() => {}, { x: -80, y: 0 }, 10).p);
+    expect(late).toBeGreaterThan(idle + 0.3);
+    expect(late).toBeGreaterThan(0.75);
   });
 
   it('dances a figure of eight that starts where we met and comes back there', () => {
@@ -47,7 +75,7 @@ describe('the parade', () => {
   });
 
   it('rates highly the one who follows in its wake and turns with it', () => {
-    const { p } = dance((_, h, me) => Object.assign(me, h[Math.max(0, h.length - 30)]), { x: -80, y: 0 });
+    const { p } = dance(follow, { x: -80, y: 0 });
     expect(quality(p)).toBeGreaterThan(0.85);
     const parts = partsOf(p);
     expect(parts.wake).toBeGreaterThan(0.8);
@@ -57,14 +85,14 @@ describe('the parade', () => {
   it('rates in between the one who stays near without dancing, and low the one who swims away', () => {
     const idle = quality(dance(() => {}, { x: -80, y: 0 }).p);
     const away = quality(dance((_, __, me) => { me.x -= 2.6; me.vx = -2.6; }, { x: -80, y: 0 }).p);
-    const follow = quality(dance((_, h, me) => Object.assign(me, h[Math.max(0, h.length - 30)]), { x: -80, y: 0 }).p);
+    const good = quality(dance(follow, { x: -80, y: 0 }).p);
     expect(away).toBeLessThan(0.15);
     expect(idle).toBeGreaterThan(away);
-    expect(idle).toBeLessThan(follow - 0.3);
+    expect(idle).toBeLessThan(good - 0.3);
   });
 
   it('waits for us when we fall behind', () => {
-    const near = dance((_, h, me) => Object.assign(me, h[Math.max(0, h.length - 30)]), { x: -80, y: 0 }).p;
+    const near = dance(follow, { x: -80, y: 0 }).p;
     const far = dance(() => {}, { x: -700, y: 0 }).p;
     expect(far.s).toBeLessThan(near.s * 0.4);
   });

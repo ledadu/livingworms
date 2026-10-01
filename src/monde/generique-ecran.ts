@@ -7,13 +7,14 @@ import chapitres from '../../docs/chapitres.md?raw';
 import { spec as makeSpec, type Spec } from '../engine';
 import { snapshot3 } from '../engine3/snapshot3';
 import { SPECIES } from '../content/species';
-import { bornWords, generationLabel, generations, type Generation } from './arbre';
+import { backWords, generationLabel, generations, originWords, type Generation } from './arbre';
 import { wordsOf } from './chant';
 import type { Ancestor, Mate } from './partie';
 import { css, type HSL } from './palette';
 import { parseChapterTexts, textsOf } from './textes';
 import { bandColour, downloadsBlocked, rollMs, souvenirFileName } from './generique';
 import { drawSouvenir, fontsReady } from './generique-image';
+import { soundsSection } from './credits-sons';
 import './generique.css';
 
 export interface GeneriqueDeps {
@@ -162,7 +163,7 @@ export function initGenerique(d: GeneriqueDeps): Generique {
       name.textContent = g.name;
       const born = document.createElement('p');
       born.className = 'gq-born';
-      born.textContent = bornWords(chapter(g.bornIn).name);
+      born.textContent = originWords(g, chapter(g.bornIn).name);
       gen.append(frame('gq-portrait', water, () => portraitOf(g)), label, name, born);
       const notes = learned(g);
       if (notes) gen.append(Object.assign(document.createElement('p'), { className: 'gq-notes', textContent: notes }));
@@ -176,9 +177,14 @@ export function initGenerique(d: GeneriqueDeps): Generique {
         words.textContent = `avec ${m.name}`;
         if (m.id && SPECIES[m.id]) join.append(frame('gq-mini', bandColour(chapter(gens[i + 1].bornIn)), () => mateOf(m)));
         join.append(words);
+      } else if (g.back) {
+        join.classList.add('gq-back');
+        join.append(Object.assign(document.createElement('p'), { textContent: backWords(g.back) }));
       }
       list.append(join);
     });
+    // the people whose recordings we hear
+    list.append(soundsSection());
     const end = document.createElement('p');
     end.className = 'gq-end';
     end.textContent = 'La Lignée';

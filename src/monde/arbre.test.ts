@@ -8,7 +8,7 @@ const moon = { id: 'meduse', name: 'Méduse lune' };
 
 describe('the generations', () => {
   it('is only the one played at the start, born in the first chapter', () => {
-    expect(generations([], larva, 'nurserie')).toEqual([{ rank: 1, creature: larva, name: 'Première', bornIn: 'nurserie', partner: null, current: true }]);
+    expect(generations([], larva, 'nurserie')).toEqual([{ rank: 1, creature: larva, name: 'Première', bornIn: 'nurserie', partner: null, current: true, back: null, again: false }]);
   });
 
   it('gives each one the place where the one before gave birth, and its partner', () => {

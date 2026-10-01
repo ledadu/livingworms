@@ -13,53 +13,60 @@ Les documents de conception : [vision](vision.md), [chapitres](chapitres.md), [m
 ## Étape 4 — Lignée
 
 ### L'enfant reste près de ses frères
-> ⚪ à faire
+> 🟠 fusionné · agent enfant-reste-pres
 
 Quand on a choisi son enfant et que les œufs éclosent, l'enfant part aujourd'hui à toute vitesse, très loin (la sortie de l'adieu, `src/monde/adieu.ts`, « de plus en plus vite » jusqu'à ~700 px) : on ne voit plus ses frères et sœurs. Il doit seulement s'écarter un peu, sans hâte, pour qu'on les voie encore autour de lui, puis on reprend la main tout de suite et c'est nous qui partons à notre rythme. Les trois autres restent là et vivent leur vie. Garder l'émotion de l'adieu (le texte, le parent qui le regarde) sans l'éloigner de la portée ; mettre à jour « L'adieu » dans `docs/mecaniques.md`.
 
 ### Déclencher l'accouplement, puis une danse à deux
-> ⚪ à faire
+> 🟠 fusionné · agent declencher-accouplement
 
 L'approche d'un partenaire reste comme aujourd'hui : on vient près de lui, il nous remarque, on le suit et on prépare la rencontre (la parade, `src/monde/parade.ts`, `parade-jeu.ts`). Mais l'accouplement ne s'enchaîne plus tout seul : c'est nous qui le déclenchons, par un geste à nous (un bouton « S'accoupler » qui apparaît près du partenaire quand on est prêt, ou un geste tactile équivalent, aussi au clavier). Une fois déclenchée, une **danse à deux automatique**, qu'on regarde sans rien faire (quelques secondes) : les deux espèces se tournent autour, se font face, s'enroulent, montent en spirale, se frôlent, avec de petits gestes sympas et doux qui varient d'une fois à l'autre et selon les deux espèces (un marcheur et un nageur ne dansent pas pareil), portée par la lueur de l'accouplement et l'eau de la parade. Puis la ponte des œufs, comme aujourd'hui.
 
 À trancher (proposer, poser la question par le tableau de bord si besoin) : quand le bouton apparaît (dès qu'on est près, ou après un moment à suivre le partenaire), ce que devient la qualité de la parade, qui règle les traits des enfants (la mesurer pendant l'approche, avant le déclenchement), et si on peut toujours partir avant de déclencher. Mettre à jour « La parade » et « La ponte » dans `docs/mecaniques.md`, et les tests (`monde.parade`).
 
 ### Revenir à une espèce antérieure de la lignée
-> ⚪ à faire
+> 🟠 fusionné · agent revenir-espece
 
 Une espèce choisie peut déplaire : un déplacement pénible, un aspect qui ne nous va pas. On doit pouvoir revenir à une espèce antérieure dans l'arbre des espèces (`src/monde/arbre-ecran.ts`) et la rejouer, sans que ce soit punitif : c'est un jeu, ça doit rester plaisant. À trancher (proposer, et poser la question par le tableau de bord si besoin) : jusqu'où on peut remonter (les ancêtres de notre lignée, peut-être aussi leurs frères et sœurs), où on reprend (là où on est, dans le chapitre courant), ce qui arrive si cette espèce ne franchit pas l'obstacle du chapitre (on la garde quand même, les indices se réveillent), et comment la lignée et la sauvegarde l'enregistrent (`partie.born`, l'arbre, le générique : un retour à un ancêtre, pas une nouvelle naissance effacée). Un geste simple depuis l'arbre (« Reprendre cette espèce »), avec confirmation, et une petite scène de transition plutôt qu'une coupure.
+
+### chargement 
+> 🔵 en cours · agent chargement
+
+Sur les chargement du jeu j'ai un page blanchya ec quelques éléments html, c'est trd laid. Et va met un bon petit moment sur le tel.
+Ajoute une jolie oage de chargemydu jeux aui arrive très vite quitte a quelle soit instantané fixe ouis s'anime avent que le jeu soit lancé.
 
 ## Étape 5 — Chant et fin
 
 ## Étape 6 — Son et finitions
 
 ### La croix de l'arbre des espèces hors de vue
-> ⚪ à faire
+> 🟠 fusionné · agent croix-arbre-especes
 
 Bug : dans l'arbre des espèces déjà rencontrées (`src/monde/arbre-ecran.ts`), la croix « × » qui ferme le panneau défile avec la liste. Une fois qu'on est descendu, on ne peut plus fermer : il faut remonter tout en haut de l'arbre pour la retrouver. La croix doit rester visible et cliquable où qu'on soit dans la liste, sur téléphone comme sur ordinateur (pouce, petite largeur) ; Échap et le clic hors du panneau continuent de fermer.
 
-### Les coupures du son sur téléphone
-> ⚪ à faire
-
-Sur téléphone, quand on chante beaucoup de notes à la suite, le son coupe ; on entend aussi d'autres petites coupures de temps en temps. Optimiser le moteur de son (`son.ts`, `chant-son.ts`, `musique-son.ts`, `bruits-son.ts`) pour qu'il ne décroche plus : mesurer sur un vrai téléphone ce qui coûte (nombre de voix et de nœuds vivants pendant un chant soutenu, réverbération, filtres qui glissent), plafonner les voix du chant et voler les plus anciennes, libérer les nœuds finis, alléger ce qui peut l'être quand l'appareil peine. Le mélange ne doit pas changer à l'oreille. À faire avant les autres chantiers du son, qui en ajoutent.
-
 ### La distance des sons
-> ⚪ à faire
+> 🟠 fusionné · agent distance-sons
 
 Le moteur de son tient compte de la distance et de la position de ce qui sonne : un animal, une bulle, une cheminée près du nageur s'entend plus fort et plus net, loin il est plus faible, plus sourd (filtre) et plus réverbéré, à gauche ou à droite selon sa place à l'écran. Les bulles sont trop présentes aujourd'hui : moins fortes de loin, et une durée d'émission qui varie (des trains de bulles plus ou moins longs, des silences entre). Respecter le budget du chantier des coupures (pas un panoramique 3D coûteux par bruit).
 
+### Les coupures du son sur téléphone
+> 🟠 fusionné · agent distance-sons
+> ↳ après « La distance des sons »
+
+Sur téléphone, quand on chante beaucoup de notes à la suite, le son coupe ; on entend aussi d'autres petites coupures de temps en temps. Optimiser le moteur de son (`son.ts`, `chant-son.ts`, `musique-son.ts`, `bruits-son.ts`) pour qu'il ne décroche plus : mesurer sur un vrai téléphone ce qui coûte (nombre de voix et de nœuds vivants pendant un chant soutenu, réverbération, filtres qui glissent), plafonner les voix du chant et voler les plus anciennes, libérer les nœuds finis, alléger ce qui peut l'être quand l'appareil peine. Le mélange ne doit pas changer à l'oreille. À faire avant les autres chantiers du son, qui en ajoutent.
+
 ### Des musiques qui changent
-> ⚪ à faire
+> 🟠 fusionné · agent musiques-qui-changent
 
 L'ambiance de chaque chapitre est un peu répétitive quand on y reste. La faire évoluer dans le temps : des sections qui se succèdent (variations d'accords, de voix, de densité, de registre), des moments plus calmes et plus pleins, des motifs qui ne reviennent pas à l'identique, tout en gardant le caractère de chaque chapitre (tableau de `docs/direction-artistique.md`), le ré majeur et l'accord avec le chant. La partition reste pure et testée (`musique.ts`).
 
 ### De vrais sons pour l'ambiance
-> ⚪ à faire
+> 🟠 fusionné · agent vrais-sons-ambiance
 
 Certains bruits sonnent trop électroniques. Garder le son généré là où il est bien, mais ajouter de vrais enregistrements pour l'ambiance (eau, bulles, ressac, glace, cris lointains de baleine…), pris dans une banque de sons libres de droit (Freesound en CC0 ou CC-BY, ou équivalent). Revoir la décision « sans fichier audio » de `docs/decisions.md` et la mettre à jour : poids des fichiers (formats compressés, courts, en boucle), chargement sans bloquer le jeu, mise en cache, joués à travers la distance des sons. Garder pour chaque son sa source, son auteur et sa licence (un fichier de crédits à côté des sons).
 
 ### Les crédits des sons
-> ⚪ à faire
+> 🟠 fusionné · agent vrais-sons-ambiance
 > ↳ après « De vrais sons pour l'ambiance »
 
 Même pour des sons libres de droit, nommer les personnes qui les ont publiés : une section « Sons » dans les crédits du jeu (le générique, et une page ou un panneau consultable depuis les réglages), avec pour chaque son son titre, son auteur, sa licence et un lien vers la source. Lue depuis le fichier de crédits du chantier des vrais sons ; un test vérifie que chaque fichier audio du jeu y a sa ligne.
