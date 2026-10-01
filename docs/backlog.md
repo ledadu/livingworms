@@ -35,6 +35,12 @@ Une espèce choisie peut déplaire : un déplacement pénible, un aspect qui ne 
 Sur les chargement du jeu j'ai un page blanchya ec quelques éléments html, c'est trd laid. Et va met un bon petit moment sur le tel.
 Ajoute une jolie oage de chargemydu jeux aui arrive très vite quitte a quelle soit instantané fixe ouis s'anime avent que le jeu soit lancé.
 
+### deplacement relou
+> 🔵 en cours · agent deplacement-relou
+
+je viens de faire des enfants avec une meduse et l'lenfant choisi est incortolable il a une facons de se deplacer qui ne suis pas bien la souris et fait des deplacement avec acoups. a mon avis ca vien du mode de deplacement croisé qui est tres utile qaut cela n'est pas piloté par le joeur.
+il faut que toute les creature puisse etre piloté facilement par le joeur, par cntre ne case pas les systeme de deplacement, il faut surtout que quand c'est un jouer qui pilota ca soir simple a piloté par le joeur.
+
 ## Étape 5 — Chant et fin
 
 ## Étape 6 — Son et finitions
