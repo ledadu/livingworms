@@ -16,36 +16,66 @@ Les documents de conception : [vision](vision.md), [chapitres](chapitres.md), [m
 
 ## Étape 6 — Son et finitions
 
-### Les bruitages
-> 🟠 fusionné · agent bruitages
+### La croix de l'arbre des espèces hors de vue
+> ⚪ à faire
 
-Bulles, courant, cris lointains de baleine ; la résonance de la Grotte, les craquements du Glacier.
+Bug : dans l'arbre des espèces déjà rencontrées (`src/monde/arbre-ecran.ts`), la croix « × » qui ferme le panneau défile avec la liste. Une fois qu'on est descendu, on ne peut plus fermer : il faut remonter tout en haut de l'arbre pour la retrouver. La croix doit rester visible et cliquable où qu'on soit dans la liste, sur téléphone comme sur ordinateur (pouce, petite largeur) ; Échap et le clic hors du panneau continuent de fermer.
 
-### La performance sur téléphone
-> 🟠 fusionné · agent performance-telephone
+### Les coupures du son sur téléphone
+> ⚪ à faire
 
-Tenir un rythme fluide sur un téléphone moyen dans tous les chapitres, notamment le Jardin de méduses (des milliers de méduses) et la Fosse (la lumière du nageur). Mesurer avec `?bench` et sur un vrai téléphone.
+Sur téléphone, quand on chante beaucoup de notes à la suite, le son coupe ; on entend aussi d'autres petites coupures de temps en temps. Optimiser le moteur de son (`son.ts`, `chant-son.ts`, `musique-son.ts`, `bruits-son.ts`) pour qu'il ne décroche plus : mesurer sur un vrai téléphone ce qui coûte (nombre de voix et de nœuds vivants pendant un chant soutenu, réverbération, filtres qui glissent), plafonner les voix du chant et voler les plus anciennes, libérer les nœuds finis, alléger ce qui peut l'être quand l'appareil peine. Le mélange ne doit pas changer à l'oreille. À faire avant les autres chantiers du son, qui en ajoutent.
 
-### La Balade libre
-> 🟠 fusionné · agent balade-libre
+### La distance des sons
+> ⚪ à faire
 
-Après la fin : le monde entier ouvert, l'Atelier disponible, sans histoire.
+Le moteur de son tient compte de la distance et de la position de ce qui sonne : un animal, une bulle, une cheminée près du nageur s'entend plus fort et plus net, loin il est plus faible, plus sourd (filtre) et plus réverbéré, à gauche ou à droite selon sa place à l'écran. Les bulles sont trop présentes aujourd'hui : moins fortes de loin, et une durée d'émission qui varie (des trains de bulles plus ou moins longs, des silences entre). Respecter le budget du chantier des coupures (pas un panoramique 3D coûteux par bruit).
 
-### arbre des creature
-> 🟠 fusionné · agent arbre-creature
+### Des musiques qui changent
+> ⚪ à faire
 
-il faut animer les creaure dans l'arbre et pourquoi pas des animation pas tres communa par rapport au jeux, peut etre plus rigolote plus amusante.. assez douces.
+L'ambiance de chaque chapitre est un peu répétitive quand on y reste. La faire évoluer dans le temps : des sections qui se succèdent (variations d'accords, de voix, de densité, de registre), des moments plus calmes et plus pleins, des motifs qui ne reviennent pas à l'identique, tout en gardant le caractère de chaque chapitre (tableau de `docs/direction-artistique.md`), le ré majeur et l'accord avec le chant. La partition reste pure et testée (`musique.ts`).
 
-### action des annimaux dans la nature
-> 🟠 fusionné · agent action-annimaux-nature
+### De vrais sons pour l'ambiance
+> ⚪ à faire
 
-trouve des type d'animation accrochable anotre moteur de creature, pour leur faire des truc , seule, a 2, a plusieurs, rend les espace plus realiste de vie, pas seulemnt des deplacement d'animaux
+Certains bruits sonnent trop électroniques. Garder le son généré là où il est bien, mais ajouter de vrais enregistrements pour l'ambiance (eau, bulles, ressac, glace, cris lointains de baleine…), pris dans une banque de sons libres de droit (Freesound en CC0 ou CC-BY, ou équivalent). Revoir la décision « sans fichier audio » de `docs/decisions.md` et la mettre à jour : poids des fichiers (formats compressés, courts, en boucle), chargement sans bloquer le jeu, mise en cache, joués à travers la distance des sons. Garder pour chaque son sa source, son auteur et sa licence (un fichier de crédits à côté des sons).
+
+### Les crédits des sons
+> ⚪ à faire
+
+Même pour des sons libres de droit, nommer les personnes qui les ont publiés : une section « Sons » dans les crédits du jeu (le générique, et une page ou un panneau consultable depuis les réglages), avec pour chaque son son titre, son auteur, sa licence et un lien vers la source. Lue depuis le fichier de crédits du chantier des vrais sons ; un test vérifie que chaque fichier audio du jeu y a sa ligne.
 
 ## Autour du jeu
 
 ## Livré
 
 Les chantiers publiés, du plus récent au plus ancien.
+
+### Les bruitages
+> 🟢 livré · v0.7.0 · agent bruitages
+
+Bulles, courant, cris lointains de baleine ; la résonance de la Grotte, les craquements du Glacier.
+
+### La performance sur téléphone
+> 🟢 livré · v0.7.0 · agent performance-telephone
+
+Tenir un rythme fluide sur un téléphone moyen dans tous les chapitres, notamment le Jardin de méduses (des milliers de méduses) et la Fosse (la lumière du nageur). Mesurer avec `?bench` et sur un vrai téléphone.
+
+### La Balade libre
+> 🟢 livré · v0.7.0 · agent balade-libre
+
+Après la fin : le monde entier ouvert, l'Atelier disponible, sans histoire.
+
+### arbre des creature
+> 🟢 livré · v0.7.0 · agent arbre-creature
+
+il faut animer les creaure dans l'arbre et pourquoi pas des animation pas tres communa par rapport au jeux, peut etre plus rigolote plus amusante.. assez douces.
+
+### action des annimaux dans la nature
+> 🟢 livré · v0.7.0 · agent action-annimaux-nature
+
+trouve des type d'animation accrochable anotre moteur de creature, pour leur faire des truc , seule, a 2, a plusieurs, rend les espace plus realiste de vie, pas seulemnt des deplacement d'animaux
 
 ### Le chant : une note par chapitre
 > 🟢 livré · v0.6.0 · agent chant-note-chapitre
