@@ -8,6 +8,7 @@ import { SPECIES } from '../content/species';
 import { NAME_MAX, bornWords, cleanName, generationLabel, generations, type Generation } from './arbre';
 import type { Ancestor } from './partie';
 import { wordsOf } from './chant';
+import { initVivants, type Vivants } from './arbre-vivant';
 import './arbre.css';
 
 export interface ArbreDeps {
@@ -31,6 +32,8 @@ export interface Arbre {
   rename(rank: number, name: string): void;
   /** something more under the tree, at each opening (the keepsake image, once the story is over) */
   more: (() => HTMLElement | null) | null;
+  /** the living portraits (arbre-vivant.ts) */
+  readonly vivants: Vivants;
 }
 
 const ICON = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">'
@@ -74,6 +77,8 @@ export function initArbre(d: ArbreDeps): Arbre {
   let gens: Generation[] = [];
   let jobs: (() => void)[] = [];
   let raf = 0;
+  // the portraits swim in their medallions; with « reduce motion », still ones as before
+  const vivants = initVivants();
 
   const chapterName = (id: string) => d.chapters.find((c) => c.id === id)?.name ?? d.chapters[0]?.name ?? '';
 
@@ -130,6 +135,7 @@ export function initArbre(d: ArbreDeps): Arbre {
   function portrait<K>(cache: Cache<K>, key: K, cls: string, sp: () => Spec | null): HTMLCanvasElement {
     const cv = document.createElement('canvas');
     cv.className = cls;
+    if (vivants.on) { vivants.add(cv, key as object | string, sp, cls === 'ar-mini'); return cv; }
     const done = cache.get(key);
     if (done) {
       cv.width = done.width;
@@ -148,6 +154,7 @@ export function initArbre(d: ArbreDeps): Arbre {
   }
 
   function build(): HTMLElement | null {
+    vivants.stop();
     root.replaceChildren();
     jobs = [];
     const live = d.live();
@@ -233,12 +240,14 @@ export function initArbre(d: ArbreDeps): Arbre {
       if (current) root.scrollTop += current.getBoundingClientRect().top - (root.clientHeight - current.offsetHeight) / 2;
       root.focus({ preventScroll: true });
       if (!raf && jobs.length) raf = requestAnimationFrame(drawSome);
+      vivants.start(root, true);
     },
     close() {
       if (!arbre.isOpen) return;
       if (raf) cancelAnimationFrame(raf);
       raf = 0;
       jobs = [];
+      vivants.stop();
       root.classList.remove('show');
       root.hidden = true;
       root.replaceChildren();
@@ -250,8 +259,9 @@ export function initArbre(d: ArbreDeps): Arbre {
       const clean = cleanName(name);
       if (!g || !clean) return;
       rename(g, clean);
-      if (arbre.isOpen) { const at = root.scrollTop; build(); root.scrollTop = at; if (!raf && jobs.length) raf = requestAnimationFrame(drawSome); }
-    }
+      if (arbre.isOpen) { const at = root.scrollTop; build(); root.scrollTop = at; if (!raf && jobs.length) raf = requestAnimationFrame(drawSome); vivants.start(root, false); }
+    },
+    vivants
   };
   return arbre;
 }
