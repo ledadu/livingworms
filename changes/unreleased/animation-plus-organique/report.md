@@ -97,7 +97,6 @@ Une question posée sur le tableau de bord, **répondue par l'utilisateur** ; le
 - Un nouveau-né d'espèce marcheuse (crabe) naît à mi-eau là où était l'œuf et descend vers le fond par sa marche.
 - Les œufs ne sont toujours pas sauvegardés ; une seule ponte attend à la fois (les autres éclosent).
 - Le nuage de couleur en eau claire est un premier réglage (`dye`, `kCloud`), à affiner en jouant.
-- `make check` : `src/monde/nouveautes/plugin.test.ts` (« embeds the published versions only… ») échoue aussi sur `backlog` sans ce chantier (le budget d'images de la page jouable ne couvre plus v0.2.0) ; rien d'ici n'y touche.
 
 ## Risques de fusion
 
