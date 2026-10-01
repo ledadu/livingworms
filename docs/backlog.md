@@ -12,69 +12,9 @@ Les documents de conception : [vision](vision.md), [chapitres](chapitres.md), [m
 
 ## Étape 4 — Lignée
 
-### L'arbre de la lignée
-> 🟠 fusionné · agent arbre-lignee
-
-Un écran accessible à tout moment : le portrait de chaque ancêtre (`snapshot3`), son nom, le partenaire, le lieu de naissance. On peut nommer chaque génération.
-
-### Les ancêtres restent dans le monde
-> 🟠 fusionné · agent ancetres-restent-monde
-
-Chaque parent quitté reste là où on l'a quitté, et y nage quand on revient en arrière.
-
-### Les traces de la lignée
-> 🟠 fusionné · agent traces-lignee
-
-Plus bas, des traces des générations passées : une carcasse de parent devenue récif, une mue, des œufs non éclos.
-
-### La lignée rivale de la Carcasse
-> 🔵 en cours · agent lignee-rivale-carcasse
-
-À la Carcasse, une autre lignée, aux choix différents : une créature étrange, cousine lointaine, générée à partir d'autres partenaires.
-
 ## Étape 5 — Chant et fin
 
-### Le chant : une note par chapitre
-> 🟣 en file · agent chant-note-chapitre
-
-Chaque génération apprend la note de son chapitre ; un bouton en bas ouvre un cercle de notes à tracer du doigt. Certains animaux répondent et ouvrent un passage. Nombre de notes : voir la question 3 des [décisions](decisions.md#questions-ouvertes).
-
-### Les lumières qui répondent dans la Fosse
-> 🟣 en file · agent lumieres-qui-repondent
-
-On joue les notes apprises et, une à une, des lumières répondent dans le noir : les ancêtres des autres lignées.
-
-### La Remontée
-> 🟣 en file · agent remontee
-
-Le puits de lumière au fond, le retournement, puis la remontée : la créature finale joue le chant complet, tous les ancêtres apparaissent et remontent en formation, chaque chapitre s'illumine au passage, la lignée perce la surface et une larve naît ([chapitres.md](chapitres.md)).
-
-### Le générique et l'image souvenir
-> 🟣 en file · agent generique-image-souvenir
-
-L'arbre complet de la lignée en générique, puis en image téléchargeable (sauf dans le lien Artifact).
-
-### lueur de l'accouplement
-> 🟣 en file · agent lueur-accouplement
-
-Il faut que cela soit moin eblouisant et ajuter plein d'autre effets qui ne sont pas forcement les meme a chaque fois , un peu de random et peut etre aussi en fonction des genes des accouplé?
-
-### Titre du chantier
-> 🟣 en file · agent titre-chantier
-
-quand les bestiole se retourne mettre de l'aleatoire sur le sens, elle pevent se retouné en passant par le dos ou en passant de face...
-
-### Titre du chantier
-> 🟣 en file · agent titre-chantier-2
-
-le forcage de changement pour passer dans un mode et vachement intrusif, et pas du tout smooth..
-le moment ou on est obligé d'accepter un oeuf!! on pourrait pas diriger le joueur plus.. et meme si il refuse alors il doit encore s'accouple et peut etre luis donner des indice pour qu'il trouve la bonne bestionle avec qui il doit faire l'enfant..
-
 ## Étape 6 — Son et finitions
-
-### La musique générée
-
-Une ambiance par chapitre, générée avec la Web Audio API (nappes, harmoniques), sans fichier audio ([decisions.md](decisions.md#technique)). Le chant et ses timbres.
 
 ### Les bruitages
 
@@ -88,11 +28,115 @@ Tenir un rythme fluide sur un téléphone moyen dans tous les chapitres, notamme
 
 Après la fin : le monde entier ouvert, l'Atelier disponible, sans histoire.
 
+### arbre des creature
+> ⚪ à faire
+
+il faut animer les creaure dans l'arbre et pourquoi pas des animation pas tres communa par rapport au jeux, peut etre plus rigolote plus amusante.. assez douces.
+
+### action des annimaux dans la nature
+> 🔵 en cours · agent action-annimaux-nature
+
+trouve des type d'animation accrochable anotre moteur de creature, pour leur faire des truc , seule, a 2, a plusieurs, rend les espace plus realiste de vie, pas seulemnt des deplacement d'animaux
+
 ## Autour du jeu
 
 ## Livré
 
 Les chantiers publiés, du plus récent au plus ancien.
+
+### Le chant : une note par chapitre
+> 🟢 livré · v0.6.0 · agent chant-note-chapitre
+
+Chaque génération apprend la note de son chapitre ; un bouton en bas ouvre un cercle de notes à tracer du doigt. Certains animaux répondent et ouvrent un passage. Nombre de notes : voir la question 3 des [décisions](decisions.md#questions-ouvertes).
+
+### Les lumières qui répondent dans la Fosse
+> 🟢 livré · v0.6.0 · agent lumieres-qui-repondent
+
+On joue les notes apprises et, une à une, des lumières répondent dans le noir : les ancêtres des autres lignées.
+
+### La Remontée
+> 🟢 livré · v0.6.0 · agent remontee
+
+Le puits de lumière au fond, le retournement, puis la remontée : la créature finale joue le chant complet, tous les ancêtres apparaissent et remontent en formation, chaque chapitre s'illumine au passage, la lignée perce la surface et une larve naît ([chapitres.md](chapitres.md)).
+
+### Le générique et l'image souvenir
+> 🟢 livré · v0.6.0 · agent generique-image-souvenir
+
+L'arbre complet de la lignée en générique, puis en image téléchargeable (sauf dans le lien Artifact).
+
+### lueur de l'accouplement
+> 🟢 livré · v0.6.0 · agent lueur-accouplement
+
+Il faut que cela soit moin eblouisant et ajuter plein d'autre effets qui ne sont pas forcement les meme a chaque fois , un peu de random et peut etre aussi en fonction des genes des accouplé?
+
+### Titre du chantier
+> 🟢 livré · v0.6.0 · agent titre-chantier
+
+quand les bestiole se retourne mettre de l'aleatoire sur le sens, elle pevent se retouné en passant par le dos ou en passant de face...
+
+### Titre du chantier
+> 🟢 livré · v0.6.0 · agent titre-chantier-2
+
+le forcage de changement pour passer dans un mode et vachement intrusif, et pas du tout smooth..
+le moment ou on est obligé d'accepter un oeuf!! on pourrait pas diriger le joueur plus.. et meme si il refuse alors il doit encore s'accouple et peut etre luis donner des indice pour qu'il trouve la bonne bestionle avec qui il doit faire l'enfant..
+
+### La musique générée
+> 🟢 livré · v0.6.0 · agent musique-generee
+
+Une ambiance par chapitre, générée avec la Web Audio API (nappes, harmoniques), sans fichier audio ([decisions.md](decisions.md#technique)). Le chant et ses timbres.
+
+### deplacement des crevette et autres
+> 🟢 livré · v0.6.0 · agent deplacement-crevette
+
+j'ai remarque que les crevettes on un deplacement rigolot et sympa au sol, un peu rapide mais bien cool. par contre dés quelle nage elle reste horizonale, on dois poivoir nager vertical i l y a pade de raison, et pour toutes le especes.
+
+### tentacule/filements des meduses
+> 🟢 livré · v0.6.0 · agent tentacule-filements
+
+il manque des filement au meduses, j'ai reparqué que certaine les filement ne sont sue d'un coté, ca doit etre tjs symetrique!
+
+### animation plus organique
+> 🟢 livré · v0.6.0 · agent animation-plus-organique
+
+les animation d'accouplement sont un peu trop simple, je veux des truc plus organique
+on peut peut etre aller voir sur des aloritme ultra simplifier de mecanique de fluide ou oune truc qui ramene a la nature la physice de la matiere..
+
+### flore
+> 🟢 livré · v0.6.0 · agent flore
+
+ajoute encore plus de diversité de flore, anemones, corails, couteau et autre belle extrordinaire creatures
+
+### tests
+> 🟢 livré · v0.6.0 · agent tests
+
+des test echoues ?
+que doit en faire mettre ajour les test ? corriger l'application? ou autre ?
+
+### experimenter des effet de deformation eau
+> 🟢 livré · v0.6.0 · agent experimenter-effet
+
+tester avec shader ou autres systgeme de calcul pour des effet de deformation dans l'eau
+des effet de vagues aussi pourquoi pas genre momen de cris/cant d'animaux
+
+### L'arbre de la lignée
+> 🟢 livré · v0.5.0 · agent arbre-lignee
+
+Un écran accessible à tout moment : le portrait de chaque ancêtre (`snapshot3`), son nom, le partenaire, le lieu de naissance. On peut nommer chaque génération.
+
+### Les ancêtres restent dans le monde
+> 🟢 livré · v0.5.0 · agent ancetres-restent-monde
+
+Chaque parent quitté reste là où on l'a quitté, et y nage quand on revient en arrière.
+
+### Les traces de la lignée
+> 🟢 livré · v0.5.0 · agent traces-lignee
+
+Plus bas, des traces des générations passées : une carcasse de parent devenue récif, une mue, des œufs non éclos.
+
+### La lignée rivale de la Carcasse
+> 🟢 livré · v0.5.0 · agent lignee-rivale-carcasse
+
+À la Carcasse, une autre lignée, aux choix différents : une créature étrange, cousine lointaine, générée à partir d'autres partenaires.
 
 ### Les traits du corps
 > 🟢 livré · v0.4.0 · agent traits-corps
