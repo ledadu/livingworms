@@ -2,6 +2,31 @@
 
 Le changelog de La Lignée, version après version. Généré depuis [`changes/`](changes/) par `make whats-new` : ne pas modifier à la main.
 
+## Version 0.6 (v0.6.0, 2026-10-01)
+
+### ✨ Nouveautés
+
+- **Des lumières qui répondent dans la Fosse** : Au plus noir de la Fosse, chante ce que ta lignée a appris, et au loin, une à une, des lumières te répondent 🪼 — [rapport](changes/v0.6.0/lumieres-qui-repondent/report.md)
+- **L'eau qui ondule** : Quand tu chantes, une onde part de toi et fait trembler la mer, et chaque animal qui te répond lance la sienne 🌊 — [rapport](changes/v0.6.0/experimenter-effet/report.md)
+- **La musique de la mer** : Chaque chapitre a maintenant sa musique, née dans le jeu même, qui change avec toi à mesure que tu descends 🌊 — [rapport](changes/v0.6.0/musique-generee/report.md)
+- **La Remontée** : Au fond de la Fosse, un puits de lumière t'attend. Ta créature y chante, tes ancêtres la rejoignent, et toute ta lignée remonte vers la surface 🌊 — [rapport](changes/v0.6.0/remontee/report.md)
+- **Le chant, une note par chapitre** : Dans chaque chapitre, ta lignée apprend une note ; trace-les du doigt, et les animaux autour de toi te répondent 🪼 — [rapport](changes/v0.6.0/chant-note-chapitre/report.md)
+- **Le générique et l'image souvenir** : À la fin de l'histoire, toute ta lignée défile comme au cinéma, puis devient une image à garder 🐚 — [rapport](changes/v0.6.0/generique-image-souvenir/report.md)
+- **Une flore foisonnante, des anémones aux éponges des abysses** : Coraux cerveaux, bénitiers, champs de couteaux, vers arbres de Noël qui se cachent à ton passage, et dans le noir, des éponges qui luisent 🐚 — [rapport](changes/v0.6.0/flore/report.md)
+
+### 🔧 Améliorations
+
+- **Des demi-tours par le dos ou de face** : Quand une créature fait demi-tour, elle ne tourne plus toujours du même côté : tantôt elle te montre son dos, tantôt elle te regarde en passant 🐠 — [rapport](changes/v0.6.0/titre-chantier/report.md)
+- **La parade remue l'eau, et les œufs éclosent sous tes yeux** : La danse laisse des volutes de lumière dans l'eau, et chaque petit sort de son œuf, minuscule, avant de grandir 🪼 — [rapport](changes/v0.6.0/animation-plus-organique/report.md)
+- **Les crevettes nagent à la verticale** : Crevettes, crabes et vers quittent le fond et montent tout droit, les pattes qui rament, et toutes les espèces nagent à pic 🦐 — [rapport](changes/v0.6.0/deplacement-crevette/report.md)
+- **Les œufs t'attendent, et la lignée te guide** : Plus rien ne s'impose à toi : tes œufs flottent là où la danse s'est finie, et un fil de lumière dorée te montre qui rejoindre 🐚 — [rapport](changes/v0.6.0/titre-chantier-2/report.md)
+- **Une lumière douce, jamais la même, à chaque parade** : Fini l'éclat qui éblouissait : chaque parade dessine sa propre figure de lumière, aux couleurs des deux danseurs 🪼 — [rapport](changes/v0.6.0/lueur-accouplement/report.md)
+
+### 🩹 Corrections
+
+- **Les méduses ont tous leurs filaments** : Leurs filaments pendent tout autour de la cloche, des deux côtés, même quand elles penchent ou viennent de nager 🪼 — [rapport](changes/v0.6.0/tentacule-filements/report.md)
+- **Les nouveautés gardent leurs images** : Dans le panneau ✦, les captures tiennent mieux : la dernière version montre toujours les siennes, même quand elle en a beaucoup 🐚 — [rapport](changes/v0.6.0/tests/report.md)
+
 ## Version 0.5 (v0.5.0, 2026-09-30)
 
 ### ✨ Nouveautés
