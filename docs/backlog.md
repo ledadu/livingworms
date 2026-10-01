@@ -60,6 +60,7 @@ Certains bruits sonnent trop électroniques. Garder le son généré là où il 
 
 ### Les crédits des sons
 > ⚪ à faire
+> ↳ après « De vrais sons pour l'ambiance »
 
 Même pour des sons libres de droit, nommer les personnes qui les ont publiés : une section « Sons » dans les crédits du jeu (le générique, et une page ou un panneau consultable depuis les réglages), avec pour chaque son son titre, son auteur, sa licence et un lien vers la source. Lue depuis le fichier de crédits du chantier des vrais sons ; un test vérifie que chaque fichier audio du jeu y a sa ligne.
 
