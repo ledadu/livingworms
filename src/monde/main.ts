@@ -45,6 +45,7 @@ import { initPartie } from './partie-jeu';
 import { GLOW_HUE, PARTNERS, marksPartner, partnerGlow, partnerSpawns } from './partenaires';
 import { createPortee } from './portee-ecran';
 import { KEYS, OBSTACLE, crosses } from './obstacles';
+import { brood } from '../content/portee';
 import { initParade } from './parade-jeu';
 import { initAdieu, testChild } from './adieu-jeu';
 import { mateFor } from './arbre';
@@ -175,18 +176,27 @@ function becomes(sp: Spec, born = false): void {
   player.cr = cr;
   if (born) partie.born(sp); else partie.becomes(sp);
 }
-// the brood (portee-ecran.ts): the chosen child is played from now on, its parent joins the lineage and stays
-// where it is, in the farewell scene (farewell, below); left for later, its eggs wait in the water (ponte, below)
-const portee = createPortee((sp, _, mate) => { ponte.hatched(); farewell(sp, mate); }, (kids) => {
+// the brood (portee-ecran.ts): the eggs hatch where they lie (ponte, below); the chosen child is played from the
+// moment it comes out, its parent joins the lineage and stays where it is, in the farewell scene (farewell, below);
+// left to hatch without a choice, the four live there; left for later, the eggs wait in the water
+const portee = createPortee((sp, kids) => ponte.hatch(kids.findIndex((k) => k.spec === sp)), (kids) => {
   ponte.later(kids);
   if (!ponte.clutch?.crosses) indices.feel(BIOMES[biomeIndex(player.cr.root.x[0])].id);
+}, (kids) => {
+  const x = player.cr.root.x[0];
+  ponte.hatch(-1);
+  if (!kids.some((c) => crosses(BIOMES[biomeIndex(x)].id, c.traits))) indices.feel(BIOMES[biomeIndex(x)].id);
 });
+/** the traits the brood of this chapter is for: those crossing its obstacle (the song is not of the body) */
+const keysOf = (x: number) => KEYS[BIOMES[biomeIndex(x)].id]?.filter((k) => k !== 'chant');
 /** the four children of eggs of this partner, after a parade of this quality (the same seed, the same children);
  * the parade favours the limbs that bring the traits crossing the chapter's obstacle */
 function broodOf(partner: Spec, quality: number, seed: number): void {
-  const b = BIOMES[biomeIndex(player.cr.root.x[0])], keys = KEYS[b.id]?.filter((k) => k !== 'chant');
-  portee.open(player.cr.spec, partner, { quality, keys, seed, obstacle: OBSTACLE[b.id]?.name });
+  const b = BIOMES[biomeIndex(player.cr.root.x[0])];
+  portee.open(player.cr.spec, partner, { quality, keys: keysOf(player.cr.root.x[0]), seed, obstacle: OBSTACLE[b.id]?.name });
 }
+/** the same four children, without the screen (the eggs know who is in them) */
+const kidsOf = (partner: Spec, quality: number, seed: number) => brood(player.cr.spec, partner, { quality, keys: keysOf(player.cr.root.x[0]), seed });
 /** a brood with a partner (a species id of the bestiary, or a species) now, its eggs laid by the swimmer */
 function openPortee(partner: string | Spec, quality = 0.5): void {
   ponte.lay(typeof partner === 'string' ? SPECIES[partner]() : partner, quality, { x: player.cr.root.x[0], y: player.cr.root.y[0] }, true);
@@ -391,9 +401,15 @@ const parade = initParade({
 // then its eggs, laid where it ended (ponte-jeu.ts): the brood opens when we stay by them, and may wait
 const ponte = initPonte({
   open: broodOf,
+  kids: kidsOf,
   keep: (x, y) => ({ x, y: clamp(y, Math.max(40, ceilAt(x, 0) + 40), floorAt(x, 0) - 40) }),
   busy: () => paused || portee.isOpen || adieu.on || parade.active || chant.isOpen,
-  crosses: (kids, x) => kids.some((c) => crosses(BIOMES[biomeIndex(x)].id, c.traits))
+  crosses: (kids, x) => kids.some((c) => crosses(BIOMES[biomeIndex(x)].id, c.traits)),
+  // the water of the dance carries the eggs, and the newborns stir it
+  water: (x, y) => parade.water.flow(x, y),
+  stir: (cr) => parade.water.dancer(cr, 0.5, 0.5),
+  born: (sp, at, mate, size) => farewell(sp, mate, at, size),
+  add: (sp, x, y, size) => addActor(sp, x, y, sp.swim.mode === 'crawl' ? 'floor' : 'swim', 0.8 * size).cr
 });
 parade.onEnd((r) => ponte.lay(r.spec, r.quality, r.at));
 // the hints (indices-jeu.ts): once an obstacle held us back, who would bring what it takes, and a thread toward them
@@ -673,7 +689,7 @@ function render(): void {
   }
   pushReliefs(items, { view, gx, ctx, dpr, plane }, cam.x, cam.y);
   traces.items({ view, dpr, plane, draw: drawSprite, lights }, cam.x, (d, fn) => items.push({ d, fn, k: 'trace' }));
-  ponte.items({ view, draw: drawSprite, lights }, cam.x, (d, fn) => items.push({ d, fn, k: 'eggs' }));
+  ponte.items({ view, gx, ctx, dpr, lights }, cam.x, (d, fn) => items.push({ d, fn, k: 'eggs' }));
   let np = 0;
   for (const pl of plants) {
     if (!pl.cr) continue;
@@ -760,7 +776,8 @@ function render(): void {
       ctx.drawImage(glowSprite(glowPts[i + 3]), glowPts[i] - size, glowPts[i + 1] - size, size * 2, size * 2);
     }
   }
-  // lights of the world: vent mouths, lantern fish
+  // the light in the water of a parade (parade-eau.ts), then the lights of the world: vent mouths, lantern fish
+  if (!skip.has('ink')) parade.ink(null, ctx, view, dpr);
   if (!skip.has('glow')) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     for (let i = 0; i < lights.length; i += 5) {
@@ -816,6 +833,7 @@ function renderGLTop(m: M, dk: number): void {
       const share = 1 / Math.sqrt(Math.max(1, n / 2.5)), base = (0.46 - 0.3 * env.water) * lum;
       glowsGL(g, glowPts, (i) => Math.min(1, glowPts[i + 4] * base * share), 0.8 + 0.2 * share);
     }
+    if (!skip.has('ink')) parade.ink(g, ctx, view, dpr);
     glowsGL(g, lights, (i) => lights[i + 4]);
   }
   if (!skip.has('motes')) drawMotes(m, dk);
@@ -1188,21 +1206,27 @@ function showChapter(i: number): void { if (!remontee.holds(i)) narrator.chapter
 const adieu = initAdieu(narrator);
 // the traces of the past generations, further down (traces-jeu.ts); no words of theirs during a farewell
 const traces = initTraces(() => partie.lineage, (name, lines) => !adieu.on && !remontee.on && narrator.say(name, lines));
-/** a child is born, of this partner: it is played from now on, the parent stays where it is (without a child: one for the tests) */
-function farewell(child?: Spec, mate?: Spec): void {
-  if (adieu.on) return;
+/**
+ * A child is born, of this partner: it is played from now on, the parent stays where it is (without a child: one for
+ * the tests). `from`: where it comes out of its egg, this `size` (× its own) to grow from (ponte-jeu.ts); else beside
+ * the parent. Returns the child's creature, or null while a farewell is on.
+ */
+function farewell(child?: Spec, mate?: Spec, from?: { x: number; y: number }, size = 1): Creature3 | null {
+  if (adieu.on) return null;
   const old = player.cr, x = old.root.x[0], y = old.root.y[0], bi = biomeIndex(x);
   const sp = child ?? testChild(old.spec, mate ??= SPECIES[BIOMES[bi].fauna[0][0]]());
   // the siblings stay with it
   for (const a of actors) if (a.kind === 'sib') { a.kind = 'swim'; a.hx = x; a.hy = y; }
   actors.push({ cr: old, kind: 'parent', z: 0, hx: x, hy: y, tx: x, ty: y, next: 0, buf: null, spr: null, bakedAt: -99 });
-  const cr = new Creature3(sp, x - 60, Math.min(y + 40, floorAt(x - 60, 0) - 30), 0, { dir: { x: 1, y: 0, z: 0 }, scale: 0.8 });
+  const at = from ?? { x: x - 60, y: Math.min(y + 40, floorAt(x - 60, 0) - 30) };
+  const cr = new Creature3(sp, at.x, at.y, 0, { dir: { x: 1, y: 0, z: 0 }, scale: 0.8 * size });
   for (let i = 0; i < 60; i++) cr.update(i * STEP, 0, 0, 0, 0.1);
   player.cr = cr;
   adieu.start(old, cr, t, bi, floorAt(x + 1000, 0));
   // a new game has not saved its first creature yet: it is the parent all the same
   if (!partie.creature) partie.becomes(old.spec);
   partie.born(sp, BIOMES[bi].id, mate && mateFor(mate), placeOf(x, y, BIOMES[bi].x0));
+  return cr;
 }
 // the parents left in earlier visits swim where they were left (ancetres.ts); the first one's siblings stay with it
 for (const { spec, home, k } of ancestorsIn(partie.lineage)) {

@@ -1,8 +1,9 @@
 // The parade in the world (parade.ts for its rules): a partner of the chapter notices us when we stay near it, then
 // leads the dance; its wake shines, and ours takes its colours when we swim in time with it. At the end a figure of
 // light as rich as the parade was good, and the result for the litter (onEnd, last). The lights of each parade are
-// drawn from the genes of the two dancers and a little chance (lueur.ts). Swimming away from it, we leave the
-// parade: the partner lets us go, and nothing follows.
+// drawn from the genes of the two dancers and a little chance (lueur.ts). The dance happens in a patch of water that
+// the dancers stir and that carries their light (parade-eau.ts): the wakes curl, the figure blooms like ink. Swimming
+// away from it, we leave the parade: the partner lets us go, and nothing follows.
 
 import { STEP, type Spec } from '../engine';
 import type { Creature3 } from '../engine3/creature3';
@@ -11,6 +12,8 @@ import { SPECIES } from '../content';
 import { LEAVE_TIME, START_HOLD, START_NEAR, approach, away, lead, newParade, partsOf, quality, stepParade, type Parade, type Parts, type Pt } from './parade';
 import { env } from './sprites';
 import { Motes, burst, genesOf, lueurOf, notice, wake, type Lueur } from './lueur';
+import { initEau } from './parade-eau';
+import type { Gfx } from '../engine3/gfx';
 
 /** an animal of the world, as the parade sees it */
 export interface Dancer {
@@ -56,6 +59,9 @@ export function initParade(deps: Deps) {
   let goal: Pt = { x: 0, y: 0 };
   const ended: ((r: ParadeResult) => void)[] = [];
   const motes = new Motes();
+  /** the water of the dance: the lights ride on it */
+  const eau = initEau();
+  const carried = (x: number, y: number) => eau.flow(x, y);
   /** where the swimmer was at the last step */
   let swimmer: Pt | null = null;
 
@@ -65,6 +71,9 @@ export function initParade(deps: Deps) {
     light = lueurOf(genesOf(sp, a.cr.list), genesOf(player.spec, player.list), Math.random, light);
     if (force) { light = { ...light, ...force }; force = null; }
     cur = { a, p: newParade({ x: r.x[0], y: r.y[0] }, { x: pr.x[0], y: pr.y[0] }, pace), z0: a.z, id: idOf(sp), chapter: deps.chapter(), light, away: 0 };
+    // the water around the figure of eight, calm, and the colours of its light
+    eau.place(cur.p.ax, cur.p.ay);
+    eau.colours(light.hues[0], light.hues[1] ?? light.hues[0]);
     // it comes into our plane to dance
     a.z = 0;
     hold = 0; noticing = null;
@@ -78,6 +87,7 @@ export function initParade(deps: Deps) {
     const at = { x: (r.x[0] + us.x) / 2, y: (r.y[0] + us.y) / 2 };
     last = { partner: id, spec: a.cr.spec, chapter, at, quality: q, parts: partsOf(p) };
     burst(motes, cur.light, at, q);
+    eau.figure(cur.light, at, q);
     a.z = z0; a.hx = r.x[0]; a.hy = r.y[0];
     after = a; rest = 8;
     cur = null;
@@ -103,6 +113,8 @@ export function initParade(deps: Deps) {
     get last() { return last; },
     /** the light of the parade now, or of the last one */
     get light() { return cur?.light ?? light; },
+    /** the water of the dance (tests, and the eggs laid in it) */
+    water: eau,
     /** figures forced for the next parade (tests, captures): { wake, burst, echo, hues… } */
     forceLight(o: Partial<Lueur> | null) { force = o; },
     /** how far a partner has noticed us (0..1) */
@@ -125,7 +137,7 @@ export function initParade(deps: Deps) {
       const pr = player.root, px = pr.x[0], py = pr.y[0];
       tick++;
       swimmer = { x: px, y: py };
-      motes.step();
+      motes.step(STEP, carried);
 
       if (cur) {
         const { a, p } = cur, c = a.cr, r = c.root;
@@ -139,9 +151,19 @@ export function initParade(deps: Deps) {
         goal = { x: (dx / d) * s, y: (dy / d) * s };
         // its wake shines; ours takes its colours when we dance in time
         wake(motes, cur.light, tick, { x: r.x[0], y: r.y[0] }, swimmer, p.sync);
+        // both stir the water: its light is theirs, and ours joins it in time
+        eau.dancer(c, 1, 0);
+        eau.dancer(player, 0.3 + 0.7 * p.sync, 1 - 0.5 * p.sync);
+        eau.step();
         if (p.done) finish();
         return;
       }
+      // after the dance, the two still move the water they swim in, without lighting it
+      if (eau.fluid.awake) {
+        if (after) eau.dancer(after.cr, 0, 0);
+        eau.dancer(player, 0, 1);
+      }
+      eau.step();
 
       if (rest > 0) rest -= STEP;
       if (after && Math.hypot(after.cr.root.x[0] - px, after.cr.root.y[0] - py) > 500) after = null;
@@ -163,6 +185,11 @@ export function initParade(deps: Deps) {
         notice(motes, { x: r.x[0], y: r.y[0] }, hueOf(noticing.cr.spec), Math.min(1, hold / START_HOLD));
       }
       if (noticing && hold >= START_HOLD) start(noticing, player);
+    },
+
+    /** the light in the water of the dance, drawn after the dark, before the other lights */
+    ink(gx: Gfx | null, ctx: CanvasRenderingContext2D, view: View, dpr: number): void {
+      eau.draw(gx, ctx, view, dpr, env.water);
     },
 
     /** the lights of the parade, into the lights of the world (x, y on screen, size, hue, alpha) */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { STEP } from '../engine';
-import { EGG_COUNT, EGG_DELAY, EGG_HOLD, EGG_NEAR, EGG_REARM, eggAt, hatching, leaveClutch, newClutch, stepClutch } from './ponte';
+import { EGG_DELAY, EGG_HOLD, EGG_NEAR, EGG_REARM, hatching, leaveClutch, newClutch, stepClutch } from './ponte';
 
 /** steps until the brood opens with the swimmer at (px, py), at most n */
 function stayBy(c: ReturnType<typeof newClutch>, px: number, py: number, n = 600): number {
@@ -36,13 +36,5 @@ describe('the eggs in the water', () => {
     // away, then back
     stepClutch(c, EGG_REARM + 10, 0);
     expect(stayBy(c, 20, 0) * STEP).toBeCloseTo(EGG_HOLD, 1);
-  });
-
-  it('lie in a small heap of four, each bobbing its own way', () => {
-    const a = Array.from({ length: EGG_COUNT }, (_, i) => eggAt(i, 1));
-    for (const e of a) expect(Math.hypot(e.x, e.y)).toBeLessThan(25);
-    expect(new Set(a.map((e) => Math.round(e.y))).size).toBeGreaterThan(1);
-    // trembling only moves them a little
-    for (let i = 0; i < EGG_COUNT; i++) expect(Math.abs(eggAt(i, 1, 1).x - eggAt(i, 1, 0).x)).toBeLessThanOrEqual(2.4);
   });
 });
