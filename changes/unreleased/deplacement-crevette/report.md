@@ -92,7 +92,7 @@ Aucune question posée par le tableau de bord : la consigne laissait trancher ch
 - **La marche « un peu rapide »** n'a pas changé (voir les options).
 - **Les autres marcheurs** : un marcheur du monde (crabes du fond) ne nage jamais. Seuls le nageur et les animaux qui le suivent (sœurs, parade, rivale, réponses) le font quand ils doivent monter.
 - **Une idée** : la vraie fuite de la crevette, en arrière d'un coup de queue, pour un mode de nage « recul ».
-- **`make check`** : un test sans rapport échouait déjà sur la base : `src/monde/nouveautes/plugin.test.ts`, « embeds the published versions only… ». Les images embarquées des versions récentes ne laissent plus de place à celles de la 0.2.0 dans le budget de 400 Ko de `whatsNewPlugin.mjs`. Voir la réponse finale pour son état après la fusion de `backlog`.
+- **`make check`** : vert après la fusion de `backlog` (571 tests). Le test des Nouveautés (`plugin.test.ts`), qui échouait sur la base de départ (budget d'images de `whatsNewPlugin.mjs`), passe depuis cette fusion.
 
 ## Risques de fusion
 
@@ -103,7 +103,7 @@ Aucune question posée par le tableau de bord : la consigne laissait trancher ch
   - nouveaux exports : `PITCH_MAX`, `AFLOAT`, `crawlRise`, `crawlPitch` ;
   - le ventre des couronnes près de la verticale.
 
-  Le voisin `tentacule-filements` (les méduses) y touchera sans doute : les cloches gardent le bas du monde, une fusion textuelle doit suffire.
+  Fusionné avec le `rimMount` de `tentacule-filements` (les méduses) : son `belly()` reçoit aussi `down`. Les cloches gardent le bas du monde, donc leurs filaments ne changent pas (vérifié en image après la fusion).
 - `src/engine3/render3.ts` : `bellyOf` prend `down` (deux appels).
 - `src/engine/types.ts` : `pitchMax` supprimé de `SwimDef`.
 - `src/content/species.ts` : trois lignes (`pitchMax` retiré de la manta, du requin-baleine et de la tortue).

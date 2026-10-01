@@ -21,6 +21,8 @@ export interface CaveScene {
   lights: number[];
   /** the swimmer, in the world */
   px: number; py: number;
+  /** how much of the cave's dark stays (1: all; the lineage going up lights it, remontee.ts) */
+  open?: number;
 }
 interface Item { d: number; fn: () => void; k?: string; }
 
@@ -76,7 +78,7 @@ export function pushCave(items: Item[], s: CaveScene, m: Mood, camX: number, pla
     items.push({ d: SHAFTS, fn: () => drawShaft(s, m, w), k: 'cave' });
   }
   items.push({ d: view.depth(floorAt(camX, VEIL_Z), VEIL_Z) + 0.4, fn: () => drawVeil(s), k: 'cave' });
-  const dk = caveDark(camX);
+  const dk = caveDark(camX) * (s.open ?? 1);
   if (dk > 0.02) items.push({ d: DARK, fn: () => drawDark(s, dk), k: 'cave' });
   // the glowing life of the dark: small lights that breathe
   for (let i = 0; i < glimmers.length; i += 5) {
@@ -219,7 +221,7 @@ function drawPillar(s: CaveScene, m: Mood, rock: HSL, p: Pillar, plane: number):
 function drawVeil(s: CaveScene): void {
   const { view, gx, ctx, dpr, H } = s;
   const xs = [CAVE_A, CAVE_A + 700, CAVE_B - 700, CAVE_B].map((x) => view.project(x, 0, VEIL_Z, P).x);
-  const a = 0.5;
+  const a = 0.5 * (s.open ?? 1);
   if (gx) {
     gx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const c0 = hcol(gx, INK, 0), c1 = hcol(gx, INK, a), cs = [c0, c1, c1, c0];

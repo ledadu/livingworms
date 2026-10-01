@@ -11,7 +11,7 @@
 // World axes: x right, y DOWN (the surface is y = 0), z away from the eye.
 
 import type { AttDef, NodeDef, PaletteSlot, Spec, SwimDef, SwimMode } from '../engine/types';
-import { ROOT_SLOT, SHAPES, expand, palette, type Slot } from '../engine/defs';
+import { ROOT_SLOT, SHAPES, expand, onRim, palette, rimOf, type Slot } from '../engine/defs';
 import { STEP, TAU, clamp, hsla, lerp, rand, wrapAngle } from '../engine/util';
 
 // ----- tiny vector helpers on scalars (no allocation in the hot path) ----- //
@@ -105,6 +105,8 @@ export class Seg3 {
   side: number;
   hueOff: number;
   radial: boolean;
+  /** hanging from the rim of a bell (see rimOf), or not */
+  rim: { u: number; back: number; open: number } | null = null;
   flip: number;
   scale: number;
   len: number;
@@ -255,17 +257,44 @@ export class Seg3 {
     cross(t, mOut, nbOut); norm(nbOut);
   }
 
+  /**
+   * A copy hanging from the rim of a bell (see rimOf). Its frame is the axis of
+   * the bell and the direction across it as the eye sees it, not the belly:
+   * the copies stay on both sides whichever way the bell leans or last swam.
+   */
+  rimMount(at: number, u: number, back: number, open: number, dirOut: V, nbOut: V, mOut: V): void {
+    const i = Math.max(1, at), t = this.t, e = this.l, g = this.b;
+    t.x = this.dx[i]; t.y = this.dy[i]; t.z = this.dz[i];
+    // across the axis on screen (the eye looks along z); the bell seen from below or above: across its belly
+    e.x = -t.y; e.y = t.x; e.z = 0;
+    if (Math.hypot(e.x, e.y) < 0.2) cross(t, belly(t, this.creature.down, g, this.creature.side), e);
+    norm(e);
+    // behind the axis, away from the eye
+    cross(t, e, g); norm(g);
+    const s = Math.sqrt(Math.max(0, 1 - u * u)) * back;
+    mOut.x = u * e.x + s * g.x; mOut.y = u * e.y + s * g.y; mOut.z = u * e.z + s * g.z;
+    const co = Math.cos(open), so = Math.sin(open);
+    dirOut.x = t.x * co + mOut.x * so; dirOut.y = t.y * co + mOut.y * so; dirOut.z = t.z * co + mOut.z * so;
+    norm(dirOut);
+    cross(t, mOut, nbOut); norm(nbOut);
+  }
+
   instantiate(a: AttDef): void {
     const dir = v3(), nb = v3(), m = v3();
-    for (const s of expand(a, this.n)) {
-      const at = s.at;
-      this.mountFor(a.node, s, at, dir, nb, m);
+    const rim = !this.creature.planar && onRim(this.def, a);
+    for (const s0 of expand(a, this.n)) {
+      const at = s0.at, r = rim ? rimOf(a, s0.k) : null;
+      // on the rim, every copy is as far out as the fan's ends
+      const s = r ? { ...s0, edge: a.edge } : s0;
+      if (r) this.rimMount(at, r.u, r.back, r.open, dir, nb, m);
+      else this.mountFor(a.node, s, at, dir, nb, m);
       // base position: pushed toward the side it leans to, by edge * radius
       const pr = this.rad[at] * Math.abs(s.edge);
       const p = { x: this.x[at] + m.x * pr, y: this.y[at] + m.y * pr, z: this.z[at] + m.z * pr };
       // in a free-form creature mirrored copies are already on their own side: no flip
       const flip = this.creature.planar ? this.flip * s.side : 1;
       const c = new Seg3(a.node, a, this, s, flip, this.scale * s.scale, p, dir, nb, this.creature);
+      c.rim = r;
       this.children.push(c);
     }
   }
@@ -312,7 +341,8 @@ export class Seg3 {
         const hi = 0.35 + m.amp * 0.9;
         const open = cr.mode === 'crawl' ? hi * 0.75 + 0.3 * Math.sin(w + this.k * Math.PI) : 0.12 + (hi - 0.12) * openOf(w);
         p.ringMount(k, this.k, this.att!.count, open, this.dir, this.nb, this.m);
-      } else p.mountFor(d, { at: k, angle: this.rel / (p.flip || 1), scale: 1, phase: 0, side: this.side, edge: this.edge, k: this.k, hue: 0, radial: this.radial }, k, this.dir, this.nb, this.m);
+      } else if (this.rim) p.rimMount(k, this.rim.u, this.rim.back, this.rim.open, this.dir, this.nb, this.m);
+      else p.mountFor(d, { at: k, angle: this.rel / (p.flip || 1), scale: 1, phase: 0, side: this.side, edge: this.edge, k: this.k, hue: 0, radial: this.radial }, k, this.dir, this.nb, this.m);
       if (Math.hypot(this.nb.x, this.nb.y, this.nb.z) < 0.5) { this.nb.x = p.nb.x; this.nb.y = p.nb.y; this.nb.z = p.nb.z; }
       const pr = p.rad[k] * (1 + p.pulse * (p.pulseU ? 1 : k / p.n)) * Math.abs(this.edge);
       ox[0] = x[0]; oy[0] = y[0]; oz[0] = z[0];

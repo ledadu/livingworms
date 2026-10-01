@@ -133,6 +133,9 @@
 <script>
 const SVG = 'http://www.w3.org/2000/svg';
 const LEVELS = { up: '#4cc38a', busy: '#7aa7ff', warn: '#e5b454', down: '#5b6472', soon: '#5b6472', info: '#8b95a5' };
+// A link to a server of this machine (localhost:<port>), on the host the dashboard was opened from: its Tailscale
+// name from a phone (the game's dev server accepts the .ts.net hosts).
+const localHref = (href) => String(href ?? '').replace(/^(https?:\/\/)localhost(?=[:/]|$)/, `$1${location.hostname}`);
 const escapeHtml = (text) => String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const el = (name, attrs = {}, parent) => {
   const node = document.createElementNS(SVG, name);
@@ -269,7 +272,7 @@ function build() {
   const { w, h } = map.node;
   for (const node of map.nodes) {
     const zone = zoneOf[node.zone];
-    const a = el('a', { class: 'node', href: node.href, tabindex: 0, 'data-id': node.id }, svg);
+    const a = el('a', { class: 'node', href: localHref(node.href), tabindex: 0, 'data-id': node.id }, svg);
     const lift = el('g', { class: 'lift' }, a);
     el('rect', { x: node.x + 2, y: node.y + 5, width: w, height: h, rx: 12, fill: '#000', opacity: 0.35 }, lift);
     el('rect', { x: node.x, y: node.y, width: w, height: h, rx: 12, class: 'card', stroke: zone.color, 'stroke-opacity': 0.5 }, lift);
@@ -315,7 +318,7 @@ function showTip(id) {
   if (!p) return;
   const tip = document.getElementById('tip');
   const state = hub?.state?.[id] ?? {};
-  const href = hub?.links?.[id] ?? p.node.href;
+  const href = localHref(hub?.links?.[id] ?? p.node.href);
   tip.innerHTML = `<b>${p.node.icon} ${escapeHtml(p.node.name)}</b><div class="role">${escapeHtml(p.node.role)}</div>
     ${state.text ? `<div class="live">● ${escapeHtml(state.text)}${state.detail ? `<br>${escapeHtml(state.detail)}` : ''}</div>` : ''}
     <div class="go">${escapeHtml(href)}${/^https?:/.test(href) ? ' ↗' : ''}</div>`;
@@ -346,7 +349,7 @@ function update() {
   for (const [id, p] of parts) {
     const state = hub.state?.[id] ?? { level: 'info', text: '' };
     const color = LEVELS[state.level] ?? LEVELS.info;
-    const href = hub.links?.[id] ?? p.node.href;
+    const href = localHref(hub.links?.[id] ?? p.node.href);
     const external = /^https?:/.test(href);
     p.a.setAttribute('href', href);
     if (external) p.a.setAttribute('target', '_blank');
@@ -376,7 +379,7 @@ function renderCards() {
     const zone = zoneOf[zoneId];
     const cards = map.nodes.filter((n) => n.zone === zoneId).map((node) => {
       const state = hub.state?.[node.id] ?? {};
-      const href = hub.links?.[node.id] ?? node.href;
+      const href = localHref(hub.links?.[node.id] ?? node.href);
       return `<a class="ncard" href="${escapeHtml(href)}"${/^https?:/.test(href) ? ' target="_blank"' : ''} style="--lvl:${LEVELS[state.level] ?? LEVELS.info}">
         <span class="ic">${node.icon}</span><span><div class="nm">${escapeHtml(node.name)}</div><div class="st">${escapeHtml(state.text ?? '')}</div><div class="rl">${escapeHtml(node.role)}</div></span>
         ${state.badge ? `<span class="bd">${state.badge}</span>` : ''}</a>`;

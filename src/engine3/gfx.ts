@@ -161,10 +161,10 @@ export class Gfx {
     this.setTransform(1, 0, 0, 1, 0, 0);
   }
 
-  /** end a frame: draw what is left, forget the textures unused for a while */
+  /** end a frame: draw what is left, forget the textures unused for a while (not the white one, bound without a lookup) */
   end(): void {
     this.flush();
-    for (const [k, t] of this.texs) if (this.frame - t.used > 240) { this.gl.deleteTexture(t.tex); this.texs.delete(k); }
+    for (const [k, t] of this.texs) if (t !== this.white && this.frame - t.used > 240) { this.gl.deleteTexture(t.tex); this.texs.delete(k); }
   }
 
   setTransform(a: number, b: number, c: number, d: number, e: number, f: number): void {

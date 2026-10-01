@@ -1,3 +1,5 @@
+// A test server's link on the host the dashboard was opened from (its Tailscale name from a phone).
+const localHref = (href) => String(href ?? '').replace(/^(https?:\/\/)localhost(?=[:/]|$)/, `$1${location.hostname}`);
 // The « Branches » tab of the versions pages (dashboard.html, served by branches-routes.mjs): the version branches
 // release/X.Y, their fixes (publish, report to backlog), rebase and deletion, and the test servers of versions.
 // Read from /api/branches; redrawn only when its content changes, never while one of its fields is being used.
@@ -29,7 +31,7 @@ function serverRow(server) {
     <span class="sha">${escapeHtml(server.head ?? '—')}</span>
     ${server.stale ? `<span class="pill warn" title="${escapeHtml(server.ref)} a avancé depuis">à actualiser</span>` : ''}
     <span class="spacer"></span>
-    ${running ? `<a class="btn primary" href="${escapeHtml(server.url)}" target="_blank">▶ Ouvrir</a>` : busyButton(key, '▶ Démarrer', `data-baction="serve" data-ref="${escapeHtml(server.ref)}"`)}
+    ${running ? `<a class="btn primary" href="${escapeHtml(localHref(server.url))}" target="_blank">▶ Ouvrir</a>` : busyButton(key, '▶ Démarrer', `data-baction="serve" data-ref="${escapeHtml(server.ref)}"`)}
     ${server.stale ? busyButton(`${key}:refresh`, '⟳ Actualiser', `data-baction="refresh" data-name="${escapeHtml(server.name)}"`, `Remet le worktree sur ${server.ref}`) : ''}
     ${running ? busyButton(`${key}:stop`, '■ Arrêter', `data-baction="stop" data-name="${escapeHtml(server.name)}"`) : ''}
     ${busyButton(`${key}:remove`, '🗑', `data-baction="remove" data-name="${escapeHtml(server.name)}"`, 'Supprimer ce serveur (worktree et copie de la base)')}
@@ -157,7 +159,7 @@ async function serve(ref, key) {
   const tab = window.open('about:blank', '_blank');
   tab?.document.write(`<title>${escapeHtml(ref)}</title><body style="background:#111418;color:#e6e9ee;font:15px system-ui;padding:24px">Démarrage d'un serveur ${escapeHtml(ref)}… (compte de test : banc / banc-essai-1)</body>`);
   const result = await branchAction(key, 'Démarrage…', 'serve', { ref });
-  if (result.ok && tab) tab.location.href = result.url;
+  if (result.ok && tab) tab.location.href = localHref(result.url);
   else tab?.close();
 }
 

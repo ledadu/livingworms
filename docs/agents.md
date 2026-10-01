@@ -41,6 +41,9 @@ Le monde : x vers la droite, y **vers le bas** (la surface est à y = 0), z en s
 - Code et commentaires **en anglais**, sobres, comme le code voisin. Textes du jeu et docs **en français**.
 - Messages de commit dans le style du dépôt (`git log`) : `La Lignée: …` en anglais, une phrase qui dit ce qui change pour le jeu.
 - Tests vitest pour toute logique pure (règles d'hérédité, traits, sauvegarde…) : `src/**/*.test.ts`, à côté du module.
+  - Un test qui lit des données qui grandissent (les versions de `changes/`, le bestiaire, la carte) vérifie une règle, pas leur état du jour : une version publiée ou une espèce ajoutée ne doit pas le faire échouer.
+  - Les agents lancent leurs tests en même temps sur la même machine : la limite de `vitest.config.ts` (30 s par test) n'attrape que les tests bloqués. Un test lent se rend moins cher plutôt que de relever sa limite (un `expect` par valeur, dans une boucle de cent mille, coûte plus que le code testé).
+  - Un test qui échoue : si la règle du jeu a changé exprès (dans les docs), on met le test à jour ; si le jeu ne la suit plus, on corrige le jeu ; si le test figeait un état du jour ou un délai, on le réécrit sur la règle.
 
 ## Outils de dev
 
