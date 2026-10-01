@@ -9,5 +9,10 @@ export function changesFile(changesDir: string, path: string): string | null;
 export function playersOnly(data: WhatsNew): WhatsNew;
 export function stripImages(markdown: string): string;
 export function scriptJson(data: unknown): string;
+export function fitImages<E extends { id: string }, I extends { bytes: { length: number } }>(
+  releases: readonly { entries: readonly E[] }[],
+  imageOf: (entry: E) => I | null | Promise<I | null>,
+  budget: number,
+): Promise<{ images: Map<string, I>; spent: number }>;
 export function embeddedData(root?: string, log?: (line: string) => void, budget?: number): Promise<WhatsNew>;
 export function whatsNewPlugin(root?: string): Plugin;

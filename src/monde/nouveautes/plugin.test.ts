@@ -1,15 +1,16 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import type * as Changes from '../../../agents/release/changes.mjs';
 import type * as Plugin from '../../../whatsNewPlugin.mjs';
 import { DATA_ID } from './data';
 
 // The plugin reads the changes of the game: not those of the framework's tests, whose settings may still be in the
 // environment of this worker (agents/test/env.mjs).
 let plugin: typeof Plugin;
-let root: string;
+let changes: typeof Changes;
 beforeAll(async () => {
   delete (globalThis as unknown as { process: { env: Record<string, string> } }).process.env.AGENTS_CONFIG;
   plugin = await import('../../../whatsNewPlugin.mjs');
-  root = (await import('../../../agents/release/changes.mjs')).repoRoot;
+  changes = await import('../../../agents/release/changes.mjs');
 });
 
 const entry = (id: string, audience = 'players') =>
@@ -50,31 +51,60 @@ describe('the Vite plugin of the « Nouveautés »', () => {
     expect(plugin.stripImages('Avant.\n\n![vue](/whats-new/v0.2.0/a/img/x.jpg)\n\nAprès, ![b](x.jpg) et **gras**.')).toBe('Avant.\n\nAprès,  et **gras**.');
   });
 
-  it('embeds the published versions only, each entry with its first image, small', async () => {
+  // versions of entries with an image of n bytes each (0: none), the newest first: v3, v2, v1
+  const versions = (...sizes: number[][]) =>
+    sizes.map((entries, r) => ({ entries: entries.map((n, e) => ({ id: `v${sizes.length - r}/${e}`, n })) }));
+  const image = (n: number) => (n ? { type: 'image/jpeg', bytes: { length: n } } : null);
+
+  it('gives the budget to the newest entries first, in the order of the panel', async () => {
+    const made: string[] = [];
+    const { images, spent } = await plugin.fitImages(versions([100, 0, 100], [100, 100, 100], [10]), (entry) => {
+      made.push(entry.id);
+      return image(entry.n);
+    }, 350);
+    // the second entry of v3 has no image; the second one of v2 does not fit, and nothing after it gets one
+    expect([...images.keys()]).toEqual(['v3/0', 'v3/2', 'v2/0']);
+    expect(spent).toBe(300);
+    // the images of an older version are not even made
+    expect(made.filter((id) => id.startsWith('v1/'))).toEqual([]);
+  });
+
+  it('keeps the images of the newest version that fit, even when they do not all fit', async () => {
+    const { images } = await plugin.fitImages(versions([300, 300], [10]), (entry) => image(entry.n), 400);
+    expect([...images.keys()]).toEqual(['v2/0']);
+  });
+
+  // The versions of the game grow with each release: what holds whatever they become, not which ones have images.
+  it('embeds the published versions only, the newest entries with their first image, small', async () => {
     const lines: string[] = [];
+    const root = changes.repoRoot;
     const data = await plugin.embeddedData(root, (line) => lines.push(line));
     expect(data.releases.length).toBeGreaterThan(0);
     expect(data.releases.every((release) => !release.unreleased)).toBe(true);
-    const v02 = data.releases.find((release) => release.version === '0.2.0')!;
-    expect(v02.entries).toHaveLength(8);
+    expect(data.releases.find((release) => release.version === '0.2.0')!.entries).toHaveLength(8);
+    const entries = data.releases.flatMap((release) => release.entries);
+    const source = plugin.playersOnly(changes.whatsNew(changes.loadChanges(root))).releases.flatMap((release) => release.entries);
+    expect(entries.map((e) => e.id)).toEqual(source.map((e) => e.id));
     let bytes = 0;
-    for (const release of data.releases) {
-      for (const e of release.entries) {
-        expect(e.images.length).toBeLessThanOrEqual(1);
-        for (const src of e.images) {
-          expect(src).toMatch(/^data:image\/(jpeg|png|webp|gif|svg\+xml);base64,/);
-          bytes += (src.length - src.indexOf(',') - 1) * 0.75;
-        }
-        expect(e.body).not.toMatch(/!\[/);
+    for (const e of entries) {
+      expect(e.images.length).toBeLessThanOrEqual(1);
+      for (const src of e.images) {
+        expect(src).toMatch(/^data:image\/(jpeg|png|webp|gif|svg\+xml);base64,/);
+        bytes += (src.length - src.indexOf(',') - 1) * 0.75;
       }
+      expect(e.body).not.toMatch(/!\[/);
     }
-    expect(v02.entries.every((e) => e.images.length === 1)).toBe(true);
     expect(bytes).toBeLessThanOrEqual(plugin.EMBED.budget);
-    expect(lines.join('\n')).toMatch(/v0\.2\.0/);
+    // of the entries that have an image, the newest keep it and the others their text
+    const kept = entries.filter((_, i) => source[i].images.length).map((e) => e.images.length === 1);
+    const n = kept.filter(Boolean).length;
+    expect(n).toBeGreaterThan(0);
+    expect(kept).toEqual(kept.map((_, i) => i < n));
+    expect(lines.join('\n')).toContain(`v${data.releases[0].version}`);
   });
 
   it('keeps the text only when the images do not fit the budget', async () => {
-    const data = await plugin.embeddedData(root, () => {}, 1000);
+    const data = await plugin.embeddedData(changes.repoRoot, () => {}, 1000);
     expect(data.releases.flatMap((release) => release.entries).every((e) => e.images.length === 0)).toBe(true);
   });
 });

@@ -65,6 +65,12 @@ export function initChant(d: ChantDeps) {
   let singer: Creature3 | null = null, sea: readonly Hearer[] = [];
   let song: Song | null = null, lights: Light[] = [];
   const noteListeners: ((chapter: ChapterId, k: number) => void)[] = [];
+  const lightListeners: ((kind: Light['kind'], chapter: ChapterId, at: Creature3) => void)[] = [];
+  /** a light of the song starts in the sea */
+  function shine(l: Light): void {
+    lights.push(l);
+    for (const f of lightListeners) f(l.kind, l.note.chapter, l.at);
+  }
 
   function learn(chapter: ChapterId): void {
     const n = noteOf(chapter);
@@ -72,7 +78,7 @@ export function initChant(d: ChantDeps) {
     d.partie.learn(chapter);
     cercle.learned(n);
     voice.note(chapter, n.freq, { gain: 0.8 });
-    if (singer) lights.push({ kind: 'learn', note: n, at: singer, t0: now, dur: 3.6, size: 200 });
+    if (singer) shine({ kind: 'learn', note: n, at: singer, t0: now, dur: 3.6, size: 200 });
   }
 
   /** the song (ranks in NOTES) sung by the swimmer now: who hears it answers */
@@ -116,7 +122,7 @@ export function initChant(d: ChantDeps) {
     while (s.sung < s.notes.length && t >= s.t0 + s.sung * GAP) {
       const n = NOTES[s.notes[s.sung]];
       voice.note(n.chapter, n.freq, { gain: 0.9 });
-      lights.push({ kind: 'song', note: n, at: s.singer, t0: t, dur: 2.4, size: 250 });
+      shine({ kind: 'song', note: n, at: s.singer, t0: t, dur: 2.4, size: 250 });
       for (const f of noteListeners) f(n.chapter, s.sung);
       s.sung++;
     }
@@ -127,7 +133,7 @@ export function initChant(d: ChantDeps) {
       d.view.project(r.x[0], r.y[0], r.z[0], P);
       const far = Math.hypot(r.x[0] - s.singer.root.x[0], r.y[0] - s.singer.root.y[0], r.z[0]) / HEARD;
       voice.note(n.chapter, n.freq, { gain: 0.5 * (1 - 0.6 * clamp(far, 0, 1)), pan: (P.x / (d.view.W || 1)) * 2 - 1, octave: 1 });
-      lights.push({ kind: 'answer', note: n, at: cr, t0: t, dur: 2.8, size: 90 + r.rad[0] * 4 });
+      shine({ kind: 'answer', note: n, at: cr, t0: t, dur: 2.8, size: 90 + r.rad[0] * 4 });
       come(an.a, s.singer);
     }
     if (t > s.end) song = null;
@@ -217,6 +223,8 @@ export function initChant(d: ChantDeps) {
     sing: (chapters: ChapterId[]) => sing(chapters.map((c) => NOTES.findIndex((n) => n.chapter === c)).filter((i) => i >= 0)),
     /** called for each note as it is sung into the sea: its chapter and its rank in the song */
     onNote(f: (chapter: ChapterId, k: number) => void) { noteListeners.push(f); },
+    /** called as each light of the song starts: its kind (a note sung, an answer, a note learned), its note, its creature */
+    onLight(f: (kind: Light['kind'], chapter: ChapterId, at: Creature3) => void) { lightListeners.push(f); },
     /** the answers to the song being sung (tests): the animal, the chapter of the note it answers, when (s after the song starts) */
     get answers() { return (song?.answers ?? []).map((an) => ({ name: an.a.cr.spec.name, chapter: NOTES[song!.notes[an.k]].chapter, at: an.at, done: an.done })); },
     get voice() { return voice; },

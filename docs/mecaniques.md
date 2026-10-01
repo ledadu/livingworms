@@ -214,6 +214,7 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
 - **Chanter** : un bouton en bas, qui ouvre le cercle de notes.
 - **Écran de la lignée** : l'arbre, accessible à tout moment par le bouton en haut à gauche (voir « L'arbre de la lignée »).
 - **Interface minimale** : pas de chiffres. Le texte narratif est la seule vraie interface.
+- **Le son** : la musique et le chant se règlent dans le panneau ⚙, section « Son » ([direction artistique](direction-artistique.md#le-son)).
 - **L'Atelier** n'est pas dans l'histoire : il est débloqué après la fin, dans la « Balade libre » (décision validée). Son bouton ✎ est caché pendant l'histoire ; il revient quand `lignee.balade` vaut `1` dans le stockage du navigateur (`unlockBalade()`, `src/monde/atelier-access.ts`, appelé à la fin de la Remontée). Pour le développement, `?atelier` ou `?dev` (qui montre aussi le voyage du panneau ⚙) dans l'adresse le montre toujours ; `monde.unlockBalade()` débloque la Balade dans la console.
 
 ## Durée et sauvegarde

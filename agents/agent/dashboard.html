@@ -240,6 +240,9 @@ function showTab(tab) {
   window.renderBranches?.(true);
 }
 const busy = new Map(); // agent -> { working, label } or { error }
+// An agent's game, on the machine the dashboard was opened from: localhost here, its Tailscale name from a phone
+// (the game's dev server must accept that host: server.allowedHosts).
+const gameUrl = (port) => `http://${location.hostname}:${port}`;
 
 // The options of an effort or model menu: « défaut » (the project's, else Claude Code's), then each value.
 function settingOptions(values, fallback) {
@@ -420,7 +423,7 @@ function updateCard(agent) {
   if (goalOpen) goalEl.querySelector('details[data-goal]')?.setAttribute('open', '');
   patch(part('task'), currentTask(steps.events, status[0]));
 
-  const url = `http://localhost:${agent.CLIENT_PORT}`;
+  const url = gameUrl(agent.CLIENT_PORT);
   patch(part('stats'), `
     <span><span class="dot ${agent.server ? 'on' : ''}"></span>serveur ${agent.SERVER_PORT}</span>
     <span><span class="dot ${agent.client ? 'on' : ''}"></span>${agent.client ? `<a href="${url}" target="_blank">client ${agent.CLIENT_PORT}</a>` : `client ${agent.CLIENT_PORT}`}</span>
@@ -503,8 +506,9 @@ async function tryAgent(name) {
     const result = await (await fetch(`/api/up/${encodeURIComponent(name)}`, { method: 'POST' })).json();
     if (!result.ok) throw new Error(result.error.split('\n').slice(-2).join(' '));
     busy.delete(name);
-    if (tab) tab.location.href = result.url;
-    else window.open(result.url, '_blank');
+    const url = gameUrl(new URL(result.url).port);
+    if (tab) tab.location.href = url;
+    else window.open(url, '_blank');
   } catch (error) {
     busy.set(name, { error: `Échec : ${error.message}` });
     tab?.close();
@@ -672,7 +676,7 @@ document.addEventListener('click', (event) => {
   const name = button.closest('.card').dataset.agent;
   if (button.dataset.action === 'try') {
     const running = button.textContent.includes('Ouvrir');
-    running ? window.open(`http://localhost:${button.closest('.card').dataset.port}`, '_blank') : tryAgent(name);
+    running ? window.open(gameUrl(button.closest('.card').dataset.port), '_blank') : tryAgent(name);
   }
   if (button.dataset.action === 'stop') stopAgent(name);
   if (button.dataset.action === 'kill') killAgent(name);

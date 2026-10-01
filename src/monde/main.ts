@@ -28,6 +28,7 @@ import { obstacleItems } from './obstacles-draw';
 import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, chapterIndex, floorAt, liftAt, metres, moodAt, openFloor } from './biomes';
 import { Jardin } from './jardin';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
+import { floreLights, shy } from './flore';
 import { compareSpecies, runBench } from './bench';
 import { bump, initReliefs } from './relief';
 import { pushReliefs } from './relief-draw';
@@ -61,6 +62,9 @@ import { initChant } from './chant-jeu';
 import { noteOf, notesOfGeneration } from './chant';
 import { initLumieres } from './lumieres-jeu';
 import { gameSeed, roomAlong } from './lumieres';
+import { initMusique } from './musique-son';
+import { initReglagesSon } from './son-reglages';
+import { initOndes } from './ondes-jeu';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -515,7 +519,7 @@ function update(): void {
   }
   counts.near = nNear;
   let live = 0;
-  for (const pl of plants) if (pl.live && pl.cr && Math.abs(pl.x - px) < 700) { live++; pl.cr.update(t, 0, 0, 0, 1); flow.apply(pl.cr, { push: 0.25, wake: 0.04, reach: 18 }); }
+  for (const pl of plants) if (pl.live && pl.cr && Math.abs(pl.x - px) < 700) { live++; shy(pl, px, py, t); pl.cr.update(t, 0, 0, 0, 1); flow.apply(pl.cr, { push: 0.25, wake: 0.04, reach: 18 }); }
   counts.live = live;
   for (const a of actors) if (inPlane(a) && near(a.cr.root.x[0])) flow.apply(a.cr, { push: 0.3, wake: 0.02, body: a.kind === 'player' ? 0.008 : 0.01 });
 
@@ -559,6 +563,7 @@ function update(): void {
   if (chapters.shown >= 0 && !remontee.on) partie.reach(BIOMES[chapters.shown].id);
   traces.step(px, py);
   chant.step(t, p, actors, chapters.shown);
+  ondes.step(t, px, py);
 }
 
 // ----- drawing ----- //
@@ -692,6 +697,7 @@ function render(): void {
     if (pl.x < x0 || pl.x > x1) continue;
     np++;
     items.push({ d: view.depth(pl.cr.root.y[0], pl.z), fn: () => drawPlant(pl, plane), k: 'plant' });
+    floreLights(pl, view, m.dark, t, lights);
   }
   counts.plants = np;
   for (const a of actors) {
@@ -723,6 +729,8 @@ function render(): void {
   remontee.items(glacier, cam.x, cam.y, (d, fn) => items.push({ d, fn, k: 'remontee' }));
   if (m.rays * open > 0.02 && cam.y < 1400) items.push({ d: view.depth(300, 700), fn: () => drawRays(open < 1 ? { ...m, rays: m.rays * open } : m), k: 'rays' });
   pushCave(items, { view, ctx, gx, dpr, W, H, t, lights, px: pr.x[0], py: pr.y[0], open: remontee.open(cam.x) }, m, cam.x, plane);
+  // the water bends what lies behind the swimming plane (ondes-jeu.ts)
+  if (gx) items.push({ d: view.depth(cam.y, 0) + 40, fn: () => ondes.bend(m, plane, dpr, t), k: 'ondes' });
   items.sort((a, b) => b.d - a.d);
   counts.items = items.length;
   bakes = 0;
@@ -833,6 +841,7 @@ function renderGLTop(m: M, dk: number): void {
   const dd = clamp((pr.y[0] - 300) / 900, 0, 1);
   if (deepEl && (frameNo & 7) === 0) deepEl.style.background = css(m.deep, dd * 0.18 * (1 - m.dark), -10);
   g.end();
+  ondes.shine();
 }
 
 function drawMotes(m: M, dk: number): void {
@@ -1251,6 +1260,14 @@ const lumieres = initLumieres({
   say: (name, lines) => !adieu.on && !remontee.on && narrator.say(name, lines)
 });
 
+// ----- the music (musique-son.ts): the ambience of the chapter where the swimmer is ----- //
+
+// (the chapters lit by the lineage going up light up their music too; it steps back for a farewell, dances with a parade)
+const musique = initMusique({
+  where: () => ({ x: player.cr.root.x[0], y: player.cr.root.y[0] }), bright: () => remontee.litAt(player.cr.root.x[0]),
+  moment: () => (adieu.on ? 'adieu' : parade.active ? 'parade' : null)
+});
+
 // ----- the song (chant-jeu.ts) ----- //
 
 // each chapter's note, learned once its opening has been told; the circle of notes; the animals that answer
@@ -1270,6 +1287,16 @@ const remontee = initRemontee({
 });
 // the whole song, sung by the last creature in the well of light, with the voice of the song
 remontee.onNote((_, c) => { const n = noteOf(c); if (n) chant.voice.note(c, n.freq, { gain: 0.6 }); });
+
+// ----- the water that bends (ondes-jeu.ts): the waves of the song and of the cries, hot and cold water shimmering ----- //
+
+const ondes = initOndes({
+  gx, view, vents, floorAt, ceilAt, swimmer: () => player.cr, visitors, skip,
+  answers: () => lumieres.answers, bloomed: () => lumieres.done,
+  stirring: () => actors.filter((a) => Math.abs(a.cr.root.z[0]) < 60 && Math.abs(a.cr.root.x[0] - cam.x) < 900).map((a) => a.cr)
+});
+chant.onLight((kind, c, cr) => ondes.sung(kind, cr, c));
+remontee.onNote((_, c) => ondes.sung('rise', player.cr, c));
 
 // ----- loop ----- //
 
@@ -1316,7 +1343,8 @@ function frame(now: number): void {
     const avg = fsum / fn;
     stats.fps = 1000 / avg;
     if (!lockQuality.v) {
-      if (avg > 21) { if (bias < BIAS_MAX) setBias(bias * 1.3); else if (quality > 0.55) { quality *= 0.85; resize(); } }
+      // late frames: the shimmer of the water goes first (ondes-jeu.ts), then the detail of the animals, then the resolution
+      if (avg > 21) { if (ondes.ease()) { /* the water stills */ } else if (bias < BIAS_MAX) setBias(bias * 1.3); else if (quality > 0.55) { quality *= 0.85; resize(); } }
       else if (avg < 15) { if (quality < 1) { quality = Math.min(1, quality / 0.9); resize(); } else if (bias > 1) setBias(bias / 1.3); }
     }
     fn = 0; fsum = 0;
@@ -1367,9 +1395,10 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, generique, traces, rivale, chant, lumieres, ponte, indices, remontee,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, generique, traces, rivale, chant, lumieres, ponte, indices, remontee, ondes,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
+  musique,
   get dpr() { return dpr; },
   get size() { return [W, H, canvas.width, canvas.height]; },
   setFrameHook: (f: typeof onFrame) => { onFrame = f; },
@@ -1391,6 +1420,7 @@ angleIn.value = String(settings.angle); distIn.value = String(Math.round(setting
 const showVals = () => { angleOut.textContent = settings.angle + '°'; distOut.textContent = Math.round(900 / input.zoomMul) + ''; };
 showVals();
 gear.addEventListener('click', () => { panel.hidden = !panel.hidden; });
+initReglagesSon();
 angleIn.addEventListener('input', () => { settings.angle = +angleIn.value; showVals(); save(); });
 distIn.addEventListener('input', () => { input.zoomMul = 900 / +distIn.value; settings.dist = +distIn.value; showVals(); save(); });
 for (const b of document.querySelectorAll<HTMLButtonElement>('[data-angle]')) {
