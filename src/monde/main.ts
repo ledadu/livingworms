@@ -65,6 +65,7 @@ import { gameSeed, roomAlong } from './lumieres';
 import { initMusique } from './musique-son';
 import { initReglagesSon } from './son-reglages';
 import { initOndes } from './ondes-jeu';
+import { initVie } from './vie-jeu';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -149,6 +150,8 @@ interface Actor {
   temp?: boolean;
   /** a compatible species of this chapter index (partenaires.ts): it glows when the swimmer comes near */
   partner?: number;
+  /** its own lag on the clock of the sea: the tempo of its body (vie-jeu.ts) */
+  lag?: number;
 }
 const actors: Actor[] = [];
 function addActor(sp: Spec, x: number, y: number, kind: Actor['kind'], scale = 1, z = 0): Actor {
@@ -360,7 +363,7 @@ const cam = { x: 420, y: 180 };
 function steer(a: Actor, dvx: number, dvy: number, accel: number): void {
   const r = a.cr.root;
   if (a === player) { [dvx, dvy] = keys.steer(r.x[0], dvx, dvy); dvx = holdBack(r.x[0], dvx, bounds); }
-  a.cr.steer(t, dvx, dvy, clamp((a.z - r.z[0]) * 0.035, -0.5, 0.5), accel);
+  a.cr.steer(t + (a.lag ?? 0), dvx, dvy, clamp((a.z - r.z[0]) * 0.035, -0.5, 0.5), accel);
 }
 
 function collide(cr: Creature3): void {
@@ -456,6 +459,7 @@ function update(): void {
   indices.step(px, py);
   rivale.step({ x: px, y: py }, t);
   lumieres.step({ x: px, y: py }, t);
+  vie.step(t, p, actors);
 
   flow.clear();
   const near = (x: number) => Math.abs(x - px) < 1100;
@@ -502,6 +506,8 @@ function update(): void {
       collide(c);
       continue;
     }
+    const v = vie.goal(a);
+    if (v) { steer(a, v.x, v.y, v.accel); collide(c); continue; }
     if (t > a.next || Math.hypot(a.tx - x, a.ty - y) < 20) {
       a.next = t + rand(3, 8);
       a.tx = a.hx + rand(-260, 260);
@@ -513,7 +519,7 @@ function update(): void {
       const qx = x - px, qy = y - py, q = Math.hypot(qx, qy);
       if (q < 70) { dx += (qx / (q + 1)) * 200; dy += (qy / (q + 1)) * 200; }
     }
-    const d = Math.hypot(dx, dy) || 1, sp = c.spec.swim.speed * 0.45 * swimFactor3(c, t) * Math.min(1, d / 60);
+    const d = Math.hypot(dx, dy) || 1, sp = c.spec.swim.speed * 0.45 * swimFactor3(c, t + (a.lag ?? 0)) * Math.min(1, d / 60);
     steer(a, (dx / d) * sp, (dy / d) * sp, 0.05);
     collide(c);
   }
@@ -689,6 +695,7 @@ function render(): void {
   }
   pushReliefs(items, { view, gx, ctx, dpr, plane }, cam.x, cam.y);
   traces.items({ view, dpr, plane, draw: drawSprite, lights }, cam.x, (d, fn) => items.push({ d, fn, k: 'trace' }));
+  vie.items({ view, ctx, gx, dpr, plane }, cam.x, (d, fn) => items.push({ d, fn, k: 'vie' }));
   ponte.items({ view, gx, ctx, dpr, lights }, cam.x, (d, fn) => items.push({ d, fn, k: 'eggs' }));
   let np = 0;
   for (const pl of plants) {
@@ -1298,6 +1305,12 @@ const ondes = initOndes({
 chant.onLight((kind, c, cr) => ondes.sung(kind, cr, c));
 remontee.onNote((_, c) => ondes.sung('rise', player.cr, c));
 
+// ----- the life of the animals (vie-jeu.ts) ----- //
+
+// alone, in twos, in groups, around the swimmer; when we sing, the sea listens
+const vie = initVie({ floor: floorAt, held: (a) => parade.leads(a as Actor), busy: () => parade.active || adieu.on || remontee.on, sand: (x) => moodAt(x).sand });
+chant.onNote(() => vie.hush());
+
 // ----- loop ----- //
 
 let last = performance.now(), acc = 0, fn = 0, fsum = 0;
@@ -1395,7 +1408,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, generique, traces, rivale, chant, lumieres, ponte, indices, remontee, ondes,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, generique, traces, rivale, chant, lumieres, ponte, indices, remontee, ondes, vie,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   musique,
