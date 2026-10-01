@@ -440,7 +440,7 @@ const counts = { near: 0, live: 0, plants: 0, items: 0 };
 
 function update(): void {
   t += STEP;
-  const p = player.cr, r = p.root, f = input.follow, kd = input.keyDir(), lead = adieu.lead(t) ?? remontee.lead(t);
+  const p = player.cr, r = p.root, f = input.follow, kd = input.keyDir(), lead = adieu.lead(t) ?? remontee.lead(t) ?? parade.lead();
   if (lead) steer(player, lead.x, lead.y, 0.06);
   else if (auto.on) {
     // autopilot (tests): swim along a line through the world
@@ -1359,7 +1359,7 @@ function frame(now: number): void {
   const ut = performance.now() - u0;
   stats.update = stats.update * 0.9 + ut * 0.1;
   if (steps === 3) acc = 0;
-  const r = player.cr.root, shot = remontee.camera(900 / input.zoomMul, W, H) ?? adieu.camera(900 / input.zoomMul, W, H), dist = shot.dist, pitch = (settings.angle * Math.PI) / 180;
+  const r = player.cr.root, shot = remontee.camera(900 / input.zoomMul, W, H) ?? parade.camera(900 / input.zoomMul, W, H) ?? adieu.camera(900 / input.zoomMul, W, H), dist = shot.dist, pitch = (settings.angle * Math.PI) / 180;
   if (shot.focus) { cam.x += (shot.focus.x - cam.x) * 0.04; cam.y += (shot.focus.y - cam.y) * 0.04; }
   else {
     cam.x += (r.x[0] + player.cr.vx * 20 - cam.x) * 0.07;
@@ -1370,6 +1370,7 @@ function frame(now: number): void {
   const r0 = performance.now();
   render();
   chant.draw();
+  parade.ui(view, P);
   const rt = performance.now() - r0;
   let ft = 0;
   if (opts.flush) { const f0 = performance.now(); if (gx) gx.finish(); else ctx.getImageData(0, 0, 1, 1); ft = performance.now() - f0; }
