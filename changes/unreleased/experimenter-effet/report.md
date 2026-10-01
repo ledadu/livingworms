@@ -159,7 +159,7 @@ Aucune question n'a été posée sur le tableau de bord : tous les choix sont tr
   - en octets, la pente est un peu grossière.
 - **Pas de déformation dans la Grotte, au Jardin (le vide) ni dans la Fosse** en dehors des ondes ; le jet d'eau glacée du Glacier pourrait trembler aussi.
 - **La liste de l'API de test de `docs/agents.md`** ne mentionne pas `monde.ondes` : c'est la consigne des agents, pas un document de conception, donc pas touchée.
-- **`src/monde/nouveautes/plugin.test.ts` échoue déjà avant ce chantier**, sur les images des Nouveautés. La correction est sur la branche `agent/tests`, pas encore dans `backlog`.
+- **`src/monde/nouveautes/plugin.test.ts`** échouait avant ce chantier (les images des Nouveautés) ; il passe depuis la fusion de `backlog`, qui a reçu la correction de l'agent `tests`. `make check` : 539 tests, tous verts.
 
 ## Risques de fusion
 
@@ -175,3 +175,4 @@ Aucune question n'a été posée sur le tableau de bord : tous les choix sont tr
 - `src/engine3/gfx.ts` : une ligne dans `end()`.
 - `docs/direction-artistique.md` : une section « L'eau qui se déforme » et une ligne dans « Ce qui existe déjà ».
 - Nouveaux fichiers : `src/monde/ondes*.ts` et leurs tests.
+- La fusion de `backlog` (musique, flore, filaments, tests) n'a eu qu'un conflit : les imports de `main.ts`, à côté de ceux de la musique (les deux gardés). La musique ne touche pas aux mêmes lignes ; ses écouteurs du chant et de la Remontée vivent à côté de ceux des ondes.
