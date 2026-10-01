@@ -2,6 +2,19 @@
 
 Le changelog de La Lignée, version après version. Généré depuis [`changes/`](changes/) par `make whats-new` : ne pas modifier à la main.
 
+## Version 0.7 (v0.7.0, 2026-10-01)
+
+### ✨ Nouveautés
+
+- **La Balade libre** : Après la fin, toute la mer est à toi, de la surface au fond de la Fosse, et l'Atelier aussi 🌊 — [rapport](changes/v0.7.0/balade-libre/report.md)
+- **La mer s'entend** : Des bulles, le courant, des baleines au loin, et la Grotte qui résonne autour de toi 🌊 — [rapport](changes/v0.7.0/bruitages/report.md)
+- **Les animaux vivent leur vie** : Autour de toi, ils fouillent le sable, se reposent, se saluent, jouent, vont en troupe ou en file, et viennent même te regarder 🦀 — [rapport](changes/v0.7.0/action-annimaux-nature/report.md)
+
+### 🔧 Améliorations
+
+- **La mer coule plus doucement sur téléphone** : Ton téléphone se fatigue beaucoup moins pour faire vivre la mer, du Récif jusqu'au Jardin de méduses 🪼 — [rapport](changes/v0.7.0/performance-telephone/report.md)
+- **Les portraits de l'arbre prennent vie** : Dans leurs médaillons, tes ancêtres nagent, font des culbutes, soufflent des bulles, et se tournent tous vers toi pour la photo de famille 🐠 — [rapport](changes/v0.7.0/arbre-creature/report.md)
+
 ## Version 0.6 (v0.6.0, 2026-10-01)
 
 ### ✨ Nouveautés
