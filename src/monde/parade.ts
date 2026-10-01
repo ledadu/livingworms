@@ -1,13 +1,19 @@
-// La parade (docs/mecaniques.md, « La parade »): about twenty seconds of swimming together with a partner of the
-// chapter. The partner leads a figure of eight around where we met; we follow it without losing it, pass in its
-// wake, turn with it. It never fails: it lasts its time, the partner waits for us when we fall behind, and it gives
-// a quality from 0 to 1 that the litter reads. We may leave it: swim away from the partner and it lets us go.
+// La parade (docs/mecaniques.md, « La parade »): swimming together with a partner of the chapter, until we choose
+// to mate. The partner leads a figure of eight around where we met, again and again; we follow it without losing it,
+// pass in its wake, turn with it. It never fails: the partner waits for us when we fall behind, and it measures a
+// quality from 0 to 1 that the litter reads. Once we have danced a while with it we are ready: the player may then
+// start the mating (the dance for two, danse.ts). Until then we may leave: swim away and it lets us go.
 // Pure: the game drives it (parade-jeu.ts).
 
 import { STEP, clamp } from '../engine';
 
-/** length of the parade (s) */
-export const PARADE_TIME = 20;
+/** the quality is a mean over about this long (s): a poor start is made up for by dancing on */
+export const QUALITY_SPAN = 12;
+/** ready to mate: after this long at least (s), once we have danced well for READY_GOOD (s of a perfect score), or
+ * after READY_MAX anyway */
+export const READY_MIN = 4, READY_GOOD = 3.2, READY_MAX = 10;
+/** the button to mate shows only this near the partner */
+export const READY_NEAR = 230;
 /** closer than this to a partner, and it notices us */
 export const START_NEAR = 130;
 /** time to stay near it before it starts to dance (s): long enough that swimming past one is no yes */
@@ -36,10 +42,12 @@ export interface Parade {
   pace: number;
   /** the partner's last positions (a ring of x, y) */
   trail: Float32Array; head: number; filled: number;
-  /** sums of the samples: the score and each part */
-  sum: number; n: number; parts: Parts;
+  /** the running means of the score and of each part (QUALITY_SPAN), the samples taken, and how well we danced so
+   * far (s of a perfect score) */
+  q: number; n: number; parts: Parts; good: number;
   /** the score of the last moments (0..1), for the lights */
   sync: number;
+  /** the mating has started: the parade is over and its quality fixed */
   done: boolean;
 }
 
@@ -81,7 +89,7 @@ export function newParade(partner: Pt, swimmer: Pt, pace: number): Parade {
   const trail = new Float32Array(TRAIL * 2);
   return {
     time: 0, ax: partner.x, ay: partner.y, dir, fig, len: pathLength(fig), s: 0, pace,
-    trail, head: 0, filled: 0, sum: 0, n: 0, parts: { follow: 0, wake: 0, turn: 0 }, sync: 0, done: false
+    trail, head: 0, filled: 0, q: 0, n: 0, parts: { follow: 0, wake: 0, turn: 0 }, good: 0, sync: 0, done: false
   };
 }
 
@@ -130,12 +138,15 @@ export function stepParade(p: Parade, partner: Mover, swimmer: Mover, dt = STEP)
   if (p.done) return { x: 0, y: 0 };
   p.time += dt;
   const s = sample(p, partner, swimmer), sc = scoreOf(s);
-  p.sum += sc; p.n++;
-  p.parts.follow += s.follow; p.parts.wake += s.wake; p.parts.turn += s.turn;
+  // the plain mean at first, then a running mean over QUALITY_SPAN
+  p.n++;
+  const w = Math.max(1 / p.n, dt / QUALITY_SPAN);
+  p.q += (sc - p.q) * w;
+  p.parts.follow += (s.follow - p.parts.follow) * w; p.parts.wake += (s.wake - p.parts.wake) * w; p.parts.turn += (s.turn - p.parts.turn) * w;
+  p.good += sc * dt;
   p.sync += (sc - p.sync) * 0.05;
   p.trail[p.head * 2] = partner.x; p.trail[p.head * 2 + 1] = partner.y;
   p.head = (p.head + 1) % TRAIL; p.filled = Math.min(TRAIL, p.filled + 1);
-  if (p.time >= PARADE_TIME) p.done = true;
 
   let g = lead(p);
   const lag = Math.hypot(g.x - partner.x, g.y - partner.y), far = Math.hypot(partner.x - swimmer.x, partner.y - swimmer.y);
@@ -148,13 +159,17 @@ export function stepParade(p: Parade, partner: Mover, swimmer: Mover, dt = STEP)
 
 /** the quality of the parade so far, from 0 to 1 */
 export function quality(p: Parade): number {
-  return p.n ? clamp(p.sum / p.n, 0, 1) : 0;
+  return clamp(p.q, 0, 1);
 }
 
 /** the mean of each part so far */
 export function partsOf(p: Parade): Parts {
-  const n = p.n || 1;
-  return { follow: p.parts.follow / n, wake: p.parts.wake / n, turn: p.parts.turn / n };
+  return { ...p.parts };
+}
+
+/** we have danced long enough with it: the player may start the mating */
+export function ready(p: Parade): boolean {
+  return !p.done && p.time >= READY_MIN && (p.good >= READY_GOOD || p.time >= READY_MAX);
 }
 
 /** the partner notices us: time spent near it, that fades when we leave (s) */
