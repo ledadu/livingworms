@@ -12,6 +12,16 @@ Les documents de conception : [vision](vision.md), [chapitres](chapitres.md), [m
 
 ## Étape 4 — Lignée
 
+### L'enfant reste près de ses frères
+> ⚪ à faire
+
+Quand on a choisi son enfant et que les œufs éclosent, l'enfant part aujourd'hui à toute vitesse, très loin (la sortie de l'adieu, `src/monde/adieu.ts`, « de plus en plus vite » jusqu'à ~700 px) : on ne voit plus ses frères et sœurs. Il doit seulement s'écarter un peu, sans hâte, pour qu'on les voie encore autour de lui, puis on reprend la main tout de suite et c'est nous qui partons à notre rythme. Les trois autres restent là et vivent leur vie. Garder l'émotion de l'adieu (le texte, le parent qui le regarde) sans l'éloigner de la portée ; mettre à jour « L'adieu » dans `docs/mecaniques.md`.
+
+### Revenir à une espèce antérieure de la lignée
+> ⚪ à faire
+
+Une espèce choisie peut déplaire : un déplacement pénible, un aspect qui ne nous va pas. On doit pouvoir revenir à une espèce antérieure dans l'arbre des espèces (`src/monde/arbre-ecran.ts`) et la rejouer, sans que ce soit punitif : c'est un jeu, ça doit rester plaisant. À trancher (proposer, et poser la question par le tableau de bord si besoin) : jusqu'où on peut remonter (les ancêtres de notre lignée, peut-être aussi leurs frères et sœurs), où on reprend (là où on est, dans le chapitre courant), ce qui arrive si cette espèce ne franchit pas l'obstacle du chapitre (on la garde quand même, les indices se réveillent), et comment la lignée et la sauvegarde l'enregistrent (`partie.born`, l'arbre, le générique : un retour à un ancêtre, pas une nouvelle naissance effacée). Un geste simple depuis l'arbre (« Reprendre cette espèce »), avec confirmation, et une petite scène de transition plutôt qu'une coupure.
+
 ## Étape 5 — Chant et fin
 
 ## Étape 6 — Son et finitions
