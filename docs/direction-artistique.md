@@ -19,6 +19,7 @@ Le Grand Monde (`src/monde/`) a déjà :
 - des rayons, des caustiques, la surface vue de dessous, le plancton et la neige marine ;
 - des bancs de poissons qui s'écartent du nageur, et de grands visiteurs lointains (tortue, raie manta, requin-baleine, calmar, dragon abyssal) ;
 - des animaux qui se retournent en vrai volume, tantôt par le dos (la tête part vers le fond), tantôt de face (elle vient vers nous) : le sens de chaque demi-tour est tiré au sort, pour le nageur comme pour les autres, qu'ils nagent, filent par jets ou marchent (`turnYaw` dans `src/engine3/creature3.ts`) ;
+- des animaux qui nagent à la verticale, tête en haut ou en bas, toutes espèces confondues : le ventre, les nageoires et la courbure du corps tournent avec lui jusqu'à la verticale, sans bascule soudaine (`down`, le bas du corps, dans `src/engine3/creature3.ts`). Les marcheurs (crevettes, crabes, homards, vers, étoiles) quittent le fond quand on les fait monter, tête vers où ils vont et pattes qui rament ; lâchés, ils retombent doucement à plat sur leurs pattes ; poussés vers le bas en pleine eau, ils plongent tête la première et se remettent à plat avant de toucher le fond (`crawlRise`, `crawlPitch`). Seules les méduses gardent leur cloche droite, et l'hippocampe sa tête en haut ;
 - les 10 chapitres dans l'ordre de la trame, chacun avec sa palette (tableau ci-dessous) : voir [chapitres.md](chapitres.md#dans-le-monde) ;
 - un rendu WebGL2 avec niveaux de détail et budget par image, et le canvas en repli.
 
