@@ -61,12 +61,12 @@ Sur téléphone, quand on chante beaucoup de notes à la suite, le son coupe ; o
 L'ambiance de chaque chapitre est un peu répétitive quand on y reste. La faire évoluer dans le temps : des sections qui se succèdent (variations d'accords, de voix, de densité, de registre), des moments plus calmes et plus pleins, des motifs qui ne reviennent pas à l'identique, tout en gardant le caractère de chaque chapitre (tableau de `docs/direction-artistique.md`), le ré majeur et l'accord avec le chant. La partition reste pure et testée (`musique.ts`).
 
 ### De vrais sons pour l'ambiance
-> 🔵 en cours · agent vrais-sons-ambiance
+> 🟠 fusionné · agent vrais-sons-ambiance
 
 Certains bruits sonnent trop électroniques. Garder le son généré là où il est bien, mais ajouter de vrais enregistrements pour l'ambiance (eau, bulles, ressac, glace, cris lointains de baleine…), pris dans une banque de sons libres de droit (Freesound en CC0 ou CC-BY, ou équivalent). Revoir la décision « sans fichier audio » de `docs/decisions.md` et la mettre à jour : poids des fichiers (formats compressés, courts, en boucle), chargement sans bloquer le jeu, mise en cache, joués à travers la distance des sons. Garder pour chaque son sa source, son auteur et sa licence (un fichier de crédits à côté des sons).
 
 ### Les crédits des sons
-> 🔵 en cours · agent vrais-sons-ambiance
+> 🟠 fusionné · agent vrais-sons-ambiance
 > ↳ après « De vrais sons pour l'ambiance »
 
 Même pour des sons libres de droit, nommer les personnes qui les ont publiés : une section « Sons » dans les crédits du jeu (le générique, et une page ou un panneau consultable depuis les réglages), avec pour chaque son son titre, son auteur, sa licence et un lien vers la source. Lue depuis le fichier de crédits du chantier des vrais sons ; un test vérifie que chaque fichier audio du jeu y a sa ligne.
