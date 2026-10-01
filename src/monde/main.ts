@@ -73,6 +73,7 @@ import { panOnScreen } from './ecoute';
 import { bubblingAt, currentNear, springTrains } from './bruits';
 import { awakeOutOfSight, inSight } from './hors-champ';
 import { gpuBound } from './qualite';
+import { leverRideau } from './chargement';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -1528,6 +1529,7 @@ const resumeAt = chapterIndex(partie.resume as (typeof BIOMES)[number]['id']);
 if (resumeAt > 0) { const { x, y } = arrival(resumeAt); teleport(x, y); }
 setTimeout(() => showChapter(chapters.jump(player.cr.root.x[0])), 400);
 requestAnimationFrame(frame);
+leverRideau();
 // ?lod=0: without the levels of detail (to compare)
 if (new URLSearchParams(location.search).get('lod') === '0') opts.lod = false;
 if (new URLSearchParams(location.search).get('bench') === 'compare') setTimeout(() => void compareSpecies(benchOut), 800);

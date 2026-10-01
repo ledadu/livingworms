@@ -6,9 +6,124 @@
   <meta name="theme-color" content="#0a3a55">
   <title>La Lignée — Le Grand Monde</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,400&family=Syne:wght@600;800&family=Chakra+Petch:wght@400;600&display=swap">
+  <!-- the fonts do not hold the first paint back (the loading screen, a phone without network) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,400&family=Syne:wght@600;800&family=Chakra+Petch:wght@400;600&display=swap" media="print" onload="this.media='all'">
+  <!-- the loading screen (#chargement): painted from the first kilobytes, before any script; chargement.ts lifts it -->
+  <style>
+    html { background: #04192a; }
+    #chargement {
+      position: fixed; inset: 0; z-index: 1000; overflow: hidden; display: grid; place-items: center;
+      background: radial-gradient(130% 75% at 50% -5%, #2a86a0 0%, #0f4f6d 32%, #0a3a55 55%, #04192a 100%);
+      color: #f4efe2; font-family: 'Cormorant Garamond', Georgia, serif; text-align: center;
+      -webkit-user-select: none; user-select: none; transition: opacity 0.9s ease, transform 1.2s ease;
+    }
+    #chargement.fin { opacity: 0; transform: scale(1.08); pointer-events: none; }
+    #chargement .rai {
+      position: absolute; top: -10%; width: 22vmax; height: 90%; transform-origin: 50% 0;
+      background: linear-gradient(rgba(214,240,236,0.16), rgba(214,240,236,0));
+      animation: ch-rai 7s ease-in-out infinite alternate;
+    }
+    #chargement .rai:nth-child(1) { left: 8%; transform: rotate(16deg); }
+    #chargement .rai:nth-child(2) { left: 38%; width: 14vmax; transform: rotate(4deg); animation-delay: -2.5s; }
+    #chargement .rai:nth-child(3) { left: 66%; transform: rotate(-12deg); animation-delay: -5s; }
+    #chargement .grain {
+      position: absolute; bottom: -4%; width: 4px; height: 4px; border-radius: 50%; background: rgba(230,246,240,0.55);
+      animation: ch-grain 9s linear infinite;
+    }
+    #chargement .grain:nth-child(4) { left: 12%; animation-delay: -1s; }
+    #chargement .grain:nth-child(5) { left: 27%; width: 3px; height: 3px; animation-delay: -6s; animation-duration: 11s; }
+    #chargement .grain:nth-child(6) { left: 44%; animation-delay: -3.5s; animation-duration: 8s; }
+    #chargement .grain:nth-child(7) { left: 58%; width: 5px; height: 5px; animation-delay: -8s; animation-duration: 12s; }
+    #chargement .grain:nth-child(8) { left: 73%; width: 3px; height: 3px; animation-delay: -2s; }
+    #chargement .grain:nth-child(9) { left: 88%; animation-delay: -5s; animation-duration: 10s; }
+    #chargement .coeur { position: relative; display: grid; justify-items: center; gap: 6px; padding: 0 24px; }
+    /* the larva: the first ancestor (firstAncestor), in layers that only move by transform and opacity */
+    #chargement .larve { position: relative; width: min(230px, 58vw); aspect-ratio: 2 / 1; animation: ch-nage 3.2s ease-in-out infinite; }
+    #chargement .larve > div, #chargement .larve .q2, #chargement .cil { position: absolute; }
+    #chargement .larve svg { display: block; width: 100%; height: 100%; overflow: visible; }
+    #chargement .halo { left: 28%; top: -40%; width: 74%; height: 180%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255,190,110,0.3), rgba(255,170,90,0.1) 55%, rgba(255,170,90,0)); animation: ch-halo 3.2s ease-in-out infinite; }
+    #chargement .q1 { left: 25%; top: 28%; width: 23%; height: 44%; opacity: 0.88; transform-origin: 100% 50%; animation: ch-queue 1.2s ease-in-out infinite; }
+    #chargement .q2 { left: -100%; top: -18.2%; width: 108.7%; height: 136.4%; transform-origin: 100% 50%; animation: ch-queue2 1.2s ease-in-out -0.85s infinite; }
+    #chargement .cils { inset: 0; }
+    #chargement .cils.bas { transform: scaleY(-1); }
+    #chargement .cil { width: 0.9%; height: 10%; transform-origin: 50% 100%; }
+    #chargement .cil i { position: absolute; inset: 0; border-radius: 2px; background: linear-gradient(rgba(255,236,206,0), rgba(255,230,196,0.75)); transform-origin: 50% 100%; animation: ch-cil 0.7s ease-in-out infinite; }
+    #chargement .cil:nth-child(1) { left: 80.5%; top: 15.5%; transform: rotate(35deg); }
+    #chargement .cil:nth-child(1) i { animation-delay: -0.0s; }
+    #chargement .cil:nth-child(2) { left: 75.5%; top: 11.0%; transform: rotate(20deg); }
+    #chargement .cil:nth-child(2) i { animation-delay: -0.1s; }
+    #chargement .cil:nth-child(3) { left: 70.5%; top: 8.7%; transform: rotate(6deg); }
+    #chargement .cil:nth-child(3) i { animation-delay: -0.2s; }
+    #chargement .cil:nth-child(4) { left: 65.5%; top: 9.5%; transform: rotate(-6deg); }
+    #chargement .cil:nth-child(4) i { animation-delay: -0.3s; }
+    #chargement .cil:nth-child(5) { left: 60.5%; top: 12.0%; transform: rotate(-16deg); }
+    #chargement .cil:nth-child(5) i { animation-delay: -0.4s; }
+    #chargement .cil:nth-child(6) { left: 55.5%; top: 17.0%; transform: rotate(-26deg); }
+    #chargement .cil:nth-child(6) i { animation-delay: -0.5s; }
+    #chargement .cil:nth-child(7) { left: 50.5%; top: 23.5%; transform: rotate(-34deg); }
+    #chargement .cil:nth-child(7) i { animation-delay: -0.6s; }
+    #chargement .corps { inset: 0; transform-origin: 75% 50%; animation: ch-souple 1.2s ease-in-out infinite; }
+    #chargement .lueur { left: 55%; top: 36%; width: 14%; height: 28%; border-radius: 50%; background: radial-gradient(closest-side, #fffbea, rgba(255,228,150,0.7) 35%, rgba(255,200,110,0)); animation: ch-lueur 1.8s ease-in-out infinite; }
+    #chargement .oeil { left: 76%; top: 36.5%; width: 6.5%; height: 13%; animation: ch-cligne 5s ease-in-out infinite; }
+    #chargement h1 { margin: 18px 0 0; font-weight: 300; font-size: clamp(44px, 13vw, 76px); letter-spacing: 0.04em; line-height: 1; text-shadow: 0 2px 18px rgba(0,20,30,0.6); }
+    #chargement p { margin: 0; font-style: italic; font-size: clamp(16px, 4.4vw, 21px); opacity: 0.75; animation: ch-souffle 3.2s ease-in-out infinite; }
+    @keyframes ch-rai { to { opacity: 0.35; translate: 3vmax 0; } }
+    @keyframes ch-grain { from { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } to { transform: translateY(-105vh) translateX(18px); opacity: 0; } }
+    @keyframes ch-halo { 0%, 100% { opacity: 0.65; transform: scale(0.92); } 50% { opacity: 1; transform: scale(1.06); } }
+    @keyframes ch-queue { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(10deg); } }
+    @keyframes ch-queue2 { 0%, 100% { transform: rotate(-20deg); } 50% { transform: rotate(20deg); } }
+    @keyframes ch-cil { 0%, 100% { transform: rotate(-38deg); } 28% { transform: rotate(32deg); } }
+    @keyframes ch-souple { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(0.985, 1.03); } }
+    @keyframes ch-lueur { 0%, 100% { opacity: 0.55; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1.1); } }
+    @keyframes ch-cligne { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.12); } }
+    @keyframes ch-nage { 0%, 100% { transform: translate(-6px, 4px) rotate(-3deg); } 50% { transform: translate(6px, -6px) rotate(3deg); } }
+    @keyframes ch-souffle { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.85; } }
+    @media (prefers-reduced-motion: reduce) { #chargement * { animation: none !important; } }
+  </style>
 </head>
 <body>
+  <div id="chargement" role="status" aria-label="Chargement du jeu">
+    <div class="rai"></div><div class="rai"></div><div class="rai"></div>
+    <div class="grain"></div><div class="grain"></div><div class="grain"></div><div class="grain"></div><div class="grain"></div><div class="grain"></div>
+    <div class="coeur">
+      <div class="larve" aria-hidden="true">
+        <div class="halo"></div>
+        <div class="q1">
+          <div class="q2"><svg viewBox="4 20 50 60" preserveAspectRatio="none">
+            <defs><linearGradient id="ch-fin" x1="1" x2="0"><stop offset="0" stop-color="#ffc888"/><stop offset="0.45" stop-color="#ffdba6" stop-opacity="0.8"/><stop offset="1" stop-color="#fff1cf" stop-opacity="0.1"/></linearGradient></defs>
+            <path d="M54 50 C54 45 52 44 48 43.5 C38 41 28 28 10 24 C17 34 13 43 4 50 C13 57 17 66 10 76 C28 72 38 59 48 56.5 C52 56 54 55 54 50 Z" fill="url(#ch-fin)"/>
+            <g stroke="#fff6e2" stroke-opacity="0.4" stroke-width="0.5" fill="none"><path d="M50 46.5 C38 41 26 32 12 26"/><path d="M50 48 C36 44 22 40 8 38"/><path d="M50 50 L5 50"/><path d="M50 52 C36 56 22 60 8 62"/><path d="M50 53.5 C38 59 26 68 12 74"/></g>
+          </svg></div>
+          <svg viewBox="50 28 46 44" preserveAspectRatio="none">
+            <defs><linearGradient id="ch-q" x1="1" x2="0"><stop offset="0" stop-color="#eb9454"/><stop offset="1" stop-color="#ffc888"/></linearGradient></defs>
+            <path d="M98 40 C84 41 68 42.5 54 43.5 C50 44 48 47 48 50 C48 53 50 56 54 56.5 C68 57.5 84 59 98 60 Z" fill="url(#ch-q)"/>
+            <path d="M96 50 L50 50" stroke="#fff3dc" stroke-opacity="0.5" stroke-width="0.7"/>
+          </svg>
+        </div>
+        <div class="cils"><div class="cil"><i></i></div><div class="cil"><i></i></div><div class="cil"><i></i></div><div class="cil"><i></i></div><div class="cil"><i></i></div><div class="cil"><i></i></div><div class="cil"><i></i></div></div>
+        <div class="cils bas"><div class="cil"><i></i></div><div class="cil"><i></i></div><div class="cil"><i></i></div><div class="cil"><i></i></div><div class="cil"><i></i></div><div class="cil"><i></i></div><div class="cil"><i></i></div></div>
+        <div class="corps"><svg viewBox="0 0 200 100">
+          <defs>
+            <radialGradient id="ch-corps" cx="0.7" cy="0.36" r="0.8"><stop offset="0" stop-color="#fff7e6"/><stop offset="0.3" stop-color="#ffd8a0"/><stop offset="0.7" stop-color="#f6a160"/><stop offset="1" stop-color="#d2703a"/></radialGradient>
+            <radialGradient id="ch-reflet"><stop offset="0" stop-color="#fff" stop-opacity="0.75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+            <linearGradient id="ch-bord" gradientUnits="userSpaceOnUse" x1="84" x2="112"><stop offset="0" stop-color="#ffeccc" stop-opacity="0"/><stop offset="1" stop-color="#ffeccc" stop-opacity="0.85"/></linearGradient>
+            <filter id="ch-flou" x="-20%" y="-30%" width="140%" height="160%"><feGaussianBlur stdDeviation="3"/></filter>
+          </defs>
+          <path id="ch-forme" d="M178 50 C178 27 160 16 141 16 C124 16 112 25 102 32 C96 36 90 40 84 40.5 C79 41 77 45 77 50 C77 55 79 59 84 59.5 C90 60 96 64 102 68 C112 75 124 84 141 84 C160 84 178 73 178 50 Z"/>
+          <use href="#ch-forme" fill="none" stroke="#ffb46e" stroke-opacity="0.55" stroke-width="5" filter="url(#ch-flou)"/>
+          <use href="#ch-forme" fill="url(#ch-corps)" fill-opacity="0.94" stroke="url(#ch-bord)" stroke-width="1.1"/>
+          <path d="M162 51 C146 47 120 47 84 50 C120 53 146 55 162 51 Z" fill="#c2622a" fill-opacity="0.16"/>
+          <g fill="#b0582a" fill-opacity="0.22"><circle cx="124" cy="29" r="1.8"/><circle cx="138" cy="24" r="1.3"/><circle cx="110" cy="37" r="1.4"/><circle cx="148" cy="73" r="1.6"/><circle cx="128" cy="71" r="1.3"/><circle cx="112" cy="63" r="1.2"/><circle cx="162" cy="67" r="1.1"/></g>
+          <g fill="#fff1d8" fill-opacity="0.5"><circle cx="124.4" cy="28.6" r="0.5"/><circle cx="148.4" cy="72.6" r="0.5"/><circle cx="110.4" cy="36.6" r="0.4"/></g>
+          <ellipse cx="152" cy="29" rx="16" ry="6.5" fill="url(#ch-reflet)" transform="rotate(-16 152 29)"/>
+        </svg></div>
+        <div class="lueur"></div>
+        <div class="oeil"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5.4" fill="#2a1424"/><circle cx="6" cy="6" r="5.4" fill="none" stroke="#ffe6c0" stroke-opacity="0.7" stroke-width="0.7"/><circle cx="7.7" cy="4.2" r="1.8" fill="#fff"/><circle cx="4.4" cy="8" r="0.8" fill="#fff" fill-opacity="0.6"/></svg></div>
+      </div>
+      <h1>La Lignée</h1>
+      <p>Nous nous éveillons…</p>
+    </div>
+  </div>
   <canvas id="sea"></canvas>
   <div id="deep"></div>
   <div id="vig"></div>
