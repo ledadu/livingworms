@@ -5,6 +5,7 @@
 
 import { clamp, rng } from '../engine';
 import { volumeGain } from './musique';
+import { Strain } from './voix';
 
 export interface Volumes { musique: number; chant: number; bruits: number }
 /** the volumes the mix is made for (0..1) */
@@ -143,6 +144,10 @@ export interface Son {
   setVolume(k: keyof Volumes, v: number): void;
   /** the music steps back under a note of the song */
   duck(): void;
+  /** true while the device struggles to keep up (voix.ts): the engines lighten what they can */
+  readonly strained: boolean;
+  /** how many times, and how long (s), the sound went silent for want of time, where the browser counts it (measures) */
+  readonly underruns: { events: number; seconds: number } | null;
 }
 
 let one: Son | null = null;
@@ -160,13 +165,20 @@ function createSon(): Son {
   try { stored = localStorage.getItem(STORE); } catch { /* private mode */ }
   const volumes = parseVolumes(stored);
   const wakers: ((g: Graph) => void)[] = [];
+  const strain = new Strain();
+  const stats = () => (ac as unknown as { playbackStats?: { underrunEvents: number; underrunDuration: number } } | null)?.playbackStats;
 
   function wake(): void {
     if (!ac) {
       const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: AC }).webkitAudioContext;
       if (!Ctor) return;
-      try { ac = new Ctor(); } catch { return; }
+      // (on a phone, a little more room for the sound: a slower device keeps up with a larger buffer, the song a few
+      // milliseconds later)
+      const phone = window.matchMedia?.('(pointer: coarse)').matches;
+      try { ac = new Ctor({ latencyHint: phone ? 'balanced' : 'interactive' }); } catch { return; }
       graph = buildGraph(ac, volumes);
+      // the times the sound went silent for want of time (Chrome counts them)
+      if (stats()) setInterval(() => { if (ac?.state === 'running') strain.feel(stats()?.underrunEvents ?? 0, performance.now() / 1000); }, 2000);
       // the music comes in slowly
       graph.fade.gain.setTargetAtTime(1, ac.currentTime + 0.2, 2.2);
       for (const f of wakers) f(graph);
@@ -193,6 +205,8 @@ function createSon(): Son {
       if (ac) for (const g of gainsOf(k)) g.gain.setTargetAtTime(volumeGain(volumes[k], VOLUMES[k]), ac.currentTime, 0.05);
       try { localStorage.setItem(STORE, JSON.stringify(volumes)); } catch { /* ignore */ }
     },
-    duck() { if (graph && ac) duckAt(graph, ac.currentTime); }
+    duck() { if (graph && ac) duckAt(graph, ac.currentTime); },
+    get strained() { return strain.on(performance.now() / 1000); },
+    get underruns() { const st = stats(); return st ? { events: st.underrunEvents, seconds: st.underrunDuration } : null; }
   };
 }

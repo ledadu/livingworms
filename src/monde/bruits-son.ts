@@ -13,11 +13,10 @@ import {
 import { CLEAR, REACH, type Heard } from './ecoute';
 import type { Moment } from './musique';
 import { buildGraph, release, son, type Graph } from './son';
+import { MAX_NOISES, MAX_NOISES_STRAINED } from './voix';
 
 /** how far ahead the noises are scheduled, and how often the clock looks (s) */
 const AHEAD = 0.4, TICK = 0.1;
-/** how many noises may sound at once (beyond, the next ones wait their turn) */
-const MAX_VOICES = 28;
 
 /** the levels of the beds, as they come into the noises' bus */
 const LEVEL = { water: 0.3, surf: 1.2, rush: 0.6, roar: 0.8, modes: 0.8, echo: 0.25, bubble: 0.5, drip: 0.65, click: 1.2, groan: 0.3, boom: 0.9, tinkle: 0.14, cry: 0.5, far: 0.5 };
@@ -38,6 +37,8 @@ export interface Here {
   on: boolean;
   /** the clock of the page (s) at the time of the sound, which the trains of bubbles follow (the bubbles one sees too) */
   wall?: number;
+  /** the device struggles to keep up (voix.ts): fewer noises at once */
+  strained?: boolean;
 }
 
 /** where a point of the world is on the screen, -1 (left edge) .. 1 (right edge) */
@@ -155,7 +156,7 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
 
   // ----- the noises now and then ----- //
 
-  let voices = 0;
+  let voices = 0, room = MAX_NOISES;
   const played: Record<Noise, number> = { bubbles: 0, drips: 0, cracks: 0, tinkles: 0, whales: 0, springs: 0, cries: 0 };
 
   /** the swimmer, where it was at the last look */
@@ -339,6 +340,8 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
   function tick(t: number, here: Here): void {
     now = t;
     ear = here;
+    // (how many noises may sound at once; beyond, the next ones are let go)
+    room = here.strained ? MAX_NOISES_STRAINED : MAX_NOISES;
     const on = here.on;
     level = on ? hushIn(here.moment) : 0;
     glide(out.gain, level, t, 0.6);
@@ -375,7 +378,7 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
       if (rt[k] <= 1e-6) { next[k] = Infinity; continue; }
       if (!Number.isFinite(next[k]) || next[k] < t - TICK) next[k] = t + waitFor(r, rt[k]);
       while (next[k] < t + AHEAD) {
-        if (voices < MAX_VOICES) PLAY[k](Math.max(next[k], t + 0.02), level, here);
+        if (voices < room) PLAY[k](Math.max(next[k], t + 0.02), level, here);
         next[k] += waitFor(r, rt[k]);
       }
     }
@@ -383,7 +386,7 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
     loose = loose.filter((q) => {
       if (q.at < t - TICK) return false;
       for (; q.at < t + AHEAD && q.at <= q.until; q.at += (0.5 + r()) / q.pace) {
-        if (voices < MAX_VOICES) { bubbles(burst(r, 4), Math.max(q.at, t + 0.02), at(q.dx, q.dy, q.dz, REACH.small), level); played.bubbles++; }
+        if (voices < room) { bubbles(burst(r, 4), Math.max(q.at, t + 0.02), at(q.dx, q.dy, q.dz, REACH.small), level); played.bubbles++; }
       }
       return q.at <= q.until;
     });
@@ -398,7 +401,7 @@ export function bruitsEngine(G: Graph, springs: readonly Spring[] = [], seed = 1
       while (q < t + AHEAD) {
         const pace = bubblingAt(tr, q + wall);
         if (!pace) { q += TICK; continue; }
-        if (voices < MAX_VOICES) { bubbles(burst(r, vent ? 6 : 4, vent ? 1.3 : 1), Math.max(q, t + 0.02), at(dx, dy, s.z, REACH.small), level); played.springs++; }
+        if (voices < room) { bubbles(burst(r, vent ? 6 : 4, vent ? 1.3 : 1), Math.max(q, t + 0.02), at(dx, dy, s.z, REACH.small), level); played.springs++; }
         q += (0.5 + r()) / pace;
       }
       springNext.set(s, q);
@@ -490,6 +493,7 @@ export function initBruits(d: BruitsDeps) {
       here.moment = d.moment?.() ?? null;
       here.on = s.volumes.bruits > 0;
       here.wall = performance.now() / 1000;
+      here.strained = s.strained;
       e.tick(t, here);
     };
     step();

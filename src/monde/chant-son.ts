@@ -7,6 +7,7 @@
 import type { ChapterId } from './biomes';
 import { CLEAR, type Heard } from './ecoute';
 import { release, son } from './son';
+import { MAX_NOTES, MAX_NOTES_STRAINED, harmonicsOf, toSteal, type Ringing } from './voix';
 
 interface Timbre {
   wave: OscillatorType;
@@ -51,40 +52,84 @@ const TIMBRE: Record<string, Timbre> = {
   fosse: { wave: 'sine', partials: [[1, 0.55], [0.5, 0.3], [1.5, 0.06]], attack: 0.5, decay: 3, breath: 0.12, lp: 1.6 }
 };
 
-/** how a note is sung: `gain` 0..1, `pan` -1 (left) .. 1, `octave` up or down; `far`, from an animal away (ecoute.ts) */
-export interface NoteOpts { gain?: number; pan?: number; octave?: number; far?: Pick<Heard, 'cut' | 'wet'> }
+/**
+ * How a note is sung: `gain` 0..1, `pan` -1 (left) .. 1, `octave` up or down; `far`, an animal's answer from away
+ * (ecoute.ts); `light`, without its faintest partials (a device that struggles).
+ */
+export interface NoteOpts { gain?: number; pan?: number; octave?: number; far?: Pick<Heard, 'cut' | 'wet'>; light?: boolean }
 
 export interface Voice {
   /** a note of a chapter now */
   note(chapter: ChapterId, freq: number, o?: NoteOpts): void;
   /** true once the browser lets it sound */
   readonly awake: boolean;
+  /** how many notes ring now (tests, measures) */
+  readonly ringing: number;
 }
 
 export function createVoice(): Voice {
   const s = son();
+  let sing: Singer | null = null;
   function note(chapter: ChapterId, freq: number, o: NoteOpts = {}): void {
     const g = s.graph;
     if (!g || !s.awake) return;
-    sound(g.c, g.voice, g.noise, chapter, freq, o, g.voiceFar);
+    sing ??= singer(g.c, g.voice, g.noise, g.voiceFar, () => s.strained);
+    sing.note(chapter, freq, o);
     if ((o.gain ?? 1) >= 0.5) s.duck();
   }
-  return { note, get awake() { return s.awake; } };
+  return { note, get awake() { return s.awake; }, get ringing() { return sing?.ringing ?? 0; } };
+}
+
+/** a note that rings, and how to let it go early */
+export interface Rung extends Ringing { stop(at: number): void }
+
+/**
+ * The notes of the song into `dest`, so many at once at most (voix.ts): beyond, the faintest now is let go in a few
+ * milliseconds. A device that struggles rings fewer, lighter.
+ */
+export function singer(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer | null, wetTo?: AudioNode, strained = () => false) {
+  let live: Rung[] = [];
+  return {
+    note(chapter: ChapterId, freq: number, o: NoteOpts = {}): void {
+      const now = c.currentTime, hard = strained();
+      const gone = toSteal(live, now, hard ? MAX_NOTES_STRAINED : MAX_NOTES);
+      for (const n of gone) n.stop(now);
+      live = live.filter((n) => n.end > now && !gone.includes(n));
+      const n = sound(c, dest, noise, chapter, freq, hard ? { ...o, light: true } : o, wetTo);
+      if (n) live.push(n);
+    },
+    /** how many notes ring now (tests, measures) */
+    get ringing() { return live.filter((n) => n.end > c.currentTime).length; }
+  };
+}
+export type Singer = ReturnType<typeof singer>;
+
+const waves = new WeakMap<BaseAudioContext, Map<string, PeriodicWave>>();
+/** the wave of these harmonics (sines, as loud as given), made once for a context */
+function waveOf(c: BaseAudioContext, amps: number[]): PeriodicWave {
+  let m = waves.get(c);
+  if (!m) waves.set(c, (m = new Map()));
+  const k = amps.join(',');
+  let w = m.get(k);
+  if (!w) m.set(k, (w = c.createPeriodicWave(new Float32Array(amps.length), Float32Array.from(amps), { disableNormalization: true })));
+  return w;
 }
 
 /**
  * A note of a chapter into `dest`, at the context's current time (an OfflineAudioContext renders it for the tests); a
  * far one duller, and a share of it into `wetTo` (only the reverb).
  */
-export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer | null, chapter: ChapterId, freq: number, o: NoteOpts = {}, wetTo?: AudioNode): void {
+export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer | null, chapter: ChapterId, freq: number, o: NoteOpts = {}, wetTo?: AudioNode): Rung | null {
   const tb = TIMBRE[chapter];
-  if (!tb) return;
-  const f = freq * Math.pow(2, o.octave ?? 0), t0 = c.currentTime + 0.01, end = t0 + tb.attack + tb.decay * 1.6;
+  if (!tb) return null;
+  // (it ends 40 dB under its peak: below, nothing is heard of it under the rest)
+  const f = freq * Math.pow(2, o.octave ?? 0), t0 = c.currentTime + 0.01, end = t0 + tb.attack + tb.decay * 1.32;
   const env = c.createGain();
   // what the note is made of, let go once it has rung out (its echo a little later)
-  const made: AudioNode[] = [env], echo: AudioNode[] = [];
+  const made: AudioNode[] = [env], echo: AudioNode[] = [], srcs: AudioScheduledSourceNode[] = [];
+  const peak = (o.gain ?? 1) * 0.3 * (tb.level ?? 1);
   env.gain.setValueAtTime(0, t0);
-  env.gain.linearRampToValueAtTime((o.gain ?? 1) * 0.3 * (tb.level ?? 1), t0 + tb.attack);
+  env.gain.linearRampToValueAtTime(peak, t0 + tb.attack);
   env.gain.setTargetAtTime(0, t0 + tb.attack, tb.decay / 3.5);
   let tail: AudioNode = env;
   if (o.far && o.far.cut < CLEAR) {
@@ -130,6 +175,7 @@ export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer |
     into = g;
     lfo.start(t0); lfo.stop(end);
     made.push(g, lfo, depth);
+    srcs.push(lfo);
   }
   if (tb.echo) {
     const dl = c.createDelay(1), fb = c.createGain();
@@ -139,15 +185,29 @@ export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer |
     fb.connect(tail === env ? dest : tail);
     echo.push(dl, fb);
   }
-  const oscs: OscillatorNode[] = [];
-  for (const [ratio, g] of tb.partials) {
-    const osc = c.createOscillator(), gain = c.createGain();
+  const oscs: OscillatorNode[] = [], parts = o.light ? tb.partials.filter(([ratio, g]) => ratio === 1 || g >= 0.1) : tb.partials;
+  // sines that are whole multiples of each other ring as one oscillator (the same sound, fewer nodes)
+  const one = tb.wave === 'sine' ? harmonicsOf(parts) : null;
+  if (one) {
+    const osc = c.createOscillator();
+    osc.setPeriodicWave(waveOf(c, one.amps));
+    osc.frequency.value = f * one.base;
+    osc.connect(into);
+    oscs.push(osc);
+    made.push(osc);
+  } else for (const [ratio, g] of parts) {
+    const osc = c.createOscillator();
     osc.type = ratio === 1 ? tb.wave : 'sine';
     osc.frequency.value = f * ratio;
-    gain.gain.value = g;
-    osc.connect(gain).connect(into);
+    if (g === 1) osc.connect(into);
+    else {
+      const gain = c.createGain();
+      gain.gain.value = g;
+      osc.connect(gain).connect(into);
+      made.push(gain);
+    }
     oscs.push(osc);
-    made.push(osc, gain);
+    made.push(osc);
   }
   if (tb.vib) {
     const lfo = c.createOscillator(), depth = c.createGain();
@@ -157,6 +217,7 @@ export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer |
     for (const osc of oscs) depth.connect(osc.detune);
     lfo.start(t0); lfo.stop(end);
     made.push(lfo, depth);
+    srcs.push(lfo);
   }
   if (tb.fm) {
     const mod = c.createOscillator(), depth = c.createGain();
@@ -166,6 +227,7 @@ export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer |
     mod.connect(depth).connect(oscs[0].frequency);
     mod.start(t0); mod.stop(end);
     made.push(mod, depth);
+    srcs.push(mod);
   }
   if (tb.breath && noise) {
     const src = c.createBufferSource(), bp = c.createBiquadFilter(), g = c.createGain();
@@ -178,7 +240,19 @@ export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer |
     src.connect(bp).connect(g).connect(into);
     src.start(t0); src.stop(end);
     made.push(src, bp, g);
+    srcs.push(src);
   }
-  for (const osc of oscs) { osc.start(t0); osc.stop(end); }
+  for (const osc of oscs) { osc.start(t0); osc.stop(end); srcs.push(osc); }
   release(oscs[0], made, () => setTimeout(() => { for (const n of echo) n.disconnect(); }, tb.echo ? 4000 : 0));
+  return {
+    t0, end, peak, attack: tb.attack, fade: tb.decay / 3.5,
+    // let go early: a fade of a few milliseconds (no click), then everything stops and is let go as when it ends
+    stop(at: number): void {
+      const p = env.gain;
+      if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(at); else p.cancelScheduledValues(at);
+      p.setTargetAtTime(0, at, 0.012);
+      for (const q of srcs) try { q.stop(at + 0.08); } catch { /* already stopped */ }
+      this.end = at + 0.08;
+    }
+  };
 }
