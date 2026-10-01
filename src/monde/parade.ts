@@ -1,7 +1,8 @@
 // La parade (docs/mecaniques.md, « La parade »): about twenty seconds of swimming together with a partner of the
 // chapter. The partner leads a figure of eight around where we met; we follow it without losing it, pass in its
 // wake, turn with it. It never fails: it lasts its time, the partner waits for us when we fall behind, and it gives
-// a quality from 0 to 1 that the litter reads. Pure: the game drives it (parade-jeu.ts).
+// a quality from 0 to 1 that the litter reads. We may leave it: swim away from the partner and it lets us go.
+// Pure: the game drives it (parade-jeu.ts).
 
 import { STEP, clamp } from '../engine';
 
@@ -9,8 +10,10 @@ import { STEP, clamp } from '../engine';
 export const PARADE_TIME = 20;
 /** closer than this to a partner, and it notices us */
 export const START_NEAR = 130;
-/** time to stay near it before it starts to dance (s) */
-export const START_HOLD = 1.2;
+/** time to stay near it before it starts to dance (s): long enough that swimming past one is no yes */
+export const START_HOLD = 2;
+/** farther than this from the partner for this long, and we have left the parade: it lets us go, without eggs */
+export const LEAVE_FAR = 520, LEAVE_TIME = 2.5;
 /** the figure of eight: half width and half height */
 export const FIG_W = 240, FIG_H = 95;
 /** how much of the partner's recent path counts as its wake (steps) */
@@ -157,4 +160,9 @@ export function partsOf(p: Parade): Parts {
 /** the partner notices us: time spent near it, that fades when we leave (s) */
 export function approach(hold: number, dist: number, dt = STEP): number {
   return dist < START_NEAR ? hold + dt : Math.max(0, hold - dt * 2);
+}
+
+/** time spent far from the partner during a parade, that fades when we come back (s); LEAVE_TIME of it and we have left */
+export function away(t: number, dist: number, dt = STEP): number {
+  return dist > LEAVE_FAR ? t + dt : Math.max(0, t - dt * 2);
 }

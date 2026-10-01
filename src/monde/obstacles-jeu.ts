@@ -7,7 +7,7 @@ import { clamp, type Spec } from '../engine';
 import type { ChapterId } from './biomes';
 import { GATES, reach, type CanCross, type Limits } from './limites';
 import { OBSTACLE, crossWith, feel, type Obstacle, type Trait } from './obstacles';
-import { traitsOf } from './obstacles-traits';
+import { traitsOf } from '../content/traits';
 
 export interface Near { chapter: ChapterId; gate: number; o: Obstacle; open: boolean; }
 

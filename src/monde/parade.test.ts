@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FIG_H, FIG_W, PARADE_TIME, START_HOLD, START_NEAR, along, approach, figure, newParade, partsOf, quality, stepParade, type Mover } from './parade';
+import { FIG_H, FIG_W, LEAVE_FAR, LEAVE_TIME, PARADE_TIME, START_HOLD, START_NEAR, along, approach, away, figure, newParade, partsOf, quality, stepParade, type Mover } from './parade';
 import { STEP } from '../engine';
 
 /** a whole parade; the partner goes where it is led, the swimmer is moved by `swim` */
@@ -73,7 +73,25 @@ describe('the parade', () => {
     let hold = 0, steps = 0;
     while (hold < START_HOLD) { hold = approach(hold, START_NEAR - 10); steps++; }
     expect(steps * STEP).toBeCloseTo(START_HOLD, 1);
-    for (let i = 0; i < 60; i++) hold = approach(hold, START_NEAR + 10);
-    expect(hold).toBe(0);
+    // going away, it forgets us twice as fast
+    steps = 0;
+    while (hold > 0) { hold = approach(hold, START_NEAR + 10); steps++; }
+    expect(steps * STEP).toBeCloseTo(START_HOLD / 2, 1);
+  });
+
+  it('takes a while near it to start: swimming past a partner is no yes', () => {
+    expect(START_HOLD).toBeGreaterThanOrEqual(1.8);
+  });
+
+  it('lets us go when we swim away from the partner a while, and not when we only fall behind', () => {
+    let t = 0, steps = 0;
+    while (t < LEAVE_TIME) { t = away(t, LEAVE_FAR + 50); steps++; }
+    expect(steps * STEP).toBeCloseTo(LEAVE_TIME, 1);
+    // back near it before that: the time away fades
+    t = away(0, LEAVE_FAR + 50, 1.5);
+    for (let i = 0; i < 60; i++) t = away(t, 200);
+    expect(t).toBe(0);
+    // the figure of eight takes it at most this far from where we lag behind it
+    expect(FIG_W * 2).toBeLessThan(LEAVE_FAR);
   });
 });
