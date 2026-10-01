@@ -11,6 +11,7 @@ import { BIOMES, X0, X1, biomeIndex, chapterIndex, floorAt, presence, span, type
 import { groundAt, solidAt } from './relief';
 import { bakeIce, glacierDecor } from './glacier';
 import { CARCASSE, bakeBone, underCarcasse } from './carcasse';
+import { FLORE, FLORE_RIGID, floreSpec, placeFlore } from './flore';
 
 type R01 = () => number;
 const pick = <T>(R: R01, l: T[]): T => l[Math.floor(R() * l.length)];
@@ -42,6 +43,8 @@ export function plantSpec2(kind: string, R: R01, biome: ChapterId): Spec {
   const r = (a: number, c: number) => a + R() * (c - a);
   const ri = (a: number, c: number) => Math.floor(r(a, c + 1));
   const deep = !!BIOMES[chapterIndex(biome)].pale;
+  const fl = floreSpec(kind, R, deep);
+  if (fl) return fl;
   switch (kind) {
     case 'eponge':
       return spec({ name: 'Éponge', eyes: { on: false },
@@ -78,16 +81,17 @@ export function plantSpec2(kind: string, R: R01, biome: ChapterId): Spec {
 
 /** build the plant's whip the first time it comes near */
 export function growPlant2(p: Plant): Creature3 {
-  const R = rng(p.seed), kind = p.kind, hanging = kind === 'sargasse';
+  const R = rng(p.seed), kind = p.kind, hanging = kind === 'sargasse', f = FLORE[kind];
   const biome = BIOMES[biomeIndex(p.x)].id;
-  const y = hanging ? 3 + R() * 4 : groundAt(p.x, p.z, floorAt(p.x, p.z)) + 3;
-  const upright = kind === 'kelp' || kind === 'posidonie' || kind === 'crinoide' || kind === 'riftia' || hanging;
+  const y = hanging ? 3 + R() * 4 : groundAt(p.x, p.z, floorAt(p.x, p.z)) + (f?.sink ?? 3);
+  const upright = kind === 'kelp' || kind === 'posidonie' || kind === 'crinoide' || kind === 'riftia' || hanging || !!f?.upright;
   const tilt = upright ? (R() - 0.5) * 0.1 : (R() - 0.5) * 0.35;
-  const scale = kind === 'kelp' ? (biome === 'foret' ? 1.3 + R() * 0.8 : 0.9 + R() * 0.5) : kind === 'crinoide' ? 1 + R() * 0.6 : 0.8 + R() * 0.45;
+  const scale = f ? f.scale[0] + R() * (f.scale[1] - f.scale[0]) : kind === 'kelp' ? (biome === 'foret' ? 1.3 + R() * 0.8 : 0.9 + R() * 0.5) : kind === 'crinoide' ? 1 + R() * 0.6 : 0.8 + R() * 0.45;
   const sp = plantSpec2(kind, R, biome);
-  const az = R() * Math.PI, ca = Math.cos(az), sa = Math.sin(az);
-  const dv = hanging ? { x: Math.sin(tilt) * ca, y: Math.cos(tilt), z: Math.sin(tilt) * sa } : { x: Math.sin(tilt) * ca, y: -Math.cos(tilt), z: Math.sin(tilt) * sa };
-  const cr = new Creature3(sp, p.x, y, p.z, { anchor: { dir: dv, plane: az }, phase: R() * TAU, scale });
+  const u = R(), az = f?.face ? (u - 0.5) * 0.8 : u * Math.PI, ca = Math.cos(az), sa = Math.sin(az);
+  const dv = hanging || f?.top ? { x: Math.sin(tilt) * ca, y: Math.cos(tilt), z: Math.sin(tilt) * sa } : { x: Math.sin(tilt) * ca, y: -Math.cos(tilt), z: Math.sin(tilt) * sa };
+  // a kind grown down from its top (flore.ts) hangs from that height
+  const cr = new Creature3(sp, p.x, f?.top ? y - f.top * scale : y, p.z, { anchor: { dir: dv, plane: az }, phase: R() * TAU, scale });
   if (kind === 'anemone') for (const sg of cr.list) sg.def.motion.amp *= 0.3;
   settle3(cr, kind === 'kelp' || hanging ? 70 : 40);
   p.cr = cr;
@@ -117,7 +121,7 @@ export function makeRocks(): RockX[] {
 }
 
 /** rigid kinds never move with the water: always baked, even in the swimming plane (a live plant costs its paths every frame) */
-const RIGID = new Set(['riftia', 'coral', 'fan', 'eponge', 'tubes']);
+const RIGID = new Set(['riftia', 'coral', 'fan', 'eponge', 'tubes', ...FLORE_RIGID]);
 const newPlant = (kind: string, x: number, z: number): Plant =>
   ({ x, z, kind, seed: seedOf(Math.round(x), Math.round(z)), cr: null, sprite: null, spriteD: 0, live: Math.abs(z) < 60 && !RIGID.has(kind) });
 
@@ -153,6 +157,8 @@ export function makePlants(vents: Decor[]): Plant[] {
       out.push(newPlant('riftia', v.x + Math.cos(a) * d, v.z + Math.sin(a) * d * 0.6));
     }
   }
+  // anemones, corals, shells and the strange sponges of the deep, in patches (flore.ts)
+  for (const [kind, x, z] of placeFlore()) out.push(newPlant(kind, x, z));
   return out;
 }
 

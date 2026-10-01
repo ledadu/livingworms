@@ -16,9 +16,11 @@ Le Grand Monde (`src/monde/`) a déjà :
 
 - une vraie profondeur en perspective 2.5D, avec des plans à toutes les distances et le brouillard de l'eau (`fogOf`, `waterAt`) ;
 - un fond, des rochers, des plantes simulées de près et figées en images au loin, des décors (épave, cheminées) ;
+- une flore variée dans chaque chapitre : anémones, coraux, coquillages, vers et éponges des profondeurs, en bosquets, dont certains se rétractent quand on approche et d'autres luisent dans le noir (voir « La flore des chapitres ») ;
 - des rayons, des caustiques, la surface vue de dessous, le plancton et la neige marine ;
 - des bancs de poissons qui s'écartent du nageur, et de grands visiteurs lointains (tortue, raie manta, requin-baleine, calmar, dragon abyssal) ;
 - des animaux qui se retournent en vrai volume, tantôt par le dos (la tête part vers le fond), tantôt de face (elle vient vers nous) : le sens de chaque demi-tour est tiré au sort, pour le nageur comme pour les autres, qu'ils nagent, filent par jets ou marchent (`turnYaw` dans `src/engine3/creature3.ts`) ;
+- des méduses dont les filaments, les bras oraux et les pédalies pendent tout autour du bord de la cloche, en cône : vus de côté, ils s'étalent comme l'éventail dessiné dans l'Atelier, et restent symétriques quelle que soit la façon dont la cloche penche ou a nagé (`onRim` et `rimOf` dans `src/engine/defs.ts`, `rimMount` dans `creature3.ts`) ; de loin, quand le niveau de détail en retire une partie, ce sont des paires symétriques qui partent (`thinnedOut`), et les variations d'un éventail centré vont elles aussi par paires ;
 - les 10 chapitres dans l'ordre de la trame, chacun avec sa palette (tableau ci-dessous) : voir [chapitres.md](chapitres.md#dans-le-monde) ;
 - l'eau qui se déforme : les ondes du chant et des cris, l'eau chaude et froide qui tremble, la surface qui ondule (voir [plus bas](#leau-qui-se-déforme)) ;
 - un rendu WebGL2 avec niveaux de détail et budget par image, et le canvas en repli.
@@ -58,6 +60,27 @@ Réalisé dans `src/monde/jardin.ts` (chapitre `jardin` de `biomes.ts`, entre le
 - **Elles s'éclairent par vagues** : toutes les quelques secondes, une onde de lumière part d'un point et traverse le jardin.
 - **Des siphonophores géants** : de longues chaînes lumineuses au loin, avec leurs cloches nageuses en tête et une lumière qui court le long du corps.
 - **Les proches** sont les créatures simulées de la faune du biome (méduse lune, cténophore, siphonophore, chrysaora, cuboméduse, hydre, clione) et un siphonophore géant simulé qui passe au loin (visiteur du chapitre).
+
+### La flore des chapitres
+
+Au-delà des plantes de chaque biome (kelp, posidonies, coraux, gorgones, éponges…), une vie fixée au fond s'ajoute en bosquets (`src/monde/flore.ts`, posée après les plantes de `world.ts`, qui poussent donc toujours au même endroit) :
+
+| Chapitre | Ce qu'on y croise |
+| --- | --- |
+| La Nurserie | champs de couteaux plantés dans le sable, raisins de mer, padines en éventail, méduses à l'envers posées sur le sable, cérianthes, anémones à bulles |
+| Le Récif | coraux cerveaux et coraux étoilés, acropores tables, coraux corne de cerf, bénitiers au manteau bleu, anémones à bulles, vers arbres de Noël, ascidies, cérianthes |
+| La Forêt | anémones plumeuses blanches, ascidies, étoiles-paniers, cérianthes, couteaux |
+| La Grotte | ascidies, anémones plumeuses, vers arbres de Noël, coraux bambous |
+| La Carcasse | cérianthes, anémones plumeuses, étoiles-paniers, corbeilles de Vénus, coraux bambous, éponges ping-pong |
+| Les Sources | coraux bambous, anémones plumeuses pâles |
+| Le Glacier | anémones plumeuses pâles, corbeilles de Vénus, étoiles-paniers, éponges harpes, coraux bambous |
+| La Fosse | éponges harpes, éponges ping-pong, corbeilles de Vénus, coraux bambous |
+| La Remontée | éponges harpes, éponges ping-pong, coraux bambous |
+
+- **Chaque espèce est un arbre de fouets** comme les plantes (`FLORE`, une définition par espèce, tirée d'une graine) : elle repousse toujours la même. Les formes larges (acropore, bénitier, harpe…) se tournent presque vers l'œil pour ne pas être vues par la tranche (`face`) ; le corail cerveau pousse de son sommet vers le sol, pour que son dôme pose à plat (`top`).
+- **Les timides** (couteaux, cérianthes, vers arbres de Noël) se rétractent d'un coup quand le nageur passe à moins de 60 unités, et ressortent lentement après 2,5 s de calme : le couteau s'enfonce dans le sable, la cérianthe rentre ses tentacules dans son tube, le ver replie ses deux panaches (`shy`, `shyStep`). Seuls ceux du plan de nage (simulés) le font.
+- **Les lueurs** : les perles de l'éponge harpe, les sphères de l'éponge ping-pong et les polypes du corail bambou luisent, à peine en eau claire, nettement dans le noir, chacun respirant à son rythme (`floreLights`, avec les lumières du monde). On ne les trouve que dans les chapitres sombres.
+- **Coût** : la plupart sont figées en images (`rigid`), seules les timides et la méduse à l'envers (qui bat) sont simulées dans le plan de nage. Quelques dixièmes de milliseconde par image en plus sur un ordinateur.
 
 ## Une palette par chapitre
 
@@ -120,9 +143,38 @@ La lentille, en deux passes d'un même shader WebGL2, sur les seules régions de
 
 Tout est généré dans le code, sans fichier audio (Web Audio API, voir [decisions.md](decisions.md#technique)).
 
-- **Une ambiance musicale par chapitre** : nappes et harmoniques qui changent avec la profondeur.
+- **Un seul son pour la page** (`src/monde/son.ts`) : un contexte audio, éveillé par le premier toucher ou la première touche (le navigateur ne laisse sonner une page qu'après : avant, tout est muet), endormi quand la page est cachée. La musique et le chant ont chacun leur bus et leur volume, et partagent une réverbération faite dans le code : une réponse de 2,4 s, quelques échos proches puis un bruit qui s'éteint en s'assombrissant. Elle est en mono (une convolution coûte moitié moins que deux), le son sec garde ses côtés. Un compresseur doux en sortie.
+- **Une ambiance musicale par chapitre** : nappes et harmoniques qui changent avec la profondeur. La partition est dans `src/monde/musique.ts` (pure et testée), `musique-son.ts` la joue.
+  - **Quatre voix par chapitre** :
+    - un **bourdon** grave qui respire ;
+    - des **nappes** : des accords qui enflent et s'effacent l'un sous l'autre, chaque note doublée de deux voix un peu désaccordées, sous un filtre qui balaie lentement ;
+    - les **harmoniques** de sa fondamentale, qui vont et viennent, une moitié à gauche, l'autre à droite ;
+    - quelques **notes** çà et là, en courtes phrases.
+  - **Tout est en ré majeur**, la tonalité du chant, et les notes éparses restent sur sa gamme pentatonique : ce qu'on chante tombe toujours juste sur la musique.
+  - **Les chapitres se mêlent aux frontières** comme la lumière (`presence`, la même bande de 1 400 px), à puissance égale : la musique ne creuse ni ne gonfle au passage. Un chapitre quitté se tait, puis ses voix sont libérées 6 s plus tard.
+  - **L'eau étouffe la musique** à mesure qu'on descend : un filtre dont la coupure suit la profondeur, de 16 kHz à la surface à 5,5 kHz au fond de la Fosse.
+  - **Dans la Remontée**, chaque chapitre éclairé par la lignée qui remonte (`remontee.litAt`) s'éclaire aussi en musique : l'ambiance de la Remontée monte par-dessus la sienne, qui s'efface à moitié, et l'eau cesse d'étouffer le son.
+  - **Les moments** : pendant l'adieu, la musique baisse et ne garde que ses accords, pour laisser les mots ; pendant une parade, ses notes viennent deux fois plus souvent.
+
+| Chapitre | Ambiance | Bourdon et nappes | Notes çà et là |
+| --- | --- | --- | --- |
+| La Nurserie | la lumière : haut, ouvert | ré et la ; accords clairs (ré, sol, si mineur, la), voix douces | des cloches de lumière, tout en haut |
+| Le Récif | la ville de corail : plus chaud, plus coloré | sol ; accords de sol, la, fa dièse mineur, si mineur | de petites figures pincées sur l'accord, qui battent comme des nageoires |
+| La Forêt | la cathédrale d'algues : un orgue lent, en mi dorien | mi grave, voix creuses ; la lumière respire dans le filtre | des maillets de bois, rares |
+| La Grotte | les galeries : sombre, clairsemé, la réverbération la plus forte | si très grave ; accords minces et lents | des gouttes qui reviennent des parois en écho |
+| La Carcasse | le souvenir : tendre, deux voix proches | sol ; accords de sol, ré, mi mineur, la | les quatre premières notes du chant, une octave plus bas |
+| Les Sources | la chaleur : un bourdon brûlant | ré ; accords sur une pédale de ré, voix désaccordées comme l'eau chaude qui frémit | des braises de notes graves |
+| Le Glacier | le froid : quartes et quintes, minces et immobiles | si très grave ; voix de verre (des octaves) | des cristaux qui tintent, tout en haut |
+| Le Jardin de méduses | flotter : accords amples | la ; le bourdon pulse comme le jardin (toutes les 3 s) | des souffles lents |
+| La Fosse | le noir et le silence : presque rien | ré grave ; un accord de loin en loin | une note bleue, lointaine, en écho |
+| La Remontée | tout s'éclaire | ré, la, ré ; accords qui montent (ré, la, si mineur, sol) | le chant qui remonte, note après note |
+
 - **Le chant** : chaque note a son timbre ; joué en entier, il forme une mélodie.
-  - Dans le jeu (`src/monde/chant-son.ts`) : des oscillateurs et leurs harmoniques, sur une réverbération faite dans le code. L'éclat est une cloche claire, le battement bat comme des nageoires, le frôlement souffle, l'écho revient des parois, le souvenir est chaud et doublé, la braise grésille, le givre scintille comme du verre, la pulsation enfle et ondule, le silence est un souffle grave. Les notes descendent avec les chapitres (la gamme pentatonique de ré), et les animaux qui répondent reprennent la note une octave plus haut.
-  - Le navigateur ne laisse sonner une page qu'après un premier toucher ou une touche : avant, les notes sont muettes.
-- **Les bruits** : des bulles, le courant, des cris lointains de baleine.
+  - Dans le jeu (`src/monde/chant-son.ts`) : des oscillateurs et leurs harmoniques, sur la réverbération de la page. L'éclat est une cloche claire, le battement bat comme des nageoires, le frôlement souffle, l'écho revient des parois, le souvenir est chaud et doublé, la braise grésille, le givre scintille comme du verre, la pulsation enfle et ondule, le silence est un souffle grave. Les notes descendent avec les chapitres (la gamme pentatonique de ré), et les animaux qui répondent reprennent la note une octave plus haut.
+  - Les neuf notes ont la même force, sur un haut-parleur de téléphone aussi (à 2 dB près) : le chant complet est une seule mélodie.
+  - Le chant sonne dans l'espace du chapitre (sa part de réverbération, longue dans la Grotte, courte au Récif), et la musique recule un peu sous chaque note chantée.
+- **Les niveaux** : la musique se tient vers −27 dB (la Fosse vers −33 dB), une note chantée vers −20 dB (crête vers −10 dB) ; sous le chant, la musique recule encore de 5 dB.
+- **Les réglages** : le panneau ⚙ a une section « Son », Musique et Chant, de muet à un peu plus fort que le mélange voulu (le réglage de départ), gardés dans le stockage du navigateur (`lignee.son`). Un mot dit quand l'un est coupé, sans chiffres. La musique coupée libère aussi ses voix, pour la batterie.
+- **Le coût**, mesuré hors ligne dans le Chrome d'un ordinateur : une ambiance se calcule 26 à 36 fois plus vite que le temps réel, une frontière (deux chapitres) 20 à 25 fois. La réverbération en est la plus grosse part. Les modulations à la cadence du son (un filtre ou une hauteur que fait bouger un oscillateur) coûtent cher : le balayage des filtres avance par pas de l'horloge de la musique (0,2 s), sans modulation de hauteur.
+- **Les bruits** : des bulles, le courant, des cris lointains de baleine (chantier « Les bruitages » : leur bus viendra à côté de ceux de la musique et du chant, dans `son.ts`).
 - Proposition pour les nouveaux chapitres : la Grotte résonne (réverbération longue, gouttes), le Glacier craque et tinte (glace qui se fend, cristaux).

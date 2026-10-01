@@ -28,6 +28,7 @@ import { obstacleItems } from './obstacles-draw';
 import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, chapterIndex, floorAt, liftAt, metres, moodAt, openFloor } from './biomes';
 import { Jardin } from './jardin';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
+import { floreLights, shy } from './flore';
 import { compareSpecies, runBench } from './bench';
 import { bump, initReliefs } from './relief';
 import { pushReliefs } from './relief-draw';
@@ -60,6 +61,8 @@ import { initChant } from './chant-jeu';
 import { noteOf, notesOfGeneration } from './chant';
 import { initLumieres } from './lumieres-jeu';
 import { gameSeed, roomAlong } from './lumieres';
+import { initMusique } from './musique-son';
+import { initReglagesSon } from './son-reglages';
 import { initOndes } from './ondes-jeu';
 import './style.css';
 
@@ -500,7 +503,7 @@ function update(): void {
   }
   counts.near = nNear;
   let live = 0;
-  for (const pl of plants) if (pl.live && pl.cr && Math.abs(pl.x - px) < 700) { live++; pl.cr.update(t, 0, 0, 0, 1); flow.apply(pl.cr, { push: 0.25, wake: 0.04, reach: 18 }); }
+  for (const pl of plants) if (pl.live && pl.cr && Math.abs(pl.x - px) < 700) { live++; shy(pl, px, py, t); pl.cr.update(t, 0, 0, 0, 1); flow.apply(pl.cr, { push: 0.25, wake: 0.04, reach: 18 }); }
   counts.live = live;
   for (const a of actors) if (inPlane(a) && near(a.cr.root.x[0])) flow.apply(a.cr, { push: 0.3, wake: 0.02, body: a.kind === 'player' ? 0.008 : 0.01 });
 
@@ -678,6 +681,7 @@ function render(): void {
     if (pl.x < x0 || pl.x > x1) continue;
     np++;
     items.push({ d: view.depth(pl.cr.root.y[0], pl.z), fn: () => drawPlant(pl, plane), k: 'plant' });
+    floreLights(pl, view, m.dark, t, lights);
   }
   counts.plants = np;
   for (const a of actors) {
@@ -1232,6 +1236,14 @@ const lumieres = initLumieres({
   say: (name, lines) => !adieu.on && !remontee.on && narrator.say(name, lines)
 });
 
+// ----- the music (musique-son.ts): the ambience of the chapter where the swimmer is ----- //
+
+// (the chapters lit by the lineage going up light up their music too; it steps back for a farewell, dances with a parade)
+const musique = initMusique({
+  where: () => ({ x: player.cr.root.x[0], y: player.cr.root.y[0] }), bright: () => remontee.litAt(player.cr.root.x[0]),
+  moment: () => (adieu.on ? 'adieu' : parade.active ? 'parade' : null)
+});
+
 // ----- the song (chant-jeu.ts) ----- //
 
 // each chapter's note, learned once its opening has been told; the circle of notes; the animals that answer
@@ -1362,6 +1374,7 @@ export const api = {
   biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, generique, traces, rivale, chant, lumieres, ponte, indices, remontee, ondes,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
+  musique,
   get dpr() { return dpr; },
   get size() { return [W, H, canvas.width, canvas.height]; },
   setFrameHook: (f: typeof onFrame) => { onFrame = f; },
@@ -1383,6 +1396,7 @@ angleIn.value = String(settings.angle); distIn.value = String(Math.round(setting
 const showVals = () => { angleOut.textContent = settings.angle + '°'; distOut.textContent = Math.round(900 / input.zoomMul) + ''; };
 showVals();
 gear.addEventListener('click', () => { panel.hidden = !panel.hidden; });
+initReglagesSon();
 angleIn.addEventListener('input', () => { settings.angle = +angleIn.value; showVals(); save(); });
 distIn.addEventListener('input', () => { input.zoomMul = 900 / +distIn.value; settings.dist = +distIn.value; showVals(); save(); });
 for (const b of document.querySelectorAll<HTMLButtonElement>('[data-angle]')) {

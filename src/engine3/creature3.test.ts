@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SPECIES } from '../content/species';
 import { STEP, TAU, wrapAngle } from '../engine/util';
-import { Creature3, HALF_TURN, turnError } from './creature3';
+import { Creature3, HALF_TURN, turnError, type Seg3 } from './creature3';
 
 /** swims right until it faces right, then is told left: the z of its heading (sin of the yaw) at each step of the turn */
 function turnLeft(id: string, steps = 180): { cr: Creature3; zs: number[]; jump: number } {
@@ -80,4 +80,31 @@ describe('a half turn', () => {
       vi.restoreAllMocks();
     }
   });
+});
+
+/** the filaments of a jellyfish, where they leave the bell, across its axis as the eye sees it (x, y) */
+function across(cr: Creature3, name: string): number[] {
+  const r = cr.root, n = r.n;
+  const ax = r.x[n] - r.x[0], ay = r.y[n] - r.y[0], l = Math.hypot(ax, ay) || 1;
+  return r.children.filter((c: Seg3) => c.def.name === name)
+    .map((c) => ((c.x[0] - r.x[n]) * -ay + (c.y[0] - r.y[n]) * ax) / l / r.rad[n]);
+}
+
+describe('the filaments of a jellyfish', () => {
+  // up, right, still, then off its plane in depth and back up: every way the bell leans or last swam
+  const moves: [string, number, number, number][] = [['up', 0, -0.5, 0], ['right', 1, 0, 0], ['still', 0, 0, 0], ['depth', 0.05, 0, 1], ['up again', 0, -0.5, 0], ['left', -1, 0.3, -0.5]];
+  for (const id of ['meduse', 'chrysaora']) {
+    it(`hang on both sides of the bell of ${id}, symmetric, whatever it did`, () => {
+      const cr = new Creature3(SPECIES[id](), 0, 0, 0, { dir: { x: 1, y: 0, z: 0 } });
+      let t = 0;
+      for (const [, dx, dy, dz] of moves) {
+        for (let i = 0; i < 200; i++) cr.steer((t++) * STEP, dx, dy, dz, 0.1);
+        const u = across(cr, 'Filament').sort((a, b) => a - b), c = u.length;
+        // as many on each side, mirror images of each other, as wide as the rim, none hidden behind another
+        for (let k = 0; k < c; k++) expect(u[k] + u[c - 1 - k]).toBeCloseTo(0, 1);
+        expect(u[c - 1]).toBeGreaterThan(0.85);
+        for (let k = 1; k < c; k++) expect(u[k] - u[k - 1]).toBeGreaterThan(0.08);
+      }
+    });
+  }
 });
