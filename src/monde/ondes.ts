@@ -37,7 +37,7 @@ export const RINGS: Record<RingKind, RingLook> = {
   // each flash of a light that answers in the dark of the Fosse
   light: { size: 260, dur: 3, amp: 8, width: 30, crests: 2, glint: 0.9 },
   // a big animal cries far away: a long, slow wave
-  call: { size: 1700, dur: 8, amp: 12, width: 120, crests: 3, glint: 0.35 }
+  call: { size: 1700, dur: 8, amp: 12, width: 120, crests: 3, glint: 0.25 }
 };
 
 /** a wave in the water, from where it was sung (world px), with the colour its crests catch (r, g, b in 0..1) */

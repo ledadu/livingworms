@@ -57,13 +57,15 @@ export function initOndes(d: OndesDeps) {
   const calls = d.visitors.map(() => ({ next: -1, k: 0 }));
   const flashes = new Map<Lit, { n: number; echo: number }>();
   let bloom = false, now = 0, glints: Scene | null = null, ambient = true;
+  /** stilled by late frames: until when, and for how long the next time */
+  let stillUntil = -1, stillFor = 30;
   const stats = { rings: 0, flows: 0, regions: 0, pixels: 0, ms: 0 };
   /** the open water of a column of the swimming plane */
   const span = (x: number): [number, number] => { const c = d.ceilAt(x, 0); return [Number.isFinite(c) ? Math.max(0, c) : 0, d.floorAt(x, 0)]; };
 
   /** a wave from (x, y, z), from now (or `delay` s later) */
   function ring(kind: RingKind, x: number, y: number, z: number, rgb: readonly number[] = [0.85, 0.95, 1], size = RINGS[kind].size, delay = 0): void {
-    if (mode === 'champ' && field && SUNG.includes(kind)) { field.push(x, y, kind === 'answer' ? 22 : 34, kind === 'answer' ? 1.4 : 2.6); return; }
+    if (mode === 'champ' && field && SUNG.includes(kind)) { field.push(x, y, kind === 'answer' ? 24 : 36, kind === 'answer' ? 2.2 : 4); return; }
     rings.push({ kind, x, y, z, t0: now + delay, size, rgb });
   }
 
@@ -83,6 +85,8 @@ export function initOndes(d: OndesDeps) {
   function step(t: number, px: number, py: number): void {
     now = t;
     pruneRings(rings, t);
+    // the water stilled by late frames shimmers again after a while (a slow start, a page left and back)
+    if (stillUntil >= 0 && t > stillUntil) { ambient = true; stillUntil = -1; }
     // the big animals cry now and then, when they can be seen
     d.visitors.forEach((v, i) => {
       const r = v.cr.root, c = calls[i];
@@ -161,10 +165,10 @@ export function initOndes(d: OndesDeps) {
     for (const f of flows) boxes.push(flowBox(f));
     let fv: FieldView | null = null;
     if (field) {
-      field.pack();
+      field.pack(1.6, 2);
       if (field.peak > 0.004) {
         const sky = hsl01(m.sky.h, m.sky.s, m.sky.l);
-        fv = { data: field.data, nx: field.nx, ny: field.ny, cell: field.cell, ox: field.ox, oy: field.oy, amp: 8, glint: 0.14, rgb: sky };
+        fv = { data: field.data, nx: field.nx, ny: field.ny, cell: field.cell, ox: field.ox, oy: field.oy, amp: 10, glint: 0.16, rgb: sky };
         boxes.push({ x0: 0, y0: 0, x1: W, y1: H });
       }
     }
@@ -208,7 +212,7 @@ export function initOndes(d: OndesDeps) {
       const label = () => (mode === 'champ' ? 'Champ de vagues : oui' : 'Champ de vagues : non');
       btn(label(), (b) => { mode = mode === 'champ' ? 'anneaux' : 'champ'; b.textContent = label(); });
       const still = () => (ambient ? 'Eau qui ondule : oui' : 'Eau qui ondule : non');
-      btn(still(), (b) => { ambient = !ambient; b.textContent = still(); });
+      btn(still(), (b) => { ambient = !ambient; stillUntil = -1; b.textContent = still(); });
       panel.insertBefore(row, at);
       panel.insertBefore(h, row);
     }
@@ -216,16 +220,21 @@ export function initOndes(d: OndesDeps) {
 
   return {
     ring, sung, step, bend, shine, stats,
-    /** the frames are late: the water that shimmers all the time (surface, chimneys, obstacles) stills, the rings
-     * stay; false when it is still already */
+    /**
+     * The frames are late: the water that shimmers all the time (surface, chimneys, obstacles) stills, the rings
+     * stay. It comes back after 30 s, then twice as long each time it has to still again; false when it is still
+     * already (or nothing shimmers: the 2D canvas).
+     */
     ease(): boolean {
       if (!ambient || mode === 'off' || !lens?.ok) return false;
       ambient = false;
+      stillUntil = now + stillFor;
+      stillFor = Math.min(600, stillFor * 2);
       return true;
     },
-    /** the water that shimmers all the time is on (tests, the panel) */
+    /** the water that shimmers all the time is on (tests, the panel: then it stays as it is set) */
     get ambient() { return ambient; },
-    set ambient(v: boolean) { ambient = v; },
+    set ambient(v: boolean) { ambient = v; stillUntil = -1; },
     /** the rings alive (tests) */
     rings: rings as readonly Ring[],
     get field() { return field; },
