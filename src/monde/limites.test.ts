@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { BIOMES, X1, biomeIndex, chapterIndex, presence, span } from './biomes';
-import { GATES, SOFT, WORLD_END, WORLD_START, holdBack, newLimits, pass, reach, travel, travelShown } from './limites';
+import { FOSSE_BOTTOM, GATES, SOFT, WORLD_END, WORLD_START, holdBack, newLimits, pass, reach, travel, travelShown } from './limites';
 
 describe('the ends of the world', () => {
-  it('starts in the Nurserie and ends at the bottom of the Fosse, out of the light of the Remontée', () => {
+  it('starts in the Nurserie and ends at the bottom of the Remontée, the bottom of the Fosse out of its light', () => {
     expect(biomeIndex(WORLD_START)).toBe(chapterIndex('nurserie'));
-    expect(biomeIndex(WORLD_END)).toBe(chapterIndex('fosse'));
-    expect(presence(WORLD_END, chapterIndex('remontee'))).toBe(0);
+    expect(biomeIndex(WORLD_END)).toBe(chapterIndex('remontee'));
+    expect(WORLD_END).toBeLessThanOrEqual(X1 - 200);
+    expect(biomeIndex(FOSSE_BOTTOM)).toBe(chapterIndex('fosse'));
+    expect(presence(FOSSE_BOTTOM, chapterIndex('remontee'))).toBe(0);
     expect(reach(newLimits())).toEqual([WORLD_START, WORLD_END]);
   });
 
   it('has one obstacle at the end of each chapter that has one, in the order of the descent', () => {
     expect(GATES.map((g) => g.chapter)).toEqual(['recif', 'foret', 'grotte', 'sources', 'glacier', 'jardin', 'fosse']);
-    for (const g of GATES) expect(g.x).toBe(Math.min(span(g.chapter)[1], WORLD_END));
+    for (const g of GATES) expect(g.x).toBe(Math.min(span(g.chapter)[1], FOSSE_BOTTOM));
     for (let i = 1; i < GATES.length; i++) expect(GATES[i].x).toBeGreaterThan(GATES[i - 1].x);
   });
 
@@ -23,9 +25,11 @@ describe('the ends of the world', () => {
     pass(l, forest + 10);
     expect(l.crossed.has('recif') && l.crossed.has('foret')).toBe(true);
     expect(reach(l, closed)[1]).toBe(GATES.find((g) => g.chapter === 'sources')!.x);
-    // the bottom of the world is never gone past by swimming
-    pass(l, WORLD_END + 100);
+    // the bottom of the Fosse, gone past, opens the Remontée
+    pass(l, FOSSE_BOTTOM - 100);
     expect(l.crossed.has('fosse')).toBe(false);
+    pass(l, FOSSE_BOTTOM + 100);
+    expect(l.crossed.has('fosse')).toBe(true);
   });
 
   it('opens the whole map to the travel of the tests past the end', () => {
@@ -34,6 +38,9 @@ describe('the ends of the world', () => {
     expect([...l.crossed]).toEqual(['recif', 'foret', 'grotte', 'sources']);
     expect(l.beyond).toBe(false);
     travel(l, BIOMES[chapterIndex('remontee')].x0 + 100);
+    expect(l.crossed.has('fosse')).toBe(true);
+    expect(l.beyond).toBe(false);
+    travel(l, WORLD_END + 100);
     expect(l.beyond).toBe(true);
     expect(reach(l)).toEqual([WORLD_START, X1 - 200]);
   });

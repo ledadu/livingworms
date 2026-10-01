@@ -9,7 +9,7 @@
 
 import { seedOf } from '../engine';
 import { BIOMES, X1, type ChapterId } from './biomes';
-import { GATES, SOFT, WORLD_END, WORLD_START } from './limites';
+import { FOSSE_BOTTOM, GATES, SOFT, WORLD_START } from './limites';
 import { toLines } from './textes';
 
 export type TraceKind = 'oeufs' | 'mue' | 'recif';
@@ -39,13 +39,13 @@ const MARGIN = 500;
 
 export const traceKind = (gen: number): TraceKind => KINDS[gen % KINDS.length];
 
-/** the chapters of the world where traces may lie, down to the Fosse: up to their obstacle, the end of the world */
+/** the chapters of the world where traces may lie, down to the Fosse: up to their obstacle, the bottom of the Fosse */
 export function worldPlaces(): Place[] {
   const out: Place[] = [];
   BIOMES.forEach((b, i) => {
-    if (b.x0 >= WORLD_END) return;
+    if (b.x0 >= FOSSE_BOTTOM) return;
     const next = i + 1 < BIOMES.length ? BIOMES[i + 1].x0 : X1, gate = GATES.find((g) => g.chapter === b.id);
-    const x1 = Math.min(next, gate ? gate.x - SOFT : next, WORLD_END - SOFT) - MARGIN;
+    const x1 = Math.min(next, gate ? gate.x - SOFT : next, FOSSE_BOTTOM - SOFT) - MARGIN;
     out.push({ id: b.id, x0: Math.max(b.x0, WORLD_START) + MARGIN, x1, floor: !b.abyss });
   });
   return out;

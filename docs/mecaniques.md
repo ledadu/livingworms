@@ -145,6 +145,7 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
   - **Qui répond** : un animal à moins de 760 px répond à la note de son chapitre ; un animal qui brille (lanterne, lueurs) répond à tout chant, dès sa première note. Les huit plus proches répondent, chacun une fois, quand la note les a atteints : un cercle et un halo de la couleur de la note, sa forme au-dessus de lui, son écho une octave plus haut, à gauche ou à droite selon où il est. Puis il vient un peu vers le nageur (à 150 px), et retourne à sa vie. Les sœurs de la première larve nagent avec nous et ne répondent pas ; un ancêtre laissé dans le monde répond à la note de son chapitre.
   - **Le passage** : celui de la Fosse (le noir et le silence, « lanterne, chant ») revient aux lumières qui répondent dans la Fosse (son moment fort, [chapitres.md](chapitres.md), un chantier à part), branchées sur chaque note chantée (`onNote`). Ailleurs, le chant n'ouvre aucun obstacle : l'hérédité reste le seul moyen de les franchir.
   - **Pour les tests** : `monde.chant.learned` (les chapitres dont on sait la note), `learn('recif')`, `sing(['nurserie', 'recif'])`, `open()`, `close()`, `isOpen`, `answers` (qui répond au chant en cours), `onNote((chapitre, rang) => …)` appelé pour chaque note chantée.
+- **À la Remontée**, la créature finale joue d'elle-même le chant complet, les neuf notes l'une après l'autre, chacune de sa couleur et de sa voix (`onNote` de `src/monde/remontee-jeu.ts`, voir [chapitres.md](chapitres.md#10-la-remontée-du-fond-à-la-surface)).
 
 ## L'arbre de la lignée
 
@@ -192,7 +193,7 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
   - La première fois qu'on s'en approche (dans la session), la lignée dit le texte de cette trace ([chapitres.md](chapitres.md#les-traces-de-la-lignée)), sous le nom de l'ancêtre (celui qu'on lui a donné dans l'arbre, s'il a été renommé), et la lueur de la trace s'avive le temps des mots. Rien ne se dit pendant un adieu ni par-dessus d'autres mots ; une ouverture de chapitre attend la fin de ceux d'une trace.
   - Chaque trace est dessinée une seule fois, à la première approche (quelques millisecondes), puis seulement relavée par l'eau.
   - Pour les tests : `monde.traces.list` (les traces, avec leur position), `monde.skip.add('trace')` (sans elles, pour des captures avant / après).
-- À la Remontée, tous les ancêtres remontent avec toi, en formation.
+- À la Remontée, tous les ancêtres remontent avec toi, en formation : chacun vient avec la note qu'il a apprise, puis la lignée remonte en V derrière toi (voir [chapitres.md](chapitres.md#10-la-remontée-du-fond-à-la-surface)).
 
 ## Contrôles et interface
 
@@ -201,7 +202,7 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
 - **Chanter** : un bouton en bas, qui ouvre le cercle de notes.
 - **Écran de la lignée** : l'arbre, accessible à tout moment par le bouton en haut à gauche (voir « L'arbre de la lignée »).
 - **Interface minimale** : pas de chiffres. Le texte narratif est la seule vraie interface.
-- **L'Atelier** n'est pas dans l'histoire : il est débloqué après la fin, dans la « Balade libre » (décision validée). Son bouton ✎ est caché pendant l'histoire ; il revient quand `lignee.balade` vaut `1` dans le stockage du navigateur (`unlockBalade()`, `src/monde/atelier-access.ts`, à appeler à la fin de l'histoire). Pour le développement, `?atelier` ou `?dev` (qui montre aussi le voyage du panneau ⚙) dans l'adresse le montre toujours ; `monde.unlockBalade()` débloque la Balade dans la console.
+- **L'Atelier** n'est pas dans l'histoire : il est débloqué après la fin, dans la « Balade libre » (décision validée). Son bouton ✎ est caché pendant l'histoire ; il revient quand `lignee.balade` vaut `1` dans le stockage du navigateur (`unlockBalade()`, `src/monde/atelier-access.ts`, appelé à la fin de la Remontée). Pour le développement, `?atelier` ou `?dev` (qui montre aussi le voyage du panneau ⚙) dans l'adresse le montre toujours ; `monde.unlockBalade()` débloque la Balade dans la console.
 
 ## Durée et sauvegarde
 
