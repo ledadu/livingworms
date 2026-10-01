@@ -64,6 +64,7 @@ Aucune question n'a été posée à l'utilisateur.
 - **La durée totale** n'a pas changé : environ 9 s sur un téléphone moyen pour la page publiée, mais on regarde maintenant un écran vivant. Les pistes pour la réduire :
   - le JSON des Nouveautés et ses images embarquées (550 Ko, presque la moitié de la page) pourrait être chargé après le jeu ou avoir un budget plus petit (`EMBED.budget` de `whatsNewPlugin.mjs`) ;
   - le temps d'initialisation de `main.ts` (sprites cuits, plantes, Atelier) n'a pas été mesuré en détail.
+- Après la fusion de `backlog` (les vrais sons, en mp3 dans le script), la page publiée pèse 1,6 Mo (920 Ko compressée) : l'écran s'affiche toujours à 49 Ko du début, mais le jeu mettra plus longtemps à arriver.
 - **Le serveur de dev** (celui qu'ouvre le tableau de bord sur un téléphone) reste lent, environ 16 s, parce qu'il charge des centaines de modules un par un. L'écran le cache, mais ne l'accélère pas.
 - **Si le script du jeu échoue** (erreur au démarrage), l'écran reste affiché indéfiniment, au lieu de l'ancienne page cassée. On pourrait ajouter un message « recharger » après un long délai.
 - **Le saut de police** du titre (Georgia puis Cormorant) se voit sur un réseau lent.
