@@ -2,6 +2,7 @@
 // « Recommencer » button of the settings panel (or ?nouvelle, for the tests). Once the story is over, the Balade libre
 // (balade.ts) keeps its own chapter and creature: the lineage stays as the story left it.
 import { openBalade, playIn, playedOf, resumeOf, wander } from './balade';
+import { returnTo } from './retour';
 import { birth, clearPartie, learnNote, loadPartie, openStore, reachChapter, renameAncestor, replaceCreature, savePartie, type Mate, type Partie, type Place, type SavedCreature } from './partie';
 
 const plain = (sp: object): SavedCreature => JSON.parse(JSON.stringify(sp)) as SavedCreature;
@@ -47,6 +48,12 @@ export function initPartie(chapters: readonly string[]) {
     /** a child is born and played from now on, the parent had it with this partner and is left at a place of the chapter
      * (the farewell); in the Balade the child is only played, the lineage stays as the story left it */
     born(sp: object, chapter = p.chapter, partner?: Mate, at?: Place) { keep(p.balade ? playIn(p, plain(sp)) : birth(p, plain(sp), chapter, partner, at)); },
+    /** the creature played takes again the form of the k-th ancestor (retour.ts), the one it was left at a place of
+     * the chapter; in the Balade the copy is only played, the lineage stays as the story left it */
+    returnTo(k: number, chapter = p.chapter, at?: Place) {
+      const a = p.lineage[k];
+      if (a) keep(p.balade ? playIn(p, { ...a.creature }) : returnTo(p, k, chapter, at));
+    },
     /** the i-th ancestor gets a name (the lineage tree) */
     rename(i: number, name: string) { keep(renameAncestor(p, i, name)); },
     reach(chapter: string) {

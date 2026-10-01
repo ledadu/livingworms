@@ -28,16 +28,18 @@ export interface SouvenirLayout {
   full: number;
 }
 
-/** the image, from the top: the title, then each generation and the partner of its child, then the words of the end */
-export function souvenirLayout(gens: readonly { partner: unknown }[], footLines: number): SouvenirLayout {
+/** the image, from the top: the title, then each generation and the partner of its child (or the earlier form it went
+ * back to, retour.ts), then the words of the end */
+export function souvenirLayout(gens: readonly { partner: unknown; back?: unknown }[], footLines: number): SouvenirLayout {
   let y = HEAD;
   const at: number[] = [], mates: (number | null)[] = [];
   gens.forEach((g, i) => {
     at.push(y + GEN / 2);
     y += GEN;
     if (i === gens.length - 1) return;
-    mates.push(g.partner ? y + MATE / 2 : null);
-    y += g.partner ? MATE : JOIN;
+    const join = g.partner || g.back;
+    mates.push(join ? y + MATE / 2 : null);
+    y += join ? MATE : JOIN;
   });
   const foot = y + FOOT_TOP, full = foot + Math.max(0, footLines) * FOOT_LINE + FOOT_END;
   const scale = Math.min(1, SOUVENIR_MAX_H / full);

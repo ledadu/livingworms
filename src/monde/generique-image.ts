@@ -3,7 +3,7 @@
 // darker down to the last; the thread of light, the portraits, the names and the partners as in the tree.
 
 import { css, type HSL } from './palette';
-import { generationLabel, bornWords, type Generation } from './arbre';
+import { generationLabel, originWords, backWords, type Generation } from './arbre';
 import type { Mate } from './partie';
 import { bandColour, souvenirLayout, type SouvenirLayout } from './generique';
 
@@ -172,8 +172,8 @@ export function drawSouvenir(inp: SouvenirInput): { canvas: HTMLCanvasElement; l
     fit(ctx, g.name, (px) => `500 ${px}px ${SERIF}`, 62, RIGHT - TEXT_X);
     ctx.fillText(g.name, TEXT_X, ty + 14);
     ctx.globalAlpha = 0.82;
-    fit(ctx, bornWords(chapter(g.bornIn).name), (px) => `italic 400 ${px}px ${SERIF}`, 38, RIGHT - TEXT_X);
-    ctx.fillText(bornWords(chapter(g.bornIn).name), TEXT_X, ty + 60);
+    fit(ctx, originWords(g, chapter(g.bornIn).name), (px) => `italic 400 ${px}px ${SERIF}`, 38, RIGHT - TEXT_X);
+    ctx.fillText(originWords(g, chapter(g.bornIn).name), TEXT_X, ty + 60);
     if (notes) {
       ctx.fillStyle = `rgb(${GOLD})`;
       fit(ctx, notes, (px) => `italic 400 ${px}px ${SERIF}`, 32, RIGHT - TEXT_X);
@@ -182,6 +182,26 @@ export function drawSouvenir(inp: SouvenirInput): { canvas: HTMLCanvasElement; l
     ctx.restore();
 
     const my = L.mates[i], m = g.partner;
+    if (my != null && g.back) {
+      // back to an earlier form: a knot of gold on the thread, and its words
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(TX, my, 9, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgb(6,34,48)';
+      ctx.shadowColor = `rgba(${GOLD},0.7)`;
+      ctx.shadowBlur = 12;
+      ctx.fill();
+      ctx.strokeStyle = `rgb(${GOLD})`;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.shadowColor = 'rgba(0,20,30,0.8)';
+      ctx.fillStyle = `rgb(${GOLD})`;
+      ctx.textAlign = 'left';
+      const words = backWords(g.back);
+      fit(ctx, words, (px) => `italic 400 ${px}px ${SERIF}`, 37, RIGHT - (TX + 34));
+      ctx.fillText(words, TX + 34, my + 12);
+      ctx.restore();
+    }
     if (my == null || !m) return;
     // the partner, on a branch of the thread between the parent and the child
     const mx = TX + 178;

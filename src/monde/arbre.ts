@@ -3,6 +3,7 @@
 
 import { SPECIES } from '../content/species';
 import type { Ancestor, Mate, SavedCreature } from './partie';
+import { backOf } from './retour';
 
 export interface Generation {
   /** 1 for the first larva */
@@ -15,6 +16,10 @@ export interface Generation {
   partner: Mate | null;
   /** the one played now */
   current: boolean;
+  /** instead of a child, the lineage went back to the form of this earlier generation (retour.ts) */
+  back: { rank: number; name: string } | null;
+  /** it is the form of an earlier generation taken again, not a birth */
+  again: boolean;
 }
 
 const nameOf = (c: SavedCreature) => (typeof c.name === 'string' && c.name) || 'Sans nom';
@@ -36,13 +41,19 @@ export function mateOf(a: Pick<Ancestor, 'partner'>): Mate | null {
 
 /** the generations, the oldest first: each was born where the one before gave birth, the first in the first chapter */
 export function generations(lineage: readonly Ancestor[], current: SavedCreature, first: string): Generation[] {
-  const all = lineage.map((a, i) => ({
-    rank: i + 1, creature: a.creature, name: nameOf(a.creature),
-    bornIn: i ? lineage[i - 1].chapter : first, partner: mateOf(a), current: false
-  }));
+  const backs = lineage.map((_, i) => backOf(lineage, i));
+  const all: Generation[] = lineage.map((a, i) => {
+    const k = backs[i];
+    return {
+      rank: i + 1, creature: a.creature, name: nameOf(a.creature),
+      bornIn: i ? lineage[i - 1].chapter : first, partner: k === null ? mateOf(a) : null, current: false,
+      back: k === null ? null : { rank: k + 1, name: nameOf(lineage[k].creature) }, again: i > 0 && backs[i - 1] !== null
+    };
+  });
   all.push({
     rank: all.length + 1, creature: current, name: nameOf(current),
-    bornIn: lineage.length ? lineage[lineage.length - 1].chapter : first, partner: null, current: true
+    bornIn: lineage.length ? lineage[lineage.length - 1].chapter : first, partner: null, current: true,
+    back: null, again: lineage.length > 0 && backs[lineage.length - 1] !== null
   });
   return all;
 }
@@ -65,6 +76,15 @@ export function bornWords(chapter: string): string {
   const to = art === 'Le ' ? 'au ' : art === 'Les ' ? 'aux ' : `à ${art.toLowerCase()}`;
   return `née ${to}${rest}`;
 }
+
+/** where a generation comes from: « née au Récif », or « reprise au Récif » for an earlier form taken again */
+export function originWords(g: Pick<Generation, 'again'>, chapter: string): string {
+  const w = bornWords(chapter);
+  return g.again ? w.replace(/^née/, 'reprise') : w;
+}
+
+/** the words on the thread after a generation that went back: « retour à Larve » */
+export const backWords = (b: { name: string }) => `retour à ${b.name}`;
 
 export const NAME_MAX = 24;
 
