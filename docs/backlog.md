@@ -25,7 +25,7 @@ L'approche d'un partenaire reste comme aujourd'hui : on vient près de lui, il n
 À trancher (proposer, poser la question par le tableau de bord si besoin) : quand le bouton apparaît (dès qu'on est près, ou après un moment à suivre le partenaire), ce que devient la qualité de la parade, qui règle les traits des enfants (la mesurer pendant l'approche, avant le déclenchement), et si on peut toujours partir avant de déclencher. Mettre à jour « La parade » et « La ponte » dans `docs/mecaniques.md`, et les tests (`monde.parade`).
 
 ### Revenir à une espèce antérieure de la lignée
-> 🔵 en cours · agent revenir-espece
+> 🟠 fusionné · agent revenir-espece
 
 Une espèce choisie peut déplaire : un déplacement pénible, un aspect qui ne nous va pas. On doit pouvoir revenir à une espèce antérieure dans l'arbre des espèces (`src/monde/arbre-ecran.ts`) et la rejouer, sans que ce soit punitif : c'est un jeu, ça doit rester plaisant. À trancher (proposer, et poser la question par le tableau de bord si besoin) : jusqu'où on peut remonter (les ancêtres de notre lignée, peut-être aussi leurs frères et sœurs), où on reprend (là où on est, dans le chapitre courant), ce qui arrive si cette espèce ne franchit pas l'obstacle du chapitre (on la garde quand même, les indices se réveillent), et comment la lignée et la sauvegarde l'enregistrent (`partie.born`, l'arbre, le générique : un retour à un ancêtre, pas une nouvelle naissance effacée). Un geste simple depuis l'arbre (« Reprendre cette espèce »), avec confirmation, et une petite scène de transition plutôt qu'une coupure.
 
