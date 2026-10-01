@@ -7,7 +7,9 @@ import { whatsNewPlugin } from './whatsNewPlugin.mjs';
 // The « Nouveautés » of changes/ are written into the page (whatsNewPlugin.mjs).
 export default defineConfig({
   base: './',
-  server: { port: 5180, strictPort: true },
+  // .ts.net: an agent's game opened from the dashboard through Tailscale (a phone).
+  server: { port: 5180, strictPort: true, allowedHosts: ['.ts.net'] },
+  preview: { allowedHosts: ['.ts.net'] },
   plugins: [whatsNewPlugin(), viteSingleFile()],
   build: { target: 'es2020', assetsInlineLimit: 100000000 }
 });
