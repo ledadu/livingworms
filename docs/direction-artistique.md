@@ -20,6 +20,7 @@ Le Grand Monde (`src/monde/`) a déjà :
 - des rayons, des caustiques, la surface vue de dessous, le plancton et la neige marine ;
 - des bancs de poissons qui s'écartent du nageur, et de grands visiteurs lointains (tortue, raie manta, requin-baleine, calmar, dragon abyssal) ;
 - des animaux qui se retournent en vrai volume, tantôt par le dos (la tête part vers le fond), tantôt de face (elle vient vers nous) : le sens de chaque demi-tour est tiré au sort, pour le nageur comme pour les autres, qu'ils nagent, filent par jets ou marchent (`turnYaw` dans `src/engine3/creature3.ts`) ;
+- des méduses dont les filaments, les bras oraux et les pédalies pendent tout autour du bord de la cloche, en cône : vus de côté, ils s'étalent comme l'éventail dessiné dans l'Atelier, et restent symétriques quelle que soit la façon dont la cloche penche ou a nagé (`onRim` et `rimOf` dans `src/engine/defs.ts`, `rimMount` dans `creature3.ts`) ; de loin, quand le niveau de détail en retire une partie, ce sont des paires symétriques qui partent (`thinnedOut`), et les variations d'un éventail centré vont elles aussi par paires ;
 - les 10 chapitres dans l'ordre de la trame, chacun avec sa palette (tableau ci-dessous) : voir [chapitres.md](chapitres.md#dans-le-monde) ;
 - un rendu WebGL2 avec niveaux de détail et budget par image, et le canvas en repli.
 
