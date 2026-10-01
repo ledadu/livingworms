@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { rng } from '../engine';
-import { LOAD_ORDER, RECS, cueGain, cues, dataBytes, loopable, parseCredits } from './enregistrements';
+import { LOAD_ORDER, RECS, SOUND_CREDITS, creditWords, cueGain, cues, dataBytes, loopable, parseCredits } from './enregistrements';
 
 import CREDITS from './sons/credits.json';
 
@@ -87,8 +87,9 @@ describe('a file inlined in the page', () => {
 describe('the recordings of the game and their credits', () => {
   const files = Object.keys(INLINED).map((p) => p.replace(/^.*\//, ''));
 
-  it('every audio file has its line in the credits, and every line its file', () => {
-    const lines = credits().map((c) => c.file);
+  it('every audio file has its line in the credits the game shows, and every line its file', () => {
+    expect(SOUND_CREDITS).toEqual(credits());
+    const lines = SOUND_CREDITS.map((c) => c.file);
     expect(new Set(lines).size).toBe(lines.length);
     expect([...lines].sort()).toEqual([...files].sort());
   });
@@ -119,5 +120,17 @@ describe('the recordings of the game and their credits', () => {
     expect(files.length).toBeGreaterThan(0);
     for (const url of Object.values(INLINED)) expect(url).toMatch(/^data:audio\/[a-z0-9]+;base64,/);
     expect(Object.values(INLINED).reduce((s, url) => s + url.length, 0)).toBeLessThanOrEqual(400 * 1024);
+  });
+});
+
+describe('a line of the credits, as the players read it', () => {
+  const one = { file: 'x.mp3', title: 'Diving with whales.wav', author: 'KEVOY', license: 'CC0 1.0', licenseUrl: 'https://l', url: 'https://u', excerpt: '', use: '' };
+  it('its title without the extension of its file', () => {
+    expect(creditWords(one).title).toBe('Diving with whales');
+    expect(creditWords({ ...one, title: 'Ice - Lake fractures' }).title).toBe('Ice - Lake fractures');
+  });
+  it('who, and under what licence', () => {
+    expect(creditWords(one)).toMatchObject({ by: 'KEVOY', license: 'domaine public (CC0 1.0)' });
+    expect(creditWords({ ...one, license: 'CC BY 4.0' }).license).toBe('licence CC BY 4.0');
   });
 });

@@ -1,9 +1,11 @@
 // The recordings of the ambience (docs/direction-artistique.md, « Le son »; docs/decisions.md, « Technique »): a few
 // short MP3 files taken from Freesound (src/monde/sons/, their credits beside them), played by bruits-son.ts where a
 // sound made in the code sounded too electronic. What each file is for, how a loop is made seamless, where the noises
-// lie in a file of several, and the credits. Pure and tested; enregistrements-son.ts loads and decodes them.
+// lie in a file of several, and the credits (shown by credits-sons.ts). Pure and tested; enregistrements-son.ts loads
+// and decodes them.
 
 import { clamp } from '../engine';
+import CREDITS from './sons/credits.json';
 
 /** the recordings, by the name of their file in src/monde/sons/ */
 export type RecName = 'eau' | 'ressac' | 'bulles' | 'glace' | 'baleines';
@@ -129,4 +131,16 @@ export function parseCredits(o: unknown): Credit[] {
     for (const k of ['url', 'licenseUrl'] as const) if (!/^https:\/\//.test(x[k])) throw new Error(`credits: ${x.file}: ${k} is not a link`);
     return Object.fromEntries(FIELDS.map((k) => [k, x[k]])) as unknown as Credit;
   });
+}
+
+/** the credits of the recordings of the game, as the credits file says them */
+export const SOUND_CREDITS: Credit[] = parseCredits(CREDITS);
+
+/** how a line is shown to the players: its title without the extension of its file, and who and under what licence */
+export function creditWords(c: Credit): { title: string; by: string; license: string } {
+  return {
+    title: c.title.replace(/\.(wav|flac|aiff?|mp3|ogg|m4a)$/i, '').trim(),
+    by: c.author,
+    license: c.license.startsWith('CC0') ? `domaine public (${c.license})` : `licence ${c.license}`
+  };
 }

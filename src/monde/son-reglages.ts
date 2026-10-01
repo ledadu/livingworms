@@ -1,6 +1,8 @@
 // The sound in the settings panel (index.html, « Son »): the volume of the music, of the song and of the noises,
-// kept in the browser's storage (son.ts). A word says when one is off; no figures.
+// kept in the browser's storage (son.ts). A word says when one is off; no figures. Below, the sounds and their authors
+// (credits-sons.ts).
 
+import { initCreditsSons } from './credits-sons';
 import { son, type Volumes } from './son';
 
 const SLIDERS: [string, keyof Volumes, string][] = [['musicVol', 'musique', 'coupée'], ['chantVol', 'chant', 'coupé'], ['bruitsVol', 'bruits', 'coupés']];
@@ -15,4 +17,5 @@ export function initReglagesSon(): void {
     show();
     input.addEventListener('input', () => { s.setVolume(k, +input.value / 100); show(); });
   }
+  initCreditsSons(document.getElementById('sonsBtn'));
 }
