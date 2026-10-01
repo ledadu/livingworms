@@ -18,6 +18,7 @@ Le Grand Monde (`src/monde/`) a déjà :
 - un fond, des rochers, des plantes simulées de près et figées en images au loin, des décors (épave, cheminées) ;
 - des rayons, des caustiques, la surface vue de dessous, le plancton et la neige marine ;
 - des bancs de poissons qui s'écartent du nageur, et de grands visiteurs lointains (tortue, raie manta, requin-baleine, calmar, dragon abyssal) ;
+- des animaux qui vivent leur vie autour de nous, seuls, à deux ou en groupe, et pas seulement en se déplaçant (voir [La vie des animaux](#la-vie-des-animaux)) ;
 - des animaux qui se retournent en vrai volume, tantôt par le dos (la tête part vers le fond), tantôt de face (elle vient vers nous) : le sens de chaque demi-tour est tiré au sort, pour le nageur comme pour les autres, qu'ils nagent, filent par jets ou marchent (`turnYaw` dans `src/engine3/creature3.ts`) ;
 - les 10 chapitres dans l'ordre de la trame, chacun avec sa palette (tableau ci-dessous) : voir [chapitres.md](chapitres.md#dans-le-monde) ;
 - un rendu WebGL2 avec niveaux de détail et budget par image, et le canvas en repli.
@@ -58,6 +59,20 @@ Réalisé dans `src/monde/jardin.ts` (chapitre `jardin` de `biomes.ts`, entre le
 - **Elles s'éclairent par vagues** : toutes les quelques secondes, une onde de lumière part d'un point et traverse le jardin.
 - **Des siphonophores géants** : de longues chaînes lumineuses au loin, avec leurs cloches nageuses en tête et une lumière qui court le long du corps.
 - **Les proches** sont les créatures simulées de la faune du biome (méduse lune, cténophore, siphonophore, chrysaora, cuboméduse, hydre, clione) et un siphonophore géant simulé qui passe au loin (visiteur du chapitre).
+
+### La vie des animaux
+
+Autour du nageur, de temps en temps, un animal libre commence une petite scène, seul ou avec ceux qui sont près de lui (`src/monde/vie.ts` pour les scènes, `vie-jeu.ts` pour leur place dans le monde, `vie-draw.ts` pour ce qu'elles laissent dans l'eau). Les autres continuent d'errer comme avant : environ la moitié des animaux proches font quelque chose à un moment donné.
+
+- **Seul** : il **fouille** le sable, museau dedans, picore, avance de quelques pixels et recommence ; chaque coup de museau soulève un petit nuage de limon. Il **se repose**, presque immobile au-dessus du fond, tourné un peu vers nous : son corps bat plus lentement et ses couleurs pâlissent. Il vient **nous regarder**, s'arrête à quelques longueurs, se tourne vers nous et nous suit un peu tant qu'on nage doucement (un chasseur reste plus loin) ; deux à la fois au plus. Il **gobe** du plancton : des grains apparaissent juste devant lui, il fonce dessus et ils disparaissent.
+- **À deux** (de la même espèce) : ils **tournent l'un autour de l'autre** en profondeur, parés de couleurs plus vives ; ils **jouent à se poursuivre**, l'un file ici et là, l'autre le suit de près sans jamais le toucher, puis ils échangent les rôles ; ils **vont côte à côte**, l'un à côté de l'autre en profondeur, au même rythme ; ils **se saluent**, face à face, nez à nez, un petit coup de museau ou deux, puis repartent chacun de son côté.
+- **La station de nettoyage** (deux espèces) : un poisson assez grand descend au-dessus d'une crevette, s'immobilise, pâlit et se tourne vers nous ; la crevette nage jusqu'à lui et picore sous sa tête et le long de son ventre, puis redescend.
+- **En groupe** (de trois à six de la même espèce) : une **petite troupe** suit son meneur, en chevron décalé en profondeur (les méduses en rond autour de la leur) ; les marcheurs avancent **en file indienne** sur le fond, chacun juste derrière celui qui le précède, comme les langoustes, et le meneur soulève un peu de poussière.
+- **Le festin** : toutes les 40 à 70 secondes (la première fois peu après l'arrivée), un nuage de nourriture tombe un peu devant le nageur ; jusqu'à six animaux proches, de toutes espèces, viennent : les nageurs happent les flocons pendant leur chute, les marcheurs attendent qu'ils se posent, et chaque bouchée sur le fond soulève du sable. Le festin finit quand tout est mangé.
+- **Le corps suit** : une scène ne fait pas que déplacer l'animal. Elle lui donne un cap à prendre quand il bouge à peine (se tourner vers nous, face à l'autre), un plan en profondeur (tourner l'un autour de l'autre, aller côte à côte), le tempo de son corps (chaque animal a son propre décalage sur l'horloge de la mer : plus lent au repos, plus vif au jeu), ses couleurs (repeintes en trois temps, plus vives ou plus pâles, et qui reviennent de même), et un marcheur peut nager un moment (la crevette du nettoyage). Un nageur garde le rythme de son espèce (par saccades, par pulsations).
+- **Le nageur** : personne ne nage à travers lui, et les jeux sur place se tiennent à l'écart. **S'il fonce** sur une scène, ses animaux s'égaillent et la scène finit ; s'il approche doucement, il peut regarder de tout près. **Quand il chante**, toutes les scènes s'arrêtent et aucune ne commence pendant dix secondes : la mer écoute, et les animaux qui répondent viennent vers lui.
+- **Ce qui n'y entre pas** : le nageur et ses sœurs, les ancêtres, la cousine de la Carcasse, les lumières de la Fosse, les animaux de la surface ; un partenaire que la parade emmène quitte sa scène.
+- **Coût** : rien de mesurable (60 images par seconde avec ou sans, simulation à 2,3–2,6 ms dans les deux cas au Récif). Pour comparer : `monde.vie.on = false` ; pour les tests, `monde.vie.acts` (les scènes en cours), `monde.vie.seen` (combien de chaque depuis l'ouverture), `monde.vie.start(id, animaux)`, `monde.vie.feast(monde.actors)`, `monde.vie.hush()`, et la couche `vie` de `monde.skip`.
 
 ## Une palette par chapitre
 

@@ -328,7 +328,7 @@ export function steerOf(a: Act, i: number, t: number, R: () => number, w: World,
   const g = scene(a, i, b, t, R, w, swimmer);
   // never into the swimmer (only the curious come close, and they stop short)
   if (swimmer && a.id !== 'curieux' && Math.abs(b.z) < 60) {
-    const dx = b.x - swimmer.x, dy = b.y - swimmer.y, d = Math.hypot(dx, dy) || 1, m = (b.len + swimmer.len) * 0.5 + 16;
+    const dx = b.x - swimmer.x, dy = b.y - swimmer.y, d = Math.hypot(dx, dy) || 1, m = (b.len + swimmer.len) * 0.3 + 12;
     if (d < m) { g.x += (dx / d) * (m - d) * 0.04; g.y += (dy / d) * (m - d) * 0.04; }
   }
   return g;
@@ -483,11 +483,16 @@ function cote(a: Act, i: number, R: () => number, w: World): Goal {
 /** they meet face to face, stay a moment nose to nose with a nudge or two, then go their ways */
 function salut(a: Act, i: number, t: number): Goal {
   const b = a.who[i], o = a.who[1 - i], side = b.x < o.x || (b.x === o.x && i === 0) ? -1 : 1;
-  const gap = (b.len + o.len) * 0.5 + 10, sx = a.at.x + side * gap * 0.5, sy = b.gait === 'crawl' ? b.floor : a.at.y;
+  const gap = (b.len + o.len) * 0.5 + 10, sy = b.gait === 'crawl' ? b.floor : a.at.y;
   if (a.stage === 0) {
-    if (t - a.t0 > 7 || a.who.every((m) => Math.abs(m.x - a.at.x) < gap * 0.5 + 16 && (m.gait === 'crawl' || Math.abs(m.y - a.at.y) < 20))) { a.stage = 1; a.ts = t; a.end = Math.max(a.end, t + 6); }
+    // they come toward each other, toward the meeting place, until they are face to face
+    const mx = (b.x + o.x + 2 * a.at.x) / 4, sx = mx + side * gap * 0.5;
+    if (t - a.t0 > 7 || (Math.abs(b.x - o.x) < gap + 24 && a.who.every((m) => m.gait === 'crawl' || Math.abs(m.y - a.at.y) < 24))) {
+      a.stage = 1; a.ts = t; a.end = Math.max(a.end, t + 6); a.at.x = (b.x + o.x) / 2;
+    }
     return seek(b, sx, sy, cruise(b), 30);
   }
+  const sx = a.at.x + side * gap * 0.5;
   if (a.stage === 1) {
     const u = t - a.ts;
     if (u > 3.2) { a.stage = 2; a.ts = t; }
