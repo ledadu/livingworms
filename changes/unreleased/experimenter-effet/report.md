@@ -18,7 +18,7 @@ L'eau plie maintenant la lumière : des ondes partent des animaux qui chantent o
 - **Le rendu** : par bouffées, avec de fines stries de lumière là où l'eau resserre l'image.
 - **La surface**, vue d'en dessous, ondule.
 
-**Ce qui reste net** : le nageur et ce qui nage près de lui (seul ce qui est derrière le plan de nage se déforme), le premier plan, les textes et les boutons. Les reflets des anneaux, eux, passent par-dessus tout, le noir de la Fosse compris.
+**Ce qui reste net** : le nageur et ce qui nage près de lui (seul ce qui est derrière le plan de nage se déforme), le premier plan, les textes et les boutons. Les reflets des anneaux, eux, passent par-dessus tout, le noir de la Fosse compris. Si l'appareil demande moins d'animations (`prefers-reduced-motion`), l'eau qui tremble en permanence reste calme ; les ondes du chant, brèves, restent.
 
 **Comment c'est fait** :
 
@@ -107,6 +107,7 @@ Aucune question n'a été posée sur le tableau de bord : tous les choix sont tr
 | L'« autre système de calcul » | Le champ de vagues (équation des ondes sur une grille) : livré en expérience, à activer par `?ondes=champ` ou le panneau | Le plus vivant (sillages, interférences, rebonds), mais trop cher pour le défaut, et ses ondes ne suivent pas l'anneau de lumière des notes |
 | Et sur un téléphone qui peine ? | Rien à plier, rien à payer ; quand les images prennent du retard, l'eau d'ambiance s'arrête avant le détail des animaux et revient plus tard, de plus en plus tard ; les anneaux, brefs, restent | L'ambiance est un luxe, la créature et le chant non ; le premier retard au chargement ne doit pas l'éteindre pour toute la partie |
 | En canvas 2D (le repli) ? | L'eau reste immobile | Effet cosmétique ; les anneaux de lumière du chant restent |
+| Et ceux que le mouvement gêne ? | Avec `prefers-reduced-motion`, pas d'eau qui tremble en continu ; les ondes du chant restent | Un écran qui ondule sans cesse est ce qui gêne le plus ; les ondes sont brèves et répondent à un geste |
 | Les cris ont-ils un son ? | Non, muets pour l'instant | Le son est le chantier des bruitages ; ne pas inventer sa voix ici |
 | Le bug de la texture blanche du peintre | Corrigé (une ligne dans `gfx.ts`) | Trouvé en chemin : il remplissait la console d'avertissements qui auraient caché ceux de la lentille |
 
@@ -142,6 +143,9 @@ Aucune question n'a été posée sur le tableau de bord : tous les choix sont tr
   - Laisser le budget baisser la résolution : rien à ajouter, mais tout devient flou pour payer un effet d'ambiance.
   - Arrêter l'eau d'ambiance pour toute la partie au premier retard : le plus simple, mais le chargement est toujours lent sur ses premières images, et le retour d'un onglet quitté compte comme un retard : elle s'éteindrait presque partout.
   - L'arrêter seulement après plusieurs retards de suite : plus prudent, mais le budget aurait déjà baissé le détail des animaux entre-temps.
+- **Ceux que le mouvement gêne**
+  - Tout couper (anneaux compris) : le plus sûr, mais le chant perd sa réponse visible dans l'eau ; l'anneau de lumière la donne encore.
+  - Un réglage dans le panneau : plus fin, mais un réglage de plus, alors que l'appareil le dit déjà.
 - **En canvas 2D** : dessiner de simples cercles clairs à la place. L'anneau de lumière du chant le fait déjà.
 - **Le son des cris** : un gémissement grave fait avec la voix du chant (`chant-son.ts`). Mais elle n'a pas le timbre d'une baleine, et c'est au chantier des bruitages de le faire.
 

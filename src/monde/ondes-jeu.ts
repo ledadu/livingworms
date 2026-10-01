@@ -57,7 +57,9 @@ export function initOndes(d: OndesDeps) {
   const P: Proj = { x: 0, y: 0, s: 1, d: 1 };
   const calls = d.visitors.map(() => ({ next: -1, k: 0 }));
   const flashes = new Map<Lit, { n: number; echo: number }>();
-  let bloom = false, now = 0, glints: Scene | null = null, ambient = true;
+  // the water that shimmers all the time stays still for those who asked their device for less motion
+  const calm = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let bloom = false, now = 0, glints: Scene | null = null, ambient = !calm;
   /** stilled by late frames: until when, and for how long the next time */
   let stillUntil = -1, stillFor = 30;
   const stats = { rings: 0, flows: 0, regions: 0, pixels: 0, ms: 0 };

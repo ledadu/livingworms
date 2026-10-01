@@ -127,7 +127,7 @@ Réalisé dans `src/monde/ondes.ts` (les formes), `ondes-gl.ts` (la lentille) et
 - **Les lumières de la Fosse** : chaque éclat d'une lumière qui répond, ses échos et le moment où toutes brillent ensemble font une onde de sa couleur ; dans le noir, on ne voit que ses crêtes, des anneaux de lumière.
 - **L'eau chaude et l'eau froide** : au-dessus des cheminées des Sources, une colonne d'eau chaude tremble et monte en s'élargissant ; le couloir brûlant tremble de bas en haut, plus fort près de son passage ; l'eau glacée du Glacier ondule lentement en descendant ; le courant de la passe du Récif file vers l'arrière. Par bouffées, avec de fines stries de lumière là où l'eau resserre l'image.
 - **La surface** vue d'en dessous ondule sous ses vagues.
-- **Ce qui ne bouge pas** : le nageur et ce qui nage près de lui restent nets (seul ce qui est derrière le plan de nage se déforme), comme le premier plan, les textes et les boutons.
+- **Ce qui ne bouge pas** : le nageur et ce qui nage près de lui restent nets (seul ce qui est derrière le plan de nage se déforme), comme le premier plan, les textes et les boutons. Si l'appareil demande moins d'animations (`prefers-reduced-motion`), l'eau qui tremble en permanence reste calme ; les ondes du chant restent.
 
 La lentille, en deux passes d'un même shader WebGL2, sur les seules régions de l'écran où l'eau se plie :
 
