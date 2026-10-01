@@ -164,6 +164,7 @@
   <span class="spacer"></span>
   <span class="toolbar">Rebase sur <select id="rebase-base"><option value="__MAIN__">__MAIN__</option><option value="__INTEGRATION__">__INTEGRATION__</option></select>
     <button class="btn" id="rebase-all" title="Rebase de chaque tâche terminée, l'une après l'autre ; une fois rebasée, elle passe dans les tâches archivées">⟳ Rebaser les terminées</button>
+    <button class="btn" id="push-all" title="Envoie sur GitHub __INTEGRATION__, __MAIN__ à la dernière __RELEASE__ publiée, les branches release/* et les tags ; jamais forcé">⇪ Pousser sur GitHub</button>
     <button class="btn" id="clean-all" title="Retire les worktrees des tâches finies : archivées, fusionnées dans __INTEGRATION__, sans fichier en cours et arrêtées (branche fusionnée supprimée, journaux de claude). Les entrées de changes/ restent.">🧹 Nettoyer les terminés</button></span>
   <span class="legend"><span><i style="background:var(--accent)"></i>au travail</span><span><i style="background:var(--warn)"></i>calme</span><span><i style="background:var(--ok)"></i>terminé</span><span><i style="background:var(--bad)"></i>erreur</span></span>
   <span class="summary" id="updated"></span>
@@ -619,6 +620,28 @@ async function orderAction(card, name, action) {
   box.querySelectorAll('button').forEach((b) => (b.disabled = false));
   refresh();
 }
+
+// « ⇪ Pousser sur GitHub » : the plan first, then the push once confirmed.
+document.getElementById('push-all').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    const plan = await (await fetch('/api/push?dry=1', { method: 'POST' })).json();
+    if (!plan.ok) return alert(`Échec : ${plan.error}`);
+    const words = { new: 'nouvelle', update: 'avance', diverged: 'divergée, laissée' };
+    const moves = plan.refs.filter((one) => one.action !== 'same');
+    if (!moves.some((one) => one.action !== 'diverged')) return alert(`Tout est déjà sur ${plan.remote}.${moves.length ? `\n\nDivergé, laissé : ${moves.map((one) => one.label).join(', ')}` : ''}`);
+    if (!confirm(`Pousser sur ${plan.remote} (jamais forcé) ?\n\n  ${moves.map((one) => `${one.label} : ${words[one.action]}`).join('\n  ')}`)) return;
+    button.textContent = '⇪ Envoi…';
+    const result = await (await fetch('/api/push', { method: 'POST' })).json();
+    alert(result.ok ? `Poussé sur ${result.remote} : ${result.pushed.join(', ') || 'rien'}${result.skipped.length ? `\nDivergé, laissé : ${result.skipped.join(', ')}` : ''}` : `Échec : ${result.error}`);
+  } catch (error) {
+    alert(`Échec : ${error.message}`);
+  } finally {
+    button.disabled = false;
+    button.textContent = '⇪ Pousser sur GitHub';
+  }
+});
 
 // « 🧹 Nettoyer les terminés » : the list first, then the cleanup once confirmed.
 document.getElementById('clean-all').addEventListener('click', async (event) => {

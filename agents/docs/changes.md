@@ -94,7 +94,8 @@ Une version **X.Y.0** publiée ouvre sa branche **`release/X.Y`**, posée sur le
 - **État** : `make release-branches` (ou l'onglet) donne pour chaque `release/*` son tag, ses commits d'avance et de retard sur `backlog` et `main`, les correctifs absents de `backlog` (`git cherry`, plus les commits déjà cherry-pickés avec `-x` et les versions déjà reportées) et le dernier commit. Une branche est **divergée** si elle ne contient plus son tag `vX.Y.0`.
 - **Rebaser** : `branches.mjs rebase 0.2 [base]` rejoue la branche sur son dernier tag (par défaut) ou sur une base choisie, dans un worktree temporaire. En cas de conflit, le rebase est annulé et les fichiers sont listés. Si des correctifs déjà publiés seraient réécrits (leurs tags resteraient sur les anciens commits), il faut forcer (`--force`, ou confirmer dans l'onglet).
 - **Supprimer** : `branches.mjs delete 0.2`. Refusé tant qu'un worktree l'a extraite ; les tags restent, et le message donne la commande pour la recréer.
-- **Jamais** de push, jamais de réécriture de `main` ni de `backlog` (ils ne font qu'avancer), jamais rien dans l'arbre de travail du dépôt principal hors de ce fast-forward.
+- **Jamais** de push depuis ces commandes, jamais de réécriture de `main` ni de `backlog` (ils ne font qu'avancer), jamais rien dans l'arbre de travail du dépôt principal hors de ce fast-forward.
+- **Pousser sur GitHub** : le bouton **⇪ Pousser sur GitHub** de la page Agents (ou `node agents/release/push.mjs [--dry]`, [`push.mjs`](../release/push.mjs)) montre d'abord le plan, puis envoie au dépôt distant (`origin`) `backlog`, `main` placé à la dernière version publiée (son tag), les branches `release/*` et les tags `vX.Y.Z`. Jamais forcé : une référence dont la copie distante n'est pas dans l'historique local est laissée, et le plan le dit.
 
 ## Dans le jeu
 

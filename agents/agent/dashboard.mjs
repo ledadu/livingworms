@@ -22,6 +22,7 @@ import { syncBacklog } from './backlog.mjs';
 import { UNRELEASED } from '../release/changes.mjs';
 import { markQueue, readQueue } from './roadmap.mjs';
 import { readSettings, writeSettings } from './settings.mjs';
+import { push, pushPlan } from '../release/push.mjs';
 import { dashboardToken, guard } from './access.mjs';
 import { briefPath, project, renderPage, renderText } from '../config.mjs';
 
@@ -628,6 +629,16 @@ async function handle(request, response) {
     const result = await rebaseAgent(rebase[1], params.get('base') || MAIN, params.get('archive') === '1');
     latest = await snapshot();
     return json(result);
+  }
+  // « ⇪ Pousser sur GitHub » : ?dry=1 gives the plan, then the same without it pushes (release/push.mjs).
+  if (path === '/api/push' && request.method === 'POST') {
+    const dryRun = new URL(request.url ?? '/', 'http://localhost').searchParams.get('dry') === '1';
+    try {
+      const result = dryRun ? pushPlan(mainRoot) : push(mainRoot);
+      return json({ ok: true, dryRun, ...result });
+    } catch (error) {
+      return json({ ok: false, error: String(error.stderr || error.message).trim().split('\n').slice(-3).join(' ') });
+    }
   }
   // « 🧹 Nettoyer les terminés » : ?dry=1 lists, then the same without it cleans (clean.mjs).
   if (path === '/api/clean' && request.method === 'POST') {
