@@ -17,24 +17,27 @@ Les documents de conception : [vision](vision.md), [chapitres](chapitres.md), [m
 ## Étape 6 — Son et finitions
 
 ### Les bruitages
+> 🟠 fusionné · agent bruitages
 
 Bulles, courant, cris lointains de baleine ; la résonance de la Grotte, les craquements du Glacier.
 
 ### La performance sur téléphone
+> 🟠 fusionné · agent performance-telephone
 
 Tenir un rythme fluide sur un téléphone moyen dans tous les chapitres, notamment le Jardin de méduses (des milliers de méduses) et la Fosse (la lumière du nageur). Mesurer avec `?bench` et sur un vrai téléphone.
 
 ### La Balade libre
+> 🟠 fusionné · agent balade-libre
 
 Après la fin : le monde entier ouvert, l'Atelier disponible, sans histoire.
 
 ### arbre des creature
-> ⚪ à faire
+> 🟠 fusionné · agent arbre-creature
 
 il faut animer les creaure dans l'arbre et pourquoi pas des animation pas tres communa par rapport au jeux, peut etre plus rigolote plus amusante.. assez douces.
 
 ### action des annimaux dans la nature
-> 🔵 en cours · agent action-annimaux-nature
+> 🟠 fusionné · agent action-annimaux-nature
 
 trouve des type d'animation accrochable anotre moteur de creature, pour leur faire des truc , seule, a 2, a plusieurs, rend les espace plus realiste de vie, pas seulemnt des deplacement d'animaux
 
