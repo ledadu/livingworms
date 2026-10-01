@@ -190,6 +190,17 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
   - Pour les tests : `monde.arbre.vivants.play(i, tour)` (i : le rang du médaillon, partenaires compris, dans l'ordre de l'arbre ; tours : `culbute`, `bond`, `coucou`, `bulles`, `pose`, `sieste`, `toupie`, `rire`, `vague`), `vivants.stats` (`live`, `made`, `played`, `ms`).
   - Pour les tests : `monde.arbre.open()`, `close()`, `rename(rang, nom)` (1 : la première génération), `isOpen`.
 
+### Reprendre une espèce
+
+Une forme choisie peut déplaire (une nage pénible, un aspect qui ne nous va pas) : on peut reprendre celle d'une génération d'avant, sans rien perdre (`src/monde/retour.ts`, pur et testé ; la scène dans `retour-jeu.ts`).
+
+- **Jusqu'où** : toutes les générations de notre lignée, de la première larve à la dernière quittée, sauf celle dont on a déjà la forme. Pas les frères et sœurs des portées : la partie ne les garde pas.
+- **Le geste** : dans l'arbre, sous chaque génération d'avant, « Reprendre cette espèce ». Une confirmation dans l'arbre même : « Redevenir Larve, ici ? », « Prepode restera là où nous sommes, parmi les nôtres. », « Reprendre » ou « Non ». Le bouton n'est pas là pendant un adieu, une parade, la portée, la Remontée ou le générique.
+- **Où** : là où l'on est, dans le chapitre où l'on nage. Celle qu'on quitte reste là, comme un parent après l'adieu, et y nagera aux visites suivantes ; des lueurs dorées partent d'elle et s'assemblent un peu devant, où la forme reprise sort de leur lumière, petite, et grandit en deux secondes et demie. La lignée dit « Nous reprenons une forme d'autrefois. / Celle que nous étions nage ici, parmi les nôtres. », sous le nom de la forme reprise. On garde la main pendant la scène.
+- **L'obstacle** : on garde la forme reprise même si elle ne franchit pas l'obstacle du chapitre ; ses indices s'éveillent, et le fil de lumière mène aux partenaires qui feraient l'affaire pour elle. Rien n'est perdu : celle qu'on a quittée est dans l'arbre, on peut la reprendre à son tour.
+- **La lignée et la sauvegarde** : ce n'est pas une naissance. Celle qu'on quitte entre dans la lignée comme un parent (avec sa place, `at`), mais sans partenaire et avec `back`, le rang de la génération dont on reprend la forme ; la créature jouée est une copie de celle-ci (même nom, mêmes parties). Dans l'arbre, le générique et l'image souvenir, le fil d'or dit « retour à Larve » entre les deux, et la forme reprise est « reprise au Récif » au lieu de « née au Récif ». Les générations se comptent toujours dans l'ordre où on les a jouées. Dans la Balade libre, la forme reprise est seulement jouée : la lignée reste celle de l'histoire.
+- Pour les tests : `monde.retour.take(k)` (k : 0 pour la première génération), `retour.can`, `retour.on`.
+
 ### Le générique et l'image souvenir
 
 - **Le générique** (`src/monde/generique-ecran.ts`, la logique pure dans `generique.ts`) : à la fin de l'histoire, toute la lignée monte à l'écran, lentement, comme un générique de film, sur la mer assombrie (le jeu attend).

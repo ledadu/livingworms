@@ -23,6 +23,8 @@ export interface Ancestor {
   partner?: Mate;
   /** where it was left in that chapter (ancetres.ts); missing in the games saved before */
   at?: Place;
+  /** instead of a child, the lineage went back here to the form of an earlier ancestor: its index (retour.ts) */
+  back?: number;
 }
 
 /** a note of the song learned (chant.ts): the chapter it belongs to, and the generation that learned it (1: the first) */

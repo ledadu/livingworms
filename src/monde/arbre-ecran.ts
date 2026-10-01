@@ -5,11 +5,12 @@
 import { spec as makeSpec, type Spec } from '../engine';
 import { snapshot3 } from '../engine3/snapshot3';
 import { SPECIES } from '../content/species';
-import { NAME_MAX, bornWords, cleanName, generationLabel, generations, type Generation } from './arbre';
+import { NAME_MAX, backWords, cleanName, generationLabel, generations, originWords, type Generation } from './arbre';
 import type { Ancestor } from './partie';
 import { wordsOf } from './chant';
 import { initVivants, type Vivants } from './arbre-vivant';
 import './arbre.css';
+import './retour.css';
 
 export interface ArbreDeps {
   partie: { readonly lineage: Ancestor[]; rename(i: number, name: string): void; becomes(sp: object): void };
@@ -18,6 +19,10 @@ export interface ArbreDeps {
   live(): Spec;
   /** the names of the notes of the song this generation learned (chant.ts) */
   notes?(rank: number): string[];
+  /** take again the form of the k-th ancestor (0: the first), here (retour-jeu.ts); false when it cannot now */
+  resume?(k: number): boolean;
+  /** an earlier form can be taken again now */
+  canResume?(): boolean;
   /** the tree covers the sea: the game waits */
   onOpen?(): void;
   onClose?(): void;
@@ -170,6 +175,9 @@ export function initArbre(d: ArbreDeps): Arbre {
     const tree = document.createElement('ol');
     tree.className = 'ar-tree';
     let current: HTMLElement | null = null;
+    // the forms that can be taken again: every earlier one, but the one played now is already
+    const resumable = !!d.resume && d.canResume?.() !== false;
+    const now = { back: gens.length > 1 && gens[gens.length - 1].again ? gens[gens.length - 2].back?.rank : 0 };
     gens.forEach((g, i) => {
       const li = document.createElement('li');
       li.className = g.current ? 'ar-gen ar-now' : 'ar-gen';
@@ -180,7 +188,7 @@ export function initArbre(d: ArbreDeps): Arbre {
       label.textContent = generationLabel(g.rank);
       const born = document.createElement('span');
       born.className = 'ar-born';
-      born.textContent = bornWords(chapterName(g.bornIn));
+      born.textContent = originWords(g, chapterName(g.bornIn));
       text.append(label, nameButton(g), born);
       const notes = d.notes?.(g.rank);
       if (notes?.length) text.append(Object.assign(document.createElement('span'), { className: 'ar-notes', textContent: `a appris ${wordsOf(notes)}` }));
@@ -190,6 +198,7 @@ export function initArbre(d: ArbreDeps): Arbre {
         now.textContent = 'aujourd’hui';
         text.append(now);
       }
+      if (!g.current && resumable && g.rank !== now.back) text.append(againButton(g, live.name));
       li.append(cv, text);
       tree.append(li);
       if (g.current) current = li;
@@ -206,6 +215,12 @@ export function initArbre(d: ArbreDeps): Arbre {
         if (make) mate.append(knot, portrait(mates, m.id, 'ar-mini', make), words);
         else mate.append(knot, words);
         tree.append(mate);
+      } else if (g.back) {
+        const back = document.createElement('li');
+        back.className = 'ar-mate ar-back';
+        back.style.setProperty('--i', String(i + 0.5));
+        back.append(Object.assign(document.createElement('span'), { className: 'ar-knot' }), Object.assign(document.createElement('span'), { textContent: backWords(g.back) }));
+        tree.append(back);
       }
     });
     const foot = document.createElement('p');
@@ -215,6 +230,33 @@ export function initArbre(d: ArbreDeps): Arbre {
     const more = arbre.more?.();
     if (more) root.append(more);
     return current;
+  }
+
+  /** « Reprendre cette espèce », then a word to be sure: the tree closes and the scene plays (retour-jeu.ts) */
+  function againButton(g: Generation, played: string): HTMLElement {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ar-again';
+    b.textContent = 'Reprendre cette espèce';
+    b.setAttribute('aria-label', `Reprendre la forme de ${g.name}`);
+    b.addEventListener('click', () => {
+      root.querySelector('.ar-ask')?.dispatchEvent(new Event('cancel'));
+      const ask = document.createElement('div');
+      ask.className = 'ar-ask';
+      ask.setAttribute('role', 'group');
+      const q = Object.assign(document.createElement('p'), { textContent: `Redevenir ${g.name}, ici ?` });
+      const more = Object.assign(document.createElement('small'), { textContent: `${played} restera là où nous sommes, parmi les nôtres.` });
+      const yes = Object.assign(document.createElement('button'), { type: 'button', className: 'ar-yes', textContent: 'Reprendre' });
+      const no = Object.assign(document.createElement('button'), { type: 'button', className: 'ar-no', textContent: 'Non' });
+      const cancel = () => { ask.replaceWith(b); b.focus({ preventScroll: true }); };
+      ask.addEventListener('cancel', cancel);
+      no.addEventListener('click', cancel);
+      yes.addEventListener('click', () => { arbre.close(); d.resume?.(g.rank - 1); });
+      ask.append(q, more, yes, no);
+      b.replaceWith(ask);
+      yes.focus({ preventScroll: true });
+    });
+    return b;
   }
 
   /** a portrait costs about 10 ms on a computer, more on a phone: a few per frame, at least one */

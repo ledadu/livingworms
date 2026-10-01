@@ -26,7 +26,7 @@ import { ChapterWatch, faunaX } from './transitions';
 import { holdBack, newLimits, pass, travel, travelShown } from './limites';
 import { createKeys } from './obstacles-jeu';
 import { obstacleItems } from './obstacles-draw';
-import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, chapterIndex, floorAt, liftAt, metres, moodAt, openFloor } from './biomes';
+import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, chapterIndex, floorAt, liftAt, metres, moodAt, openFloor, type ChapterId } from './biomes';
 import { Jardin } from './jardin';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
 import { floreLights, shy } from './flore';
@@ -56,6 +56,7 @@ import { initGenerique, souvenirButton } from './generique-ecran';
 import { ancestorsIn } from './ancetres-jeu';
 import { placeOf } from './ancetres';
 import { initTraces } from './traces-jeu';
+import { initRetour } from './retour-jeu';
 import { initRivale } from './rivale-jeu';
 import { initPonte } from './ponte-jeu';
 import { initIndices } from './indices-jeu';
@@ -216,7 +217,7 @@ let paused = false;
 const atBtn = document.getElementById('atBtn');
 applyAtelierAccess(atBtn, balade.on);
 // the lineage tree (arbre-ecran.ts), at any time: the sea waits while it is open (in the Balade, the story's lineage)
-const arbre = initArbre({ partie: balade.lignee, chapters: BIOMES, live: () => balade.live(player.cr.spec), notes: (rank) => notesOfGeneration(partie.saved, rank), onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); } });
+const arbre = initArbre({ partie: balade.lignee, chapters: BIOMES, live: () => balade.live(player.cr.spec), notes: (rank) => notesOfGeneration(partie.saved, rank), onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); }, resume: (k) => retour.take(k), canResume: () => retour.can });
 // the credits and the keepsake image (generique-ecran.ts), at the end of the story: then the Balade opens, and the tree
 // shows the image again
 const generique = initGenerique({ partie, chapters: BIOMES, live: () => balade.live(player.cr.spec), notes: (rank) => notesOfGeneration(partie.saved, rank), onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); }, onEnd: () => balade.open() });
@@ -469,6 +470,7 @@ function update(): void {
   rivale.step({ x: px, y: py }, t);
   lumieres.step({ x: px, y: py }, t);
   vie.step(t, p, actors);
+  retour.step();
 
   flow.clear();
   // the animals simulated this step: near the swimmer, and within sight unless the game holds them (hors-champ.ts)
@@ -633,6 +635,7 @@ function render(): void {
   if (!skip.has('guide')) indices.lights(view, lights, P);
   rivale.lights(view, lights, P, t, { x: pr.x[0], y: pr.y[0] });
   if (!skip.has('answer')) lumieres.lights(view, lights, P, t);
+  retour.lights(view, lights, P);
   if (gx) {
     const [r, g, b] = hsl01(m.deep.h, m.deep.s, m.deep.l);
     gx.begin(r, g, b);
@@ -1255,6 +1258,19 @@ for (const { spec, home, k } of ancestorsIn(partie.lineage)) {
     a.cr.translate(home.x + rand(-80, 80) - a.cr.root.x[0], home.y + rand(-50, 50) - a.cr.root.y[0], 0);
   }
 }
+// an earlier form of the lineage taken again, from the tree (retour-jeu.ts): the one we were stays here, like a parent
+const retour = initRetour({
+  lineage: () => partie.lineage, swimmer: () => player.cr, play: (cr) => { player.cr = cr; },
+  leave: (cr) => {
+    const x = cr.root.x[0], y = cr.root.y[0];
+    actors.push({ cr, kind: 'parent', z: 0, hx: x, hy: y, tx: x, ty: y, next: 0, buf: null, spr: null, bakedAt: -99 });
+    adieu.stay(cr, { x, y });
+  },
+  chapter: (x) => BIOMES[biomeIndex(x)], save: (k, c, at) => partie.returnTo(k, c, at),
+  feel: (c) => { if (!balade.on) indices.feel(c as ChapterId); },
+  say: (name, lines) => !adieu.on && !remontee.on && narrator.say(name, lines),
+  busy: () => adieu.on || remontee.on || parade.active || portee.isOpen || generique.isOpen
+});
 
 // the rival lineage of the Carcasse (rivale-jeu.ts): its cousin, made from the creature of ours that got there
 const rivale = initRivale({
@@ -1434,7 +1450,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, generique, traces, rivale, chant, lumieres, ponte, indices, remontee, ondes, vie,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, retour, generique, traces, rivale, chant, lumieres, ponte, indices, remontee, ondes, vie,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   musique, bruits,
