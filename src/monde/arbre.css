@@ -24,9 +24,12 @@ body:has(#arbre.show) :is(#chapter, #hud, #hint) { opacity: 0; }
 #arbre header { text-align: center; text-shadow: 0 1px 12px rgba(0,20,30,0.9); margin: 4px 44px 18px; }
 #arbre header small { display: block; font-size: 13px; font-weight: 500; letter-spacing: 0.32em; text-transform: uppercase; opacity: 0.55; }
 #arbre header h2 { margin: 6px 0 0; font-weight: 300; font-size: clamp(26px, 7vw, 36px); }
+/* the cross stays over the generations scrolling under it (on a narrow screen they pass beneath it, and the
+   positioned ones, later in the page, would take its touch) */
 #arbre .ar-close {
-  position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: 12px; width: 44px; height: 44px; border-radius: 50%;
+  position: fixed; z-index: 2; top: calc(12px + env(safe-area-inset-top, 0px)); right: calc(12px + env(safe-area-inset-right, 0px)); width: 44px; height: 44px; border-radius: 50%;
   border: 1px solid rgba(244,239,226,0.3); background: rgba(6,40,56,0.6); color: inherit; font-size: 26px; line-height: 1; cursor: pointer;
+  backdrop-filter: blur(6px); -webkit-tap-highlight-color: transparent;
 }
 #arbre button:focus-visible, #arbre input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
