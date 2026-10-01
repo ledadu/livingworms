@@ -170,6 +170,19 @@ Décision : **zéro danger** ([décisions](decisions.md)). Rien ne blesse, rien 
   - Entre un parent et son enfant, sur le fil d'or, le partenaire : son petit portrait (l'espèce du bestiaire) et « avec Méduse lune », en bleu pâle comme dans la portée. Les naissances sauvées avant l'arbre n'ont pas de partenaire : le fil continue sans lui.
   - **Nommer** : on touche un nom, on l'écrit (24 lettres au plus), Entrée ou toucher ailleurs le garde, Échap l'annule. Le nom est celui de la créature (`name` de sa définition) : celui de la génération jouée compte donc pour ses enfants, dont le nom commence comme celui du parent.
   - Le jeu s'arrête pendant que l'arbre est ouvert, et les textes attendent. On le ferme par ×, Échap ou en touchant à côté.
+  - **Les portraits vivants** (`src/monde/arbre-vivant.ts`, les tours dans `arbre-tours.ts`, purs et testés) : chaque génération et chaque partenaire nage sur place dans son médaillon, le portrait le suit, et de temps en temps il fait un tour, deux à la fois au plus, toutes les 5 à 12 secondes chacun. Des tours doux et un peu drôles, que les animaux ne font jamais dans la mer (voir [La vie des animaux](direction-artistique.md#la-vie-des-animaux)) :
+    - la **culbute** : un looping lent sur lui-même, le nez en l'air d'abord ;
+    - le **bond** : il se tasse, s'étire en sautant, s'écrase un peu en retombant, et lâche une bulle ;
+    - le **coucou** : il sort du médaillon d'un côté, revient par l'autre, s'arrête au bord pour regarder, tourné vers nous, puis rentre chez lui ;
+    - les **bulles** : tourné un peu vers nous, il souffle des bulles, la dernière plus grosse ;
+    - la **photo** : il se tourne face à nous, un petit sursaut pour la photo, et repart ;
+    - la **sieste** : il s'assoupit, la tête penchée, s'enfonce un peu, respire lentement en lâchant de petites bulles, puis se réveille en sursaut ;
+    - la **toupie** : une pirouette sur place (une méduse, qui n'a pas de côté à montrer, se dandine).
+    - Les méduses ne font pas la photo ; les marcheurs marchent sur place, la tête tenue à sa hauteur comme par le fond.
+  - **Toucher un portrait** le fait rire : il se tortille vite, tremble, saute un peu et lâche trois bulles.
+  - **À l'ouverture**, une lumière descend le fil d'or, de la première larve à la génération jouée, et chacun fait un petit bond quand elle passe (les partenaires quand elle passe leur nœud) ; arrivée en bas, l'anneau d'or d'« aujourd'hui » brille un moment. Puis, 14 à 20 secondes après l'ouverture, et ensuite toutes les 40 à 70 secondes, **la photo de famille** : tous ceux qu'on voit se tournent vers nous en même temps (les méduses sautillent), un éclair très doux, et chacun retourne à sa vie.
+  - Seuls les médaillons à l'écran bougent ; la créature d'un médaillon est faite la première fois qu'il se montre, et gardée d'une ouverture à l'autre. Les portraits sont dessinés par le processeur (`willReadFrequently`) : une douzaine de petits canvas redessinés par la carte graphique à chaque image faisaient tomber l'arbre de 57 à 30 images par seconde. Ils se dessinent dans un budget de 6 ms par image : tous à chaque image sur un ordinateur (environ 3 ms pour douze), quelques-uns à tour de rôle sur un appareil lent, où chacun bouge moins finement mais la page reste fluide. Avec « réduire les animations » du système, les portraits restent fixes, comme avant.
+  - Pour les tests : `monde.arbre.vivants.play(i, tour)` (i : le rang du médaillon, partenaires compris, dans l'ordre de l'arbre ; tours : `culbute`, `bond`, `coucou`, `bulles`, `pose`, `sieste`, `toupie`, `rire`, `vague`), `vivants.stats` (`live`, `made`, `played`, `ms`).
   - Pour les tests : `monde.arbre.open()`, `close()`, `rename(rang, nom)` (1 : la première génération), `isOpen`.
 
 ### Le générique et l'image souvenir

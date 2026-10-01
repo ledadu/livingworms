@@ -79,5 +79,14 @@ body:has(#arbre.show) :is(#chapter, #hud, #hint) { opacity: 0; }
   background: radial-gradient(ellipse at 50% 45%, rgba(40,90,110,0.9), rgba(6,34,48,0.98) 72%);
   box-shadow: 0 0 0 1px rgba(143,216,232,0.45);
 }
+/* the living portraits (arbre-vivant.ts): a touch makes them giggle; the light that runs down the thread when the tree opens */
+#arbre .ar-portrait, #arbre .ar-mini { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+#arbre li.ar-spark {
+  position: absolute; left: calc(var(--col) / 2 - 6px); width: 12px; height: 12px; margin-top: -6px; border-radius: 50%;
+  pointer-events: none; opacity: 0; transition: none; z-index: 1;
+  background: radial-gradient(circle, #fff8e0 0 25%, rgba(246,217,138,0.9) 45%, rgba(246,217,138,0) 72%);
+  box-shadow: 0 0 14px 4px rgba(246,217,138,0.45);
+}
+#arbre .ar-flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at 50% 45%, #fff8e6, rgba(255,248,230,0.4)); }
 #arbre .ar-foot { margin: 22px 0 0; max-width: 24em; text-align: center; font-style: italic; font-size: 16px; opacity: 0.55; }
-@media (prefers-reduced-motion: reduce) { #arbre li { transition: none; } }
+@media (prefers-reduced-motion: reduce) { #arbre li { transition: none; } #arbre li.ar-spark { display: none; } }

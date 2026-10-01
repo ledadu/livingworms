@@ -179,10 +179,10 @@ function drawPlates(ctx: Ctx, s: Seg): void {
   }
 }
 
-/** at least ~1 device pixel, so thin filaments stay visible when zoomed out */
+/** at least ~1 device pixel, so thin filaments stay visible when zoomed out (the scale holds when the drawing is turned) */
 function minWidth(ctx: Ctx): number {
   const m = ctx.getTransform();
-  return 1.1 / Math.max(0.01, Math.abs(m.a));
+  return 1.1 / Math.max(0.01, Math.hypot(m.a, m.b));
 }
 
 function drawLine(ctx: Ctx, s: Seg, thin = 0): void {
