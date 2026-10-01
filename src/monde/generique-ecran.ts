@@ -14,6 +14,7 @@ import { css, type HSL } from './palette';
 import { parseChapterTexts, textsOf } from './textes';
 import { bandColour, downloadsBlocked, rollMs, souvenirFileName } from './generique';
 import { drawSouvenir, fontsReady } from './generique-image';
+import { soundsSection } from './credits-sons';
 import './generique.css';
 
 export interface GeneriqueDeps {
@@ -182,6 +183,8 @@ export function initGenerique(d: GeneriqueDeps): Generique {
       }
       list.append(join);
     });
+    // the people whose recordings we hear
+    list.append(soundsSection());
     const end = document.createElement('p');
     end.className = 'gq-end';
     end.textContent = 'La Lignée';

@@ -1,0 +1,49 @@
+/* The credits of the sounds (credits-sons.ts): a panel from the settings (a sheet from the bottom on a phone, centred
+   on a wide screen, like the « Nouveautés »), and their section in the credits at the end (generique.css) */
+
+.cs {
+  position: fixed; inset: 0; z-index: 25; display: flex; align-items: flex-end; justify-content: center;
+  background: rgba(2,14,22,0.5); font-family: system-ui, sans-serif; font-size: 15px; line-height: 1.45;
+  -webkit-user-select: text; user-select: text;
+}
+.cs-sheet {
+  box-sizing: border-box; width: min(520px, 100%); max-height: calc(100% - 28px - env(safe-area-inset-top, 0px));
+  display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 18px 18px 0 0; border: 1px solid rgba(244,239,226,0.16); border-bottom: 0;
+  background: rgba(6,28,40,0.97); box-shadow: 0 -10px 40px rgba(0,10,16,0.5);
+  animation: cs-rise 0.35s ease-out;
+}
+@media (min-width: 700px) and (min-height: 560px) {
+  .cs { align-items: center; }
+  .cs-sheet { max-height: calc(100% - 64px); border-radius: 18px; border-bottom: 1px solid rgba(244,239,226,0.16); }
+}
+@keyframes cs-rise { from { transform: translateY(28px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cs-sheet { animation: none; } }
+.cs-sheet:focus { outline: none; }
+.cs-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 12px 6px 20px; }
+.cs-head h2 { margin: 0; font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 500; font-size: 28px; }
+.cs-close {
+  flex: none; width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(244,239,226,0.25);
+  background: none; color: inherit; font-size: 24px; line-height: 1; cursor: pointer;
+}
+.cs :is(button, a):focus-visible, #generique .cs-roll a:focus-visible { outline: 2px solid #f6d98a; outline-offset: 2px; }
+.cs-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 20px calc(20px + env(safe-area-inset-bottom, 0px)); }
+.cs-from, .cs-note { margin: 0 0 14px; opacity: 0.75; }
+.cs-note { margin: 14px 0 0; font-size: 13px; opacity: 0.6; }
+
+.cs-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+.cs-list li { display: grid; gap: 1px; }
+.cs-list a { color: inherit; text-decoration-color: rgba(244,239,226,0.35); text-underline-offset: 3px; }
+.cs-title { font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic; font-size: 20px; line-height: 1.2; overflow-wrap: anywhere; }
+.cs-by { font-size: 13px; opacity: 0.75; }
+.cs-license { color: inherit; }
+
+/* in the credits at the end, after the lineage */
+#generique .cs-roll { margin: 26vh 0 0; max-width: 520px; }
+#generique .cs-roll > small {
+  display: block; margin-bottom: 16px; font-size: 13px; font-weight: 500; letter-spacing: 0.32em; text-transform: uppercase; opacity: 0.55;
+}
+#generique .cs-roll .cs-list { gap: 16px; }
+#generique .cs-roll .cs-title { font-size: 22px; }
+#generique .cs-roll .cs-by { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 17px; }
+#generique .cs-roll .cs-from { margin: 18px 0 0; font-style: italic; font-size: 17px; opacity: 0.65; }

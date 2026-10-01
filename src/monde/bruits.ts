@@ -297,9 +297,10 @@ export function call(r: () => number, voice: number, n: number, apart?: number):
   return out;
 }
 
-/** a whale unseen: its voice, a few cries, and from where (very far, to one side) */
-export function farWhale(r: () => number): { units: Unit[]; dx: number; dz: number } {
-  return { units: call(r, voiceOf(4 + 8 * r()), 2 + Math.floor(r() * 3)), dx: (r() < 0.5 ? -1 : 1) * (500 + 1500 * r()), dz: 2500 + 3000 * r() };
+/** a whale unseen: its voice (Hz), a few cries, and from where (very far, to one side) */
+export function farWhale(r: () => number): { units: Unit[]; dx: number; dz: number; voice: number } {
+  const voice = voiceOf(4 + 8 * r());
+  return { units: call(r, voice, 2 + Math.floor(r() * 3)), dx: (r() < 0.5 ? -1 : 1) * (500 + 1500 * r()), dz: 2500 + 3000 * r(), voice };
 }
 
 // ----- the noise itself ----- //
