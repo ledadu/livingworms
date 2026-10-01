@@ -8,8 +8,9 @@
 // the user sets and the system never touches. syncBacklog() derives each state from the facts (queue, registry,
 // changes/ of the main checkout), rewrites only the status lines that changed and moves the delivered tasks down to
 // « ## Livré » (paths.delivered). Everything else of the file is the user's text, left as it is. Parsing and formatting are pure.
+import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { choicesIn, filesIn, hash, readQueue, slugify } from './roadmap.mjs';
 import { project } from '../config.mjs';
 
@@ -266,6 +267,24 @@ export function syncBacklog({ file, root, registry }) {
     renameSync(temp, file);
   }
   return { changes };
+}
+
+/**
+ * Commits the backlog alone (its status lines, as the dashboard keeps them), whatever else is staged or changed in
+ * the checkout, when it differs from HEAD and `root` is on `branch`. Returns true when a commit was made.
+ */
+export function commitBacklog({ root, file, branch, message = 'backlog as the dashboard keeps it' }) {
+  const git = (...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  try {
+    if (branch && git('symbolic-ref', '--short', 'HEAD') !== branch) return false;
+    const path = relative(root, file);
+    if (!git('status', '--porcelain', '--', path)) return false;
+    const trailer = project.coAuthoredBy ? `\n\n${project.coAuthoredBy}` : '';
+    git('commit', '--quiet', '--no-verify', '-m', `${message}${trailer}`, '--only', '--', path);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

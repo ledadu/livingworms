@@ -3,7 +3,8 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { formatStatus, parseBacklog, parseStatus, setTaskStatus, stateOf, syncBacklog, syncMarkdown, withLabels } from '../backlog.mjs';
+import { execFileSync } from 'node:child_process';
+import { commitBacklog, formatStatus, parseBacklog, parseStatus, setTaskStatus, stateOf, syncBacklog, syncMarkdown, withLabels } from '../backlog.mjs';
 
 const BACKLOG = `# Backlog
 
@@ -140,5 +141,42 @@ describe('editing a task', () => {
     const added = addTask(BACKLOG, 'Nouveaux chantiers', '### Tout neuf\n\nÀ faire.');
     expect(added).toContain('> ⏸ en pause · agent vieux\n\n### Tout neuf\n> ⚪ à faire\n\nÀ faire.\n\n## Livré');
     expect(parseBacklog(added).find((item) => item.id === 'tout-neuf')).toMatchObject({ section: 'Nouveaux chantiers', state: 'todo' });
+  });
+});
+
+describe('commitBacklog', () => {
+  const repo = () => {
+    const root = mkdtempSync(join(tmpdir(), 'backlog-commit-'));
+    const git = (...args: string[]) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim();
+    git('init', '-q');
+    git('symbolic-ref', 'HEAD', 'refs/heads/backlog');
+    git('config', 'user.email', 't@t');
+    git('config', 'user.name', 't');
+    mkdirSync(join(root, 'docs'));
+    writeFileSync(join(root, 'docs/backlog.md'), BACKLOG);
+    writeFileSync(join(root, 'other.txt'), 'a');
+    git('add', '.');
+    git('commit', '-q', '-m', 'init');
+    return { root, git, file: join(root, 'docs/backlog.md') };
+  };
+
+  it('commits the backlog alone, leaving the rest of the checkout as it is', () => {
+    const { root, git, file } = repo();
+    expect(commitBacklog({ root, file, branch: 'backlog' })).toBe(false);
+    writeFileSync(file, BACKLOG.replace('⚪ à faire', '🟠 fusionné · agent x'));
+    writeFileSync(join(root, 'other.txt'), 'b');
+    git('add', 'other.txt');
+    expect(commitBacklog({ root, file, branch: 'backlog', message: 'sync' })).toBe(true);
+    expect(git('log', '-1', '--format=%s')).toBe('sync');
+    expect(git('show', '--name-only', '--format=', 'HEAD')).toBe('docs/backlog.md');
+    expect(git('status', '--porcelain')).toBe('M  other.txt');
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('does nothing on another branch', () => {
+    const { root, file } = repo();
+    writeFileSync(file, `${BACKLOG}\nplus`);
+    expect(commitBacklog({ root, file, branch: 'master' })).toBe(false);
+    rmSync(root, { recursive: true, force: true });
   });
 });

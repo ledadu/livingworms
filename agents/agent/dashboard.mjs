@@ -18,7 +18,7 @@ import { acceptOrder, mergeOrder, orderTask, runState, sessionTranscript } from 
 import { cleanAgents, orphanBranches } from './clean.mjs';
 import { clearTrain, readTrain, startTrain, stepTrain, stopTrain } from './merge-train.mjs';
 import { parseGoal } from './goal.mjs';
-import { syncBacklog } from './backlog.mjs';
+import { commitBacklog, syncBacklog } from './backlog.mjs';
 import { UNRELEASED } from '../release/changes.mjs';
 import { markQueue, readQueue } from './roadmap.mjs';
 import { readSettings, writeSettings } from './settings.mjs';
@@ -202,6 +202,7 @@ snapshotLoop();
 // being open: backlog.mjs rewrites only the lines that changed.
 const backlogRoot = process.env.AGENTS_ROADMAP_ROOT || mainRoot;
 const backlogFile = join(backlogRoot, project.paths.backlog);
+const BACKLOG_MESSAGE = `${project.name ? `${project.name}: ` : ''}backlog as the dashboard keeps it`;
 setInterval(() => {
   try {
     const { changes } = syncBacklog({ file: backlogFile, root: backlogRoot, registry: runsRegistry });
@@ -488,6 +489,8 @@ async function acceptOnce(name) {
   // git merge refuses to run over anything in the index (git add, git rm): say so before trying.
   const staged = await git(mainRoot, 'diff', '--cached', '--name-only');
   if (staged) return { ok: false, blocked: true, error: `des changements sont indexés dans le dépôt principal (${staged.split('\n').slice(0, 5).join(', ')}${staged.split('\n').length > 5 ? '…' : ''}) : git merge refuse de fusionner par-dessus. Commite-les ou retire-les de l’index (git restore --staged <fichiers>), puis accepte à nouveau.` };
+  // The backlog's status lines, rewritten by the dashboard: committed first, so that the merge never stops on them.
+  if (backlogRoot === mainRoot) commitBacklog({ root: mainRoot, file: backlogFile, branch: base, message: BACKLOG_MESSAGE });
   const branch = env.AGENT_BRANCH || `${project.branches.agent}${name}`;
   const merged = await run('git', ['-C', mainRoot, 'merge-base', '--is-ancestor', branch, base]).then(() => true, () => false);
   let message = `Déjà fusionnée dans ${base}.`;
@@ -513,6 +516,7 @@ async function acceptOnce(name) {
   } catch {}
   try {
     syncBacklog({ file: backlogFile, root: backlogRoot, registry: runsRegistry });
+    if (backlogRoot === mainRoot) commitBacklog({ root: mainRoot, file: backlogFile, branch: base, message: `${BACKLOG_MESSAGE} (${name} merged)` });
   } catch {}
   return { ok: true, message: `${message} Tâche acceptée : elle passe dans « À publier ».` };
 }
