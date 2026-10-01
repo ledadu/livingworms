@@ -30,7 +30,7 @@ L'approche d'un partenaire reste comme aujourd'hui : on vient près de lui, il n
 Une espèce choisie peut déplaire : un déplacement pénible, un aspect qui ne nous va pas. On doit pouvoir revenir à une espèce antérieure dans l'arbre des espèces (`src/monde/arbre-ecran.ts`) et la rejouer, sans que ce soit punitif : c'est un jeu, ça doit rester plaisant. À trancher (proposer, et poser la question par le tableau de bord si besoin) : jusqu'où on peut remonter (les ancêtres de notre lignée, peut-être aussi leurs frères et sœurs), où on reprend (là où on est, dans le chapitre courant), ce qui arrive si cette espèce ne franchit pas l'obstacle du chapitre (on la garde quand même, les indices se réveillent), et comment la lignée et la sauvegarde l'enregistrent (`partie.born`, l'arbre, le générique : un retour à un ancêtre, pas une nouvelle naissance effacée). Un geste simple depuis l'arbre (« Reprendre cette espèce »), avec confirmation, et une petite scène de transition plutôt qu'une coupure.
 
 ### chargement 
-> 🔵 en cours · agent chargement
+> 🟠 fusionné · agent chargement
 
 Sur les chargement du jeu j'ai un page blanchya ec quelques éléments html, c'est trd laid. Et va met un bon petit moment sur le tel.
 Ajoute une jolie oage de chargemydu jeux aui arrive très vite quitte a quelle soit instantané fixe ouis s'anime avent que le jeu soit lancé.
