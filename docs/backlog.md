@@ -18,7 +18,7 @@ Les documents de conception : [vision](vision.md), [chapitres](chapitres.md), [m
 Quand on a choisi son enfant et que les œufs éclosent, l'enfant part aujourd'hui à toute vitesse, très loin (la sortie de l'adieu, `src/monde/adieu.ts`, « de plus en plus vite » jusqu'à ~700 px) : on ne voit plus ses frères et sœurs. Il doit seulement s'écarter un peu, sans hâte, pour qu'on les voie encore autour de lui, puis on reprend la main tout de suite et c'est nous qui partons à notre rythme. Les trois autres restent là et vivent leur vie. Garder l'émotion de l'adieu (le texte, le parent qui le regarde) sans l'éloigner de la portée ; mettre à jour « L'adieu » dans `docs/mecaniques.md`.
 
 ### Déclencher l'accouplement, puis une danse à deux
-> 🔵 en cours · agent declencher-accouplement
+> 🟠 fusionné · agent declencher-accouplement
 
 L'approche d'un partenaire reste comme aujourd'hui : on vient près de lui, il nous remarque, on le suit et on prépare la rencontre (la parade, `src/monde/parade.ts`, `parade-jeu.ts`). Mais l'accouplement ne s'enchaîne plus tout seul : c'est nous qui le déclenchons, par un geste à nous (un bouton « S'accoupler » qui apparaît près du partenaire quand on est prêt, ou un geste tactile équivalent, aussi au clavier). Une fois déclenchée, une **danse à deux automatique**, qu'on regarde sans rien faire (quelques secondes) : les deux espèces se tournent autour, se font face, s'enroulent, montent en spirale, se frôlent, avec de petits gestes sympas et doux qui varient d'une fois à l'autre et selon les deux espèces (un marcheur et un nageur ne dansent pas pareil), portée par la lueur de l'accouplement et l'eau de la parade. Puis la ponte des œufs, comme aujourd'hui.
 
