@@ -171,6 +171,17 @@ Tout est généré dans le code, sans fichier audio (Web Audio API, voir [decisi
   - **L'eau étouffe la musique** à mesure qu'on descend : un filtre dont la coupure suit la profondeur, de 16 kHz à la surface à 5,5 kHz au fond de la Fosse.
   - **Dans la Remontée**, chaque chapitre éclairé par la lignée qui remonte (`remontee.litAt`) s'éclaire aussi en musique : l'ambiance de la Remontée monte par-dessus la sienne, qui s'efface à moitié, et l'eau cesse d'étouffer le son.
   - **Les moments** : pendant l'adieu, la musique baisse et ne garde que ses accords, pour laisser les mots ; pendant une parade, ses notes viennent deux fois plus souvent.
+  - **Une musique qui change** quand on reste dans un chapitre (`src/monde/musique-forme.ts`, pur et testé) : l'ambiance passe par des **sections** de quelques accords chacune (deux à six selon le chapitre, soit une demi-minute à une minute et demie), qui changent sur un accord.
+    - **Quatre sortes de sections** :
+      - **nue** : le bourdon et les harmoniques passent devant, des accords minces qui se balancent entre deux, une note de loin en loin, le filtre plus sombre ;
+      - **calme** : des accords doux, souvent amincis ou renversés, peu de notes, plutôt plus bas ;
+      - **chantée** : les notes passent devant (une fois et demie plus souvent), plutôt plus haut, les accords dans leur ordre ou dans un autre ;
+      - **pleine** : toutes les voix, les accords élargis (la basse redoublée au-dessus, une note de la couleur du chapitre ajoutée au milieu), le filtre plus clair.
+    - **Leur suite** : le plus souvent d'une sorte à la voisine (plus calme ou plus plein), parfois un saut (une section pleine qui s'éclaircit d'un coup, une section nue qui se met à chanter), jamais deux fois la même. On arrive dans un chapitre sur une section calme ou chantée.
+    - **Les accords** : une section les joue tels qu'écrits, amincis, renversés (la basse montée d'une octave), écartés ou élargis, dans l'ordre du chapitre, en se balançant entre deux, ou dans un ordre libre. Ce ne sont jamais que les notes du chapitre (sa « palette » : ses accords mis ensemble), en ré majeur, sans demi-ton qui frotte.
+    - **Les notes çà et là** : une section commence une phrase neuve, puis chaque phrase revient changée par une ou deux manières : déplacée sur la gamme, à l'envers, en miroir, sur un autre rythme, plus longue ou plus courte ; jamais deux fois la même de suite. Le chant (la Carcasse, la Remontée) n'est que déplacé le long de lui-même, raccourci, allongé ou rythmé autrement : il reste reconnaissable et garde son sens. Une section peut aussi porter les notes une octave plus haut ou plus bas, là où le chapitre le permet.
+    - **Le caractère reste** : chaque chapitre a sa propre amplitude (`FORMS`) ; le Glacier et la Fosse changent peu (ses cristaux restent tout en haut, son silence presque entier), le Récif et la Remontée le plus. En moyenne, sections comprises, les accords sonnent aussi fort et les notes viennent aussi souvent qu'avant : les niveaux plus bas tiennent. Les moments (l'adieu, la parade) s'ajoutent aux sections.
+    - **Pour comparer** : `musicEngine(G, seed, false)` et `renderAmbience(i, s, rate, seed, false)` jouent l'ambiance telle qu'écrite, sans sections ; `monde.musique.heard` donne la section de chaque chapitre entendu.
 
 | Chapitre | Ambiance | Bourdon et nappes | Notes çà et là |
 | --- | --- | --- | --- |
