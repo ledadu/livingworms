@@ -39,8 +39,10 @@ async function start(attempt = 0) {
     document.getElementById('error').textContent = result.error;
     return;
   }
-  document.getElementById('state').textContent = `Prêt : ouverture de ${result.url}…`;
-  location.replace(result.url);
+  // The game on the machine this page was opened from (its Tailscale name from a phone).
+  const url = `http://${location.hostname}:${new URL(result.url).port}`;
+  document.getElementById('state').textContent = `Prêt : ouverture de ${url}…`;
+  location.replace(url);
 }
 start();
 </script>
