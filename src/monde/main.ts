@@ -28,6 +28,7 @@ import { obstacleItems } from './obstacles-draw';
 import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, chapterIndex, floorAt, liftAt, metres, moodAt, openFloor } from './biomes';
 import { Jardin } from './jardin';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
+import { floreLights, shy } from './flore';
 import { compareSpecies, runBench } from './bench';
 import { bump, initReliefs } from './relief';
 import { pushReliefs } from './relief-draw';
@@ -460,7 +461,7 @@ function update(): void {
   }
   counts.near = nNear;
   let live = 0;
-  for (const pl of plants) if (pl.live && pl.cr && Math.abs(pl.x - px) < 700) { live++; pl.cr.update(t, 0, 0, 0, 1); flow.apply(pl.cr, { push: 0.25, wake: 0.04, reach: 18 }); }
+  for (const pl of plants) if (pl.live && pl.cr && Math.abs(pl.x - px) < 700) { live++; shy(pl, px, py, t); pl.cr.update(t, 0, 0, 0, 1); flow.apply(pl.cr, { push: 0.25, wake: 0.04, reach: 18 }); }
   counts.live = live;
   for (const a of actors) if (inPlane(a) && near(a.cr.root.x[0])) flow.apply(a.cr, { push: 0.3, wake: 0.02, body: a.kind === 'player' ? 0.008 : 0.01 });
 
@@ -633,6 +634,7 @@ function render(): void {
     if (pl.x < x0 || pl.x > x1) continue;
     np++;
     items.push({ d: view.depth(pl.cr.root.y[0], pl.z), fn: () => drawPlant(pl, plane), k: 'plant' });
+    floreLights(pl, view, m.dark, t, lights);
   }
   counts.plants = np;
   for (const a of actors) {
