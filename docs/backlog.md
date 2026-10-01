@@ -13,7 +13,7 @@ Les documents de conception : [vision](vision.md), [chapitres](chapitres.md), [m
 ## Étape 4 — Lignée
 
 ### L'enfant reste près de ses frères
-> 🔵 en cours · agent enfant-reste-pres
+> 🟠 fusionné · agent enfant-reste-pres
 
 Quand on a choisi son enfant et que les œufs éclosent, l'enfant part aujourd'hui à toute vitesse, très loin (la sortie de l'adieu, `src/monde/adieu.ts`, « de plus en plus vite » jusqu'à ~700 px) : on ne voit plus ses frères et sœurs. Il doit seulement s'écarter un peu, sans hâte, pour qu'on les voie encore autour de lui, puis on reprend la main tout de suite et c'est nous qui partons à notre rythme. Les trois autres restent là et vivent leur vie. Garder l'émotion de l'adieu (le texte, le parent qui le regarde) sans l'éloigner de la portée ; mettre à jour « L'adieu » dans `docs/mecaniques.md`.
 
