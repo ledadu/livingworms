@@ -58,6 +58,7 @@ import { notesOfGeneration } from './chant';
 import { initLumieres } from './lumieres-jeu';
 import { gameSeed, roomAlong } from './lumieres';
 import { initMusique } from './musique-son';
+import { initReglagesSon } from './son-reglages';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -1318,6 +1319,7 @@ angleIn.value = String(settings.angle); distIn.value = String(Math.round(setting
 const showVals = () => { angleOut.textContent = settings.angle + '°'; distOut.textContent = Math.round(900 / input.zoomMul) + ''; };
 showVals();
 gear.addEventListener('click', () => { panel.hidden = !panel.hidden; });
+initReglagesSon();
 angleIn.addEventListener('input', () => { settings.angle = +angleIn.value; showVals(); save(); });
 distIn.addEventListener('input', () => { input.zoomMul = 900 / +distIn.value; settings.dist = +distIn.value; showVals(); save(); });
 for (const b of document.querySelectorAll<HTMLButtonElement>('[data-angle]')) {
