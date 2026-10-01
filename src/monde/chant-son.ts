@@ -25,25 +25,27 @@ interface Timbre {
   fm?: [number, number];
   /** a low-pass above the note, at this many times its pitch */
   lp?: number;
+  /** how loud, so that the nine notes sound alike in strength, on a phone's speaker too */
+  level?: number;
 }
 
 const TIMBRE: Record<string, Timbre> = {
   // a bell of light, clear and short
-  nurserie: { wave: 'sine', partials: [[1, 1], [2.76, 0.32], [5.4, 0.14], [8.93, 0.06]], attack: 0.005, decay: 2 },
+  nurserie: { wave: 'sine', partials: [[1, 1], [2.76, 0.32], [5.4, 0.14], [8.93, 0.06]], attack: 0.005, decay: 2, level: 1.15 },
   // a beating, like fins
-  recif: { wave: 'triangle', partials: [[1, 1], [2, 0.25]], attack: 0.02, decay: 1.5, trem: [7, 0.85] },
+  recif: { wave: 'triangle', partials: [[1, 1], [2, 0.25]], attack: 0.02, decay: 1.5, trem: [7, 0.85], level: 2 },
   // a brush of leaves: soft, with a breath
-  foret: { wave: 'sine', partials: [[1, 1], [3, 0.1]], attack: 0.22, decay: 1.6, breath: 0.6 },
+  foret: { wave: 'sine', partials: [[1, 1], [3, 0.1]], attack: 0.22, decay: 1.6, breath: 0.6, level: 0.9 },
   // a round note that comes back from the walls
-  grotte: { wave: 'sine', partials: [[1, 1], [2, 0.22], [3, 0.08]], attack: 0.01, decay: 0.9, echo: [0.32, 0.5] },
+  grotte: { wave: 'sine', partials: [[1, 1], [2, 0.22], [3, 0.08]], attack: 0.01, decay: 0.9, echo: [0.32, 0.5], level: 1.25 },
   // warm, two voices close together
-  carcasse: { wave: 'triangle', partials: [[1, 1], [1.004, 0.8], [2, 0.15]], attack: 0.12, decay: 2.4, lp: 3 },
+  carcasse: { wave: 'triangle', partials: [[1, 1], [1.004, 0.8], [2, 0.15]], attack: 0.12, decay: 2.4, lp: 3, level: 0.77 },
   // an ember: a bright buzz, damped, crackling
-  sources: { wave: 'sawtooth', partials: [[1, 1], [0.5, 0.3]], attack: 0.03, decay: 1.3, lp: 2.4, breath: 0.25 },
+  sources: { wave: 'sawtooth', partials: [[1, 1], [0.5, 0.3]], attack: 0.03, decay: 1.3, lp: 2.4, breath: 0.25, level: 1.5 },
   // glass: a bright sparkle
-  glacier: { wave: 'sine', partials: [[1, 1], [4.2, 0.18], [6.8, 0.06]], attack: 0.003, decay: 1.8, fm: [3.5, 2.2] },
+  glacier: { wave: 'sine', partials: [[1, 1], [4.2, 0.18], [6.8, 0.06]], attack: 0.003, decay: 1.8, fm: [3.5, 2.2], level: 0.9 },
   // a swell, slow to come, wavering
-  jardin: { wave: 'sine', partials: [[1, 1], [2, 0.2]], attack: 0.35, decay: 2.2, vib: [5, 16], trem: [1.6, 0.35] },
+  jardin: { wave: 'sine', partials: [[1, 1], [2, 0.2]], attack: 0.35, decay: 2.2, vib: [5, 16], trem: [1.6, 0.35], level: 0.9 },
   // almost nothing: a deep breath
   fosse: { wave: 'sine', partials: [[1, 0.55], [0.5, 0.3], [1.5, 0.06]], attack: 0.5, decay: 3, breath: 0.12, lp: 1.6 }
 };
@@ -75,7 +77,7 @@ export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer |
   // what the note is made of, let go once it has rung out (its echo a little later)
   const made: AudioNode[] = [env], echo: AudioNode[] = [];
   env.gain.setValueAtTime(0, t0);
-  env.gain.linearRampToValueAtTime((o.gain ?? 1) * 0.3, t0 + tb.attack);
+  env.gain.linearRampToValueAtTime((o.gain ?? 1) * 0.3 * (tb.level ?? 1), t0 + tb.attack);
   env.gain.setTargetAtTime(0, t0 + tb.attack, tb.decay / 3.5);
   let tail: AudioNode = env;
   if (c.createStereoPanner && o.pan) {
