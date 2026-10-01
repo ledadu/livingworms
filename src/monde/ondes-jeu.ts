@@ -45,6 +45,7 @@ function noteRgb(chapter: string): number[] {
   return hsl01(n.hue, n.sat, n.light).map((c) => c * 0.75 + 0.25);
 }
 
+/** the rings sung in the swimming plane: in the field of waves, waves of the field */
 const SUNG: RingKind[] = ['song', 'answer', 'learn', 'rise'];
 
 export function initOndes(d: OndesDeps) {
