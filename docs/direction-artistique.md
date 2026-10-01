@@ -16,6 +16,7 @@ Le Grand Monde (`src/monde/`) a déjà :
 
 - une vraie profondeur en perspective 2.5D, avec des plans à toutes les distances et le brouillard de l'eau (`fogOf`, `waterAt`) ;
 - un fond, des rochers, des plantes simulées de près et figées en images au loin, des décors (épave, cheminées) ;
+- une flore variée dans chaque chapitre : anémones, coraux, coquillages, vers et éponges des profondeurs, en bosquets, dont certains se rétractent quand on approche et d'autres luisent dans le noir (voir « La flore des chapitres ») ;
 - des rayons, des caustiques, la surface vue de dessous, le plancton et la neige marine ;
 - des bancs de poissons qui s'écartent du nageur, et de grands visiteurs lointains (tortue, raie manta, requin-baleine, calmar, dragon abyssal) ;
 - des animaux qui se retournent en vrai volume, tantôt par le dos (la tête part vers le fond), tantôt de face (elle vient vers nous) : le sens de chaque demi-tour est tiré au sort, pour le nageur comme pour les autres, qu'ils nagent, filent par jets ou marchent (`turnYaw` dans `src/engine3/creature3.ts`) ;
@@ -57,6 +58,27 @@ Réalisé dans `src/monde/jardin.ts` (chapitre `jardin` de `biomes.ts`, entre le
 - **Elles s'éclairent par vagues** : toutes les quelques secondes, une onde de lumière part d'un point et traverse le jardin.
 - **Des siphonophores géants** : de longues chaînes lumineuses au loin, avec leurs cloches nageuses en tête et une lumière qui court le long du corps.
 - **Les proches** sont les créatures simulées de la faune du biome (méduse lune, cténophore, siphonophore, chrysaora, cuboméduse, hydre, clione) et un siphonophore géant simulé qui passe au loin (visiteur du chapitre).
+
+### La flore des chapitres
+
+Au-delà des plantes de chaque biome (kelp, posidonies, coraux, gorgones, éponges…), une vie fixée au fond s'ajoute en bosquets (`src/monde/flore.ts`, posée après les plantes de `world.ts`, qui poussent donc toujours au même endroit) :
+
+| Chapitre | Ce qu'on y croise |
+| --- | --- |
+| La Nurserie | champs de couteaux plantés dans le sable, raisins de mer, padines en éventail, méduses à l'envers posées sur le sable, cérianthes, anémones à bulles |
+| Le Récif | coraux cerveaux et coraux étoilés, acropores tables, coraux corne de cerf, bénitiers au manteau bleu, anémones à bulles, vers arbres de Noël, ascidies, cérianthes |
+| La Forêt | anémones plumeuses blanches, ascidies, étoiles-paniers, cérianthes, couteaux |
+| La Grotte | ascidies, anémones plumeuses, vers arbres de Noël, coraux bambous |
+| La Carcasse | cérianthes, anémones plumeuses, étoiles-paniers, corbeilles de Vénus, coraux bambous, éponges ping-pong |
+| Les Sources | coraux bambous, anémones plumeuses pâles |
+| Le Glacier | anémones plumeuses pâles, corbeilles de Vénus, étoiles-paniers, éponges harpes, coraux bambous |
+| La Fosse | éponges harpes, éponges ping-pong, corbeilles de Vénus, coraux bambous |
+| La Remontée | éponges harpes, éponges ping-pong, coraux bambous |
+
+- **Chaque espèce est un arbre de fouets** comme les plantes (`FLORE`, une définition par espèce, tirée d'une graine) : elle repousse toujours la même. Les formes larges (acropore, bénitier, harpe…) se tournent presque vers l'œil pour ne pas être vues par la tranche (`face`) ; le corail cerveau pousse de son sommet vers le sol, pour que son dôme pose à plat (`top`).
+- **Les timides** (couteaux, cérianthes, vers arbres de Noël) se rétractent d'un coup quand le nageur passe à moins de 60 unités, et ressortent lentement après 2,5 s de calme : le couteau s'enfonce dans le sable, la cérianthe rentre ses tentacules dans son tube, le ver replie ses deux panaches (`shy`, `shyStep`). Seuls ceux du plan de nage (simulés) le font.
+- **Les lueurs** : les perles de l'éponge harpe, les sphères de l'éponge ping-pong et les polypes du corail bambou luisent, à peine en eau claire, nettement dans le noir, chacun respirant à son rythme (`floreLights`, avec les lumières du monde). On ne les trouve que dans les chapitres sombres.
+- **Coût** : la plupart sont figées en images (`rigid`), seules les timides et la méduse à l'envers (qui bat) sont simulées dans le plan de nage. Quelques dixièmes de milliseconde par image en plus sur un ordinateur.
 
 ## Une palette par chapitre
 
