@@ -26,24 +26,48 @@ const wrap = (v: number, n: number) => ((v % n) + n) % n;
 
 // ----- sprites ----- //
 
-const sprites = new Map<string, HTMLCanvasElement>();
-function blob(rgb: string): HTMLCanvasElement {
-  let c = sprites.get('b' + rgb);
-  if (c) return c;
-  c = makeCanvas(64, 64);
-  const g = c.getContext('2d')!, gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-  gr.addColorStop(0, `rgba(${rgb},0.9)`); gr.addColorStop(0.5, `rgba(${rgb},0.35)`); gr.addColorStop(1, `rgba(${rgb},0)`);
-  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
-  sprites.set('b' + rgb, c);
-  return c;
+// The sprites of a look share one sheet, a cell each with a clear gutter between
+// them: the pieces of a layer, of mixed colours, are drawn from one texture
+// (one draw call on the GPU, where a sheet per colour cost one per piece).
+
+/** a cell of a sheet: its image, where it starts along x, its size */
+interface Cell { sheet: HTMLCanvasElement; sx: number; w: number; h: number; }
+const GUTTER = 4;
+function sheet(w: number, h: number, n: number, draw: (g: CanvasRenderingContext2D, k: number) => void): Cell[] {
+  const c = makeCanvas(n * (w + GUTTER), h), g = c.getContext('2d')!, out: Cell[] = [];
+  for (let k = 0; k < n; k++) {
+    const sx = k * (w + GUTTER);
+    g.save();
+    g.beginPath(); g.rect(sx, 0, w, h); g.clip();
+    g.translate(sx, 0);
+    draw(g, k);
+    g.restore();
+    out.push({ sheet: c, sx, w, h });
+  }
+  return out;
+}
+
+/** the colours of the soft blobs of light, a cell each */
+const BLOBS = ['235,252,255', '210,240,250', '255,190,110', '255,140,80', '240,252,255', '215,240,255', '190,200,255'];
+let blobs: Cell[] | null = null;
+function blob(rgb: string): Cell {
+  blobs ??= sheet(64, 64, BLOBS.length, (g, k) => {
+    const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, `rgba(${BLOBS[k]},0.9)`); gr.addColorStop(0.5, `rgba(${BLOBS[k]},0.35)`); gr.addColorStop(1, `rgba(${BLOBS[k]},0)`);
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  });
+  return blobs[Math.max(0, BLOBS.indexOf(rgb))];
+}
+const STRANDS = 12;
+let strands: Cell[] | null = null;
+function strand(k: number): Cell {
+  strands ??= sheet(64, 512, STRANDS, drawStrand);
+  return strands[k % STRANDS];
 }
 /** a kelp strand, base at the bottom middle: a stipe with fronds on alternate sides */
-function strand(k: number): HTMLCanvasElement {
-  let c = sprites.get('k' + k);
-  if (c) return c;
+function drawStrand(g: CanvasRenderingContext2D, k: number): void {
   const R = rng(700 + k), W = 64, H = 512;
-  c = makeCanvas(W, H);
-  const g = c.getContext('2d')!, hue = 70 + R() * 30, lit = 16 + R() * 8;
+  const hue = 70 + R() * 30, lit = 16 + R() * 8;
   g.lineCap = 'round';
   g.strokeStyle = `hsl(${hue},45%,${lit - 6}%)`; g.lineWidth = 3;
   g.beginPath(); g.moveTo(W / 2, H);
@@ -56,16 +80,14 @@ function strand(k: number): HTMLCanvasElement {
     g.ellipse(x + s * L * 0.55, y - 6, L * 0.6, 5 + R() * 3, s * -0.55, 0, TAU);
     g.fill();
   }
-  sprites.set('k' + k, c);
-  return c;
 }
 
 /** draw a sprite (css px) turned by ang, scaled to sx × sy, with its point (ax, ay in 0..1) at x, y */
-function put(s: Scene, spr: HTMLCanvasElement, x: number, y: number, ang: number, sx: number, sy: number, al: number, ax = 0.5, ay = 0.5): void {
-  const co = Math.cos(ang), si = Math.sin(ang), w = spr.width, h = spr.height, k = s.dpr;
+function put(s: Scene, spr: Cell, x: number, y: number, ang: number, sx: number, sy: number, al: number, ax = 0.5, ay = 0.5): void {
+  const co = Math.cos(ang), si = Math.sin(ang), w = spr.w, h = spr.h, k = s.dpr;
   const a = (co * sx * k) / w, b = (si * sx * k) / w, c = (-si * sy * k) / h, d = (co * sy * k) / h;
-  if (s.gx) { s.gx.setTransform(a, b, c, d, x * k, y * k); s.gx.alpha = al; s.gx.image(spr, 0, 0, w, h, -ax * w, -ay * h, w, h); return; }
-  s.ctx.setTransform(a, b, c, d, x * k, y * k); s.ctx.globalAlpha = al; s.ctx.drawImage(spr, -ax * w, -ay * h);
+  if (s.gx) { s.gx.setTransform(a, b, c, d, x * k, y * k); s.gx.alpha = al; s.gx.image(spr.sheet, spr.sx, 0, w, h, -ax * w, -ay * h, w, h); return; }
+  s.ctx.setTransform(a, b, c, d, x * k, y * k); s.ctx.globalAlpha = al; s.ctx.drawImage(spr.sheet, spr.sx, 0, w, h, -ax * w, -ay * h, w, h);
 }
 function blend(s: Scene, add: boolean): void {
   if (s.gx) s.gx.setBlend(add ? 'add' : 'over'); else s.ctx.globalCompositeOperation = add ? 'lighter' : 'source-over';

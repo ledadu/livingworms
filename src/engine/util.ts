@@ -5,6 +5,10 @@ export const clamp = (v: number, a: number, b: number): number => (v < a ? a : v
 export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 export const rand = (a: number, b: number): number => a + Math.random() * (b - a);
 
+/** lengths for the hot paths: Math.hypot guards against overflow, needless at the scale of the world, and costs ten times more in V8 */
+export const len2 = (x: number, y: number): number => Math.sqrt(x * x + y * y);
+export const len3 = (x: number, y: number, z: number): number => Math.sqrt(x * x + y * y + z * z);
+
 export function wrapAngle(a: number): number {
   a %= TAU;
   if (a > Math.PI) a -= TAU;

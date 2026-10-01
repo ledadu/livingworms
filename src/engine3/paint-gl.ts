@@ -6,7 +6,7 @@
 // axes.
 
 import { EXTRA_MIN, INK_MIN, detail, hullOf, sheenSide, type Seg } from '../engine/render';
-import { hash } from '../engine/util';
+import { hash, len2 } from '../engine/util';
 import { thinnedOut } from '../engine/defs';
 import type { Creature3 } from './creature3';
 import { EPS, eyeDiscs3, outside, prepare3, shimOf, type Shim } from './render3';
@@ -163,14 +163,14 @@ function stroke(xs: Float32Array, ys: Float32Array, n: number, closed: boolean, 
     const x = xs[i], y = ys[i];
     const ip = i > 0 ? i - 1 : closed ? n - 1 : -1, inx = i < n - 1 ? i + 1 : closed ? 0 : -1;
     let n0x = 0, n0y = 0, n1x = 0, n1y = 0;
-    if (ip >= 0) { const dx = x - xs[ip], dy = y - ys[ip], l = Math.hypot(dx, dy); if (l > 1e-4) { n0x = -dy / l; n0y = dx / l; } }
-    if (inx >= 0) { const dx = xs[inx] - x, dy = ys[inx] - y, l = Math.hypot(dx, dy); if (l > 1e-4) { n1x = -dy / l; n1y = dx / l; } }
+    if (ip >= 0) { const dx = x - xs[ip], dy = y - ys[ip], l = len2(dx, dy); if (l > 1e-4) { n0x = -dy / l; n0y = dx / l; } }
+    if (inx >= 0) { const dx = xs[inx] - x, dy = ys[inx] - y, l = len2(dx, dy); if (l > 1e-4) { n1x = -dy / l; n1y = dx / l; } }
     if (!n0x && !n0y) { n0x = n1x; n0y = n1y; }
     if (!n1x && !n1y) { n1x = n0x; n1y = n0y; }
     if (!n0x && !n0y) { n0x = n1x = lnx; n0y = n1y = lny; }
     lnx = n1x; lny = n1y;
     let mx = n0x + n1x, my = n0y + n1y;
-    const ml = Math.hypot(mx, my);
+    const ml = len2(mx, my);
     let k = h;
     if (ml > 1e-3) { mx /= ml; my /= ml; const c = mx * n1x + my * n1y; k = h / Math.max(0.5, c); } else { mx = n1x; my = n1y; }
     const a = vert(x + mx * k, y + my * k, col), b = vert(x - mx * k, y - my * k, col);

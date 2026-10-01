@@ -69,6 +69,8 @@ import { initOndes } from './ondes-jeu';
 import { initVie } from './vie-jeu';
 import { initBruits } from './bruits-son';
 import { currentNear } from './bruits';
+import { awakeOutOfSight, inSight } from './hors-champ';
+import { gpuBound } from './qualite';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -363,6 +365,7 @@ const motes = Array.from({ length: MOTES }, () => [rand(-700, 700), rand(-500, 5
 // ----- simulation ----- //
 
 const flow = new Flow(32);
+const awake: Actor[] = [];
 let t = 0;
 const cam = { x: 420, y: 180 };
 
@@ -468,12 +471,14 @@ function update(): void {
   vie.step(t, p, actors);
 
   flow.clear();
-  const near = (x: number) => Math.abs(x - px) < 1100;
+  // the animals simulated this step: near the swimmer, and within sight unless the game holds them (hors-champ.ts)
+  awake.length = 0;
+  for (const a of actors) if (Math.abs(a.cr.root.x[0] - px) < 1100 && (awakeOutOfSight(a.kind, parade.leads(a) || !!vie.goal(a)) || inSight(view, a.cr.root.x[0], a.z))) awake.push(a);
   const inPlane = (a: Actor) => Math.abs(a.cr.root.z[0]) < 60;
   let nNear = 0;
-  for (const a of actors) if (inPlane(a) && near(a.cr.root.x[0])) flow.add(a.cr);
-  for (const a of actors) {
-    if (a.kind === 'player' || !near(a.cr.root.x[0])) continue;
+  for (const a of awake) if (inPlane(a)) flow.add(a.cr);
+  for (const a of awake) {
+    if (a.kind === 'player') continue;
     nNear++;
     const c = a.cr, cr = c.root, x = cr.x[0], y = cr.y[0];
     if (parade.leads(a)) { steer(a, parade.goal.x, parade.goal.y, 0.06); collide(c); continue; }
@@ -531,9 +536,9 @@ function update(): void {
   }
   counts.near = nNear;
   let live = 0;
-  for (const pl of plants) if (pl.live && pl.cr && Math.abs(pl.x - px) < 700) { live++; shy(pl, px, py, t); pl.cr.update(t, 0, 0, 0, 1); flow.apply(pl.cr, { push: 0.25, wake: 0.04, reach: 18 }); }
+  for (const pl of plants) if (pl.live && pl.cr && Math.abs(pl.x - px) < 700 && inSight(view, pl.x, pl.z)) { live++; shy(pl, px, py, t); pl.cr.update(t, 0, 0, 0, 1); flow.apply(pl.cr, { push: 0.25, wake: 0.04, reach: 18 }); }
   counts.live = live;
-  for (const a of actors) if (inPlane(a) && near(a.cr.root.x[0])) flow.apply(a.cr, { push: 0.3, wake: 0.02, body: a.kind === 'player' ? 0.008 : 0.01 });
+  for (const a of awake) if (inPlane(a)) flow.apply(a.cr, { push: 0.3, wake: 0.02, body: a.kind === 'player' ? 0.008 : 0.01 });
 
   for (const v of visitors) {
     const cr = v.cr, vx = cr.root.x[0];
@@ -559,15 +564,16 @@ function update(): void {
     }
   }
 
-  // plants grow when they come near (a few milliseconds of work per frame at most), and are forgotten far behind
-  const deadline = performance.now() + 3;
+  // plants grow when they come near (a few milliseconds of work per frame at most, whatever the steps), and are forgotten far behind
+  const g0 = performance.now(), until = g0 + growLeft;
   for (const pl of plants) {
     const dx = Math.abs(pl.x - px);
     if (!pl.cr && dx < 1800) {
+      if (growLeft <= 0 || performance.now() > until) break;
       growPlant2(pl);
-      if (performance.now() > deadline) break;
     } else if (pl.cr && dx > 3200) { pl.cr = null; pl.sprite = null; }
   }
+  growLeft -= performance.now() - g0;
 
   // entering a biome
   const bi = chapters.step(px);
@@ -1330,6 +1336,8 @@ chant.onNote(() => vie.hush());
 // ----- loop ----- //
 
 let last = performance.now(), acc = 0, fn = 0, fsum = 0;
+/** ms left to the plants to grow in this frame (update) */
+let growLeft = 3;
 const timeScale = { v: 1 };
 const lockQuality = { v: false };
 const stats = { fps: 0, render: 0, update: 0, flush: 0 };
@@ -1346,6 +1354,7 @@ function frame(now: number): void {
   acc += Math.min(0.1, dt / 1000) * timeScale.v;
   let steps = 0;
   const u0 = performance.now();
+  growLeft = 3;
   while (acc >= STEP && steps < 3) { update(); acc -= STEP; steps++; }
   const ut = performance.now() - u0;
   stats.update = stats.update * 0.9 + ut * 0.1;
@@ -1372,8 +1381,8 @@ function frame(now: number): void {
     const avg = fsum / fn;
     stats.fps = 1000 / avg;
     if (!lockQuality.v) {
-      // late frames: the shimmer of the water goes first (ondes-jeu.ts), then the detail of the animals, then the resolution
-      if (avg > 21) { if (ondes.ease()) { /* the water stills */ } else if (bias < BIAS_MAX) setBias(bias * 1.3); else if (quality > 0.55) { quality *= 0.85; resize(); } }
+      // late frames: the shimmer of the water goes first (ondes-jeu.ts), then the detail of the animals, then the resolution (when the GPU is late: qualite.ts)
+      if (avg > 21) { if (ondes.ease()) { /* the water stills */ } else if (bias < BIAS_MAX) setBias(bias * 1.3); else if (quality > 0.55 && gpuBound(avg, stats.update + stats.render + stats.flush)) { quality *= 0.85; resize(); } }
       else if (avg < 15) { if (quality < 1) { quality = Math.min(1, quality / 0.9); resize(); } else if (bias > 1) setBias(bias / 1.3); }
     }
     fn = 0; fsum = 0;

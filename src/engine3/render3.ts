@@ -5,7 +5,7 @@
 // gradients, motifs, ink, all flat. Parts are ordered by depth.
 
 import type { Box } from '../engine/types';
-import { TAU, wrapAngle } from '../engine/util';
+import { TAU, len2, len3, wrapAngle } from '../engine/util';
 import { thinnedOut } from '../engine/defs';
 import { drawSelf, drawWebs, setInk, setShade, type DrawOptions, type Seg } from '../engine/render';
 import type { Creature3, Seg3 } from './creature3';
@@ -114,11 +114,11 @@ const tan = { x: 0, y: 0, z: 0 }, bel = { x: 0, y: 0, z: 0 }, lat = { x: 0, y: 0
 function bellyOf(t: { x: number; y: number; z: number }, down: { x: number; y: number; z: number }, side: { x: number; y: number; z: number }, out: { x: number; y: number; z: number }): void {
   const d = t.x * down.x + t.y * down.y + t.z * down.z;
   out.x = down.x - t.x * d; out.y = down.y - t.y * d; out.z = down.z - t.z * d;
-  let l = Math.hypot(out.x, out.y, out.z);
+  let l = len3(out.x, out.y, out.z);
   if (l < 0.2) {
     const fd = side.x * t.x + side.y * t.y + side.z * t.z;
     out.x = side.x - t.x * fd; out.y = side.y - t.y * fd; out.z = side.z - t.z * fd;
-    l = Math.hypot(out.x, out.y, out.z);
+    l = len3(out.x, out.y, out.z);
   }
   out.x /= l; out.y /= l; out.z /= l;
 }
@@ -135,7 +135,7 @@ function projectSeg(sh: Shim, cr: Creature3, view: Projector): void {
   sh.key = zsum / (n + 1);
   for (let i = 1; i <= n; i++) sh.ang[i] = Math.atan2(sh.y[i] - sh.y[i - 1], sh.x[i] - sh.x[i - 1]);
   sh.ang[0] = sh.ang[1];
-  for (let i = 1; i <= n; i++) sh.lens[i] = Math.hypot(sh.x[i] - sh.x[i - 1], sh.y[i] - sh.y[i - 1]);
+  for (let i = 1; i <= n; i++) sh.lens[i] = len2(sh.x[i] - sh.x[i - 1], sh.y[i] - sh.y[i - 1]);
   sh.pulse = s.pulse;
   let maxE = 0;
   for (let i = 0; i <= n; i++) {
@@ -146,7 +146,7 @@ function projectSeg(sh: Shim, cr: Creature3, view: Projector): void {
       // tangent of the chain at this node (world)
       const i0 = Math.max(1, i), i1 = Math.min(n, i + 1);
       tan.x = s.dx[i0] + s.dx[i1]; tan.y = s.dy[i0] + s.dy[i1]; tan.z = s.dz[i0] + s.dz[i1];
-      const tl = Math.hypot(tan.x, tan.y, tan.z) || 1; tan.x /= tl; tan.y /= tl; tan.z /= tl;
+      const tl = len3(tan.x, tan.y, tan.z) || 1; tan.x /= tl; tan.y /= tl; tan.z /= tl;
       let ax: number, ay: number, az: number, bx: number, by: number, bz: number, rb: number;
       if (kind === 'body') {
         // height along the belly axis, thickness across
@@ -156,7 +156,7 @@ function projectSeg(sh: Shim, cr: Creature3, view: Projector): void {
       } else {
         // a blade: wide in its bend plane, thin along the bend axis
         wid.x = s.nb.y * tan.z - s.nb.z * tan.y; wid.y = s.nb.z * tan.x - s.nb.x * tan.z; wid.z = s.nb.x * tan.y - s.nb.y * tan.x;
-        const wl = Math.hypot(wid.x, wid.y, wid.z) || 1;
+        const wl = len3(wid.x, wid.y, wid.z) || 1;
         ax = wid.x / wl; ay = wid.y / wl; az = wid.z / wl; bx = s.nb.x; by = s.nb.y; bz = s.nb.z; rb = r * s.thick;
       }
       view.axis(ax * r, ay * r, az * r, sc, A);
@@ -237,7 +237,7 @@ export function eyeDiscs3(cr: Creature3, view: Projector, fn: (px: number, py: n
     const lean = Math.atan2(A.y, A.x);
     E.x = H.x + F.x * er; E.y = H.y + F.y * er; E.z = H.z + F.z * er;
     view.project(E.x, E.y, E.z, P);
-    let fx = P.x - px, fy = P.y - py; const fl = Math.hypot(fx, fy) || 1; fx /= fl; fy /= fl;
+    let fx = P.x - px, fy = P.y - py; const fl = len2(fx, fy) || 1; fx /= fl; fy /= fl;
     fn(px, py, rr, lean, vf, fx, fy, Math.min(1, fl / (rr || 1)));
   }
 }
@@ -344,7 +344,7 @@ export function pick3(cr: Creature3, sx: number, sy: number, tol: number): Seg3 
     const b = s.box;
     if (!(sx < b[0] - tol || sx > b[2] + tol || sy < b[1] - tol || sy > b[3] + tol)) {
       for (let i = 0; i <= s.n; i++) {
-        const d = Math.hypot(s.x[i] - sx, s.y[i] - sy) - s.rad[i];
+        const d = len2(s.x[i] - sx, s.y[i] - sy) - s.rad[i];
         if (d < tol) {
           const score = Math.max(0, d) - s.seg.depth * 1.5 + s.maxRad * 0.2;
           if (score < bs) { bs = score; best = s.seg; }

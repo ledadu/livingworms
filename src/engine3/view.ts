@@ -3,6 +3,8 @@
 // y DOWN (like the whip engine, the surface is y = 0), z away from the eye.
 // The swimming plane is z = 0.
 
+import { len3 } from '../engine/util';
+
 export interface Proj { x: number; y: number; s: number; d: number; }
 
 /** what the renderer needs from a camera */
@@ -71,7 +73,7 @@ export class View implements Projector {
   }
 
   toward(x: number, y: number, z: number, out: { x: number; y: number; z: number }): void {
-    const dx = this.cx - x, dy = this.cy - y, dz = this.cz - z, l = Math.hypot(dx, dy, dz) || 1;
+    const dx = this.cx - x, dy = this.cy - y, dz = this.cz - z, l = len3(dx, dy, dz) || 1;
     out.x = dx / l; out.y = dy / l; out.z = dz / l;
   }
 
