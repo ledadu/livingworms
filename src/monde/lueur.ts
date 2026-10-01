@@ -152,12 +152,14 @@ export class Motes {
       Math.min(PEAK_MAX, m.peak ?? 0.5));
   }
 
-  step(dt = STEP): void {
+  /** one step; `water`: the velocity of the water at a point (px per step), which carries the lights along */
+  step(dt = STEP, water?: (x: number, y: number) => Pt): void {
     const d = this.d;
     for (let i = 0; i < d.length; i += F) {
       if (d[i + 9] < 0) { d[i + 9] += dt; continue; }
       const drag = d[i + 13];
       d[i] += d[i + 2]; d[i + 1] += d[i + 3];
+      if (water) { const w = water(d[i], d[i + 1]); d[i] += w.x; d[i + 1] += w.y; }
       d[i + 2] *= drag; d[i + 3] = d[i + 3] * drag + d[i + 14];
       d[i + 4] += d[i + 5]; d[i + 5] *= drag; d[i + 6] += d[i + 7];
       d[i + 9] += dt;

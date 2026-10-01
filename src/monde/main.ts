@@ -739,7 +739,8 @@ function render(): void {
       ctx.drawImage(glowSprite(glowPts[i + 3]), glowPts[i] - size, glowPts[i + 1] - size, size * 2, size * 2);
     }
   }
-  // lights of the world: vent mouths, lantern fish
+  // the light in the water of a parade (parade-eau.ts), then the lights of the world: vent mouths, lantern fish
+  if (!skip.has('ink')) parade.ink(null, ctx, view, dpr);
   if (!skip.has('glow')) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     for (let i = 0; i < lights.length; i += 5) {
@@ -795,6 +796,7 @@ function renderGLTop(m: M, dk: number): void {
       const share = 1 / Math.sqrt(Math.max(1, n / 2.5)), base = (0.46 - 0.3 * env.water) * lum;
       glowsGL(g, glowPts, (i) => Math.min(1, glowPts[i + 4] * base * share), 0.8 + 0.2 * share);
     }
+    if (!skip.has('ink')) parade.ink(g, ctx, view, dpr);
     glowsGL(g, lights, (i) => lights[i + 4]);
   }
   if (!skip.has('motes')) drawMotes(m, dk);
