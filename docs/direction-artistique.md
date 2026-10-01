@@ -157,7 +157,7 @@ La lentille, en deux passes d'un même shader WebGL2, sur les seules régions de
 
 ## Le son
 
-Tout est généré dans le code, sans fichier audio (Web Audio API, voir [decisions.md](decisions.md#technique)).
+Presque tout est généré dans le code (Web Audio API, voir [decisions.md](decisions.md#technique)) ; l'eau, le ressac, les bulles, la glace et les baleines sont de vrais enregistrements, embarqués dans la page (voir « Les vrais enregistrements » plus bas).
 
 - **Un seul son pour la page** (`src/monde/son.ts`) : un contexte audio, éveillé par le premier toucher ou la première touche (le navigateur ne laisse sonner une page qu'après : avant, tout est muet), endormi quand la page est cachée. La musique, le chant et les bruits ont chacun leur bus et leur volume, et partagent une réverbération faite dans le code : une réponse de 2,4 s, quelques échos proches puis un bruit qui s'éteint en s'assombrissant. Elle est en mono (une convolution coûte moitié moins que deux), le son sec garde ses côtés. Un compresseur doux en sortie.
 - **Une ambiance musicale par chapitre** : nappes et harmoniques qui changent avec la profondeur. La partition est dans `src/monde/musique.ts` (pure et testée), `musique-son.ts` la joue.
@@ -205,6 +205,12 @@ Tout est généré dans le code, sans fichier audio (Web Audio API, voir [decisi
     - **La Grotte résonne** : sous la voûte seulement, les galeries chantent quelques notes graves à elles (le souffle de l'eau à travers des bandes étroites), et tout ce qu'on entend, notre nage comprise, revient des parois (trois échos qui se renvoient le son) ; des gouttes tombent de la voûte, une note qui monte, parfois suivie d'une plus petite. Ces échos ne sont calculés que sous la voûte.
     - **Le Glacier craque** : au loin, la glace se fend en une suite de petits claquements qui se pressent, parfois après un long grincement grave, parfois suivis d'un coup sourd ; de près, des cristaux tintent, sur les notes du chant, tout en haut.
   - Pendant l'adieu, les bruits baissent de moitié, pour laisser les mots.
+  - **Les vrais enregistrements** (`src/monde/enregistrements.ts`, pur et testé ; `enregistrements-son.ts` les charge) : cinq fichiers MP3 courts et mono de Freesound, en CC0, dans `src/monde/sons/` avec leurs crédits (`credits.json`). Chacun prend la place d'un son fait dans le code, au même niveau dans le mélange (mesuré hors ligne : le fond vers −35 dB, comme avant), dès qu'il est décodé ; le son fait dans le code reste là d'ici là.
+    - **L'eau** (un enregistrement d'hydrophone) et **le ressac** (des vagues sous l'eau contre les rochers, au Pérou) tournent en boucle : leurs deux bouts sont fondus l'un dans l'autre à puissance égale, sans clic ni creux. L'eau garde son filtre qui s'assourdit avec la profondeur ; le ressac, qui enfle et retombe de lui-même, s'éteint en descendant comme avant.
+    - **Les bulles**, **la glace** (un lac gelé qui se fend, enregistré sous l'eau) et **les baleines** (des baleines à bosse en Polynésie) : chaque fichier en tient plusieurs, que le jeu repère tout seul (là où le son monte au-dessus du calme du fichier). Chaque fois, l'un d'eux au hasard, un peu plus aigu ou plus grave : les bulles à la hauteur de leur taille (celles des cheminées plus graves), la glace un peu au hasard, les baleines selon leur voix (un grand visiteur plus grave qu'un petit, son second cri un peu plus bas).
+    - Ils passent par le même chemin que les autres bruits : leur côté, leur distance, la réverbération du chapitre ; les baleines presque toutes dans la réverbération.
+    - Leur coût : environ 390 Ko de plus dans la page publiée ; décodés après le premier toucher (en 0,3 s environ, dans le Chrome d'un ordinateur), ils tiennent une quinzaine de Mo de mémoire (le contexte audio les met à sa fréquence). Une boucle coûte une source et un filtre ; le bruit qu'elle remplace est débranché 3 s après son arrivée.
+    - Restent faits dans le code, parce qu'ils suivent le jeu ou la musique : l'eau qui file le long du corps et le courant (ils suivent la vitesse), le grondement des cheminées, les galeries et les gouttes de la Grotte, les cristaux du Glacier (sur les notes du chant).
 
 | Chapitre | Fond | Bruits çà et là |
 | --- | --- | --- |
