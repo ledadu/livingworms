@@ -103,12 +103,12 @@ Le jeu guide vers le bon partenaire, sans flèche ni chiffre, dans la voix de la
 
 - Un texte de deux à quatre lignes, dans la voix du « nous » (voir [chapitres.md](chapitres.md)).
 - Le parent reste dans le monde, là où tu l'as quitté (voir « Les ancêtres »).
-- **Dans le jeu** (`src/monde/adieu.ts`, branché par `adieu-jeu.ts` et `farewell` dans `main.ts`) : une scène d'une dizaine de secondes, sans rien à faire.
+- **Dans le jeu** (`src/monde/adieu.ts`, branché par `adieu-jeu.ts` et `farewell` dans `main.ts`) : une scène de 7 à 9 secondes, sans rien à faire.
   - L'enfant sort de son œuf, petit, et grandit pendant la scène (voir « La ponte ») ; il fait une fois le tour du parent, pendant que le parent le suit de la tête. La caméra se rapproche des deux, les bords de la mer s'assombrissent et les boutons s'effacent (`adieu.css`).
   - Le texte d'adieu du chapitre arrive (une ouverture de chapitre attend qu'il s'efface).
-  - L'enfant s'en va vers la suite de la descente, de plus en plus vite ; le parent l'accompagne un peu, s'arrête et le regarde partir. La caméra s'élargit, puis suit l'enfant.
-  - On reprend la main quand l'enfant est à environ 700 px, ou au bout de 11 s.
-  - Le parent reste là où on l'a quitté, d'une visite à l'autre (voir « Les ancêtres ») : il y dérive doucement, et quand on revient il se tourne vers nous et vient un peu à notre rencontre, jusqu'à 90 px de nous (`ROOM`). Les larves-sœurs de la première génération restent avec lui.
+  - L'enfant s'écarte un peu, sans hâte, vers la suite de la descente (300 px visés, au pas) ; ses frères et sœurs, sortis de leurs œufs juste après lui, restent autour et vivent leur vie là où ils sont nés. Le parent se penche un peu vers lui, s'arrête et le regarde. La caméra rend la vue peu à peu, autour de l'enfant, le parent encore dans le cadre.
+  - On reprend la main dès que l'enfant est à 170 px du parent (`APART`), ou au bout de 9 s ; le texte finit de s'effacer pendant qu'on nage, et c'est nous qui partons, à notre rythme.
+  - Le parent nous regarde partir sans nous suivre, tant qu'on est à moins de 520 px (`GONE`, `watchGoal`). Ensuite il reste là où on l'a quitté, d'une visite à l'autre (voir « Les ancêtres ») : il y dérive doucement, et quand on revient il se tourne vers nous et vient un peu à notre rencontre, jusqu'à 90 px de nous (`ROOM`). Les larves-sœurs de la première génération restent avec lui.
   - La naissance est enregistrée dans la partie (`partie.born`).
   - Pour l'essayer : `monde.farewell(enfant)` ; sans enfant, un enfant d'essai est fait par `fuse` avec la première espèce du chapitre. En jeu, le choix d'un enfant de la portée la lance ; la parade ne commence pas pendant la scène, et aucun autre texte (celui d'un obstacle, une ouverture) ne passe par-dessus l'adieu.
 
