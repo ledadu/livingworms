@@ -160,7 +160,8 @@ La lentille, en deux passes d'un même shader WebGL2, sur les seules régions de
 Le jeu tient en une page d'un mégaoctet et plus, longue à arriver et à démarrer sur un téléphone. Pour qu'on ne voie jamais une page blanche :
 
 - **Tout de suite** : un écran dessiné par la page elle-même, en HTML et CSS, sans attendre aucun script (`index.html`, `#chargement`). La mer bleu profond, trois rayons de lumière, quelques grains de neige marine qui remontent, la larve, « La Lignée » et « Nous nous éveillons… ».
-- **Il s'anime** pendant que le jeu se charge : la larve ondule, les rayons oscillent, les grains montent, la phrase respire. Rien que des transformations et des fondus, que le navigateur anime même quand le script du jeu l'occupe ; immobile si le système demande moins d'animations.
+- **La larve** est le premier ancêtre : ambrée, translucide, deux rangées de cils qui battent en vague, une queue en ruban puis en nageoire voilée qui ondule, une lueur qui pulse au cœur du corps, un grand œil qui cligne.
+- **Il s'anime** pendant que le jeu se charge : la larve nage, les rayons oscillent, les grains montent, la phrase respire. Rien que des transformations et des fondus, que le navigateur anime même quand le script du jeu l'occupe ; immobile si le système demande moins d'animations.
 - **Il s'efface** en fondu, en avançant un peu vers nous, une fois que le monde a dessiné ses trois premières images (`src/monde/chargement.ts`).
 - **À la publication**, les scripts de la page (le jeu, les Nouveautés) passent à la fin (`src/monde/chargement-page.ts`) : l'écran s'affiche avec les premiers kilo-octets. Les polices ne retiennent plus le premier affichage (sans réseau, elles le bloquaient).
 - **Mesure** (Chrome, téléphone simulé : réseau 4 Mbit/s, processeur 4 fois plus lent) : le premier affichage passe de 2,9 s (une page blanche, puis un bleu vide jusqu'à 9 s) à 0,7 s ; le jeu démarre au même moment qu'avant.
