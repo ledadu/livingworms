@@ -66,6 +66,7 @@ import { initMusique } from './musique-son';
 import { initReglagesSon } from './son-reglages';
 import { initOndes } from './ondes-jeu';
 import { initVie } from './vie-jeu';
+import { awakeOutOfSight, inSight } from './hors-champ';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -357,6 +358,7 @@ const motes = Array.from({ length: MOTES }, () => [rand(-700, 700), rand(-500, 5
 // ----- simulation ----- //
 
 const flow = new Flow(32);
+const awake: Actor[] = [];
 let t = 0;
 const cam = { x: 420, y: 180 };
 
@@ -462,12 +464,14 @@ function update(): void {
   vie.step(t, p, actors);
 
   flow.clear();
-  const near = (x: number) => Math.abs(x - px) < 1100;
+  // the animals simulated this step: near the swimmer, and within sight unless the game holds them (hors-champ.ts)
+  awake.length = 0;
+  for (const a of actors) if (Math.abs(a.cr.root.x[0] - px) < 1100 && (awakeOutOfSight(a.kind, parade.leads(a) || !!vie.goal(a)) || inSight(view, a.cr.root.x[0], a.z))) awake.push(a);
   const inPlane = (a: Actor) => Math.abs(a.cr.root.z[0]) < 60;
   let nNear = 0;
-  for (const a of actors) if (inPlane(a) && near(a.cr.root.x[0])) flow.add(a.cr);
-  for (const a of actors) {
-    if (a.kind === 'player' || !near(a.cr.root.x[0])) continue;
+  for (const a of awake) if (inPlane(a)) flow.add(a.cr);
+  for (const a of awake) {
+    if (a.kind === 'player') continue;
     nNear++;
     const c = a.cr, cr = c.root, x = cr.x[0], y = cr.y[0];
     if (parade.leads(a)) { steer(a, parade.goal.x, parade.goal.y, 0.06); collide(c); continue; }
@@ -525,9 +529,9 @@ function update(): void {
   }
   counts.near = nNear;
   let live = 0;
-  for (const pl of plants) if (pl.live && pl.cr && Math.abs(pl.x - px) < 700) { live++; shy(pl, px, py, t); pl.cr.update(t, 0, 0, 0, 1); flow.apply(pl.cr, { push: 0.25, wake: 0.04, reach: 18 }); }
+  for (const pl of plants) if (pl.live && pl.cr && Math.abs(pl.x - px) < 700 && inSight(view, pl.x, pl.z)) { live++; shy(pl, px, py, t); pl.cr.update(t, 0, 0, 0, 1); flow.apply(pl.cr, { push: 0.25, wake: 0.04, reach: 18 }); }
   counts.live = live;
-  for (const a of actors) if (inPlane(a) && near(a.cr.root.x[0])) flow.apply(a.cr, { push: 0.3, wake: 0.02, body: a.kind === 'player' ? 0.008 : 0.01 });
+  for (const a of awake) if (inPlane(a)) flow.apply(a.cr, { push: 0.3, wake: 0.02, body: a.kind === 'player' ? 0.008 : 0.01 });
 
   for (const v of visitors) {
     const cr = v.cr, vx = cr.root.x[0];
