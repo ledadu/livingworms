@@ -1,7 +1,8 @@
 // The eggs in the water (docs/mecaniques.md, « La ponte »): a parade no longer throws the brood over the sea. Its
 // four eggs are laid where it ended, and the brood opens when we stay by them a moment, as a partner notices us.
 // We may swim away, or leave the brood for later: the eggs wait there, and coming back to them opens it again.
-// Pure: the game lays and draws them (ponte-jeu.ts).
+// Pure: the rules of the wait; the eggs themselves are things of the water (oeufs.ts), and the game lays and draws
+// them (ponte-jeu.ts).
 
 import { STEP, clamp } from '../engine';
 
@@ -52,10 +53,3 @@ export function leaveClutch(c: Clutch): void {
 
 /** how near they are to hatching (0..1): they glow and tremble more */
 export const hatching = (c: Clutch) => clamp(c.hold / EGG_HOLD, 0, 1);
-
-/** where each egg lies, relative to the middle of the clutch: a small heap, bobbing each its own way */
-export function eggAt(i: number, time: number, shake = 0): { x: number; y: number; r: number } {
-  const u = (i / EGG_COUNT) * Math.PI * 2 + 0.6, r = 7 + (i % 2) * 1.2;
-  const bob = Math.sin(time * 1.3 + i * 1.9) * 3, tremble = shake * Math.sin(time * 38 + i * 2.3) * 2.4;
-  return { x: Math.cos(u) * 12 + tremble, y: Math.sin(u) * 8 + bob, r };
-}

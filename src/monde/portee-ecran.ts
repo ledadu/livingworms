@@ -1,7 +1,8 @@
 // The brood screen (docs/mecaniques.md, « La portée »): four eggs hatch over the sea, each child shows what it
-// inherited from the parent and from the partner, and the one we touch is played from then on. Or none of them,
-// for now: « Plus tard » leaves the eggs where they were laid (ponte-jeu.ts).
-// The children come from brood() (src/content/portee.ts); the game decides what a choice does (onChoose, onLater).
+// inherited from the parent and from the partner, and the one we touch is played from then on. Or all four are
+// left to hatch and live there, without us; or none of them, for now: « Plus tard » leaves the eggs where they
+// were laid (ponte-jeu.ts). The children come from brood() (src/content/portee.ts); the game decides what a choice
+// does (onChoose, onHatch, onLater).
 
 import type { Spec } from '../engine';
 import { snapshot3 } from '../engine3/snapshot3';
@@ -47,12 +48,14 @@ export interface Portee {
   open(parent: Spec, partner: Spec, o?: PorteeOptions): Child[];
   /** choose the i-th child, as a touch then « Continuer » would */
   choose(i: number): void;
+  /** all of them, none chosen, as « Les laisser éclore » would: they hatch and live there */
+  hatchAll(): void;
   /** none for now, as « Plus tard » would: the eggs wait */
   later(): void;
   close(): void;
 }
 
-export function createPortee(onChoose: (child: Spec, all: Child[], partner: Spec) => void, onLater: (all: Child[]) => void = () => {}): Portee {
+export function createPortee(onChoose: (child: Spec, all: Child[], partner: Spec) => void, onLater: (all: Child[]) => void = () => {}, onHatch: (all: Child[]) => void = () => {}): Portee {
   const root = document.createElement('div');
   root.id = 'portee';
   root.hidden = true;
@@ -125,11 +128,15 @@ export function createPortee(onChoose: (child: Spec, all: Child[], partner: Spec
       ok.disabled = true;
       ok.textContent = 'Touche un enfant';
       ok.addEventListener('click', () => { if (picked >= 0) portee.choose(picked); });
+      const hatch = document.createElement('button');
+      hatch.className = 'hatch';
+      hatch.textContent = 'Les laisser éclore : ils vivront ici';
+      hatch.addEventListener('click', () => portee.hatchAll());
       const later = document.createElement('button');
       later.className = 'later';
       later.textContent = 'Plus tard : les œufs t’attendront ici';
       later.addEventListener('click', () => portee.later());
-      root.append(head, grid, ok, later);
+      root.append(head, grid, ok, hatch, later);
       root.hidden = false;
       void root.offsetWidth;
       root.classList.add('show');
@@ -143,6 +150,12 @@ export function createPortee(onChoose: (child: Spec, all: Child[], partner: Spec
       if (!c || root.hidden) return;
       portee.close();
       onChoose(c.spec, kids, mate!);
+    },
+    hatchAll() {
+      if (root.hidden) return;
+      const all = kids;
+      portee.close();
+      onHatch(all);
     },
     later() {
       if (root.hidden) return;
