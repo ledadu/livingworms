@@ -28,8 +28,8 @@ interface Group {
   out: GainNode; padCut: BiquadFilterNode; echo: AudioNode | null;
   /** where its chords' low-pass is in its sweep */
   phase: number;
-  /** its own nodes, and the sources playing with when each ends */
-  nodes: AudioNode[]; srcs: Map<AudioScheduledSourceNode, number>;
+  /** its own nodes, and the sources playing with when each ends; the slow wave of its drone, there all along */
+  nodes: AudioNode[]; srcs: Map<AudioScheduledSourceNode, number>; breath: OscillatorNode | null;
   harm: GainNode[];
   chord: number; chordAt: number; motifAt: number; harmAt: number;
   /** how loud it is asked to be, and since when it is silent */
@@ -56,13 +56,14 @@ export function musicEngine(G: Graph, seed = 1) {
   }
 
   /** a slow wave of `rate` Hz, `depth` wide, into a parameter */
-  function lfo(gr: Group, rate: number, depth: number, into: AudioParam, t: number): void {
+  function lfo(gr: Group, rate: number, depth: number, into: AudioParam, t: number): OscillatorNode {
     const o = c.createOscillator(), g = c.createGain();
     o.frequency.value = rate;
     g.gain.value = depth;
     o.connect(g).connect(into);
     gr.nodes.push(o, g);
     source(gr, o, t, Infinity);
+    return o;
   }
 
   function open(i: number, now: number): Group {
@@ -75,7 +76,7 @@ export function musicEngine(G: Graph, seed = 1) {
     padCut.Q.value = 0.7;
     padCut.connect(out);
     const gr: Group = {
-      i, a, r, out, padCut, echo: null, phase: r() * Math.PI * 2, nodes: [out, padCut], srcs: new Map(), harm: [],
+      i, a, r, out, padCut, echo: null, phase: r() * Math.PI * 2, nodes: [out, padCut], srcs: new Map(), breath: null, harm: [],
       chord: -1, chordAt: now + 0.05, motifAt: now + lengthIn(r, a.motif.every) * 0.6, harmAt: now, g: 0, leftAt: now
     };
     // the drone, breathing
@@ -85,7 +86,7 @@ export function musicEngine(G: Graph, seed = 1) {
     dcut.frequency.value = a.drone.lp;
     dcut.connect(dg).connect(out);
     gr.nodes.push(dg, dcut);
-    lfo(gr, a.drone.breathe, a.drone.gain * 0.4, dg.gain, now);
+    gr.breath = lfo(gr, a.drone.breathe, a.drone.gain * 0.4, dg.gain, now);
     for (const m of a.drone.notes) {
       const o = c.createOscillator();
       o.setPeriodicWave(wave(a.drone.wave));
@@ -131,11 +132,10 @@ export function musicEngine(G: Graph, seed = 1) {
     return gr;
   }
 
+  /** a chapter let go: its sources stop, and its nodes come off the music once they have (on an offline context too) */
   function close(gr: Group, now: number): void {
     for (const s of gr.srcs.keys()) try { s.stop(now + 0.05); } catch { /* not started */ }
-    gr.out.disconnect();
-    const nodes = gr.nodes;
-    setTimeout(() => { for (const n of nodes) n.disconnect(); }, 200);
+    if (gr.breath) release(gr.breath, gr.nodes);
     groups.delete(gr.i);
   }
 
