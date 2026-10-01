@@ -12,7 +12,7 @@
 
 import type { AttDef, NodeDef, PaletteSlot, Spec, SwimDef, SwimMode } from '../engine/types';
 import { ROOT_SLOT, SHAPES, expand, onRim, palette, rimOf, type Slot } from '../engine/defs';
-import { STEP, TAU, clamp, hsla, lerp, rand, wrapAngle } from '../engine/util';
+import { STEP, TAU, clamp, hsla, len2, len3, lerp, rand, wrapAngle } from '../engine/util';
 
 // ----- tiny vector helpers on scalars (no allocation in the hot path) ----- //
 
@@ -20,7 +20,7 @@ interface V { x: number; y: number; z: number; }
 const v3 = (x = 0, y = 0, z = 0): V => ({ x, y, z });
 
 function norm(v: V): V {
-  const l = Math.hypot(v.x, v.y, v.z) || 1;
+  const l = len3(v.x, v.y, v.z) || 1;
   v.x /= l; v.y /= l; v.z /= l;
   return v;
 }
@@ -41,7 +41,7 @@ const DOWN: V = v3(0, 1, 0);
 function belly(t: V, down: V, out: V, fallback: V): V {
   const d = t.x * down.x + t.y * down.y + t.z * down.z;
   out.x = down.x - t.x * d; out.y = down.y - t.y * d; out.z = down.z - t.z * d;
-  const l = Math.hypot(out.x, out.y, out.z);
+  const l = len3(out.x, out.y, out.z);
   if (l < 0.2) {
     const f = fallback, fd = f.x * t.x + f.y * t.y + f.z * t.z;
     out.x = f.x - t.x * fd; out.y = f.y - t.y * fd; out.z = f.z - t.z * fd;
@@ -214,7 +214,7 @@ export class Seg3 {
     if (slot.radial) {
       // a ring lies flat, in the horizontal plane through the node; on a body that points straight up or down it keeps its heading
       const ra = slot.angle, cr = this.creature, fa = cr.mode === 'bell' ? 0 : cr.yaw + Math.PI;
-      const hx = t.x, hz = t.z, hl = Math.hypot(hx, hz);
+      const hx = t.x, hz = t.z, hl = len2(hx, hz);
       const e1x = hl > 0.3 ? hx / hl : Math.cos(fa), e1z = hl > 0.3 ? hz / hl : Math.sin(fa);
       dirOut.x = e1x * Math.cos(ra) - e1z * Math.sin(ra);
       dirOut.z = e1z * Math.cos(ra) + e1x * Math.sin(ra);
@@ -267,7 +267,7 @@ export class Seg3 {
     t.x = this.dx[i]; t.y = this.dy[i]; t.z = this.dz[i];
     // across the axis on screen (the eye looks along z); the bell seen from below or above: across its belly
     e.x = -t.y; e.y = t.x; e.z = 0;
-    if (Math.hypot(e.x, e.y) < 0.2) cross(t, belly(t, this.creature.down, g, this.creature.side), e);
+    if (len2(e.x, e.y) < 0.2) cross(t, belly(t, this.creature.down, g, this.creature.side), e);
     norm(e);
     // behind the axis, away from the eye
     cross(t, e, g); norm(g);
@@ -343,7 +343,7 @@ export class Seg3 {
         p.ringMount(k, this.k, this.att!.count, open, this.dir, this.nb, this.m);
       } else if (this.rim) p.rimMount(k, this.rim.u, this.rim.back, this.rim.open, this.dir, this.nb, this.m);
       else p.mountFor(d, { at: k, angle: this.rel / (p.flip || 1), scale: 1, phase: 0, side: this.side, edge: this.edge, k: this.k, hue: 0, radial: this.radial }, k, this.dir, this.nb, this.m);
-      if (Math.hypot(this.nb.x, this.nb.y, this.nb.z) < 0.5) { this.nb.x = p.nb.x; this.nb.y = p.nb.y; this.nb.z = p.nb.z; }
+      if (len3(this.nb.x, this.nb.y, this.nb.z) < 0.5) { this.nb.x = p.nb.x; this.nb.y = p.nb.y; this.nb.z = p.nb.z; }
       const pr = p.rad[k] * (1 + p.pulse * (p.pulseU ? 1 : k / p.n)) * Math.abs(this.edge);
       ox[0] = x[0]; oy[0] = y[0]; oz[0] = z[0];
       x[0] = p.x[k] + this.m.x * pr; y[0] = p.y[k] + this.m.y * pr; z[0] = p.z[k] + this.m.z * pr;
@@ -388,7 +388,7 @@ export class Seg3 {
         // a body bends in its own vertical plane, the one through its tangent and its own down (tilted with its pitch)
         if (dyn) {
           cross(prev, cr.down, nbi);
-          if (Math.hypot(nbi.x, nbi.y, nbi.z) < 0.25) { nbi.x = this.lastNb.x; nbi.y = this.lastNb.y; nbi.z = this.lastNb.z; }
+          if (len3(nbi.x, nbi.y, nbi.z) < 0.25) { nbi.x = this.lastNb.x; nbi.y = this.lastNb.y; nbi.z = this.lastNb.z; }
           else norm(nbi);
           this.lastNb.x = nbi.x; this.lastNb.y = nbi.y; this.lastNb.z = nbi.z;
         } else { nbi.x = this.nb.x; nbi.y = this.nb.y; nbi.z = this.nb.z; }
@@ -526,7 +526,7 @@ export class Creature3 {
     } else {
       // the body starts as a chain running behind the head: dir is the way the head points, links run the opposite way
       dir = v3(-dir.x, -dir.y, -dir.z);
-      cross(dir, DOWN, nb); if (Math.hypot(nb.x, nb.y, nb.z) < 0.2) nb = v3(0, 0, 1); else norm(nb);
+      cross(dir, DOWN, nb); if (len3(nb.x, nb.y, nb.z) < 0.2) nb = v3(0, 0, 1); else norm(nb);
     }
     if (!o.anchor && o.dir) { this.yaw = this.yawGoal = o.dir.x >= 0 ? 0 : Math.PI; }
     this.root = new Seg3(sp.body, null, null, slot, 1, (o.scale || 1) * (sp.size || 1), v3(x, y, z), dir, nb, this);
@@ -548,7 +548,7 @@ export class Creature3 {
     r.ox[0] = r.x[0]; r.oy[0] = r.y[0]; r.oz[0] = r.z[0];
     r.x[0] += this.vx; r.y[0] += this.vy; r.z[0] += this.vz;
     // remember which side the belly faces when swimming straight up or down
-    const hl = Math.hypot(this.vx, this.vz);
+    const hl = len2(this.vx, this.vz);
     if (hl > 0.4) { this.side.x = this.vz / hl; this.side.z = -this.vx / hl; }
     r.update(time);
     const b = this.box;
@@ -652,7 +652,7 @@ export class Creature3 {
    * go down it only lets itself sink; no pulse is wasted when it is idle.
    */
   private steerBell(time: number, dvx: number, dvy: number, dvz: number, accel: number): void {
-    const sp = Math.hypot(dvx, dvy), base = this.spec.swim.speed * 0.3;
+    const sp = len2(dvx, dvy), base = this.spec.swim.speed * 0.3;
     this.stroke = this.beat(time);
     const hx = sp > 0.05 ? dvx / sp : 0;
     const want = sp > 0.05 ? sp * clamp(1 - (Math.max(0, dvy) / sp) * 1.6, 0, 1) : base;
@@ -678,7 +678,7 @@ export class Creature3 {
    * up or down; going down it turns round and falls arms first, like a parachute.
    */
   private steerJet(time: number, dvx: number, dvy: number, dvz: number, accel: number): void {
-    const sp = Math.hypot(dvx, dvy);
+    const sp = len2(dvx, dvy);
     this.stroke = this.beat(time);
     let pitchGoal = 0;
     if (sp > 0.05) {
@@ -707,7 +707,7 @@ export class Creature3 {
    * floor it may dive, head first, and levels out before it lands.
    */
   private steerCrawl(_time: number, dvx: number, dvy: number, dvz: number, accel: number): void {
-    const sw = this.spec.swim, moving = Math.hypot(dvx, dvz * 3) > 0.05;
+    const sw = this.spec.swim, moving = len2(dvx, dvz * 3) > 0.05;
     if (moving) {
       // toward the eye a little, so that the legs show
       const gz = dvz * 3 - 0.6 * Math.abs(dvx);
@@ -723,13 +723,13 @@ export class Creature3 {
     [this.pitch, this.pitchVel] = this.spring(this.pitch, crawlPitch(vx, dvy, this.gap, sw), this.pitchVel, w);
     this.aim(this.heading3, this.pitch, this.yaw);
     // the legs step with its speed on the floor, and paddle with it in the water
-    const sp = this.gap > AFLOAT ? Math.hypot(this.vx, this.vy, this.vz) : Math.hypot(this.vx, this.vz);
+    const sp = this.gap > AFLOAT ? len3(this.vx, this.vy, this.vz) : len2(this.vx, this.vz);
     this.clock += STEP * (0.1 + Math.min(1.8, sp * 1.1));
     this.update(this.clock, vx, vy, vz, accel);
   }
 
   private steerGlide(time: number, dvx: number, dvy: number, dvz: number, accel: number): void {
-    const sp = Math.hypot(dvx, dvy);
+    const sp = len2(dvx, dvy);
     let pitchGoal = 0;
     if (sp > 0.05) {
       if (Math.abs(dvx) > 0.2 * sp) this.yawGoal = dvx > 0 ? 0 : Math.PI;
