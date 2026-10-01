@@ -14,12 +14,15 @@ export interface Narrator {
   chapter(i: number): void;
   /** a text of the chapter now (the farewell when a generation stays behind); false if the document has none */
   tell(i: number, kind: TextKind): boolean;
-  /** words that are no chapter's (before a trace of the lineage), under a name; false while other words are on screen */
-  say(name: string, lines: string[]): boolean;
+  /** words that are no chapter's (before a trace of the lineage), under a name; false while other words are on screen.
+   * `loud`: said even while the lineage is silent (the words opening the Balade libre) */
+  say(name: string, lines: string[], loud?: boolean): boolean;
   /** the chapters whose opening has been told */
   readonly told: Set<number>;
   /** while this is true (a panel covers the sea), the opening waits */
   quiet: () => boolean;
+  /** while this is true (the Balade libre, once the story is over), the lineage says nothing: only the names pass */
+  silent: () => boolean;
 }
 
 export function createNarrator(el: HTMLElement, chapters: { name: string }[]): Narrator {
@@ -59,7 +62,7 @@ export function createNarrator(el: HTMLElement, chapters: { name: string }[]): N
   function tell(i: number, kind: TextKind): boolean {
     const c = chapters[i], lines = c && textsOf(TEXTS, c.name, i)?.[kind];
     // nothing speaks over a farewell
-    if (!lines?.length || (kind !== 'farewell' && performance.now() < farewellUntil)) return false;
+    if (!lines?.length || narrator.silent() || (kind !== 'farewell' && performance.now() < farewellUntil)) return false;
     show(c.name, lines, kind);
     return true;
   }
@@ -68,8 +71,9 @@ export function createNarrator(el: HTMLElement, chapters: { name: string }[]): N
     told,
     tell,
     quiet: () => false,
-    say(name, lines) {
-      if (!lines.length || narrator.quiet() || performance.now() < farewellUntil || el.classList.contains('show')) return false;
+    silent: () => false,
+    say(name, lines, loud = false) {
+      if (!lines.length || (!loud && narrator.silent()) || narrator.quiet() || performance.now() < farewellUntil || el.classList.contains('show')) return false;
       show(name, lines, 'trace');
       return true;
     },

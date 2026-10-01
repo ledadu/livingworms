@@ -56,6 +56,8 @@ export function initOndes(d: OndesDeps) {
   const rings: Ring[] = [];
   const P: Proj = { x: 0, y: 0, s: 1, d: 1 };
   const calls = d.visitors.map(() => ({ next: -1, k: 0 }));
+  /** who hears the cries: where each comes from, and how big the animal is (its scale) */
+  const callers: ((x: number, y: number, z: number, size: number) => void)[] = [];
   const flashes = new Map<Lit, { n: number; echo: number }>();
   // the water that shimmers all the time stays still for those who asked their device for less motion
   const calm = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -100,6 +102,7 @@ export function initOndes(d: OndesDeps) {
       c.next = t + callGap(i, c.k++);
       ring('call', r.x[0], r.y[0], r.z[0]);
       ring('call', r.x[0], r.y[0], r.z[0], undefined, RINGS.call.size * 0.8, 1.6);
+      for (const f of callers) f(r.x[0], r.y[0], r.z[0], r.scale);
     });
     // the lights that answer in the Fosse: a wave with each of their three flashes, their echoes, their bloom
     const lit = d.answers();
@@ -211,6 +214,7 @@ export function initOndes(d: OndesDeps) {
         const r = d.swimmer().root;
         ring('call', r.x[0] + 500, r.y[0] - 80, 1400);
         ring('call', r.x[0] + 500, r.y[0] - 80, 1400, undefined, RINGS.call.size * 0.8, 1.6);
+        for (const f of callers) f(r.x[0] + 500, r.y[0] - 80, 1400, 3);
       });
       const label = () => (mode === 'champ' ? 'Champ de vagues : oui' : 'Champ de vagues : non');
       btn(label(), (b) => { mode = mode === 'champ' ? 'anneaux' : 'champ'; b.textContent = label(); });
@@ -223,6 +227,8 @@ export function initOndes(d: OndesDeps) {
 
   return {
     ring, sung, step, bend, shine, stats,
+    /** a big animal far away cries (its waves leave now): its voice can be heard (bruits-son.ts) */
+    onCall(f: (x: number, y: number, z: number, size: number) => void): void { callers.push(f); },
     /**
      * The frames are late: the water that shimmers all the time (surface, chimneys, obstacles) stills, the rings
      * stay. It comes back after 30 s, then twice as long each time it has to still again; false when it is still

@@ -139,7 +139,7 @@ Réalisé dans `src/monde/remontee.ts` (dessin `remontee-draw.ts`, voir [chapitr
 Réalisé dans `src/monde/ondes.ts` (les formes), `ondes-gl.ts` (la lentille) et `ondes-jeu.ts` (le jeu) : l'eau plie la lumière de ce qui est derrière elle.
 
 - **Les ondes du chant** : chaque note chantée part du nageur en un anneau qui s'élargit avec l'anneau de lumière de la note, un peu plus loin que lui ; le décor ondule à son passage, plus clair là où l'onde rassemble la lumière, plus sombre là où elle l'étale, et ses crêtes prennent la couleur de la note. Les animaux qui répondent ont leur propre anneau, à leur taille ; une note apprise en fait un plus large et plus lent ; le chant complet de la Remontée, un par note.
-- **Les cris au loin** : de temps en temps (30 à 75 s), un grand visiteur qu'on voit (raie manta, tortue, requin-baleine, calmar, siphonophore, dragon abyssal) crie : deux longues ondes lentes partent de lui et traversent la scène. Elles sont muettes pour l'instant (les bruitages viendront).
+- **Les cris au loin** : de temps en temps (30 à 75 s), un grand visiteur qu'on voit (raie manta, tortue, requin-baleine, calmar, siphonophore, dragon abyssal) crie : deux longues ondes lentes partent de lui et traversent la scène, et on l'entend crier au loin avec elles (voir « Les bruits » plus bas).
 - **Les lumières de la Fosse** : chaque éclat d'une lumière qui répond, ses échos et le moment où toutes brillent ensemble font une onde de sa couleur ; dans le noir, on ne voit que ses crêtes, des anneaux de lumière.
 - **L'eau chaude et l'eau froide** : au-dessus des cheminées des Sources, une colonne d'eau chaude tremble et monte en s'élargissant ; le couloir brûlant tremble de bas en haut, plus fort près de son passage ; l'eau glacée du Glacier ondule lentement en descendant ; le courant de la passe du Récif file vers l'arrière. Par bouffées, avec de fines stries de lumière là où l'eau resserre l'image.
 - **La surface** vue d'en dessous ondule sous ses vagues.
@@ -159,7 +159,7 @@ La lentille, en deux passes d'un même shader WebGL2, sur les seules régions de
 
 Tout est généré dans le code, sans fichier audio (Web Audio API, voir [decisions.md](decisions.md#technique)).
 
-- **Un seul son pour la page** (`src/monde/son.ts`) : un contexte audio, éveillé par le premier toucher ou la première touche (le navigateur ne laisse sonner une page qu'après : avant, tout est muet), endormi quand la page est cachée. La musique et le chant ont chacun leur bus et leur volume, et partagent une réverbération faite dans le code : une réponse de 2,4 s, quelques échos proches puis un bruit qui s'éteint en s'assombrissant. Elle est en mono (une convolution coûte moitié moins que deux), le son sec garde ses côtés. Un compresseur doux en sortie.
+- **Un seul son pour la page** (`src/monde/son.ts`) : un contexte audio, éveillé par le premier toucher ou la première touche (le navigateur ne laisse sonner une page qu'après : avant, tout est muet), endormi quand la page est cachée. La musique, le chant et les bruits ont chacun leur bus et leur volume, et partagent une réverbération faite dans le code : une réponse de 2,4 s, quelques échos proches puis un bruit qui s'éteint en s'assombrissant. Elle est en mono (une convolution coûte moitié moins que deux), le son sec garde ses côtés. Un compresseur doux en sortie.
 - **Une ambiance musicale par chapitre** : nappes et harmoniques qui changent avec la profondeur. La partition est dans `src/monde/musique.ts` (pure et testée), `musique-son.ts` la joue.
   - **Quatre voix par chapitre** :
     - un **bourdon** grave qui respire ;
@@ -189,8 +189,32 @@ Tout est généré dans le code, sans fichier audio (Web Audio API, voir [decisi
   - Dans le jeu (`src/monde/chant-son.ts`) : des oscillateurs et leurs harmoniques, sur la réverbération de la page. L'éclat est une cloche claire, le battement bat comme des nageoires, le frôlement souffle, l'écho revient des parois, le souvenir est chaud et doublé, la braise grésille, le givre scintille comme du verre, la pulsation enfle et ondule, le silence est un souffle grave. Les notes descendent avec les chapitres (la gamme pentatonique de ré), et les animaux qui répondent reprennent la note une octave plus haut.
   - Les neuf notes ont la même force, sur un haut-parleur de téléphone aussi (à 2 dB près) : le chant complet est une seule mélodie.
   - Le chant sonne dans l'espace du chapitre (sa part de réverbération, longue dans la Grotte, courte au Récif), et la musique recule un peu sous chaque note chantée.
-- **Les niveaux** : la musique se tient vers −27 dB (la Fosse vers −33 dB), une note chantée vers −20 dB (crête vers −10 dB) ; sous le chant, la musique recule encore de 5 dB.
-- **Les réglages** : le panneau ⚙ a une section « Son », Musique et Chant, de muet à un peu plus fort que le mélange voulu (le réglage de départ), gardés dans le stockage du navigateur (`lignee.son`). Un mot dit quand l'un est coupé, sans chiffres. La musique coupée libère aussi ses voix, pour la batterie.
-- **Le coût**, mesuré hors ligne dans le Chrome d'un ordinateur : une ambiance se calcule 26 à 36 fois plus vite que le temps réel, une frontière (deux chapitres) 20 à 25 fois. La réverbération en est la plus grosse part. Les modulations à la cadence du son (un filtre ou une hauteur que fait bouger un oscillateur) coûtent cher : le balayage des filtres avance par pas de l'horloge de la musique (0,2 s), sans modulation de hauteur.
-- **Les bruits** : des bulles, le courant, des cris lointains de baleine (chantier « Les bruitages » : leur bus viendra à côté de ceux de la musique et du chant, dans `son.ts`).
-- Proposition pour les nouveaux chapitres : la Grotte résonne (réverbération longue, gouttes), le Glacier craque et tinte (glace qui se fend, cristaux).
+- **Les niveaux** : la musique se tient vers −27 dB (la Fosse vers −33 dB), une note chantée vers −20 dB (crête vers −10 dB) ; sous le chant, la musique recule encore de 5 dB. Le fond des bruits se tient 8 à 11 dB sous la musique (vers −35 dB, la Fosse vers −42 dB) ; un bruit isolé monte en crête vers −30 dB (une bulle) à −20 dB (le cri d'un grand visiteur).
+- **Les réglages** : le panneau ⚙ a une section « Son », Musique, Chant et Bruits, de muet à un peu plus fort que le mélange voulu (le réglage de départ), gardés dans le stockage du navigateur (`lignee.son`). Un mot dit quand l'un est coupé, sans chiffres. La musique coupée libère aussi ses voix, les bruits coupés leurs fonds, pour la batterie.
+- **Le coût**, mesuré hors ligne dans le Chrome d'un ordinateur : une ambiance se calcule 26 à 36 fois plus vite que le temps réel, une frontière (deux chapitres) 20 à 25 fois. La réverbération en est la plus grosse part. Les modulations à la cadence du son (un filtre ou une hauteur que fait bouger un oscillateur) coûtent cher : le balayage des filtres avance par pas de l'horloge de la musique (0,2 s), sans modulation de hauteur. De même, un filtre dont la fréquence glisse (`setTargetAtTime`) coûte dans Chrome trois à cinq fois un filtre immobile, et pour toujours : les filtres des bruits sautent d'une valeur à l'autre (`setValueAtTime`). Les bruits ajoutent 15 % (la Fosse) à 30 % (la Nurserie, ses bulles et ses baleines) au coût de la musique ; musique et bruits ensemble se calculent encore 17 fois plus vite que le temps réel.
+- **Les bruits** : ce que fait la mer autour de nous, faits eux aussi dans le code (du bruit filtré et des oscillateurs). Ce que sonne chaque chapitre et la forme de chaque bruit sont dans `src/monde/bruits.ts` (pur et testé), `bruits-son.ts` les joue dans leur bus, à côté de ceux de la musique et du chant (`son.ts`). Une horloge de 0,1 s règle les fonds et programme les bruits un peu à l'avance ; ceux qu'une page retenue a manqués sont laissés, pas joués d'un coup.
+  - **Les fonds**, tout le temps, faits de deux boucles de bruit (brun et rose) :
+    - **l'eau** respire autour de nous : un bruit grave, plus sourd à mesure qu'on descend, qui enfle et retombe lentement ;
+    - **les vagues** au-dessus de nous, près de la surface : un ressac qui va et vient, éteint sous 60 m ;
+    - **l'eau qui file le long du corps** quand on nage : rien au repos, un souffle qui monte et s'éclaircit avec la vitesse, que la lignée nage ou que le courant de la Remontée l'emporte ;
+    - **le courant** d'un obstacle qui pousse (la passe du Récif, le couloir brûlant des Sources, le vide du Jardin) : le même souffle, fort tant qu'il barre le passage, un murmure une fois franchi ;
+    - **le grondement** des cheminées des Sources, à moins de 900 px de l'une d'elles.
+  - **Les bruits çà et là**, chacun à son rythme, au hasard (de loin en loin, jamais réguliers), de quelque part autour de nous : à gauche ou à droite, plus sourds et plus faibles de loin.
+    - **Les bulles** : chacune sonne à la hauteur de sa taille (une petite aigu, une grosse grave) et monte en partant, par petites salves. Elles viennent des suintements et des cheminées proches (là où on les voit monter), plus souvent près de la surface, et çà et là.
+    - **Les baleines au loin** : de temps en temps, des cris longs, gémissements, montées et plaintes, très loin, presque tout dans la réverbération. Chaque grand visiteur qu'on voit crier (raie manta, tortue, requin-baleine, calmar, siphonophore, dragon abyssal) crie deux fois, avec ses deux ondes, d'autant plus grave qu'il est grand.
+    - **La Grotte résonne** : sous la voûte seulement, les galeries chantent quelques notes graves à elles (le souffle de l'eau à travers des bandes étroites), et tout ce qu'on entend, notre nage comprise, revient des parois (trois échos qui se renvoient le son) ; des gouttes tombent de la voûte, une note qui monte, parfois suivie d'une plus petite. Ces échos ne sont calculés que sous la voûte.
+    - **Le Glacier craque** : au loin, la glace se fend en une suite de petits claquements qui se pressent, parfois après un long grincement grave, parfois suivis d'un coup sourd ; de près, des cristaux tintent, sur les notes du chant, tout en haut.
+  - Pendant l'adieu, les bruits baissent de moitié, pour laisser les mots.
+
+| Chapitre | Fond | Bruits çà et là |
+| --- | --- | --- |
+| La Nurserie | l'eau claire ; les vagues près de la surface | des bulles ; des baleines au loin (souvent) |
+| Le Récif | l'eau ; le courant de la passe | des bulles (souvent) ; des baleines |
+| La Forêt | l'eau, plus sourde | des bulles ; des baleines, plus rares |
+| La Grotte | les notes graves des galeries, l'écho des parois | des gouttes ; aucune baleine |
+| La Carcasse | l'eau, sourde | des baleines au loin, au-dessus de la carcasse (souvent) |
+| Les Sources | le grondement des cheminées ; le couloir brûlant | les bulles des cheminées |
+| Le Glacier | l'eau, froide et mince | la glace qui craque au loin, les cristaux qui tintent |
+| Le Jardin de méduses | l'eau, feutrée ; le vide qui pousse | presque rien |
+| La Fosse | presque rien | une baleine, de très loin, rarement |
+| La Remontée | l'eau qui s'ouvre ; le courant qui emporte | des bulles ; des baleines |

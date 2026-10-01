@@ -344,6 +344,8 @@ export function initRemontee(w: RemonteeWorld) {
     onNote(f: (i: number, chapter: Biome['id']) => void): void { notes.push(f); },
     /** called once the scene is over (the credits, the free swim) */
     onEnd(f: () => void): void { ends.push(f); },
+    /** the story is over (the Balade libre): the well stays, the scene does not come back */
+    over(): void { done = true; },
 
     /** tests: into the well at once, where the scene begins */
     start(): void {

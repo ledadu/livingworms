@@ -16,7 +16,7 @@ describe('the Atelier outside the story', () => {
     expect(atelierAvailable('?atelier', false)).toBe(true);
     expect(atelierAvailable('?lod=0&atelier=1', false)).toBe(true);
   });
-  it('comes back once the Balade libre is unlocked', () => {
+  it('keeps the flag of a story finished in this browser', () => {
     const s = memory();
     expect(baladeUnlocked(s)).toBe(false);
     unlockBalade(s);
@@ -32,9 +32,12 @@ describe('the Atelier outside the story', () => {
   });
   it('shows or hides the button', () => {
     const button = { hidden: false } as HTMLElement;
-    expect(applyAtelierAccess(button, '', memory())).toBe(false);
+    expect(applyAtelierAccess(button, false, '')).toBe(false);
     expect(button.hidden).toBe(true);
-    expect(applyAtelierAccess(button, '?atelier', memory())).toBe(true);
+    expect(applyAtelierAccess(button, false, '?atelier')).toBe(true);
+    expect(button.hidden).toBe(false);
+    applyAtelierAccess(button, false, '');
+    expect(applyAtelierAccess(button, true, '')).toBe(true);
     expect(button.hidden).toBe(false);
   });
 });
