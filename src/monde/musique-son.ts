@@ -5,7 +5,7 @@
 
 import { lerp, rng } from '../engine';
 import { BIOMES, arrival, biomeMid, metres } from './biomes';
-import { BY_INDEX, WAVES, harmLevels, hz, lengthIn, mixAt, muffle, nextChord, phrase, sweepAt, type Tone, type Wave, type Ambience } from './musique';
+import { BY_INDEX, MOMENTS, WAVES, harmLevels, hz, lengthIn, mixAt, motifGap, muffle, nextChord, phrase, sweepAt, type Ambience, type Moment, type Tone, type Wave } from './musique';
 import { buildGraph, release, son, type Graph } from './son';
 
 /** how far ahead the notes are scheduled, and how often the clock looks (s) */
@@ -206,10 +206,10 @@ export function musicEngine(G: Graph, seed = 1) {
     release(srcs[0], made);
   }
 
-  function motif(gr: Group, t: number): void {
+  function motif(gr: Group, t: number, moment: Moment): void {
     const m = gr.a.motif, notes = phrase(m, gr.a.pad.chords[Math.max(0, gr.chord)], gr.r), pan = (gr.r() * 2 - 1) * 0.6;
     for (const n of notes) tone(gr, m.tone, hz(n.midi), t + n.at, m.gain * (0.75 + 0.25 * gr.r()), pan + (gr.r() - 0.5) * 0.3);
-    gr.motifAt = t + (notes.length ? notes[notes.length - 1].at : 0) + lengthIn(gr.r, m.every);
+    gr.motifAt = t + (notes.length ? notes[notes.length - 1].at : 0) + motifGap(m.every, gr.r, moment);
   }
 
   function harmonics(gr: Group, t: number): void {
@@ -225,15 +225,20 @@ export function musicEngine(G: Graph, seed = 1) {
     gr.out.gain.setTargetAtTime(g, now, 0.5);
   }
 
-  let cut = 0, send = -1, vsend = -1;
+  let cut = 0, send = -1, vsend = -1, was: Moment = null;
   /**
    * The music at `now` for a swimmer at (x, y): the chapters heard there, how much of them goes to the reverb, how
    * muffled the water is; then what each plays in the next moment. `bright` (0..1) lights it up: the water opens and
-   * the ambience of the Remontée rises over the chapter, which steps back under it. Off (its volume at nothing), every
-   * voice is let go.
+   * the ambience of the Remontée rises over the chapter, which steps back under it. A moment of the story changes how
+   * loud it plays and how often its notes come. Off (its volume at nothing), every voice is let go.
    */
-  function tick(now: number, x: number, y: number, bright = 0, on = true): void {
-    const mix = on ? mixAt(x) : [];
+  function tick(now: number, x: number, y: number, bright = 0, on = true, moment: Moment = null): void {
+    const mix = on ? mixAt(x) : [], mo = moment ? MOMENTS[moment].level : 1;
+    if (moment !== was) {
+      // a phrase held back comes again soon after the moment; a dance does not wait for the next one
+      for (const gr of groups.values()) gr.motifAt = Math.min(gr.motifAt, now + motifGap(gr.a.motif.every, gr.r, moment));
+      was = moment;
+    }
     if (on && bright > 0) {
       const k = BIOMES.length - 1;
       for (const q of mix) if (q.i !== k) q.g *= 1 - 0.45 * bright;
@@ -244,7 +249,7 @@ export function musicEngine(G: Graph, seed = 1) {
     for (const { i, g } of mix) {
       let gr = groups.get(i);
       if (!gr) groups.set(i, (gr = open(i, now)));
-      level(gr, g * gr.a.level, now);
+      level(gr, g * gr.a.level * mo, now);
       s += g * gr.a.space; vs += g * gr.a.voiceSpace; sum += g;
     }
     for (const gr of [...groups.values()]) {
@@ -261,7 +266,7 @@ export function musicEngine(G: Graph, seed = 1) {
       if (gr.g <= 0) continue;
       gr.padCut.frequency.setValueAtTime(sweepAt(gr.a.pad, now, gr.phase), now);
       while (gr.chordAt < now + AHEAD) chord(gr, Math.max(gr.chordAt, now + 0.05));
-      while (gr.motifAt < now + AHEAD) motif(gr, Math.max(gr.motifAt, now + 0.05));
+      if (!moment || MOMENTS[moment].notes > 0) while (gr.motifAt < now + AHEAD) motif(gr, Math.max(gr.motifAt, now + 0.05), moment);
       while (gr.harmAt < now + AHEAD) harmonics(gr, Math.max(gr.harmAt, now));
       for (const [src, end] of gr.srcs) if (end < now) gr.srcs.delete(src);
     }
@@ -291,6 +296,8 @@ export interface MusiqueDeps {
   where(): { x: number; y: number };
   /** how much the music lights up (the Remontée), 0..1 */
   bright?(): number;
+  /** the moment of the story, if any (a farewell, a parade) */
+  moment?(): Moment;
 }
 
 /** the music of the game, once the page may sound */
@@ -303,7 +310,7 @@ export function initMusique(d: MusiqueDeps) {
     const step = () => {
       if (G.c.state !== 'running') return;
       const p = d.where();
-      e.tick(G.c.currentTime, p.x, p.y, d.bright?.() ?? 0, s.volumes.musique > 0);
+      e.tick(G.c.currentTime, p.x, p.y, d.bright?.() ?? 0, s.volumes.musique > 0, d.moment?.() ?? null);
     };
     step();
     setInterval(step, TICK * 1000);

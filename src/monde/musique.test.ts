@@ -3,8 +3,8 @@ import { rng } from '../engine';
 import { BIOMES, X0, X1, biomeMid, span } from './biomes';
 import { NOTES } from './chant';
 import {
-  AMBIENCES, BY_INDEX, KEY, SONG, WAVES, chordIn, harmLevels, hz, inKey, inPenta, lengthIn, mixAt, muffle, nextChord, pentaIn, phrase,
-  volumeGain, type Ambience
+  AMBIENCES, BY_INDEX, KEY, MOMENTS, SONG, WAVES, chordIn, harmLevels, hz, inKey, inPenta, lengthIn, mixAt, motifGap, muffle, nextChord, pentaIn,
+  phrase, sweepAt, volumeGain, type Ambience
 } from './musique';
 
 const mean = (xs: number[]) => xs.reduce((s, v) => s + v, 0) / xs.length;
@@ -80,7 +80,26 @@ describe('the chapters blended at their borders', () => {
   });
 });
 
+describe('the moments of the story', () => {
+  it('holds the notes back for a farewell, softer, and brings them twice as often for a dance', () => {
+    expect(MOMENTS.adieu.level).toBeLessThan(1);
+    expect(motifGap([4, 8], rng(1), 'adieu')).toBe(Infinity);
+    const mean = (moment: 'parade' | null) => { const r = rng(2); let s = 0; for (let q = 0; q < 400; q++) s += motifGap([4, 8], r, moment); return s / 400; };
+    expect(mean(null)).toBeGreaterThan(5.5);
+    expect(mean(null)).toBeLessThan(6.5);
+    expect(mean('parade')).toBeCloseTo(mean(null) / 2, 0);
+  });
+});
+
 describe('the water and the settings', () => {
+  it('sweeps the low-pass of the chords slowly around its cut-off', () => {
+    const pad = AMBIENCES.foret.pad, [rate, depth] = pad.sweep;
+    expect(sweepAt(pad, 0)).toBe(pad.lp);
+    expect(sweepAt(pad, 1 / (4 * rate))).toBeCloseTo(pad.lp * (1 + depth));
+    expect(sweepAt(pad, 3 / (4 * rate))).toBeCloseTo(pad.lp * (1 - depth));
+    for (const a of BY_INDEX) expect(a.pad.sweep[1]).toBeLessThan(1);
+  });
+
   it('muffles the music a little more the deeper it is', () => {
     expect(muffle(0)).toBe(16000);
     expect(muffle(-5)).toBe(16000);

@@ -187,6 +187,25 @@ export const AMBIENCES: Record<ChapterId, Ambience> = {
 /** the ambience of each chapter, in the order of the map */
 export const BY_INDEX: Ambience[] = BIOMES.map((b) => AMBIENCES[b.id]);
 
+// ----- the moments ----- //
+
+/** the moments of the story the music answers: the farewell to a parent, the dance of a parade */
+export type Moment = 'adieu' | 'parade' | null;
+
+/** how loud the music plays in a moment, and how often its notes here and there come (× as often; 0: none) */
+export const MOMENTS: Record<'adieu' | 'parade', { level: number; notes: number }> = {
+  // the words of the farewell: the music steps back and only holds its chords
+  adieu: { level: 0.6, notes: 0 },
+  // the dance: the notes come twice as often
+  parade: { level: 1, notes: 2 }
+};
+
+/** the time until the next phrase of a motif (s), in a moment; Infinity when the moment holds them back */
+export function motifGap(every: [number, number], r: () => number, moment: Moment = null): number {
+  const k = moment ? MOMENTS[moment].notes : 1;
+  return k > 0 ? lengthIn(r, every) / k : Infinity;
+}
+
 // ----- where ----- //
 
 /**

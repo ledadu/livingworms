@@ -1231,8 +1231,11 @@ const lumieres = initLumieres({
 
 // ----- the music (musique-son.ts): the ambience of the chapter where the swimmer is ----- //
 
-// (the chapters lit by the lineage going up light up their music too)
-const musique = initMusique({ where: () => ({ x: player.cr.root.x[0], y: player.cr.root.y[0] }), bright: () => remontee.litAt(player.cr.root.x[0]) });
+// (the chapters lit by the lineage going up light up their music too; it steps back for a farewell, dances with a parade)
+const musique = initMusique({
+  where: () => ({ x: player.cr.root.x[0], y: player.cr.root.y[0] }), bright: () => remontee.litAt(player.cr.root.x[0]),
+  moment: () => (adieu.on ? 'adieu' : parade.active ? 'parade' : null)
+});
 
 // ----- the song (chant-jeu.ts) ----- //
 
