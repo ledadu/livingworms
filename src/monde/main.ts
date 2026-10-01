@@ -60,6 +60,7 @@ import { initChant } from './chant-jeu';
 import { noteOf, notesOfGeneration } from './chant';
 import { initLumieres } from './lumieres-jeu';
 import { gameSeed, roomAlong } from './lumieres';
+import { initOndes } from './ondes-jeu';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -543,6 +544,7 @@ function update(): void {
   if (chapters.shown >= 0 && !remontee.on) partie.reach(BIOMES[chapters.shown].id);
   traces.step(px, py);
   chant.step(t, p, actors, chapters.shown);
+  ondes.step(t, px, py);
 }
 
 // ----- drawing ----- //
@@ -707,6 +709,8 @@ function render(): void {
   remontee.items(glacier, cam.x, cam.y, (d, fn) => items.push({ d, fn, k: 'remontee' }));
   if (m.rays * open > 0.02 && cam.y < 1400) items.push({ d: view.depth(300, 700), fn: () => drawRays(open < 1 ? { ...m, rays: m.rays * open } : m), k: 'rays' });
   pushCave(items, { view, ctx, gx, dpr, W, H, t, lights, px: pr.x[0], py: pr.y[0], open: remontee.open(cam.x) }, m, cam.x, plane);
+  // the water bends what lies behind the swimming plane (ondes-jeu.ts)
+  if (gx) items.push({ d: view.depth(cam.y, 0) + 40, fn: () => ondes.bend(m, plane, dpr, t), k: 'ondes' });
   items.sort((a, b) => b.d - a.d);
   counts.items = items.length;
   bakes = 0;
@@ -815,6 +819,7 @@ function renderGLTop(m: M, dk: number): void {
   const dd = clamp((pr.y[0] - 300) / 900, 0, 1);
   if (deepEl && (frameNo & 7) === 0) deepEl.style.background = css(m.deep, dd * 0.18 * (1 - m.dark), -10);
   g.end();
+  ondes.shine();
 }
 
 function drawMotes(m: M, dk: number): void {
@@ -1247,6 +1252,16 @@ const remontee = initRemontee({
 // the whole song, sung by the last creature in the well of light, with the voice of the song
 remontee.onNote((_, c) => { const n = noteOf(c); if (n) chant.voice.note(c, n.freq, { gain: 0.6 }); });
 
+// ----- the water that bends (ondes-jeu.ts): the waves of the song and of the cries, hot and cold water shimmering ----- //
+
+const ondes = initOndes({
+  gx, view, vents, floorAt, ceilAt, swimmer: () => player.cr, visitors, skip,
+  answers: () => lumieres.answers, bloomed: () => lumieres.done,
+  stirring: () => actors.filter((a) => Math.abs(a.cr.root.z[0]) < 60 && Math.abs(a.cr.root.x[0] - cam.x) < 900).map((a) => a.cr)
+});
+chant.onLight((kind, c, cr) => ondes.sung(kind, cr, c));
+remontee.onNote((_, c) => ondes.sung('rise', player.cr, c));
+
 // ----- loop ----- //
 
 let last = performance.now(), acc = 0, fn = 0, fsum = 0;
@@ -1292,7 +1307,8 @@ function frame(now: number): void {
     const avg = fsum / fn;
     stats.fps = 1000 / avg;
     if (!lockQuality.v) {
-      if (avg > 21) { if (bias < BIAS_MAX) setBias(bias * 1.3); else if (quality > 0.55) { quality *= 0.85; resize(); } }
+      // late frames: the shimmer of the water goes first (ondes-jeu.ts), then the detail of the animals, then the resolution
+      if (avg > 21) { if (ondes.ease()) { /* the water stills */ } else if (bias < BIAS_MAX) setBias(bias * 1.3); else if (quality > 0.55) { quality *= 0.85; resize(); } }
       else if (avg < 15) { if (quality < 1) { quality = Math.min(1, quality / 0.9); resize(); } else if (bias > 1) setBias(bias / 1.3); }
     }
     fn = 0; fsum = 0;
@@ -1343,7 +1359,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, generique, traces, rivale, chant, lumieres, ponte, indices, remontee,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, generique, traces, rivale, chant, lumieres, ponte, indices, remontee, ondes,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   get dpr() { return dpr; },
