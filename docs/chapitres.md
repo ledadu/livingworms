@@ -15,7 +15,7 @@ Les profondeurs sont indicatives : le monde est une descente continue, pas une c
 - Ils s'affichent en lettres fines, lentement, au début de chaque chapitre (ouverture) et au moment de l'adieu.
 - Deux à quatre lignes au maximum.
 - La voix est celle de la lignée, un « nous », comme si les ancêtres parlaient.
-- **Dans le jeu** (`src/monde/textes.ts`, affichage dans `narration.ts`) : les textes sont lus dans ce document même, au build. Sous le titre `## N. Nom` d'un chapitre, la citation (`> …`) qui suit une ligne « Ouverture : », « Adieu … : », « Le retournement : » (l'ouverture de la Remontée) ou « Texte final : » ou « Devant l'obstacle : » (dit la première fois que l'obstacle du chapitre nous retient) devient ce texte ; pour en changer un, il suffit de l'écrire ici. Une phrase par ligne ; une phrase seule et longue se coupe à la virgule la plus proche de son milieu ; quatre lignes au plus. L'ouverture s'écrit la première fois qu'on entre dans le chapitre, ligne après ligne, sous son nom en petites capitales, puis s'efface ; en y revenant, seul le nom passe. Elle attend qu'aucun panneau (Nouveautés, Atelier) ne couvre la mer. L'adieu se dit pendant la scène de l'adieu au parent ([mécaniques](mecaniques.md#ladieu)) ; tant qu'il est à l'écran, une ouverture attend qu'il s'efface et rien d'autre ne se dit.
+- **Dans le jeu** (`src/monde/textes.ts`, affichage dans `narration.ts`) : les textes sont lus dans ce document même, au build. Sous le titre `## N. Nom` d'un chapitre, la citation (`> …`) qui suit une ligne « Ouverture : », « Adieu … : », « Le retournement : » (l'ouverture de la Remontée), « Texte final : », « La Balade libre : » (dit une fois, quand elle s'ouvre, [mécaniques](mecaniques.md#la-balade-libre)) ou « Devant l'obstacle : » (dit la première fois que l'obstacle du chapitre nous retient) devient ce texte ; pour en changer un, il suffit de l'écrire ici. Une phrase par ligne ; une phrase seule et longue se coupe à la virgule la plus proche de son milieu ; quatre lignes au plus. L'ouverture s'écrit la première fois qu'on entre dans le chapitre, ligne après ligne, sous son nom en petites capitales, puis s'efface ; en y revenant, seul le nom passe. Elle attend qu'aucun panneau (Nouveautés, Atelier) ne couvre la mer. L'adieu se dit pendant la scène de l'adieu au parent ([mécaniques](mecaniques.md#ladieu)) ; tant qu'il est à l'écran, une ouverture attend qu'il s'efface et rien d'autre ne se dit.
 - « La rencontre : » donne le texte dit la première fois qu'on croise la cousine de la lignée rivale, à la Carcasse (voir le chapitre 5).
 - « L'indice : » donne ce que la lignée se rappelle quand on ressort de la portée d'un obstacle qui nous a retenus : qui, dans le chapitre, avait de quoi le franchir ([mécaniques](mecaniques.md#les-indices)). Il nomme les partenaires dont les enfants passent vraiment, et parfois celui qui ne servirait à rien.
 - La ligne « Note : « … » » de chaque chapitre donne son nom à la note du chant qu'on y apprend (`chant.ts`, voir [mécaniques](mecaniques.md#le-chant)).
@@ -289,8 +289,8 @@ Le retournement :
   - **La remontée** : un courant emporte la lignée, d'abord droit vers le haut du puits, puis à travers tous les chapitres à l'envers, à mi-hauteur, sans jamais redescendre (sauf sous la voûte de la Grotte), à l'écart des reliefs, jusque sous la surface, là où la première larve est née (x = 420). La couronne s'ouvre en V derrière le nageur, le plus ancien au bout ; chacun garde un halo doré. Le courant prend de la vitesse, porte vite (un peu plus d'une minute pour tout le chemin) et ralentit près de la surface. Chacun nage à son rythme dans le courant : les méduses battent, les crabes pédalent.
   - **Chaque chapitre s'illumine** quand la lignée y entre : son eau s'éclaircit dans sa propre couleur, le noir se lève (même celui de la Fosse et des galeries de la Grotte), une lumière dorée tombe d'en haut, des rais dorés l'entourent, un grand anneau de la couleur de sa note part du nageur et son nom passe. La lumière reste tant que la scène dure, puis s'efface doucement.
   - **La surface** : la lumière perce (un éclat blanc et doré), les ancêtres s'étalent sous la surface de part et d'autre du nageur. Un œuf de lumière apparaît parmi eux et bat de plus en plus vite ; la caméra s'en approche ; il éclot, et une larve en sort, qui brille un moment. Puis le texte final est dit, et la caméra s'élargit sur toute la lignée.
-  - **Après** : on reprend la main, avec la créature finale, parmi ses ancêtres qui restent là, sous la surface de la Nurserie ; la nouvelle larve nous suit. Le générique passe aussitôt (`generique.play()`, voir « Générique » ci-dessous), la Balade libre est débloquée (`unlockBalade`, le bouton ✎ revient) et `monde.remontee.onEnd(f)` est appelé. La scène ne revient pas dans la même visite.
-  - **La sauvegarde** : pendant la scène, le chapitre sauvé reste la Remontée (une page rechargée reprend au puits, et la scène recommence) ; à la fin, la partie reprend à la Nurserie avec la créature finale et toute la lignée.
+  - **Après** : on reprend la main, avec la créature finale, parmi ses ancêtres qui restent là, sous la surface de la Nurserie ; la nouvelle larve nous suit. Le générique passe aussitôt (`generique.play()`, voir « Générique » ci-dessous), la Balade libre s'ouvre ([mécaniques](mecaniques.md#la-balade-libre) : le monde s'ouvre, la lignée se tait, le bouton ✎ revient) et `monde.remontee.onEnd(f)` est appelé. La scène ne revient plus : la Balade la tient fermée (`remontee.over()`), même après un rechargement.
+  - **La sauvegarde** : pendant la scène, le chapitre sauvé reste la Remontée (une page rechargée reprend au puits, et la scène recommence) ; à la fin, la partie entre dans la Balade libre, qui reprend sous la surface de la Nurserie avec la créature finale et toute la lignée.
   - **Pour les tests** : `monde.remontee.start()` (au puits, la scène commence), `monde.remontee.jump(x)` (pendant la remontée, portés jusqu'à x), `monde.remontee.phase` (`idle`, `well`, `rise`, `surface`, `after`).
 
 Texte final :
@@ -298,6 +298,10 @@ Texte final :
 > Nous sommes remontés. Pas un seul d'entre nous n'avait fait tout le chemin. Et pourtant, nous l'avions fait ensemble.
 
 **Générique** : l'arbre complet de ta lignée, génération par génération. Puis l'arbre devient une image souvenir, à garder (voir [mécaniques](mecaniques.md#le-générique-et-limage-souvenir)).
+
+La Balade libre (proposition) :
+
+> Plus rien ne nous retient. Toute la mer est à nous, de la lumière jusqu'au noir. Et dans l'Atelier, nous serons ce que nous voudrons.
 
 ## Les traces de la lignée
 
@@ -336,7 +340,9 @@ La carte du Grand Monde (`src/monde/biomes.ts`) suit la trame : les 10 chapitres
 
 Le monde qu'on joue commence à la surface de la Nurserie (x = −600) et finit au fond de la Remontée (x = 29 800), un peu après son puits de lumière : `src/monde/limites.ts`. Chaque chapitre qui a un obstacle barre la descente à sa fin (le Récif, la Forêt, la Grotte, les Sources, le Glacier, le Jardin) ; celui de la Fosse garde son fond (x = 27 600, avant que la lumière de la Remontée n'arrive), et le franchir ouvre la Remontée. Près d'une borne, l'eau retient le nageur sur 420 px et un léger courant le repousse : rien ne heurte ni ne blesse. Un obstacle franchi le reste (on peut remonter et redescendre), même pour un enfant qui n'a plus le trait. Qui franchit quoi : voir « Les obstacles-clés » ci-dessous.
 
-Le voyage du panneau de réglages (⚙) sert aux tests : il n'apparaît qu'avec `?dev` dans l'adresse. Voyager (le panneau, `monde.gotoBiome`, `monde.teleport`) compte comme franchis les obstacles d'avant l'arrivée ; au-delà du fond de la Remontée, toute la carte s'ouvre jusqu'au rechargement.
+Dans la Balade libre, après la fin, tous les obstacles sont ouverts, quel que soit le corps ([mécaniques](mecaniques.md#la-balade-libre)).
+
+Le voyage du panneau de réglages (⚙) sert aux tests, et aux joueurs dans la Balade libre : il n'apparaît qu'avec `?dev` dans l'adresse, ou une fois l'histoire finie. Voyager (le panneau, `monde.gotoBiome`, `monde.teleport`) compte comme franchis les obstacles d'avant l'arrivée ; au-delà du fond de la Remontée, toute la carte s'ouvre jusqu'au rechargement.
 
 ### Les obstacles-clés
 

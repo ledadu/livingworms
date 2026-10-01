@@ -9,7 +9,8 @@
 
 import { STEP, TAU, clamp, detail, rand, rng, spec as makeSpec, type Spec } from '../engine';
 import { Atelier } from '../editor';
-import { applyAtelierAccess, baladeUnlocked, unlockBalade } from './atelier-access';
+import { applyAtelierAccess } from './atelier-access';
+import { initBalade } from './balade-jeu';
 import { Creature3, swimFactor3 } from '../engine3/creature3';
 import { Flow } from '../engine3/flow';
 import { draw3, eachGlow3, lodOf, lodSize, prepare3 } from '../engine3/render3';
@@ -165,6 +166,8 @@ function addActor(sp: Spec, x: number, y: number, kind: Actor['kind'], scale = 1
 
 // the saved game (partie-jeu.ts): its creature now, its chapter once the world is ready
 const partie = initPartie(BIOMES.map((b) => b.id));
+// once the story is over, the Balade libre (balade-jeu.ts): open everywhere, without words, the Atelier at hand
+const balade = initBalade(partie);
 function savedPlayer(): Spec | null {
   try { return partie.creature ? makeSpec(partie.creature as Parameters<typeof makeSpec>[0]) : null; } catch { return null; }
 }
@@ -190,8 +193,9 @@ const portee = createPortee((sp, kids) => ponte.hatch(kids.findIndex((k) => k.sp
   ponte.hatch(-1);
   if (!kids.some((c) => crosses(BIOMES[biomeIndex(x)].id, c.traits))) indices.feel(BIOMES[biomeIndex(x)].id);
 });
-/** the traits the brood of this chapter is for: those crossing its obstacle (the song is not of the body) */
-const keysOf = (x: number) => KEYS[BIOMES[biomeIndex(x)].id]?.filter((k) => k !== 'chant');
+/** the traits the brood of this chapter is for: those crossing its obstacle (the song is not of the body; in the Balade,
+ * nothing is to be crossed) */
+const keysOf = (x: number) => (balade.on ? undefined : KEYS[BIOMES[biomeIndex(x)].id]?.filter((k) => k !== 'chant'));
 /** the four children of eggs of this partner, after a parade of this quality (the same seed, the same children);
  * the parade favours the limbs that bring the traits crossing the chapter's obstacle */
 function broodOf(partner: Spec, quality: number, seed: number): void {
@@ -206,13 +210,13 @@ function openPortee(partner: string | Spec, quality = 0.5): void {
 }
 let paused = false;
 const atBtn = document.getElementById('atBtn');
-applyAtelierAccess(atBtn);
-// the lineage tree (arbre-ecran.ts), at any time: the sea waits while it is open
-const arbre = initArbre({ partie, chapters: BIOMES, live: () => player.cr.spec, notes: (rank) => notesOfGeneration(partie.saved, rank), onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); } });
+applyAtelierAccess(atBtn, balade.on);
+// the lineage tree (arbre-ecran.ts), at any time: the sea waits while it is open (in the Balade, the story's lineage)
+const arbre = initArbre({ partie: balade.lignee, chapters: BIOMES, live: () => balade.live(player.cr.spec), notes: (rank) => notesOfGeneration(partie.saved, rank), onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); } });
 // the credits and the keepsake image (generique-ecran.ts), at the end of the story: then the Balade opens, and the tree
 // shows the image again
-const generique = initGenerique({ partie, chapters: BIOMES, live: () => player.cr.spec, notes: (rank) => notesOfGeneration(partie.saved, rank), onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); }, onEnd: () => { unlockBalade(); applyAtelierAccess(atBtn); } });
-arbre.more = () => (baladeUnlocked() || travelShown(location.search) ? souvenirButton(() => { arbre.close(); generique.souvenir(); }) : null);
+const generique = initGenerique({ partie, chapters: BIOMES, live: () => balade.live(player.cr.spec), notes: (rank) => notesOfGeneration(partie.saved, rank), onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); }, onEnd: () => balade.open() });
+arbre.more = () => (balade.on || travelShown(location.search) ? souvenirButton(() => { arbre.close(); generique.souvenir(); }) : null);
 atBtn?.addEventListener('click', () => {
   paused = true;
   Atelier.open(player.cr.spec, {
@@ -1415,7 +1419,8 @@ export const api = {
   get dpr() { return dpr; },
   get size() { return [W, H, canvas.width, canvas.height]; },
   setFrameHook: (f: typeof onFrame) => { onFrame = f; },
-  unlockBalade: () => { unlockBalade(); applyAtelierAccess(atBtn); },
+  balade,
+  unlockBalade: () => balade.open(),
   partners: () => actors.filter((a) => a.partner !== undefined),
   ancestors: () => actors.filter((a) => a.kind === 'parent')
 };
@@ -1446,7 +1451,7 @@ if (!travelShown(location.search)) trip.hidden = (trip.previousElementSibling as
 BIOMES.forEach((b, i) => {
   const btn = document.createElement('button');
   btn.textContent = b.name.replace(/^(La |Le |Les )/, '');
-  btn.addEventListener('click', () => gotoBiome(i));
+  btn.addEventListener('click', () => { gotoBiome(i); if (balade.on) panel.hidden = true; });
   trip.append(btn);
 });
 // a brood with a partner of the chapter (else an animal of it), for the tests (?dev), without a parade
@@ -1470,8 +1475,13 @@ document.addEventListener('touchmove', (e) => { if (!(e.target as HTMLElement).c
 const nouveautes = initNouveautes(() => !Atelier.isOpen && benchOut.hidden === true);
 narrator.quiet = () => !!nouveautes?.isOpen || Atelier.isOpen || portee.isOpen || arbre.isOpen || chant.isOpen || generique.isOpen;
 
+// the Balade libre, if the story is over: the world open, the lineage silent, the Atelier and the travel at hand
+balade.attach({
+  narrator, limits, remontee, atelier: atBtn, travel: [trip, trip.previousElementSibling as HTMLElement],
+  larva: (sp) => { const r = player.cr.root; addActor(sp, r.x[0] + 70, r.y[0] + 40, 'sib', 0.7); }
+});
 // back where the game was left: the start of its chapter, the obstacles before it crossed (teleport)
-const resumeAt = chapterIndex(partie.chapter as (typeof BIOMES)[number]['id']);
+const resumeAt = chapterIndex(partie.resume as (typeof BIOMES)[number]['id']);
 if (resumeAt > 0) { const { x, y } = arrival(resumeAt); teleport(x, y); }
 setTimeout(() => showChapter(chapters.jump(player.cr.root.x[0])), 400);
 requestAnimationFrame(frame);

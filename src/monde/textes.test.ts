@@ -15,7 +15,7 @@ describe('les textes de la lignée', () => {
   });
 
   it('shows every text in two to four lines', () => {
-    for (const c of all) for (const k of ['opening', 'farewell', 'final'] as const) {
+    for (const c of all) for (const k of ['opening', 'farewell', 'final', 'balade'] as const) {
       const lines = c[k];
       if (!lines) continue;
       expect(lines.length, `${c.title} ${k}`).toBeGreaterThanOrEqual(2);
@@ -30,6 +30,11 @@ describe('les textes de la lignée', () => {
     expect(remontee.opening?.[0]).toMatch(/^Nous pensions descendre/);
     expect(remontee.final?.[0]).toBe('Nous sommes remontés.');
     expect(textsOf(all, 'Le Récif', 1)!.farewell?.[0]).toMatch(/^Tu nous as appris/);
+  });
+
+  it('reads the words of the Balade libre at the end of the Remontée, and only there', () => {
+    expect(textsOf(all, 'La Remontée', 9)!.balade?.length).toBeGreaterThan(0);
+    expect(all.filter((c) => c.balade)).toHaveLength(1);
   });
 
   it('breaks a lone long sentence at the comma nearest its middle', () => {
