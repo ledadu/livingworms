@@ -49,8 +49,8 @@ export interface Graph {
   c: BaseAudioContext;
   /** where the music comes in (its level is set here), then the water's low-pass */
   music: GainNode; musicCut: BiquadFilterNode;
-  /** where the song's notes come in */
-  voice: GainNode;
+  /** where the song's notes come in, and where the far ones send what only the reverb gets of them */
+  voice: GainNode; voiceFar: GainNode;
   /** where the noises come in, and where the far ones come in that are only heard in the reverb */
   fx: GainNode; far: GainNode;
   /** how much of each goes to the reverb */
@@ -98,6 +98,10 @@ export function buildGraph(c: BaseAudioContext, v: Volumes = VOLUMES): Graph {
   voiceSend.gain.value = 0.42;
   voice.connect(voiceVol).connect(master);
   voiceVol.connect(voiceSend).connect(rev);
+  // (its gain is the song's volume)
+  const voiceFar = c.createGain();
+  voiceFar.gain.value = voiceVol.gain.value;
+  voiceFar.connect(rev);
   // the noises (bruits-son.ts sets how much of them goes to the reverb, place by place)
   const fx = c.createGain(), fxVol = c.createGain(), fxSend = c.createGain(), far = c.createGain(), farVol = c.createGain();
   fx.gain.value = far.gain.value = FX_LEVEL;
@@ -108,7 +112,7 @@ export function buildGraph(c: BaseAudioContext, v: Volumes = VOLUMES): Graph {
   far.connect(farVol).connect(rev);
   const noise = c.createBuffer(1, c.sampleRate, c.sampleRate), nd = noise.getChannelData(0), nr = rng(11);
   for (let i = 0; i < nd.length; i++) nd[i] = nr() * 2 - 1;
-  return { c, music, musicCut, voice, fx, far, musicSend, voiceSend, fxSend, duck, fade, musicVol, voiceVol, fxVol, farVol, noise, meter };
+  return { c, music, musicCut, voice, voiceFar, fx, far, musicSend, voiceSend, fxSend, duck, fade, musicVol, voiceVol, fxVol, farVol, noise, meter };
 }
 
 /** the music steps back under a note of the song at t, and comes back after `hold` s */
@@ -178,7 +182,7 @@ function createSon(): Son {
     else void ac.resume().catch(() => { /* waits for the next touch */ });
   });
 
-  const gainsOf = (k: keyof Volumes) => (!graph ? [] : k === 'musique' ? [graph.musicVol] : k === 'chant' ? [graph.voiceVol] : [graph.fxVol, graph.farVol]);
+  const gainsOf = (k: keyof Volumes) => (!graph ? [] : k === 'musique' ? [graph.musicVol] : k === 'chant' ? [graph.voiceVol, graph.voiceFar] : [graph.fxVol, graph.farVol]);
   return {
     get graph() { return graph; },
     get awake() { return ac?.state === 'running'; },

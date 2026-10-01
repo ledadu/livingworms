@@ -5,6 +5,7 @@
 // the notes are silent.
 
 import type { ChapterId } from './biomes';
+import { CLEAR, type Heard } from './ecoute';
 import { release, son } from './son';
 
 interface Timbre {
@@ -50,26 +51,32 @@ const TIMBRE: Record<string, Timbre> = {
   fosse: { wave: 'sine', partials: [[1, 0.55], [0.5, 0.3], [1.5, 0.06]], attack: 0.5, decay: 3, breath: 0.12, lp: 1.6 }
 };
 
+/** how a note is sung: `gain` 0..1, `pan` -1 (left) .. 1, `octave` up or down; `far`, from an animal away (ecoute.ts) */
+export interface NoteOpts { gain?: number; pan?: number; octave?: number; far?: Pick<Heard, 'cut' | 'wet'> }
+
 export interface Voice {
-  /** a note of a chapter now: `gain` 0..1, `pan` -1 (left) .. 1, `octave` up or down */
-  note(chapter: ChapterId, freq: number, o?: { gain?: number; pan?: number; octave?: number }): void;
+  /** a note of a chapter now */
+  note(chapter: ChapterId, freq: number, o?: NoteOpts): void;
   /** true once the browser lets it sound */
   readonly awake: boolean;
 }
 
 export function createVoice(): Voice {
   const s = son();
-  function note(chapter: ChapterId, freq: number, o: { gain?: number; pan?: number; octave?: number } = {}): void {
+  function note(chapter: ChapterId, freq: number, o: NoteOpts = {}): void {
     const g = s.graph;
     if (!g || !s.awake) return;
-    sound(g.c, g.voice, g.noise, chapter, freq, o);
+    sound(g.c, g.voice, g.noise, chapter, freq, o, g.voiceFar);
     if ((o.gain ?? 1) >= 0.5) s.duck();
   }
   return { note, get awake() { return s.awake; } };
 }
 
-/** a note of a chapter into `dest`, at the context's current time (an OfflineAudioContext renders it for the tests) */
-export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer | null, chapter: ChapterId, freq: number, o: { gain?: number; pan?: number; octave?: number } = {}): void {
+/**
+ * A note of a chapter into `dest`, at the context's current time (an OfflineAudioContext renders it for the tests); a
+ * far one duller, and a share of it into `wetTo` (only the reverb).
+ */
+export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer | null, chapter: ChapterId, freq: number, o: NoteOpts = {}, wetTo?: AudioNode): void {
   const tb = TIMBRE[chapter];
   if (!tb) return;
   const f = freq * Math.pow(2, o.octave ?? 0), t0 = c.currentTime + 0.01, end = t0 + tb.attack + tb.decay * 1.6;
@@ -80,14 +87,29 @@ export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer |
   env.gain.linearRampToValueAtTime((o.gain ?? 1) * 0.3 * (tb.level ?? 1), t0 + tb.attack);
   env.gain.setTargetAtTime(0, t0 + tb.attack, tb.decay / 3.5);
   let tail: AudioNode = env;
+  if (o.far && o.far.cut < CLEAR) {
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = o.far.cut;
+    lp.Q.value = 0.5;
+    tail.connect(lp);
+    tail = lp;
+    echo.push(lp);
+  }
   if (c.createStereoPanner && o.pan) {
     const p = c.createStereoPanner();
     p.pan.value = Math.max(-1, Math.min(1, o.pan));
-    env.connect(p);
+    tail.connect(p);
     tail = p;
     echo.push(p);
   }
   tail.connect(dest);
+  if (wetTo && o.far && o.far.wet > 0.01) {
+    const w = c.createGain();
+    w.gain.value = o.far.wet;
+    tail.connect(w).connect(wetTo);
+    echo.push(w);
+  }
   let into: AudioNode = env;
   if (tb.lp) {
     const lp = c.createBiquadFilter();

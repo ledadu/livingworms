@@ -3,13 +3,13 @@
 // the animals around answer: a ring of light in the colour of the note, its echo an octave up, and they come a little
 // toward the singer. The lights are drawn on a canvas of their own over the sea, and over its dark.
 
-import { clamp } from '../engine';
 import type { Creature3 } from '../engine3/creature3';
 import type { Proj, View } from '../engine3/view';
 import { biomeIndex, type ChapterId } from './biomes';
 import { GAP, HEARD, NOTES, answersTo, learnedNotes, noteColour, noteOf, type Answer, type Note } from './chant';
 import { initCercle } from './chant-cercle';
 import { createVoice } from './chant-son';
+import { hear, panOnScreen } from './ecoute';
 import { glowOf } from './fosse';
 import type { LearnedNote } from './partie';
 
@@ -131,8 +131,9 @@ export function initChant(d: ChantDeps) {
       an.done = true;
       const n = NOTES[s.notes[an.k]], cr = an.a.cr, r = cr.root;
       d.view.project(r.x[0], r.y[0], r.z[0], P);
-      const far = Math.hypot(r.x[0] - s.singer.root.x[0], r.y[0] - s.singer.root.y[0], r.z[0]) / HEARD;
-      voice.note(n.chapter, n.freq, { gain: 0.5 * (1 - 0.6 * clamp(far, 0, 1)), pan: (P.x / (d.view.W || 1)) * 2 - 1, octave: 1 });
+      // near, loud and clear; far, quieter, duller, in the reverb; from its side of the screen
+      const h = hear(r.x[0] - s.singer.root.x[0], r.y[0] - s.singer.root.y[0], r.z[0], undefined, panOnScreen(P.x, d.view.W));
+      voice.note(n.chapter, n.freq, { gain: 0.5 * h.g, pan: h.pan, octave: 1, far: h });
       shine({ kind: 'answer', note: n, at: cr, t0: t, dur: 2.8, size: 90 + r.rad[0] * 4 });
       come(an.a, s.singer);
     }
