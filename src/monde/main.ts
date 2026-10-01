@@ -66,6 +66,8 @@ import { initMusique } from './musique-son';
 import { initReglagesSon } from './son-reglages';
 import { initOndes } from './ondes-jeu';
 import { initVie } from './vie-jeu';
+import { initBruits } from './bruits-son';
+import { currentNear } from './bruits';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -1305,6 +1307,16 @@ const ondes = initOndes({
 chant.onLight((kind, c, cr) => ondes.sung(kind, cr, c));
 remontee.onNote((_, c) => ondes.sung('rise', player.cr, c));
 
+// ----- the noises of the sea (bruits-son.ts): water, currents, bubbles, whales far away, the Grotte, the Glacier ----- //
+
+const bruits = initBruits({
+  where: () => ({ x: player.cr.root.x[0], y: player.cr.root.y[0] }), springs: decor,
+  current: () => currentNear(keys.near(player.cr.root.x[0]), player.cr.root.x[0]),
+  moment: () => (adieu.on ? 'adieu' : parade.active ? 'parade' : null)
+});
+// the big animals far away cry with their waves
+ondes.onCall((x, y, z, size) => bruits.cry(x - player.cr.root.x[0], y - player.cr.root.y[0], z, size));
+
 // ----- the life of the animals (vie-jeu.ts) ----- //
 
 // alone, in twos, in groups, around the swimmer; when we sing, the sea listens
@@ -1411,7 +1423,7 @@ export const api = {
   biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, generique, traces, rivale, chant, lumieres, ponte, indices, remontee, ondes, vie,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
-  musique,
+  musique, bruits,
   get dpr() { return dpr; },
   get size() { return [W, H, canvas.width, canvas.height]; },
   setFrameHook: (f: typeof onFrame) => { onFrame = f; },

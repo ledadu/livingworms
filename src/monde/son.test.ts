@@ -7,8 +7,8 @@ describe('the volumes of the settings', () => {
     expect(parseVolumes('not json')).toEqual(VOLUMES);
     expect(parseVolumes('[]')).toEqual(VOLUMES);
     expect(parseVolumes('{"musique":0.2}')).toEqual({ ...VOLUMES, musique: 0.2 });
-    expect(parseVolumes('{"musique":0,"chant":1}')).toEqual({ musique: 0, chant: 1 });
-    expect(parseVolumes('{"musique":3,"chant":-1}')).toEqual({ musique: 1, chant: 0 });
+    expect(parseVolumes('{"musique":0,"chant":1}')).toEqual({ ...VOLUMES, musique: 0, chant: 1 });
+    expect(parseVolumes('{"musique":3,"chant":-1,"bruits":0}')).toEqual({ musique: 1, chant: 0, bruits: 0 });
     expect(parseVolumes('{"musique":"fort","chant":null,"autre":0.5}')).toEqual(VOLUMES);
   });
 });
