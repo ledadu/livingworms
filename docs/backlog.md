@@ -45,12 +45,12 @@ Ajoute une jolie oage de chargemydu jeux aui arrive très vite quitte a quelle s
 Bug : dans l'arbre des espèces déjà rencontrées (`src/monde/arbre-ecran.ts`), la croix « × » qui ferme le panneau défile avec la liste. Une fois qu'on est descendu, on ne peut plus fermer : il faut remonter tout en haut de l'arbre pour la retrouver. La croix doit rester visible et cliquable où qu'on soit dans la liste, sur téléphone comme sur ordinateur (pouce, petite largeur) ; Échap et le clic hors du panneau continuent de fermer.
 
 ### La distance des sons
-> 🔵 en cours · agent distance-sons
+> 🟠 fusionné · agent distance-sons
 
 Le moteur de son tient compte de la distance et de la position de ce qui sonne : un animal, une bulle, une cheminée près du nageur s'entend plus fort et plus net, loin il est plus faible, plus sourd (filtre) et plus réverbéré, à gauche ou à droite selon sa place à l'écran. Les bulles sont trop présentes aujourd'hui : moins fortes de loin, et une durée d'émission qui varie (des trains de bulles plus ou moins longs, des silences entre). Respecter le budget du chantier des coupures (pas un panoramique 3D coûteux par bruit).
 
 ### Les coupures du son sur téléphone
-> 🔵 en cours · agent distance-sons
+> 🟠 fusionné · agent distance-sons
 > ↳ après « La distance des sons »
 
 Sur téléphone, quand on chante beaucoup de notes à la suite, le son coupe ; on entend aussi d'autres petites coupures de temps en temps. Optimiser le moteur de son (`son.ts`, `chant-son.ts`, `musique-son.ts`, `bruits-son.ts`) pour qu'il ne décroche plus : mesurer sur un vrai téléphone ce qui coûte (nombre de voix et de nœuds vivants pendant un chant soutenu, réverbération, filtres qui glissent), plafonner les voix du chant et voler les plus anciennes, libérer les nœuds finis, alléger ce qui peut l'être quand l'appareil peine. Le mélange ne doit pas changer à l'oreille. À faire avant les autres chantiers du son, qui en ajoutent.
