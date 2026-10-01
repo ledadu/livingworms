@@ -1,11 +1,14 @@
 // Performance tests of the 2.5D engine in the big world, run inside the page
 // (button in the panel, or ?bench in the address). Three parts:
-//  1. the tour: the swimmer crosses each biome; time per frame of the
-//     simulation, of the drawing, and of the rasterisation (one pixel read
-//     back forces the canvas to finish its work);
+//  1. the tour: the swimmer crosses each biome at the distance of the game;
+//     time per frame of the simulation, of the drawing, of the GPU where the
+//     browser gives it (chrono-gpu.ts), and of the rasterisation (one pixel
+//     read back forces the canvas to finish its work); ?bench=jeu does the tour
+//     with the quality left to adapt, as when playing;
 //  2. the load: more and more animals around the swimmer on the reef;
 //  3. the engine alone: every species, simulated and drawn in isolation.
-// The result is shown in a table and left in window.__bench.
+// The result is shown in a table, as text to copy (bench-texte.ts: to send
+// the measure of a phone), and left in window.__bench.
 
 import { STEP } from '../engine';
 import { SPECIES } from '../content';
@@ -16,6 +19,8 @@ import { Gfx } from '../engine3/gfx';
 import { paint3 } from '../engine3/paint-gl';
 import { makeCanvas } from './sprites';
 import { arrival, chapterIndex } from './biomes';
+import { ChronoGpu } from './chrono-gpu';
+import { benchText, verdict } from './bench-texte';
 import type { FrameSample, api as Api } from './main';
 
 type A = typeof Api;
@@ -26,28 +31,42 @@ const sum = (v: number[]): Summary => {
   return { avg: v.reduce((a, b) => a + b, 0) / (v.length || 1), p50: q(0.5), p95: q(0.95), max: s[s.length - 1] || 0 };
 };
 
-interface Rec { cpu: number[]; update: number[]; render: number[]; flush: number[]; dt: number[]; perStep: number[]; }
+interface Rec { cpu: number[]; update: number[]; render: number[]; flush: number[]; dt: number[]; perStep: number[]; gpu: number[]; }
+/** the GPU's time of the frames, while the bench runs (null: the browser does not give it) */
+let chrono: ChronoGpu | null = null;
 function frames(api: A, n: number, rec?: Rec): Promise<void> {
   return new Promise((done) => {
     let k = 0;
+    if (chrono) chrono.done.length = 0;
     api.setFrameHook((s: FrameSample) => {
       if (rec) {
         rec.cpu.push(s.update + s.render + s.flush); rec.update.push(s.update); rec.render.push(s.render); rec.flush.push(s.flush); rec.dt.push(s.dt);
         if (s.steps) rec.perStep.push(s.update / s.steps);
       }
+      if (chrono) { if (rec) rec.gpu.push(...chrono.done); chrono.done.length = 0; }
       if (++k >= n) { api.setFrameHook(null); done(); }
     });
   });
 }
-const newRec = (): Rec => ({ cpu: [], update: [], render: [], flush: [], dt: [], perStep: [] });
+const newRec = (): Rec => ({ cpu: [], update: [], render: [], flush: [], dt: [], perStep: [], gpu: [] });
 const brief = (r: Rec) => ({
   cpu: sum(r.cpu), update: sum(r.update), perStep: sum(r.perStep), render: sum(r.render), flush: sum(r.flush),
+  gpu: r.gpu.length ? sum(r.gpu) : null,
   fps: 1000 / sum(r.dt).avg, over16: r.cpu.filter((c) => c > 16.7).length / (r.cpu.length || 1)
 });
 
+/** the name of the GPU, where the browser tells it */
+function gpuName(gl: WebGL2RenderingContext | undefined): string {
+  if (!gl) return '';
+  const info = gl.getExtension('WEBGL_debug_renderer_info');
+  return String(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+}
+
 export interface BenchResult {
-  when: string; ua: string; screen: number[]; dpr: number;
-  tour: ({ biome: string; near: number; live: number; plants: number; items: number } & ReturnType<typeof brief>)[];
+  when: string; ua: string; screen: number[]; dpr: number; gpuName: string;
+  /** what was measured: complet, tour, jeu (the tour, the quality adapting), lod, species, flush */
+  mode: string;
+  tour: ({ biome: string; near: number; live: number; plants: number; items: number; quality: number; bias: number } & ReturnType<typeof brief>)[];
   load: ({ extra: number; near: number } & ReturnType<typeof brief>)[];
   farBake: { farEvery: number; cpu: Summary; render: Summary }[];
   lod: { zoom: string; mode: string; fps: number; cpu: Summary; perStep: Summary; levels: number[] }[];
@@ -124,37 +143,50 @@ export async function runBench(api: A, out: HTMLElement): Promise<BenchResult | 
   const say = (s: string) => { out.innerHTML = `<p class="busy">${s}</p>`; };
   const keep = { farEvery: api.opts.farEvery, lock: api.lockQuality.v, x: api.player.cr.root.x[0], y: api.player.cr.root.y[0] };
   const keepBias = api.bias, keepZoom = api.input.zoomMul;
-  api.lockQuality.v = true;
+  // ?bench=tour: the tour only; ?bench=jeu: the tour as when playing; ?bench=lod: the levels of detail only (quick before / after)
+  const only = new URLSearchParams(location.search).get('bench') || '';
+  const part = (p: string) => !only || only === 'flush' || only === p || (only === 'jeu' && p === 'tour');
+  // as when playing, the quality adapts to the device; else it stays whole, for measures that compare
+  api.lockQuality.v = only !== 'jeu';
   api.setQuality(1);
   api.setBias(1);
+  // the distance of the game, whatever the player chose (the drawing grows with the zoom)
+  api.input.zoomMul = 1;
   // reading a pixel back forces the rasterisation into the measure (useful with a software canvas), but repeated
   // read-backs make Chrome move a GPU canvas to the CPU: only on demand (?bench=flush)
-  api.opts.flush = new URLSearchParams(location.search).get('bench') === 'flush';
+  api.opts.flush = only === 'flush';
+  const g = api.gfx, begin = g?.begin;
+  chrono = g ? new ChronoGpu(g.gl) : null;
+  if (g && chrono?.ok) g.begin = function (r: number, gg: number, b: number) { chrono!.frame(); begin!.call(this, r, gg, b); };
+  else chrono = null;
   const res: BenchResult = {
-    when: new Date().toISOString(), ua: navigator.userAgent, screen: api.size, dpr: api.dpr, tour: [], load: [], farBake: [], lod: [], species: []
+    when: new Date().toISOString(), ua: navigator.userAgent, screen: api.size, dpr: api.dpr, gpuName: gpuName(g?.gl), mode: only || 'complet',
+    tour: [], load: [], farBake: [], lod: [], species: []
   };
 
-  // ?bench=tour: the tour only; ?bench=lod: the levels of detail only (quick before / after)
-  const only = new URLSearchParams(location.search).get('bench') || '';
-
   // 1. the tour
-  for (let i = 0; i < api.biomes.length && only !== 'lod' && only !== 'species'; i++) {
+  for (let i = 0; i < api.biomes.length && part('tour'); i++) {
     const b = api.biomes[i];
     say(`Tour du monde : ${b.name}…`);
     api.gotoBiome(i);
     const { x, y } = arrival(i);
     api.auto.on = true; api.auto.x = x + 900; api.auto.y = y;
-    await frames(api, 90);
+    // when the quality adapts, it is given the time to settle (it moves every 60 frames)
+    await frames(api, only === 'jeu' ? 240 : 90);
     const rec = newRec();
     let near = 0, live = 0, plants = 0, items = 0, n = 0;
     const tick = setInterval(() => { near += api.counts.near; live += api.counts.live; plants += api.counts.plants; items += api.counts.items; n++; }, 100);
     await frames(api, 240, rec);
     clearInterval(tick);
-    res.tour.push({ biome: b.name, near: Math.round(near / n), live: Math.round(live / n), plants: Math.round(plants / n), items: Math.round(items / n), ...brief(rec) });
+    res.tour.push({ biome: b.name, near: Math.round(near / n), live: Math.round(live / n), plants: Math.round(plants / n), items: Math.round(items / n), quality: api.quality, bias: api.bias, ...brief(rec) });
   }
+  res.screen = api.size; res.dpr = api.dpr;
+  api.lockQuality.v = true;
+  api.setQuality(1);
+  api.setBias(1);
 
   // 2. the load, on the reef
-  if (only !== 'tour' && only !== 'lod' && only !== 'species') {
+  if (part('load')) {
     api.gotoBiome(chapterIndex('recif'));
     api.auto.on = false;
     for (const extra of [0, 25, 50, 100, 200]) {
@@ -182,7 +214,7 @@ export async function runBench(api: A, out: HTMLElement): Promise<BenchResult | 
     api.opts.farEvery = keep.farEvery;
   }
 
-  if (only !== 'tour' && only !== 'species') {
+  if (part('lod')) {
     // levels of detail against the zoom, in the kelp forest (the heaviest place)
     api.gotoBiome(chapterIndex('foret'));
     for (const [zoom, z] of [['éloigné', 0.5], ['normal', 1], ['rapproché', 2.2]] as const) {
@@ -200,11 +232,10 @@ export async function runBench(api: A, out: HTMLElement): Promise<BenchResult | 
       }
     }
     api.opts.lod = true;
-    api.input.zoomMul = keepZoom;
-    api.setBias(keepBias);
+    api.setBias(1);
   }
 
-  if (only !== 'tour' && only !== 'lod') {
+  if (part('species')) {
     // 3. the engine alone, species by species (the world is paused: one clean measure)
     say('Moteur seul : chaque espèce…');
     await frames(api, 2);
@@ -249,6 +280,11 @@ export async function runBench(api: A, out: HTMLElement): Promise<BenchResult | 
   }
 
   api.opts.flush = false;
+  if (g && begin) g.begin = begin;
+  chrono?.stop();
+  chrono = null;
+  api.input.zoomMul = keepZoom;
+  api.setBias(keepBias);
   api.lockQuality.v = keep.lock;
   api.teleport(keep.x, keep.y);
   (window as unknown as { __bench: BenchResult }).__bench = res;
@@ -261,24 +297,35 @@ export async function runBench(api: A, out: HTMLElement): Promise<BenchResult | 
 const f1 = (v: number) => v.toFixed(1), f0 = (v: number) => v.toFixed(0);
 
 function show(r: BenchResult, out: HTMLElement): void {
-  const tour = r.tour.map((b) => `<tr><td>${b.biome}</td><td>${f0(b.fps)}</td><td>${f1(b.cpu.avg)}</td><td>${f1(b.cpu.p95)}</td><td>${f1(b.perStep.avg)}</td><td>${f1(b.render.avg)}</td><td>${f1(b.flush.avg)}</td><td>${b.near}</td><td>${b.plants}</td><td>${b.items}</td></tr>`).join('');
+  const tour = r.tour.map((b) => `<tr><td>${b.biome}</td><td>${f0(b.fps)}</td><td>${verdict(b.fps)}</td><td>${f1(b.cpu.avg)}</td><td>${f1(b.cpu.p95)}</td><td>${f1(b.perStep.avg)}</td><td>${f1(b.render.avg)}</td><td>${b.gpu ? f1(b.gpu.avg) : '–'}</td><td>${f1(b.flush.avg)}</td><td>${Math.round(b.quality * 100)} %</td><td>${b.near}</td><td>${b.plants}</td><td>${b.items}</td></tr>`).join('');
   const load = r.load.map((b) => `<tr><td>+${b.extra}</td><td>${b.near}</td><td>${f0(b.fps)}</td><td>${f1(b.cpu.avg)}</td><td>${f1(b.cpu.p95)}</td><td>${f1(b.perStep.avg)}</td><td>${f1(b.render.avg)}</td><td>${f1(b.flush.avg)}</td></tr>`).join('');
   const lod = r.lod.map((b) => `<tr><td>${b.zoom}</td><td>${b.mode}</td><td>${f0(b.fps)}</td><td>${f1(b.cpu.avg)}</td><td>${f1(b.perStep.avg)}</td><td>${b.levels.join(' / ')}</td></tr>`).join('');
   const far = r.farBake.map((b) => `<tr><td>toutes les ${b.farEvery}</td><td>${f1(b.cpu.avg)}</td><td>${f1(b.render.avg)}</td></tr>`).join('');
   const sp = r.species.slice(0, 12).map((s) => `<tr><td>${s.id}</td><td>${s.nodes}</td><td>${f0(s.stepUs)}</td><td>${f0(s.drawUs)}</td><td>${s.paths.join(' / ')}</td></tr>`).join('');
+  // a table per part measured, under its title
+  const sec = (title: string, head: string[], rows: string) => rows ? `<h3>${title}</h3>
+    <div class="scroll"><table><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr>${rows}</table></div>` : '';
   out.innerHTML = `
     <button class="close" aria-label="Fermer">×</button>
     <h2>Performance</h2>
-    <p class="note">${r.screen[0]}×${r.screen[1]} css px, canvas ${r.screen[2]}×${r.screen[3]}. Temps en ms par image (processeur : simulation + dessin + rastérisation).</p>
-    <h3>Tour du monde</h3>
-    <div class="scroll"><table><tr><th>Biome</th><th>img/s</th><th>moy.</th><th>p95</th><th>simu/pas</th><th>dessin</th><th>raster</th><th>animaux</th><th>plantes</th><th>objets</th></tr>${tour}</table></div>
-    <h3>Charge (Récif)</h3>
-    <div class="scroll"><table><tr><th>ajout</th><th>proches</th><th>img/s</th><th>moy.</th><th>p95</th><th>simu/pas</th><th>dessin</th><th>raster</th></tr>${load}</table></div>
-    <h3>Animaux lointains re-cuits…</h3>
-    <div class="scroll"><table><tr><th></th><th>moy.</th><th>dessin</th></tr>${far}</table></div>
-    <h3>Niveaux de détail et zoom (forêt de kelp)</h3>
-    <div class="scroll"><table><tr><th>zoom</th><th></th><th>img/s</th><th>processeur</th><th>simu/pas</th><th>N0 / N1 / N2 / imposteurs</th></tr>${lod}</table></div>
-    <h3>Moteur seul — les 12 espèces les plus chères</h3>
-    <div class="scroll"><table><tr><th>espèce</th><th>nœuds</th><th>µs / pas</th><th>µs / dessin</th><th>tracés N0 / N1 / N2</th></tr>${sp}</table></div>`;
+    <p class="note">${r.screen[0]}×${r.screen[1]} css px, canvas ${r.screen[2]}×${r.screen[3]}${r.gpuName ? ', ' + r.gpuName : ''}. Temps en ms par image (processeur : simulation + dessin + rastérisation ; GPU quand le navigateur le donne).</p>
+    <button class="copy">Copier le résultat</button>
+    ${sec(`Tour du monde${r.mode === 'jeu' ? ' (qualité adaptée, comme en jeu)' : ''}`, ['Biome', 'img/s', '', 'moy.', 'p95', 'simu/pas', 'dessin', 'GPU', 'raster', 'résolution', 'animaux', 'plantes', 'objets'], tour)}
+    ${sec('Charge (Récif)', ['ajout', 'proches', 'img/s', 'moy.', 'p95', 'simu/pas', 'dessin', 'raster'], load)}
+    ${sec('Animaux lointains re-cuits…', ['', 'moy.', 'dessin'], far)}
+    ${sec('Niveaux de détail et zoom (forêt de kelp)', ['zoom', '', 'img/s', 'processeur', 'simu/pas', 'N0 / N1 / N2 / imposteurs'], lod)}
+    ${sec('Moteur seul — les 12 espèces les plus chères', ['espèce', 'nœuds', 'µs / pas', 'µs / dessin', 'tracés N0 / N1 / N2'], sp)}
+    <h3>En texte</h3>
+    <p class="note">À envoyer, depuis un téléphone aussi : « Copier le résultat », puis coller dans un message.</p>
+    <textarea class="text" readonly rows="8"></textarea>`;
+  const text = out.querySelector<HTMLTextAreaElement>('.text')!, copy = out.querySelector<HTMLButtonElement>('.copy')!;
+  text.value = benchText(r);
+  copy.addEventListener('click', () => {
+    text.select();
+    const said = () => { copy.textContent = 'Copié'; };
+    // the clipboard of the page needs a secure address; else the text stays selected, to copy by hand
+    if (navigator.clipboard) navigator.clipboard.writeText(text.value).then(said, () => { if (document.execCommand('copy')) said(); });
+    else if (document.execCommand('copy')) said();
+  });
   out.querySelector('.close')!.addEventListener('click', () => { out.hidden = true; });
 }
