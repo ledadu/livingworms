@@ -155,6 +155,17 @@ La lentille, en deux passes d'un même shader WebGL2, sur les seules régions de
 
 **Le champ de vagues** (une expérience, `?ondes=champ`, `ondes-champ.ts`) : l'équation des ondes sur une grille posée sur le plan de nage autour du nageur, ancrée dans le monde. Les animaux qui nagent dans le plan y laissent un sillage, le chant y lâche une onde ; les vagues se croisent, s'additionnent, rebondissent sur le fond et la surface, s'éteignent. Plus vivant que les anneaux, mais il plie tout l'écran dès qu'on nage (un peu moins de 1 ms de calcul par image, et la lentille sur tout l'écran) et ses ondes ne suivent pas l'anneau de lumière des notes.
 
+## L'écran de chargement
+
+Le jeu tient en une page d'un mégaoctet et plus, longue à arriver et à démarrer sur un téléphone. Pour qu'on ne voie jamais une page blanche :
+
+- **Tout de suite** : un écran dessiné par la page elle-même, en HTML et CSS, sans attendre aucun script (`index.html`, `#chargement`). La mer bleu profond, trois rayons de lumière, quelques grains de neige marine qui remontent, la larve, « La Lignée » et « Nous nous éveillons… ».
+- **La larve** est le premier ancêtre : ambrée, translucide, deux rangées de cils qui battent en vague, une queue en ruban puis en nageoire voilée qui ondule, une lueur qui pulse au cœur du corps, un grand œil qui cligne.
+- **Il s'anime** pendant que le jeu se charge : la larve nage, les rayons oscillent, les grains montent, la phrase respire. Rien que des transformations et des fondus, que le navigateur anime même quand le script du jeu l'occupe ; immobile si le système demande moins d'animations.
+- **Il s'efface** en fondu, en avançant un peu vers nous, une fois que le monde a dessiné ses trois premières images (`src/monde/chargement.ts`).
+- **À la publication**, les scripts de la page (le jeu, les Nouveautés) passent à la fin (`src/monde/chargement-page.ts`) : l'écran s'affiche avec les premiers kilo-octets. Les polices ne retiennent plus le premier affichage (sans réseau, elles le bloquaient).
+- **Mesure** (Chrome, téléphone simulé : réseau 4 Mbit/s, processeur 4 fois plus lent) : le premier affichage passe de 2,9 s (une page blanche, puis un bleu vide jusqu'à 9 s) à 0,7 s ; le jeu démarre au même moment qu'avant.
+
 ## Le son
 
 Presque tout est généré dans le code (Web Audio API, voir [decisions.md](decisions.md#technique)) ; l'eau, le ressac, les bulles, la glace et les baleines sont de vrais enregistrements, embarqués dans la page (voir « Les vrais enregistrements » plus bas).
