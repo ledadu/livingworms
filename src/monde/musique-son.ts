@@ -11,7 +11,7 @@ import { buildGraph, release, son, type Graph } from './son';
 /** how far ahead the notes are scheduled, and how often the clock looks (s) */
 const AHEAD = 1.2, TICK = 0.2;
 /** how long the voices of a chapter left behind are kept, in case the swimmer comes back (s) */
-const LINGER = 12;
+const LINGER = 6;
 
 /** the short notes: their partials [ratio, loudness], how fast they rise, fade (time constant) and end (s) */
 const TONES: Record<Tone, { partials: [number, number][]; attack: number; fade: number; len: number }> = {
@@ -229,13 +229,16 @@ export function musicEngine(G: Graph, seed = 1) {
   /**
    * The music at `now` for a swimmer at (x, y): the chapters heard there, how much of them goes to the reverb, how
    * muffled the water is; then what each plays in the next moment. `bright` (0..1) lights it up: the water opens and
-   * the ambience of the Remontée rises over the chapter. Off (its volume at nothing), every voice is let go.
+   * the ambience of the Remontée rises over the chapter, which steps back under it. Off (its volume at nothing), every
+   * voice is let go.
    */
   function tick(now: number, x: number, y: number, bright = 0, on = true): void {
     const mix = on ? mixAt(x) : [];
     if (on && bright > 0) {
-      const k = BIOMES.length - 1, m = mix.find((q) => q.i === k);
-      if (m) m.g = Math.max(m.g, bright * 0.7); else mix.push({ i: k, g: bright * 0.7 });
+      const k = BIOMES.length - 1;
+      for (const q of mix) if (q.i !== k) q.g *= 1 - 0.45 * bright;
+      const m = mix.find((q) => q.i === k);
+      if (m) m.g = Math.max(m.g, bright * 0.8); else mix.push({ i: k, g: bright * 0.8 });
     }
     let s = 0, vs = 0, sum = 0;
     for (const { i, g } of mix) {
