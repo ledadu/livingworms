@@ -67,6 +67,7 @@ import { initReglagesSon } from './son-reglages';
 import { initOndes } from './ondes-jeu';
 import { initVie } from './vie-jeu';
 import { awakeOutOfSight, inSight } from './hors-champ';
+import { gpuBound } from './qualite';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -557,15 +558,16 @@ function update(): void {
     }
   }
 
-  // plants grow when they come near (a few milliseconds of work per frame at most), and are forgotten far behind
-  const deadline = performance.now() + 3;
+  // plants grow when they come near (a few milliseconds of work per frame at most, whatever the steps), and are forgotten far behind
+  const g0 = performance.now(), until = g0 + growLeft;
   for (const pl of plants) {
     const dx = Math.abs(pl.x - px);
     if (!pl.cr && dx < 1800) {
+      if (growLeft <= 0 || performance.now() > until) break;
       growPlant2(pl);
-      if (performance.now() > deadline) break;
     } else if (pl.cr && dx > 3200) { pl.cr = null; pl.sprite = null; }
   }
+  growLeft -= performance.now() - g0;
 
   // entering a biome
   const bi = chapters.step(px);
@@ -1318,6 +1320,8 @@ chant.onNote(() => vie.hush());
 // ----- loop ----- //
 
 let last = performance.now(), acc = 0, fn = 0, fsum = 0;
+/** ms left to the plants to grow in this frame (update) */
+let growLeft = 3;
 const timeScale = { v: 1 };
 const lockQuality = { v: false };
 const stats = { fps: 0, render: 0, update: 0, flush: 0 };
@@ -1334,6 +1338,7 @@ function frame(now: number): void {
   acc += Math.min(0.1, dt / 1000) * timeScale.v;
   let steps = 0;
   const u0 = performance.now();
+  growLeft = 3;
   while (acc >= STEP && steps < 3) { update(); acc -= STEP; steps++; }
   const ut = performance.now() - u0;
   stats.update = stats.update * 0.9 + ut * 0.1;
@@ -1360,8 +1365,8 @@ function frame(now: number): void {
     const avg = fsum / fn;
     stats.fps = 1000 / avg;
     if (!lockQuality.v) {
-      // late frames: the shimmer of the water goes first (ondes-jeu.ts), then the detail of the animals, then the resolution
-      if (avg > 21) { if (ondes.ease()) { /* the water stills */ } else if (bias < BIAS_MAX) setBias(bias * 1.3); else if (quality > 0.55) { quality *= 0.85; resize(); } }
+      // late frames: the shimmer of the water goes first (ondes-jeu.ts), then the detail of the animals, then the resolution (when the GPU is late: qualite.ts)
+      if (avg > 21) { if (ondes.ease()) { /* the water stills */ } else if (bias < BIAS_MAX) setBias(bias * 1.3); else if (quality > 0.55 && gpuBound(avg, stats.update + stats.render + stats.flush)) { quality *= 0.85; resize(); } }
       else if (avg < 15) { if (quality < 1) { quality = Math.min(1, quality / 0.9); resize(); } else if (bias > 1) setBias(bias / 1.3); }
     }
     fn = 0; fsum = 0;
