@@ -3,9 +3,10 @@
 // the ice of the Glacier that cracks and tinkles. What each chapter sounds like and the shape of each noise, pure and
 // tested; bruits-son.ts plays them with the Web Audio API into the noises' bus of son.ts.
 
-import { clamp, lerp } from '../engine';
+import { clamp, lerp, rng } from '../engine';
 import { BIOMES, presence, type ChapterId } from './biomes';
 import { caveCover } from './grotte';
+import { REACH, hear, type Heard } from './ecoute';
 import { hz, pentaIn } from './musique';
 
 /** what a chapter sounds like */
@@ -123,12 +124,12 @@ export function hushIn(moment: 'adieu' | 'parade' | null): number {
 // ----- where a noise comes from ----- //
 
 /**
- * A noise `dx`, `dy` px from the swimmer, `dz` behind the swimming plane: how loud (0..1), from which side
- * (-1 left .. 1 right) and how muffled (the cut-off of its low-pass, Hz). The far ones are dull and quiet.
+ * A noise `dx`, `dy` px from the swimmer, `dz` behind the swimming plane (ecoute.ts): how loud (0..1), from which side
+ * (-1 left .. 1 right), how muffled (the cut-off of its low-pass, Hz) and how far in the reverb. The far ones are dull,
+ * quiet and distant.
  */
-export function heard(dx: number, dy: number, dz = 0): { g: number; pan: number; cut: number } {
-  const d = Math.hypot(dx, dy, dz * 0.6);
-  return { g: 1 / (1 + d / 500), pan: clamp(dx / 900, -0.85, 0.85), cut: 400 + 11000 * Math.exp(-d / 1400) };
+export function heard(dx: number, dy: number, dz = 0, reach: number = REACH.mid, pan?: number): Heard {
+  return hear(dx, dy, dz, reach, pan);
 }
 
 /** the time until the next of a noise that comes `perSecond` times a second, at random (s); Infinity for never */
@@ -159,6 +160,52 @@ export function burst(r: () => number, n = 6, big = 1): Bubble[] {
     t += 0.03 + 0.11 * r();
   }
   return out;
+}
+
+/**
+ * Bubbles come in trains from one place: bursts `pace` times a second for `len` s, then a silence of `rest` s. A seep
+ * puffs now and then, a chimney longer and more often, and a train here and there is short.
+ */
+export interface Train { len: number; rest: number; pace: number; }
+
+export function train(r: () => number, kind: 'seep' | 'vent' | 'free'): Train {
+  const a = r(), b = r(), c = r();
+  if (kind === 'vent') return { len: 1 + 4 * a * a, rest: 2.5 + 7 * Math.pow(b, 1.5), pace: 1.9 + c };
+  if (kind === 'seep') return { len: 0.3 + 3.5 * a * a, rest: 2.5 + 10 * Math.pow(b, 1.5), pace: 1.6 + c };
+  return { len: 1.6 * a * a, rest: 0, pace: 2 + 1.5 * c };
+}
+
+/** the trains of a seep or a chimney, from its seed, over a cycle that comes back: [start, end, pace] (s) */
+export interface Trains { period: number; on: [number, number, number][]; }
+
+export function trainsOf(seed: number, kind: 'seep' | 'vent', period = 150): Trains {
+  const r = rng(seed * 31 + (kind === 'vent' ? 1 : 2)), on: [number, number, number][] = [];
+  for (let t = r() * 5; ;) {
+    const tr = train(r, kind);
+    if (t + tr.len > period) break;
+    on.push([t, t + tr.len, tr.pace]);
+    t += tr.len + tr.rest;
+  }
+  return { period, on };
+}
+
+const known = new Map<string, Trains>();
+/** the trains of a seep or a chimney (made once): the sound and the bubbles one sees follow them alike */
+export function springTrains(seed: number, kind: 'seep' | 'vent'): Trains {
+  const k = `${kind}${seed}`;
+  let tr = known.get(k);
+  if (!tr) known.set(k, (tr = trainsOf(seed, kind)));
+  return tr;
+}
+
+/** how many bursts a second these trains let out at t (s, on the clock of the page): 0 in a silence */
+export function bubblingAt(tr: Trains, t: number): number {
+  const u = ((t % tr.period) + tr.period) % tr.period;
+  for (const [a, b, pace] of tr.on) {
+    if (u < a) return 0;
+    if (u < b) return pace;
+  }
+  return 0;
 }
 
 // ----- the Grotte ----- //

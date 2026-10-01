@@ -1,0 +1,22 @@
+/* Taking again an earlier form, in the lineage tree (arbre-ecran.ts, retour-jeu.ts): a quiet button under each
+   earlier generation, a word to be sure, and on the thread, « retour à … » in gold where the lineage went back */
+#arbre .ar-again {
+  display: block; width: fit-content; margin-top: 7px; padding: 5px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(246,217,138,0.4); background: rgba(246,217,138,0.07); color: var(--gold);
+  font: inherit; font-size: 14px; letter-spacing: 0.02em;
+}
+#arbre .ar-again:hover { background: rgba(246,217,138,0.16); }
+#arbre .ar-ask {
+  margin-top: 8px; padding: 10px 12px; border-radius: 12px; display: grid; grid-template-columns: auto auto 1fr; gap: 6px 8px; align-items: center;
+  background: rgba(246,217,138,0.08); box-shadow: 0 0 0 1px rgba(246,217,138,0.45), 0 0 18px rgba(246,217,138,0.15);
+}
+#arbre .ar-ask p { grid-column: 1 / -1; margin: 0; font-size: 18px; }
+#arbre .ar-ask small { grid-column: 1 / -1; margin: 0 0 4px; font-style: italic; font-size: 14px; letter-spacing: 0; text-transform: none; opacity: 0.75; }
+#arbre .ar-ask button { min-height: 36px; padding: 0 16px; border-radius: 999px; font: inherit; font-size: 15px; cursor: pointer; }
+#arbre .ar-yes { border: 0; background: var(--gold); color: #10283a; font-weight: 600; }
+#arbre .ar-no { border: 1px solid rgba(244,239,226,0.35); background: none; color: inherit; }
+#arbre .ar-back { color: var(--gold); min-height: 40px; }
+#arbre .ar-back::before { background: linear-gradient(90deg, rgba(246,217,138,0.7), rgba(246,217,138,0.15)); }
+#arbre .ar-back .ar-knot { border-color: var(--gold); box-shadow: 0 0 8px rgba(246,217,138,0.6); }
+/* in the credits (generique-ecran.ts), the same words in gold on the thread */
+#generique .gq-back { color: var(--gold); }

@@ -7,7 +7,7 @@ Ce qui a été tranché sur le [plan v1](plan-v1.md), ce qui reste à trancher, 
 | Sujet | Décision | Conséquence |
 | --- | --- | --- |
 | Chapitres | On **ajoute la Grotte et le Glacier** aux 8 chapitres. | 10 chapitres (9 de descente et la Remontée). Leur place et leur contenu sont des propositions, voir [chapitres.md](chapitres.md) et les questions 1 et 2 ci-dessous. |
-| Reproduction | On garde la **parade** (nage synchronisée d'environ 20 s, sans échec possible). | Voir [mecaniques.md](mecaniques.md#la-parade). |
+| Reproduction | On garde la **parade** (nage synchronisée sans échec possible) ; c'est le joueur qui déclenche l'accouplement, suivi d'une danse à deux qu'on regarde. | Voir [mecaniques.md](mecaniques.md#la-parade). |
 | Danger | **Zéro danger.** Les prédateurs ne touchent pas et n'arrachent rien. | Plus de perte de partie du corps. Voir la question 4 pour les contraintes du milieu. |
 | Voix | Le **« nous » des ancêtres**. | Tous les textes narratifs sont écrits à la première personne du pluriel. |
 | Durée | **1 h 30 à 2 h**, calibration validée. | Avec 10 chapitres : environ 9 à 12 minutes par chapitre. |

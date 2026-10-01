@@ -21,7 +21,7 @@
   - **l'eau** et **le ressac** : une source en boucle et un filtre chacun, au même niveau que le bruit qu'ils remplacent ; le bruit généré s'efface puis est débranché 3 s après ;
   - **bulles**, **glace**, **baleines** : un bruit du fichier au hasard (`recCue`), passé par `way()` (côté, distance, réverbération) comme les autres ; les bulles à la hauteur de leur taille (celles des cheminées plus graves), les baleines selon leur voix (`farWhale` rend maintenant `voice`, et le second cri d'un grand visiteur est un peu plus bas) ;
   - `renderBruits(…, { recordings: false })` pour comparer ; `monde.bruits.heardRec` et `monde.bruits.recorded` pour les tests.
-- Les niveaux, mesurés hors ligne dans Chrome (médiane / 95 % / max, en dB) : le fond reste vers −35 dB comme avant (Nurserie −35,2 au lieu de −35,5 ; Récif −34,8 au lieu de −35,2) ; une baleine de la Fosse culmine à −33,5 (−33,3 avant). La glace a été remontée jusqu'à se détacher du fond (ses craquements sont longs et sonnent plus fort que leur niveau moyen).
+- Les niveaux, mesurés hors ligne dans Chrome (médiane / 95 % / max, en dB), après la fusion avec la distance des sons : le fond reste vers −35 dB comme avant (Nurserie −35,3 au lieu de −35,5 ; Récif −34,8 au lieu de −35,2) ; la glace culmine à −26,4 (−26,5 avec le son du code) ; une baleine de la Fosse à −30,7 (−32,2) ; les cris d'un grand visiteur à −32,3 (−30,9).
 - Docs : `docs/decisions.md` (la décision « sans fichier audio » revue : formats, budget, chargement, cache, repli), `docs/direction-artistique.md` (« Les vrais enregistrements », ce qui reste généré et pourquoi, le coût).
 
 ![Avant / après : les bruits faits dans le code, puis les vrais enregistrements](img/spectres-avant-apres.jpg)
@@ -37,6 +37,18 @@
 ![Le panneau des sons, ouvert depuis ⚙](img/panneau-sons.jpg) ![La section « Sons » du générique](img/generique-sons.jpg)
 
 **Pour l'entendre** : `make up`, toucher l'écran une fois, nager près de la surface de la Nurserie (le ressac), aller au Glacier (`monde.gotoBiome(6)`) ; `monde.bruits.play('whales')`, `play('bubbles')`, `play('cracks')` ; `monde.bruits.heardRec` compte ce qui a été joué depuis les fichiers.
+
+**Fusion avec `backlog`** (après les chantiers distance-sons, coupures du son, musiques qui changent, etc.)
+
+- Conflits dans `src/monde/bruits-son.ts` (8 blocs), tous réglés en gardant les deux côtés :
+  - `bruitsEngine(G, springs, seed, panAt?, recs?)` : le `panAt` de distance-sons en 4ᵉ, mes enregistrements en 5ᵉ (`renderBruits` passe `undefined` pour le côté) ;
+  - `Beds` garde le côté du grondement (`side`) et mes champs (`hi`, `surfBand`, `rec`) ; `startBeds` crée les deux, `stopBeds` oublie les deux ;
+  - dans `tick()`, la cheminée la plus proche (`vent`, pour le côté du grondement) et mes boucles d'eau et de ressac ;
+  - `ice()` et `whale()` : mes blocs « enregistrement » passent par le nouveau `at()` (portée et côté à l'écran) et la part de réverbération `h.wet` de distance-sons ;
+  - les imports : `ecoute.ts` et les miens.
+- Conflit dans `docs/direction-artistique.md` : ma section « Les vrais enregistrements » et la nouvelle « La distance des sons » gardées toutes les deux, la mienne renvoie aux portées (260, 500, 1100 px) et aux trains de bulles.
+- Fusionnés sans conflit et relus : `bruits.ts` (`farWhale` rend toujours `voice`), `generique-ecran.ts`, `decisions.md`, `mecaniques.md`.
+- **Réglage refait** : la glace a maintenant une grande portée (1100 px), qui la rendait 7 dB trop forte en enregistrement ; `REC.ice` passe de 2,5 à 1,1. Chaque salve d'un train de bulles (nouveauté de distance-sons) joue une bouffée de l'enregistrement.
 
 ## Choix retenus
 
@@ -66,17 +78,17 @@
 
 ## Reste à faire / limites
 
-- **Je n'ai pas pu écouter** : les extraits sont choisis sur spectrogrammes et sur l'enveloppe de chaque fichier, les niveaux réglés par mesure hors ligne. Une écoute au casque et sur un haut-parleur de téléphone est à faire, surtout la glace (remontée de 9 dB par rapport au premier réglage) et les baleines (le fond de mer de leur enregistrement est assez présent, tout part presque dans la réverbération).
+- **Je n'ai pas pu écouter** : les extraits sont choisis sur spectrogrammes et sur l'enveloppe de chaque fichier, les niveaux réglés par mesure hors ligne. Une écoute au casque et sur un haut-parleur de téléphone est à faire, surtout la glace et les baleines (le fond de mer de leur enregistrement est assez présent, tout part presque dans la réverbération).
 - Pas encore vérifié sur un vrai iPhone (décodage MP3 attendu partout ; sinon le son du code reste).
 - Mémoire : une fois décodés, environ 14 Mo (le contexte audio les met à 48 kHz).
 - Poids : la page compilée passe de 1,19 Mo à 1,59 Mo (le budget de 400 Ko est presque plein : 393 Ko). Pour ajouter un son, il faudra en raccourcir un autre, relever le budget, ou passer à Opus le jour où Safari le lit partout.
 - Préparation des fichiers (hors du dépôt, notée ici pour la refaire) : préécoutes `-hq.mp3` de Freesound, découpe, passage en mono et rééchantillonnage dans Chrome (`OfflineAudioContext`), normalisation à −1 dBFS, encodage par LAME (`pip install --user lameenc`, hors npm). Les extraits exacts sont dans `credits.json`.
 - Les cris des grands visiteurs (raie manta, tortue…) sont maintenant des baleines enregistrées, plus ou moins aiguës selon leur taille : à juger à l'écoute.
-- Pour le chantier « La distance des sons » (lancé en même temps) : les bruits enregistrés passent par `way()` et `heard()` comme les autres, ils suivront ses réglages ; les fonds (eau, ressac) n'ont pas de position.
+- La distance des sons (fusionnée) : les bruits enregistrés passent par `at()` et `way()` comme les autres ; les fonds (eau, ressac) n'ont pas de position.
 
 ## Risques de fusion
 
-- `src/monde/bruits-son.ts` (partagé avec **distance-sons**, **coupures du son**) : nouveaux paramètres `recs` de `bruitsEngine` et `voice`, `apart` de `whale()`, un bloc au début de `bubbles()`, `ice()` et `whale()`, des champs dans `Beds`, trois lignes dans `tick()` (les gains de l'eau et du ressac), l'option `recordings` de `renderBruits`, deux accesseurs. Si un voisin réécrit `bubbles()` ou `way()`, garder le bloc « real » en tête de fonction.
+- `src/monde/bruits-son.ts` (fusionné avec **distance-sons** et **coupures du son**, voir plus haut) : nouveaux paramètres `recs` de `bruitsEngine` et `voice`, `apart` de `whale()`, un bloc au début de `bubbles()`, `ice()` et `whale()`, des champs dans `Beds`, trois lignes dans `tick()` (les gains de l'eau et du ressac), l'option `recordings` de `renderBruits`, deux accesseurs. Si un voisin réécrit `bubbles()` ou `way()`, garder le bloc « real » en tête de fonction.
 - `src/monde/bruits.ts` : `farWhale` rend aussi `voice` (même ordre de tirages au hasard).
 - `src/monde/generique-ecran.ts` : un import et une ligne (`list.append(soundsSection())`).
 - `index.html` : un bouton sous le curseur « Bruits » ; `src/monde/son-reglages.ts` : un import et une ligne.

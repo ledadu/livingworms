@@ -26,7 +26,7 @@ import { ChapterWatch, faunaX } from './transitions';
 import { holdBack, newLimits, pass, travel, travelShown } from './limites';
 import { createKeys } from './obstacles-jeu';
 import { obstacleItems } from './obstacles-draw';
-import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, chapterIndex, floorAt, liftAt, metres, moodAt, openFloor } from './biomes';
+import { BIOMES, X0, X1, arrival, biomeIndex, biomeMid, chapterIndex, floorAt, liftAt, metres, moodAt, openFloor, type ChapterId } from './biomes';
 import { Jardin } from './jardin';
 import { Puffs, bakeDecor, growPlant2, makeDecor, makePlants, makeRocks, ventMouth, type Decor, type RockX } from './world';
 import { floreLights, shy } from './flore';
@@ -56,6 +56,7 @@ import { initGenerique, souvenirButton } from './generique-ecran';
 import { ancestorsIn } from './ancetres-jeu';
 import { placeOf } from './ancetres';
 import { initTraces } from './traces-jeu';
+import { initRetour } from './retour-jeu';
 import { initRivale } from './rivale-jeu';
 import { initPonte } from './ponte-jeu';
 import { initIndices } from './indices-jeu';
@@ -68,7 +69,8 @@ import { initReglagesSon } from './son-reglages';
 import { initOndes } from './ondes-jeu';
 import { initVie } from './vie-jeu';
 import { initBruits } from './bruits-son';
-import { currentNear } from './bruits';
+import { panOnScreen } from './ecoute';
+import { bubblingAt, currentNear, springTrains } from './bruits';
 import { awakeOutOfSight, inSight } from './hors-champ';
 import { gpuBound } from './qualite';
 import './style.css';
@@ -216,7 +218,7 @@ let paused = false;
 const atBtn = document.getElementById('atBtn');
 applyAtelierAccess(atBtn, balade.on);
 // the lineage tree (arbre-ecran.ts), at any time: the sea waits while it is open (in the Balade, the story's lineage)
-const arbre = initArbre({ partie: balade.lignee, chapters: BIOMES, live: () => balade.live(player.cr.spec), notes: (rank) => notesOfGeneration(partie.saved, rank), onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); } });
+const arbre = initArbre({ partie: balade.lignee, chapters: BIOMES, live: () => balade.live(player.cr.spec), notes: (rank) => notesOfGeneration(partie.saved, rank), onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); }, resume: (k) => retour.take(k), canResume: () => retour.can });
 // the credits and the keepsake image (generique-ecran.ts), at the end of the story: then the Balade opens, and the tree
 // shows the image again
 const generique = initGenerique({ partie, chapters: BIOMES, live: () => balade.live(player.cr.spec), notes: (rank) => notesOfGeneration(partie.saved, rank), onOpen: () => { paused = true; }, onClose: () => { paused = false; last = performance.now(); }, onEnd: () => balade.open() });
@@ -440,7 +442,7 @@ const counts = { near: 0, live: 0, plants: 0, items: 0 };
 
 function update(): void {
   t += STEP;
-  const p = player.cr, r = p.root, f = input.follow, kd = input.keyDir(), lead = adieu.lead(t) ?? remontee.lead(t);
+  const p = player.cr, r = p.root, f = input.follow, kd = input.keyDir(), lead = adieu.lead(t) ?? remontee.lead(t) ?? parade.lead();
   if (lead) steer(player, lead.x, lead.y, 0.06);
   else if (auto.on) {
     // autopilot (tests): swim along a line through the world
@@ -469,6 +471,7 @@ function update(): void {
   rivale.step({ x: px, y: py }, t);
   lumieres.step({ x: px, y: py }, t);
   vie.step(t, p, actors);
+  retour.step();
 
   flow.clear();
   // the animals simulated this step: near the swimmer, and within sight unless the game holds them (hors-champ.ts)
@@ -559,7 +562,9 @@ function update(): void {
     }
     if (bu) {
       const y0 = d.kind === 'vent' ? fy + ventMouth(d) - 4 : fy - 2;
-      if (Math.random() < (d.kind === 'vent' ? 0.12 : 0.22)) bu.emit(d.x + rand(-8, 8), y0, 0, rand(-1.6, -0.9), rand(1.2, 3.2));
+      // (in the trains of bubbles that are heard; between them, one now and then)
+      const on = bubblingAt(springTrains(d.seed, d.kind === 'vent' ? 'vent' : 'seep'), performance.now() / 1000) > 0 ? 1 : 0.12;
+      if (Math.random() < (d.kind === 'vent' ? 0.12 : 0.22) * on) bu.emit(d.x + rand(-8, 8), y0, 0, rand(-1.6, -0.9), rand(1.2, 3.2));
       bu.step(t, 'bubble', 0.0016);
     }
   }
@@ -633,6 +638,7 @@ function render(): void {
   if (!skip.has('guide')) indices.lights(view, lights, P);
   rivale.lights(view, lights, P, t, { x: pr.x[0], y: pr.y[0] });
   if (!skip.has('answer')) lumieres.lights(view, lights, P, t);
+  retour.lights(view, lights, P);
   if (gx) {
     const [r, g, b] = hsl01(m.deep.h, m.deep.s, m.deep.l);
     gx.begin(r, g, b);
@@ -1255,6 +1261,19 @@ for (const { spec, home, k } of ancestorsIn(partie.lineage)) {
     a.cr.translate(home.x + rand(-80, 80) - a.cr.root.x[0], home.y + rand(-50, 50) - a.cr.root.y[0], 0);
   }
 }
+// an earlier form of the lineage taken again, from the tree (retour-jeu.ts): the one we were stays here, like a parent
+const retour = initRetour({
+  lineage: () => partie.lineage, swimmer: () => player.cr, play: (cr) => { player.cr = cr; },
+  leave: (cr) => {
+    const x = cr.root.x[0], y = cr.root.y[0];
+    actors.push({ cr, kind: 'parent', z: 0, hx: x, hy: y, tx: x, ty: y, next: 0, buf: null, spr: null, bakedAt: -99 });
+    adieu.stay(cr, { x, y });
+  },
+  chapter: (x) => BIOMES[biomeIndex(x)], save: (k, c, at) => partie.returnTo(k, c, at),
+  feel: (c) => { if (!balade.on) indices.feel(c as ChapterId); },
+  say: (name, lines) => !adieu.on && !remontee.on && narrator.say(name, lines),
+  busy: () => adieu.on || remontee.on || parade.active || portee.isOpen || generique.isOpen
+});
 
 // the rival lineage of the Carcasse (rivale-jeu.ts): its cousin, made from the creature of ours that got there
 const rivale = initRivale({
@@ -1319,10 +1338,12 @@ remontee.onNote((_, c) => ondes.sung('rise', player.cr, c));
 
 // ----- the noises of the sea (bruits-son.ts): water, currents, bubbles, whales far away, the Grotte, the Glacier ----- //
 
+const heardAt: Proj = { x: 0, y: 0, s: 1, d: 1 };
 const bruits = initBruits({
   where: () => ({ x: player.cr.root.x[0], y: player.cr.root.y[0] }), springs: decor,
   current: () => currentNear(keys.near(player.cr.root.x[0]), player.cr.root.x[0]),
-  moment: () => (adieu.on ? 'adieu' : parade.active ? 'parade' : null)
+  moment: () => (adieu.on ? 'adieu' : parade.active ? 'parade' : null),
+  pan: (x, y, z) => panOnScreen(view.project(x, y, z, heardAt).x, view.W)
 });
 // the big animals far away cry with their waves
 ondes.onCall((x, y, z, size) => bruits.cry(x - player.cr.root.x[0], y - player.cr.root.y[0], z, size));
@@ -1359,7 +1380,7 @@ function frame(now: number): void {
   const ut = performance.now() - u0;
   stats.update = stats.update * 0.9 + ut * 0.1;
   if (steps === 3) acc = 0;
-  const r = player.cr.root, shot = remontee.camera(900 / input.zoomMul, W, H) ?? adieu.camera(900 / input.zoomMul, W, H), dist = shot.dist, pitch = (settings.angle * Math.PI) / 180;
+  const r = player.cr.root, shot = remontee.camera(900 / input.zoomMul, W, H) ?? parade.camera(900 / input.zoomMul, W, H) ?? adieu.camera(900 / input.zoomMul, W, H), dist = shot.dist, pitch = (settings.angle * Math.PI) / 180;
   if (shot.focus) { cam.x += (shot.focus.x - cam.x) * 0.04; cam.y += (shot.focus.y - cam.y) * 0.04; }
   else {
     cam.x += (r.x[0] + player.cr.vx * 20 - cam.x) * 0.07;
@@ -1370,6 +1391,7 @@ function frame(now: number): void {
   const r0 = performance.now();
   render();
   chant.draw();
+  parade.ui(view, P);
   const rt = performance.now() - r0;
   let ft = 0;
   if (opts.flush) { const f0 = performance.now(); if (gx) gx.finish(); else ctx.getImageData(0, 0, 1, 1); ft = performance.now() - f0; }
@@ -1433,7 +1455,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, generique, traces, rivale, chant, lumieres, ponte, indices, remontee, ondes, vie,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, retour, generique, traces, rivale, chant, lumieres, ponte, indices, remontee, ondes, vie,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   musique, bruits,

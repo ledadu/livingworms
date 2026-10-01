@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import doc from '../../docs/chapitres.md?raw';
 import { BIOMES } from './biomes';
-import { APART, Farewell, ROOM, T, stayGoal, type Pt, type Shot } from './adieu';
+import { APART, Farewell, GONE, ROOM, T, stayGoal, watchGoal, type Pt, type Shot } from './adieu';
 import { parseChapterTexts, textsOf } from './textes';
 
 const STEP = 1 / 60;
@@ -29,18 +29,21 @@ describe("l'adieu au parent", () => {
     for (const k of together) expect(dist(k.parent, k.child)).toBeLessThan(140);
   });
 
-  it('then the child goes on down the story, and the swimmer is ours again', () => {
+  it('then the child moves a little way off, unhurried, and the swimmer is ours again soon', () => {
     const last = run.shots[run.shots.length - 1];
     expect(last.s).toBeLessThan(T.end);
+    expect(last.s).toBeLessThan(8);
     expect(dist(run.parent, run.child)).toBeGreaterThan(APART - 10);
-    expect(run.child.x).toBeGreaterThan(run.parent.x + 500);
-    expect(run.child.y).toBeGreaterThan(300);
+    expect(dist(run.parent, run.child)).toBeLessThan(260);
+    expect(run.child.x).toBeGreaterThan(run.parent.x + 60);
+    for (const k of run.shots) expect(Math.hypot(k.shot.child.x, k.shot.child.y)).toBeLessThan(1.4);
+    for (const k of run.shots.filter((k) => k.s > T.leave)) expect(Math.hypot(k.shot.child.x, k.shot.child.y)).toBeLessThanOrEqual(1);
   });
 
-  it('the parent goes a little way with it, then stays', () => {
-    expect(dist(run.parent, run.f.home)).toBeLessThan(200);
-    expect(run.parent.x).toBeGreaterThan(run.f.home.x);
+  it('the parent leans after it a little, then stays and watches it', () => {
+    expect(dist(run.parent, run.f.home)).toBeLessThan(60);
     const still = run.shots.filter((k) => k.s > T.stop);
+    expect(still.length).toBeGreaterThan(30);
     for (const k of still) expect(Math.hypot(k.shot.parent.x, k.shot.parent.y)).toBeLessThan(0.4);
     // but it keeps facing the child
     for (const k of still) expect(k.shot.parent.x).toBeGreaterThan(0);
@@ -54,7 +57,9 @@ describe("l'adieu au parent", () => {
     expect(first.shot.close).toBeLessThan(0.05);
     expect(first.shot.focus.x).toBeCloseTo((first.parent.x + first.child.x) / 2, 0);
     expect(dist(last.shot.focus, last.child)).toBeLessThan(dist(last.shot.focus, last.parent));
-    expect(last.shot.close).toBeLessThan(0.2);
+    // the parent still in the frame when the view is given back
+    expect(last.shot.span).toBeGreaterThan(dist(last.parent, last.child) + 100);
+    expect(last.shot.close).toBeLessThan(0.3);
   });
 
   it('ends in time even when the child cannot go far (a bound)', () => {
@@ -71,6 +76,13 @@ describe("l'adieu au parent", () => {
 
 describe('le parent qui reste', () => {
   const home = { x: 0, y: 300 };
+
+  it('just left, it watches its child without coming after it', () => {
+    const v = watchGoal(home, { x: 300, y: 320 });
+    expect(v.x).toBeGreaterThan(0);
+    expect(Math.hypot(v.x, v.y)).toBeLessThan(0.4);
+    expect(GONE).toBeGreaterThan(APART * 2);
+  });
 
   it('turns to us when we come back, and comes to meet us without touching', () => {
     const v = stayGoal(home, home, { x: 400, y: 300 }, 0);

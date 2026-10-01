@@ -1,15 +1,19 @@
 // The music in the game (musique.ts), played with the Web Audio API into the music bus of son.ts. Each chapter heard
 // is a group of voices: its drone, its harmonics, its chords and its notes, faded in and out with the blend of the
-// chapters at the swimmer's place; a chapter left behind is let go after a while. A clock schedules what comes a
-// little ahead of time, on a live context (the game) or an offline one (the tests and the report).
+// chapters at the swimmer's place; a chapter left behind is let go after a while. Each goes by in sections
+// (musique-forme.ts), changed at its chords. A clock schedules what comes a little ahead of time, on a live context
+// (the game) or an offline one (the tests and the report).
 
 import { lerp, rng } from '../engine';
 import { BIOMES, arrival, biomeMid, metres } from './biomes';
-import { BY_INDEX, MOMENTS, WAVES, harmLevels, hz, lengthIn, mixAt, motifGap, muffle, nextChord, phrase, sweepAt, type Ambience, type Moment, type Tone, type Wave } from './musique';
+import { BY_INDEX, MOMENTS, WAVES, harmLevels, hz, lengthIn, mixAt, motifGap, muffle, sweepAt, type Ambience, type Moment, type Played, type Tone, type Wave } from './musique';
+import { nextSection, palette, pathChord, shifted, vary, voice, type Section } from './musique-forme';
 import { buildGraph, release, son, type Graph } from './son';
 
 /** how far ahead the notes are scheduled, and how often the clock looks (s) */
 const AHEAD = 1.2, TICK = 0.2;
+/** how far the brightness of the chords goes towards its section's at each look of the clock (about 4 s) */
+const BRIGHTEN = 1 - Math.exp(-TICK / 4);
 /** how long the voices of a chapter left behind are kept, in case the swimmer comes back (s) */
 const LINGER = 6;
 
@@ -34,11 +38,19 @@ interface Group {
   chord: number; chordAt: number; motifAt: number; harmAt: number;
   /** how loud it is asked to be, and since when it is silent */
   g: number; leftAt: number;
+  /** the section playing, how many chords it has left, the chord before the last, its last phrase, its drone's gain */
+  sec: Section | null; left: number; before: number; last: Played[] | null; dg: GainNode | null;
+  /** how bright its chords are now, on the way to the section's */
+  bright: number;
 }
 
-export function musicEngine(G: Graph, seed = 1) {
+/** an ambience as made, without sections (to compare) */
+const FLAT: Section = { kind: 'chant', chords: Infinity, drone: 1, pad: 1, harm: 1, notes: 1, bright: 1, voicing: 'tel', path: 'suite', octave: 0 };
+
+/** `form`: the ambiences go by in sections (off: each as made, all along, to compare) */
+export function musicEngine(G: Graph, seed = 1, form = true) {
   const c = G.c, groups = new Map<number, Group>(), periodic = new Map<Wave, PeriodicWave>();
-  let opened = 0;
+  let opened = 0, was: Moment = null;
 
   function wave(w: Wave): PeriodicWave {
     let p = periodic.get(w);
@@ -77,11 +89,13 @@ export function musicEngine(G: Graph, seed = 1) {
     padCut.connect(out);
     const gr: Group = {
       i, a, r, out, padCut, echo: null, phase: r() * Math.PI * 2, nodes: [out, padCut], srcs: new Map(), breath: null, harm: [],
-      chord: -1, chordAt: now + 0.05, motifAt: now + lengthIn(r, a.motif.every) * 0.6, harmAt: now, g: 0, leftAt: now
+      chord: -1, chordAt: now + 0.05, motifAt: now + lengthIn(r, a.motif.every) * 0.6, harmAt: now, g: 0, leftAt: now,
+      sec: null, left: 0, before: -1, last: null, dg: null, bright: 1
     };
     // the drone, breathing
     const dg = c.createGain(), dcut = c.createBiquadFilter();
     dg.gain.value = a.drone.gain;
+    gr.dg = dg;
     dcut.type = 'lowpass';
     dcut.frequency.value = a.drone.lp;
     dcut.connect(dg).connect(out);
@@ -139,10 +153,27 @@ export function musicEngine(G: Graph, seed = 1) {
     groups.delete(gr.i);
   }
 
+  /** the time until the next phrase of a group, in its section and the moment */
+  const gap = (gr: Group, moment: Moment) => motifGap(gr.a.motif.every, gr.r, moment) / (gr.sec?.notes ?? 1);
+
+  /** a new section of a group at t: its voices lean their own way, its phrases begin afresh */
+  function section(gr: Group, t: number): void {
+    const s = (gr.sec = form ? nextSection(gr.a.chapter, gr.sec?.kind ?? null, gr.r) : FLAT), p = gr.a.pad;
+    gr.left = s.chords;
+    gr.last = null;
+    gr.dg?.gain.setTargetAtTime(gr.a.drone.gain * s.drone, t, p.attack / 2);
+    gr.motifAt = Math.min(gr.motifAt, t + gap(gr, was));
+    gr.harmAt = Math.min(gr.harmAt, t);
+  }
+
   /** the next chord of a group at t, swelling under the one before (one envelope for all its notes) */
   function chord(gr: Group, t: number): void {
-    const p = gr.a.pad, k = (gr.chord = nextChord(p.chords.length, gr.chord, gr.r)), len = lengthIn(gr.r, p.len);
-    const notes = p.chords[k], g = p.gain * Math.sqrt(4 / notes.length), end = t + len + p.release * 1.25, env = c.createGain();
+    if (gr.left <= 0) section(gr, t);
+    gr.left--;
+    const sec = gr.sec ?? FLAT, p = gr.a.pad, prev = gr.chord, k = (gr.chord = pathChord(sec.path, p.chords.length, prev, gr.before, gr.r));
+    gr.before = prev;
+    const len = lengthIn(gr.r, p.len), notes = voice(p.chords[k], sec.voicing, palette(gr.a));
+    const g = p.gain * sec.pad * Math.sqrt(4 / notes.length), end = t + len + p.release * 1.25, env = c.createGain();
     env.gain.setValueAtTime(0, t);
     env.gain.linearRampToValueAtTime(g, t + p.attack);
     env.gain.setValueAtTime(g, t + len);
@@ -206,15 +237,17 @@ export function musicEngine(G: Graph, seed = 1) {
     release(srcs[0], made);
   }
 
+  /** a phrase of a group's motif: the last one changed, or a new one at the start of a section */
   function motif(gr: Group, t: number, moment: Moment): void {
-    const m = gr.a.motif, notes = phrase(m, gr.a.pad.chords[Math.max(0, gr.chord)], gr.r), pan = (gr.r() * 2 - 1) * 0.6;
+    const m = shifted(gr.a.motif, gr.sec?.octave ?? 0), chord = gr.a.pad.chords[Math.max(0, gr.chord)];
+    const notes = (gr.last = vary(gr.last ?? [], m, chord, gr.r)), pan = (gr.r() * 2 - 1) * 0.6;
     for (const n of notes) tone(gr, m.tone, hz(n.midi), t + n.at, m.gain * (0.75 + 0.25 * gr.r()), pan + (gr.r() - 0.5) * 0.3);
-    gr.motifAt = t + (notes.length ? notes[notes.length - 1].at : 0) + motifGap(m.every, gr.r, moment);
+    gr.motifAt = t + (notes.length ? notes[notes.length - 1].at : 0) + gap(gr, moment);
   }
 
   function harmonics(gr: Group, t: number): void {
-    const lv = harmLevels(gr.harm.length, gr.r), every = gr.a.harm.every;
-    gr.harm.forEach((g, q) => g.gain.setTargetAtTime(lv[q], t, every * 0.35));
+    const lv = harmLevels(gr.harm.length, gr.r), every = gr.a.harm.every, k = gr.sec?.harm ?? 1;
+    gr.harm.forEach((g, q) => g.gain.setTargetAtTime(lv[q] * k, t, every * 0.35));
     gr.harmAt = t + every * (0.7 + 0.6 * gr.r());
   }
 
@@ -225,7 +258,7 @@ export function musicEngine(G: Graph, seed = 1) {
     gr.out.gain.setTargetAtTime(g, now, 0.5);
   }
 
-  let cut = 0, send = -1, vsend = -1, was: Moment = null;
+  let cut = 0, send = -1, vsend = -1;
   /**
    * The music at `now` for a swimmer at (x, y): the chapters heard there, how much of them goes to the reverb, how
    * muffled the water is; then what each plays in the next moment. `bright` (0..1) lights it up: the water opens and
@@ -236,7 +269,7 @@ export function musicEngine(G: Graph, seed = 1) {
     const mix = on ? mixAt(x) : [], mo = moment ? MOMENTS[moment].level : 1;
     if (moment !== was) {
       // a phrase held back comes again soon after the moment; a dance does not wait for the next one
-      for (const gr of groups.values()) gr.motifAt = Math.min(gr.motifAt, now + motifGap(gr.a.motif.every, gr.r, moment));
+      for (const gr of groups.values()) gr.motifAt = Math.min(gr.motifAt, now + gap(gr, moment));
       was = moment;
     }
     if (on && bright > 0) {
@@ -264,7 +297,9 @@ export function musicEngine(G: Graph, seed = 1) {
     if (Math.abs(f - cut) > 40) G.musicCut.frequency.setValueAtTime((cut = f), now);
     for (const gr of groups.values()) {
       if (gr.g <= 0) continue;
-      gr.padCut.frequency.setValueAtTime(sweepAt(gr.a.pad, now, gr.phase), now);
+      // (the brightness of a section comes in over a few seconds)
+      gr.bright += ((gr.sec?.bright ?? 1) - gr.bright) * BRIGHTEN;
+      gr.padCut.frequency.setValueAtTime(sweepAt(gr.a.pad, now, gr.phase) * gr.bright, now);
       while (gr.chordAt < now + AHEAD) chord(gr, Math.max(gr.chordAt, now + 0.05));
       if (!moment || MOMENTS[moment].notes > 0) while (gr.motifAt < now + AHEAD) motif(gr, Math.max(gr.motifAt, now + 0.05), moment);
       while (gr.harmAt < now + AHEAD) harmonics(gr, Math.max(gr.harmAt, now));
@@ -275,7 +310,7 @@ export function musicEngine(G: Graph, seed = 1) {
   return {
     tick,
     /** the chapters playing and how loud (0..1), and how many sources sound (tests) */
-    get heard() { return [...groups.values()].filter((g) => g.g > 0).map((g) => ({ chapter: g.a.chapter, g: +g.g.toFixed(3) })); },
+    get heard() { return [...groups.values()].filter((g) => g.g > 0).map((g) => ({ chapter: g.a.chapter, g: +g.g.toFixed(3), section: g.sec?.kind ?? null })); },
     get sources() { let n = 0; for (const g of groups.values()) n += g.srcs.size; return n; }
   };
 }
@@ -283,10 +318,10 @@ export function musicEngine(G: Graph, seed = 1) {
 export type MusicEngine = ReturnType<typeof musicEngine>;
 
 /** the music of chapter i alone, `seconds` long, at its middle and mid water, rendered offline (tests, report) */
-export async function renderAmbience(i: number, seconds: number, rate = 44100, seed = 1): Promise<AudioBuffer> {
+export async function renderAmbience(i: number, seconds: number, rate = 44100, seed = 1, form = true): Promise<AudioBuffer> {
   const c = new OfflineAudioContext(2, Math.round(seconds * rate), rate), G = buildGraph(c);
   G.fade.gain.value = 1;
-  const eng = musicEngine(G, seed), x = biomeMid(i), y = arrival(i).y;
+  const eng = musicEngine(G, seed, form), x = biomeMid(i), y = arrival(i).y;
   for (let t = 0; t < seconds; t += TICK) eng.tick(t, x, y);
   return c.startRendering();
 }
