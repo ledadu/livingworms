@@ -10,7 +10,7 @@
 //
 // World axes: x right, y DOWN (the surface is y = 0), z away from the eye.
 
-import type { AttDef, NodeDef, PaletteSlot, Spec, SwimMode } from '../engine/types';
+import type { AttDef, NodeDef, PaletteSlot, Spec, SwimDef, SwimMode } from '../engine/types';
 import { ROOT_SLOT, SHAPES, expand, palette, type Slot } from '../engine/defs';
 import { STEP, TAU, clamp, hsla, lerp, rand, wrapAngle } from '../engine/util';
 
@@ -37,10 +37,10 @@ function rotate(v: V, k: V, ang: number, out: V): V {
 
 const DOWN: V = v3(0, 1, 0);
 
-/** the belly axis made perpendicular to t; if t is (nearly) vertical, use `fallback` */
-function belly(t: V, out: V, fallback: V): V {
-  const d = t.x * DOWN.x + t.y * DOWN.y + t.z * DOWN.z;
-  out.x = DOWN.x - t.x * d; out.y = DOWN.y - t.y * d; out.z = DOWN.z - t.z * d;
+/** the belly axis (`down`, the body's own down) made perpendicular to t; if t is (nearly) along it, use `fallback` */
+function belly(t: V, down: V, out: V, fallback: V): V {
+  const d = t.x * down.x + t.y * down.y + t.z * down.z;
+  out.x = down.x - t.x * d; out.y = down.y - t.y * d; out.z = down.z - t.z * d;
   const l = Math.hypot(out.x, out.y, out.z);
   if (l < 0.2) {
     const f = fallback, fd = f.x * t.x + f.y * t.y + f.z * t.z;
@@ -205,15 +205,15 @@ export class Seg3 {
       nbOut.x = this.nb.x; nbOut.y = this.nb.y; nbOut.z = this.nb.z;
       return;
     }
-    const b = belly(t, this.b, this.creature.side), l = cross(t, b, this.l);
+    const b = belly(t, this.creature.down, this.b, this.creature.side), l = cross(t, b, this.l);
     norm(l);
     const roll = rollOf(child);
     const ang = slot.angle;
     if (slot.radial) {
-      // a ring lies flat, in the horizontal plane through the node
-      const ra = slot.angle;
+      // a ring lies flat, in the horizontal plane through the node; on a body that points straight up or down it keeps its heading
+      const ra = slot.angle, cr = this.creature, fa = cr.mode === 'bell' ? 0 : cr.yaw + Math.PI;
       const hx = t.x, hz = t.z, hl = Math.hypot(hx, hz);
-      const e1x = hl > 0.3 ? hx / hl : 1, e1z = hl > 0.3 ? hz / hl : 0;
+      const e1x = hl > 0.3 ? hx / hl : Math.cos(fa), e1z = hl > 0.3 ? hz / hl : Math.sin(fa);
       dirOut.x = e1x * Math.cos(ra) - e1z * Math.sin(ra);
       dirOut.z = e1z * Math.cos(ra) + e1x * Math.sin(ra);
       dirOut.y = 0.05;
@@ -244,7 +244,7 @@ export class Seg3 {
   ringMount(at: number, k: number, count: number, open: number, dirOut: V, nbOut: V, mOut: V): void {
     const i = Math.max(1, at), t = this.t;
     t.x = this.dx[i]; t.y = this.dy[i]; t.z = this.dz[i];
-    const b = belly(t, this.b, this.creature.side), l = cross(t, b, this.l);
+    const b = belly(t, this.creature.down, this.b, this.creature.side), l = cross(t, b, this.l);
     norm(l);
     const phi = (TAU * (k + 0.5)) / count, c = Math.cos(phi), s = Math.sin(phi);
     mOut.x = c * l.x + s * b.x; mOut.y = c * l.y + s * b.y; mOut.z = c * l.z + s * b.z;
@@ -355,9 +355,9 @@ export class Seg3 {
         if (fixed) { a.x = fixed.x; a.y = fixed.y; a.z = fixed.z; }
       } else {
         prev.x = this.dx[i - 1]; prev.y = this.dy[i - 1]; prev.z = this.dz[i - 1];
-        // a body bends in the vertical plane through its own tangent
+        // a body bends in its own vertical plane, the one through its tangent and its own down (tilted with its pitch)
         if (dyn) {
-          cross(prev, DOWN, nbi);
+          cross(prev, cr.down, nbi);
           if (Math.hypot(nbi.x, nbi.y, nbi.z) < 0.25) { nbi.x = this.lastNb.x; nbi.y = this.lastNb.y; nbi.z = this.lastNb.z; }
           else norm(nbi);
           this.lastNb.x = nbi.x; this.lastNb.y = nbi.y; this.lastNb.z = nbi.z;
@@ -442,8 +442,15 @@ export class Creature3 {
   dartWait = 1;
   /** all in one plane (plants): the 2D rules; false: free 3D (animals) */
   planar: boolean;
-  /** which way the belly faces when the body is vertical (last horizontal direction) */
+  /** which way the belly faces when a part runs along the body's own down (last horizontal direction) */
   side: V = v3(0, 0, 1);
+  /**
+   * The body's own down: the world's down for a level body, tilted with its
+   * pitch (forward when the head points straight up), so that the belly, the
+   * bend plane and the limbs turn with the body all the way to the vertical.
+   * A bell keeps the world's down.
+   */
+  down: V = v3(0, 1, 0);
   /**
    * Heading of the head. yaw is the angle about the vertical axis: 0 faces
    * right, +-pi faces left, and a half turn between them goes one way round or
@@ -460,6 +467,10 @@ export class Creature3 {
   mode: SwimMode;
   /** the time of its own gait (crawl): runs fast when it moves and slowly when it stands, so the legs only step when it goes */
   clock = 0;
+  /** how high the lowest point of a walker is above the floor (stand); a walker that has met no floor is in open water */
+  gap = Infinity;
+  /** a walker told to go up: the floor lets it go */
+  private rising = false;
   /** power stroke of a jet or of a bell, 0..1: the parts that answer to it (recoil) read it */
   stroke = 0;
   /** how open the pulling arms are (0..1) */
@@ -548,9 +559,11 @@ export class Creature3 {
   stand(floorY: number): void {
     if (this.mode !== 'crawl' && !this.spec.swim.walk) return;
     const gap = floorY - this.box[4];
+    this.gap = gap;
     if (this.mode !== 'crawl') { if (gap < 6) this.ground(true); }
     else if (this.spec.swim.walk && gap > 14) this.ground(false);
-    if (this.mode === 'crawl' && gap < 40) this.root.y[0] += gap * (gap < 0 ? 0.4 : 0.15);
+    // it follows the floor and never goes through it, but lets go of it when it swims up
+    if (this.mode === 'crawl' && gap < 40 && (gap < 0 || !this.rising)) this.root.y[0] += gap * (gap < 0 ? 0.4 : 0.15);
   }
 
   /** the power stroke (0..1) of the pulse of the trunk at this time */
@@ -594,8 +607,11 @@ export class Creature3 {
   }
 
   private aim(h: V, pitch: number, yaw: number): void {
-    const cp = Math.cos(pitch);
-    h.x = cp * Math.cos(yaw); h.y = Math.sin(pitch); h.z = cp * Math.sin(yaw);
+    const cp = Math.cos(pitch), sp = Math.sin(pitch), cy = Math.cos(yaw), sy = Math.sin(yaw);
+    h.x = cp * cy; h.y = sp; h.z = cp * sy;
+    // the belly turns with the pitch: d(heading)/d(pitch)
+    const d = this.down;
+    d.x = -sp * cy; d.y = cp; d.z = -sp * sy;
     this.root.headDir = h;
   }
 
@@ -656,7 +672,9 @@ export class Creature3 {
    * all the way round (through the depth, toward the eye as well), seen in
    * 3/4. Its own clock, and so its gait, runs with its speed. `swim.posture` is
    * the pitch of its head end (an octopus stands its mantle up) and `swim.rear`
-   * makes the tail end lead (arms first).
+   * makes the tail end lead (arms first). Told to go up it swims, its legs
+   * paddling and its head toward where it goes, up to straight up; off the
+   * floor it may dive, head first, and levels out before it lands.
    */
   private steerCrawl(_time: number, dvx: number, dvy: number, dvz: number, accel: number): void {
     const sw = this.spec.swim, moving = Math.hypot(dvx, dvz * 3) > 0.05;
@@ -667,13 +685,17 @@ export class Creature3 {
     }
     const w = this.turnW * 0.6;
     const err = this.turnYaw(w);
-    [this.pitch, this.pitchVel] = this.spring(this.pitch, sw.posture || 0, this.pitchVel, w);
-    this.aim(this.heading3, this.pitch, this.yaw);
     const face = Math.max(0, Math.cos(err));
     const vx = dvx * (0.15 + 0.85 * face), vz = dvz * 0.5;
-    this.clock += STEP * (0.1 + Math.min(1.8, Math.hypot(this.vx, this.vz) * 1.1));
     // a walker only leaves the floor when it is told to go up; otherwise it falls back and follows the floor
-    this.update(this.clock, vx, dvy < -0.3 ? dvy : 0.5, vz, accel);
+    const vy = crawlRise(dvy, this.gap);
+    this.rising = vy < 0;
+    [this.pitch, this.pitchVel] = this.spring(this.pitch, crawlPitch(vx, dvy, this.gap, sw), this.pitchVel, w);
+    this.aim(this.heading3, this.pitch, this.yaw);
+    // the legs step with its speed on the floor, and paddle with it in the water
+    const sp = this.gap > AFLOAT ? Math.hypot(this.vx, this.vy, this.vz) : Math.hypot(this.vx, this.vz);
+    this.clock += STEP * (0.1 + Math.min(1.8, sp * 1.1));
+    this.update(this.clock, vx, vy, vz, accel);
   }
 
   private steerGlide(time: number, dvx: number, dvy: number, dvz: number, accel: number): void {
@@ -681,8 +703,7 @@ export class Creature3 {
     let pitchGoal = 0;
     if (sp > 0.05) {
       if (Math.abs(dvx) > 0.2 * sp) this.yawGoal = dvx > 0 ? 0 : Math.PI;
-      const pm = this.spec.swim.pitchMax || 1.2;
-      pitchGoal = clamp(Math.atan2(dvy, Math.max(Math.abs(dvx), 0.15)), -pm, pm);
+      pitchGoal = clamp(Math.atan2(dvy, Math.max(Math.abs(dvx), 0.15)), -PITCH_MAX, PITCH_MAX);
       // an upright swimmer (seahorse) keeps its head up and only leans a little
       if (this.spec.swim.posture !== undefined) pitchGoal = this.spec.swim.posture + pitchGoal * 0.25;
     }
@@ -691,9 +712,8 @@ export class Creature3 {
     this.turnYaw(w);
     this.pitchVel += (w * 0.8 * w * 0.8 * (pitchGoal - this.pitch) - 2 * w * 0.8 * this.pitchVel) * STEP;
     this.pitch += this.pitchVel * STEP;
-    const cp = Math.cos(this.pitch), h = this.heading3;
-    h.x = cp * Math.cos(this.yaw); h.y = Math.sin(this.pitch); h.z = cp * Math.sin(this.yaw);
-    this.root.headDir = h;
+    const h = this.heading3;
+    this.aim(h, this.pitch, this.yaw);
     const align = Math.max(0, Math.cos(this.yawGoal - this.yaw));
     const speed = sp * (0.25 + 0.75 * align);
     // an upright body does not go where its head points: it goes where it is told
@@ -720,6 +740,36 @@ export class Creature3 {
 
 /** a change of heading larger than this (a little more than a quarter turn) is a half turn, which may go either way round */
 export const HALF_TURN = 1.6;
+
+/** the steepest a swimmer points its head (rad, about 86 degrees): nearly straight up or down */
+export const PITCH_MAX = 1.5;
+
+/** a walker whose legs are higher than this above the floor is in the water */
+export const AFLOAT = 14;
+
+/**
+ * The vertical speed of a walker told dvy, `gap` above the floor: it rises when
+ * told to go up, dives when told to go down in open water, and otherwise sinks
+ * slowly back to the floor.
+ */
+export function crawlRise(dvy: number, gap: number): number {
+  if (dvy < -0.3) return dvy;
+  return gap > AFLOAT ? Math.max(0.5, dvy) : 0.5;
+}
+
+/**
+ * The pitch a walker aims for, told (vx, dvy), `gap` above the floor: its
+ * posture on the floor and while it sinks back; when it swims, its head toward
+ * where it goes, up to PITCH_MAX. Diving, it levels out over the last 120 px,
+ * to land on its legs. An animal that swims its own way once off the floor (an
+ * octopus jets) keeps its posture.
+ */
+export function crawlPitch(vx: number, dvy: number, gap: number, sw: SwimDef): number {
+  const up = dvy < -0.3, dive = !up && gap > AFLOAT && dvy > 0.5;
+  if (sw.mode !== 'crawl' || (!up && !dive)) return sw.posture || 0;
+  const p = clamp(Math.atan2(dvy, Math.max(Math.abs(vx), 0.15)), -PITCH_MAX, PITCH_MAX);
+  return dive ? p * clamp((gap - AFLOAT) / 120, 0, 1) : p;
+}
 
 /**
  * The angle to turn from yaw to goal: the shortest, or, when a half turn is
