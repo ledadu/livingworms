@@ -6,9 +6,70 @@
   <meta name="theme-color" content="#0a3a55">
   <title>La Lignée — Le Grand Monde</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,400&family=Syne:wght@600;800&family=Chakra+Petch:wght@400;600&display=swap">
+  <!-- the fonts do not hold the first paint back (the loading screen, a phone without network) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,400&family=Syne:wght@600;800&family=Chakra+Petch:wght@400;600&display=swap" media="print" onload="this.media='all'">
+  <!-- the loading screen (#chargement): painted from the first kilobytes, before any script; chargement.ts lifts it -->
+  <style>
+    html { background: #04192a; }
+    #chargement {
+      position: fixed; inset: 0; z-index: 1000; overflow: hidden; display: grid; place-items: center;
+      background: radial-gradient(130% 75% at 50% -5%, #2a86a0 0%, #0f4f6d 32%, #0a3a55 55%, #04192a 100%);
+      color: #f4efe2; font-family: 'Cormorant Garamond', Georgia, serif; text-align: center;
+      -webkit-user-select: none; user-select: none; transition: opacity 0.9s ease, transform 1.2s ease;
+    }
+    #chargement.fin { opacity: 0; transform: scale(1.08); pointer-events: none; }
+    #chargement .rai {
+      position: absolute; top: -10%; width: 22vmax; height: 90%; transform-origin: 50% 0;
+      background: linear-gradient(rgba(214,240,236,0.16), rgba(214,240,236,0));
+      animation: ch-rai 7s ease-in-out infinite alternate;
+    }
+    #chargement .rai:nth-child(1) { left: 8%; transform: rotate(16deg); }
+    #chargement .rai:nth-child(2) { left: 38%; width: 14vmax; transform: rotate(4deg); animation-delay: -2.5s; }
+    #chargement .rai:nth-child(3) { left: 66%; transform: rotate(-12deg); animation-delay: -5s; }
+    #chargement .grain {
+      position: absolute; bottom: -4%; width: 4px; height: 4px; border-radius: 50%; background: rgba(230,246,240,0.55);
+      animation: ch-grain 9s linear infinite;
+    }
+    #chargement .grain:nth-child(4) { left: 12%; animation-delay: -1s; }
+    #chargement .grain:nth-child(5) { left: 27%; width: 3px; height: 3px; animation-delay: -6s; animation-duration: 11s; }
+    #chargement .grain:nth-child(6) { left: 44%; animation-delay: -3.5s; animation-duration: 8s; }
+    #chargement .grain:nth-child(7) { left: 58%; width: 5px; height: 5px; animation-delay: -8s; animation-duration: 12s; }
+    #chargement .grain:nth-child(8) { left: 73%; width: 3px; height: 3px; animation-delay: -2s; }
+    #chargement .grain:nth-child(9) { left: 88%; animation-delay: -5s; animation-duration: 10s; }
+    #chargement .coeur { position: relative; display: grid; justify-items: center; gap: 6px; padding: 0 24px; }
+    #chargement .larve { width: min(150px, 38vw); animation: ch-nage 3.2s ease-in-out infinite; filter: drop-shadow(0 0 14px rgba(255,214,232,0.45)); }
+    #chargement .larve svg { display: block; width: 100%; height: auto; overflow: visible; }
+    #chargement h1 { margin: 18px 0 0; font-weight: 300; font-size: clamp(44px, 13vw, 76px); letter-spacing: 0.04em; line-height: 1; text-shadow: 0 2px 18px rgba(0,20,30,0.6); }
+    #chargement p { margin: 0; font-style: italic; font-size: clamp(16px, 4.4vw, 21px); opacity: 0.75; animation: ch-souffle 3.2s ease-in-out infinite; }
+    @keyframes ch-rai { to { opacity: 0.35; translate: 3vmax 0; } }
+    @keyframes ch-grain { from { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } to { transform: translateY(-105vh) translateX(18px); opacity: 0; } }
+    @keyframes ch-nage { 0%, 100% { transform: translate(-6px, 4px) rotate(-3deg); } 50% { transform: translate(6px, -6px) rotate(3deg); } }
+    @keyframes ch-souffle { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.85; } }
+    @media (prefers-reduced-motion: reduce) { #chargement * { animation: none !important; } }
+  </style>
 </head>
 <body>
+  <div id="chargement" role="status" aria-label="Chargement du jeu">
+    <div class="rai"></div><div class="rai"></div><div class="rai"></div>
+    <div class="grain"></div><div class="grain"></div><div class="grain"></div><div class="grain"></div><div class="grain"></div><div class="grain"></div>
+    <div class="coeur">
+      <div class="larve"><svg viewBox="0 0 160 70" aria-hidden="true">
+        <defs>
+          <radialGradient id="ch-corps" cx="0.6" cy="0.4" r="0.7"><stop offset="0" stop-color="#fff6ee"/><stop offset="0.55" stop-color="#f3b9d0" stop-opacity="0.85"/><stop offset="1" stop-color="#d77aa6" stop-opacity="0.35"/></radialGradient>
+          <linearGradient id="ch-queue" x1="1" x2="0"><stop offset="0" stop-color="#f3b9d0" stop-opacity="0.8"/><stop offset="1" stop-color="#f3b9d0" stop-opacity="0"/></linearGradient>
+        </defs>
+        <path d="M100 30 C78 22 62 44 40 38 C26 34 16 26 4 30 C16 34 26 44 40 44 C62 50 80 38 100 42 Z" fill="url(#ch-queue)"/>
+        <g stroke="#ffe6f0" stroke-opacity="0.55" stroke-width="1.2" stroke-linecap="round" fill="none">
+          <path d="M112 18 q-4 -8 -2 -14"/><path d="M122 16 q0 -9 4 -13"/><path d="M131 20 q4 -7 10 -9"/>
+          <path d="M112 54 q-4 8 -2 14"/><path d="M122 56 q0 9 4 13"/><path d="M131 52 q4 7 10 9"/>
+        </g>
+        <ellipse cx="120" cy="36" rx="24" ry="19" fill="url(#ch-corps)"/>
+        <circle cx="131" cy="31" r="3" fill="#3a1f33" fill-opacity="0.8"/>
+      </svg></div>
+      <h1>La Lignée</h1>
+      <p>Nous nous éveillons…</p>
+    </div>
+  </div>
   <canvas id="sea"></canvas>
   <div id="deep"></div>
   <div id="vig"></div>
