@@ -22,6 +22,7 @@ Le Grand Monde (`src/monde/`) a déjà :
 - des animaux qui se retournent en vrai volume, tantôt par le dos (la tête part vers le fond), tantôt de face (elle vient vers nous) : le sens de chaque demi-tour est tiré au sort, pour le nageur comme pour les autres, qu'ils nagent, filent par jets ou marchent (`turnYaw` dans `src/engine3/creature3.ts`) ;
 - des méduses dont les filaments, les bras oraux et les pédalies pendent tout autour du bord de la cloche, en cône : vus de côté, ils s'étalent comme l'éventail dessiné dans l'Atelier, et restent symétriques quelle que soit la façon dont la cloche penche ou a nagé (`onRim` et `rimOf` dans `src/engine/defs.ts`, `rimMount` dans `creature3.ts`) ; de loin, quand le niveau de détail en retire une partie, ce sont des paires symétriques qui partent (`thinnedOut`), et les variations d'un éventail centré vont elles aussi par paires ;
 - les 10 chapitres dans l'ordre de la trame, chacun avec sa palette (tableau ci-dessous) : voir [chapitres.md](chapitres.md#dans-le-monde) ;
+- l'eau qui se déforme : les ondes du chant et des cris, l'eau chaude et froide qui tremble, la surface qui ondule (voir [plus bas](#leau-qui-se-déforme)) ;
 - un rendu WebGL2 avec niveaux de détail et budget par image, et le canvas en repli.
 
 Il manque, pour le plan :
@@ -116,6 +117,27 @@ Réalisé dans `src/monde/remontee.ts` (dessin `remontee-draw.ts`, voir [chapitr
 - **Le chant** : des anneaux de points de lumière qui s'ouvrent autour du nageur, de la couleur de chaque note ; un éclat doré à l'arrivée de chaque ancêtre, puis un halo doré qui respire autour de lui.
 - **La surface** : un éclat blanc et doré couvre l'écran puis s'efface (une couche CSS, `#remonteeFlash`) ; un œuf de lumière bat parmi la lignée et éclot.
 - **Coût** : quelques formes ajoutées par image (la colonne, une dizaine de rais), et des lumières ; la lignée compte une dizaine de créatures en plus, dessinées comme les autres.
+
+## L'eau qui se déforme
+
+Réalisé dans `src/monde/ondes.ts` (les formes), `ondes-gl.ts` (la lentille) et `ondes-jeu.ts` (le jeu) : l'eau plie la lumière de ce qui est derrière elle.
+
+- **Les ondes du chant** : chaque note chantée part du nageur en un anneau qui s'élargit avec l'anneau de lumière de la note, un peu plus loin que lui ; le décor ondule à son passage, plus clair là où l'onde rassemble la lumière, plus sombre là où elle l'étale, et ses crêtes prennent la couleur de la note. Les animaux qui répondent ont leur propre anneau, à leur taille ; une note apprise en fait un plus large et plus lent ; le chant complet de la Remontée, un par note.
+- **Les cris au loin** : de temps en temps (30 à 75 s), un grand visiteur qu'on voit (raie manta, tortue, requin-baleine, calmar, siphonophore, dragon abyssal) crie : deux longues ondes lentes partent de lui et traversent la scène. Elles sont muettes pour l'instant (les bruitages viendront).
+- **Les lumières de la Fosse** : chaque éclat d'une lumière qui répond, ses échos et le moment où toutes brillent ensemble font une onde de sa couleur ; dans le noir, on ne voit que ses crêtes, des anneaux de lumière.
+- **L'eau chaude et l'eau froide** : au-dessus des cheminées des Sources, une colonne d'eau chaude tremble et monte en s'élargissant ; le couloir brûlant tremble de bas en haut, plus fort près de son passage ; l'eau glacée du Glacier ondule lentement en descendant ; le courant de la passe du Récif file vers l'arrière. Par bouffées, avec de fines stries de lumière là où l'eau resserre l'image.
+- **La surface** vue d'en dessous ondule sous ses vagues.
+- **Ce qui ne bouge pas** : le nageur et ce qui nage près de lui restent nets (seul ce qui est derrière le plan de nage se déforme), comme le premier plan, les textes et les boutons. Si l'appareil demande moins d'animations (`prefers-reduced-motion`), l'eau qui tremble en permanence reste calme ; les ondes du chant restent.
+
+La lentille, en deux passes d'un même shader WebGL2, sur les seules régions de l'écran où l'eau se plie :
+
+- **Plier** : au milieu de l'image, une fois peint ce qui est derrière le plan de nage, ces régions sont recopiées dans une texture (un blit, qui garde l'antialiasing de l'écran) puis redessinées, chaque pixel déplacé.
+- **Briller** : à la fin de l'image, la lumière des crêtes des anneaux s'ajoute par-dessus tout, le noir de la Fosse compris.
+- **Rien à plier, rien à faire** : sans onde ni eau qui tremble à l'écran, l'image coûte ce qu'elle coûtait. En canvas 2D (le repli), l'eau reste immobile.
+- **Coût** (Intel Iris Xe, 1280 × 800, temps GPU de l'image entière) : environ 1 ms pour la surface ou deux anneaux, 1,7 ms au-dessus des cheminées, 2,3 ms dans le couloir brûlant, dont une moitié pour la copie. Quand les images prennent du retard, l'eau qui tremble en permanence (surface, cheminées, obstacles) s'arrête la première, avant le détail des animaux, et revient 30 s plus tard (puis deux fois plus tard à chaque nouvel arrêt) ; les anneaux restent.
+- **Pour comparer** : couche `ondes` de `monde.skip` ; `?ondes=0` coupe tout. Avec `?dev`, le panneau ⚙ a une section « Eau » : une onde, un cri au loin, le champ de vagues, l'eau qui ondule.
+
+**Le champ de vagues** (une expérience, `?ondes=champ`, `ondes-champ.ts`) : l'équation des ondes sur une grille posée sur le plan de nage autour du nageur, ancrée dans le monde. Les animaux qui nagent dans le plan y laissent un sillage, le chant y lâche une onde ; les vagues se croisent, s'additionnent, rebondissent sur le fond et la surface, s'éteignent. Plus vivant que les anneaux, mais il plie tout l'écran dès qu'on nage (un peu moins de 1 ms de calcul par image, et la lentille sur tout l'écran) et ses ondes ne suivent pas l'anneau de lumière des notes.
 
 ## Le son
 
