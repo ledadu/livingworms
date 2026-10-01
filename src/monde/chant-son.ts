@@ -1,9 +1,11 @@
 // The voice of the song (docs/direction-artistique.md, « Le son »): each note its own timbre, made in the code with
 // the Web Audio API, no sound file and no library. Oscillators and their partials, a trembling, a vibrato, a breath
-// of filtered noise, an echo, all through one reverb generated here. The browser only lets sound start after a
-// touch or a key: until then the notes are silent.
+// of filtered noise, an echo, all through the reverb of the page (son.ts), as much of it as the chapter's space
+// asks; the music steps back under each note. The browser only lets sound start after a touch or a key: until then
+// the notes are silent.
 
 import type { ChapterId } from './biomes';
+import { release, son } from './son';
 
 interface Timbre {
   wave: OscillatorType;
@@ -53,53 +55,15 @@ export interface Voice {
   readonly awake: boolean;
 }
 
-type AC = typeof AudioContext;
-
 export function createVoice(): Voice {
-  let ac: AudioContext | null = null, out: AudioNode | null = null, noise: AudioBuffer | null = null;
-
-  function wake(): void {
-    if (!ac) {
-      const Ctor = (window.AudioContext ?? (window as unknown as { webkitAudioContext?: AC }).webkitAudioContext);
-      if (!Ctor) return;
-      try { ac = new Ctor(); } catch { return; }
-      build(ac);
-    }
-    if (ac.state === 'suspended') void ac.resume().catch(() => { /* waits for the next touch */ });
-    if (ac.state === 'running') for (const ev of EVENTS) window.removeEventListener(ev, wake, true);
-  }
-  // the gestures that let a page sound (a touch counts when the finger lifts)
-  const EVENTS = ['pointerup', 'touchend', 'keydown', 'click'];
-  for (const ev of EVENTS) window.addEventListener(ev, wake, true);
-
-  function build(c: AudioContext): void {
-    const master = c.createGain();
-    master.gain.value = 0.55;
-    const comp = c.createDynamicsCompressor();
-    comp.threshold.value = -18; comp.ratio.value = 4;
-    master.connect(comp).connect(c.destination);
-    // a reverb from a decaying noise, a little longer on the right
-    const len = Math.floor(c.sampleRate * 2.8), ir = c.createBuffer(2, len, c.sampleRate);
-    for (let ch = 0; ch < 2; ch++) {
-      const d = ir.getChannelData(ch);
-      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6 + ch * 0.3);
-    }
-    const rev = c.createConvolver(), wet = c.createGain(), mix = c.createGain();
-    rev.buffer = ir;
-    wet.gain.value = 0.42;
-    mix.connect(master);
-    mix.connect(rev).connect(wet).connect(master);
-    out = mix;
-    noise = c.createBuffer(1, c.sampleRate, c.sampleRate);
-    const n = noise.getChannelData(0);
-    for (let i = 0; i < n.length; i++) n[i] = Math.random() * 2 - 1;
-  }
-
+  const s = son();
   function note(chapter: ChapterId, freq: number, o: { gain?: number; pan?: number; octave?: number } = {}): void {
-    if (ac && out && ac.state === 'running') sound(ac, out, noise, chapter, freq, o);
+    const g = s.graph;
+    if (!g || !s.awake) return;
+    sound(g.c, g.voice, g.noise, chapter, freq, o);
+    if ((o.gain ?? 1) >= 0.5) s.duck();
   }
-
-  return { note, get awake() { return ac?.state === 'running'; } };
+  return { note, get awake() { return s.awake; } };
 }
 
 /** a note of a chapter into `dest`, at the context's current time (an OfflineAudioContext renders it for the tests) */
@@ -108,6 +72,8 @@ export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer |
   if (!tb) return;
   const f = freq * Math.pow(2, o.octave ?? 0), t0 = c.currentTime + 0.01, end = t0 + tb.attack + tb.decay * 1.6;
   const env = c.createGain();
+  // what the note is made of, let go once it has rung out (its echo a little later)
+  const made: AudioNode[] = [env], echo: AudioNode[] = [];
   env.gain.setValueAtTime(0, t0);
   env.gain.linearRampToValueAtTime((o.gain ?? 1) * 0.3, t0 + tb.attack);
   env.gain.setTargetAtTime(0, t0 + tb.attack, tb.decay / 3.5);
@@ -117,6 +83,7 @@ export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer |
     p.pan.value = Math.max(-1, Math.min(1, o.pan));
     env.connect(p);
     tail = p;
+    echo.push(p);
   }
   tail.connect(dest);
   let into: AudioNode = env;
@@ -127,6 +94,7 @@ export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer |
     lp.frequency.exponentialRampToValueAtTime(f * tb.lp, t0 + tb.attack + 0.3);
     lp.connect(env);
     into = lp;
+    made.push(lp);
   }
   if (tb.trem) {
     const g = c.createGain(), lfo = c.createOscillator(), depth = c.createGain();
@@ -137,6 +105,7 @@ export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer |
     g.connect(into);
     into = g;
     lfo.start(t0); lfo.stop(end);
+    made.push(g, lfo, depth);
   }
   if (tb.echo) {
     const dl = c.createDelay(1), fb = c.createGain();
@@ -144,6 +113,7 @@ export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer |
     fb.gain.value = tb.echo[1];
     env.connect(dl).connect(fb).connect(dl);
     fb.connect(tail === env ? dest : tail);
+    echo.push(dl, fb);
   }
   const oscs: OscillatorNode[] = [];
   for (const [ratio, g] of tb.partials) {
@@ -153,6 +123,7 @@ export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer |
     gain.gain.value = g;
     osc.connect(gain).connect(into);
     oscs.push(osc);
+    made.push(osc, gain);
   }
   if (tb.vib) {
     const lfo = c.createOscillator(), depth = c.createGain();
@@ -161,6 +132,7 @@ export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer |
     lfo.connect(depth);
     for (const osc of oscs) depth.connect(osc.detune);
     lfo.start(t0); lfo.stop(end);
+    made.push(lfo, depth);
   }
   if (tb.fm) {
     const mod = c.createOscillator(), depth = c.createGain();
@@ -169,6 +141,7 @@ export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer |
     depth.gain.exponentialRampToValueAtTime(f * 0.05, t0 + 0.6);
     mod.connect(depth).connect(oscs[0].frequency);
     mod.start(t0); mod.stop(end);
+    made.push(mod, depth);
   }
   if (tb.breath && noise) {
     const src = c.createBufferSource(), bp = c.createBiquadFilter(), g = c.createGain();
@@ -180,6 +153,8 @@ export function sound(c: BaseAudioContext, dest: AudioNode, noise: AudioBuffer |
     g.gain.value = tb.breath;
     src.connect(bp).connect(g).connect(into);
     src.start(t0); src.stop(end);
+    made.push(src, bp, g);
   }
   for (const osc of oscs) { osc.start(t0); osc.stop(end); }
+  release(oscs[0], made, () => setTimeout(() => { for (const n of echo) n.disconnect(); }, tb.echo ? 4000 : 0));
 }
