@@ -14,6 +14,11 @@
 // leave an alpha of 0, which adds their colour to what is there, so going from
 // one to the other does not cut the batch (a glow between two bodies used to
 // cost a draw call, three hundred a frame in the Glacier).
+//
+// The batch of a frame is sent once: the vertices and indices go to the GPU in
+// one upload, then a draw call per run of shapes that share a texture (shapes
+// without a texture join whichever run they fall in). A canvas redrawn while
+// its texture waits in the batch sends the batch first.
 
 type Canvas = HTMLCanvasElement | OffscreenCanvas;
 
@@ -52,7 +57,7 @@ const ZSTEP = 1 / (1 << 22);
 
 export type Blend = 'over' | 'add';
 
-interface Tex { tex: WebGLTexture; w: number; h: number; stamp: number; used: number; }
+interface Tex { tex: WebGLTexture; w: number; h: number; stamp: number; used: number; /** the batch it was last bound in */ batch: number; }
 
 export class Gfx {
   gl: WebGL2RenderingContext;
@@ -83,6 +88,13 @@ export class Gfx {
   /** added to the mode of each vertex: ADD while drawing additively */
   private addBit = 0;
   private tex: Tex | null = null;
+  /** shapes since the last run sample the current texture (else they may join the next one) */
+  private texUsed = false;
+  /** the runs of the batch: their texture and where their indices end */
+  private runTex: Tex[] = [];
+  private runEnd: number[] = [];
+  /** the batch being made (counts up at every send) */
+  private batch = 0;
   private texs = new Map<Canvas, Tex>();
   private frame = 0;
   private white!: Tex;
@@ -99,7 +111,7 @@ export class Gfx {
     if (cv.addEventListener) {
       cv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.lost = true; });
       // everything on the GPU is gone: program, buffers, textures; made again
-      cv.addEventListener('webglcontextrestored', () => { this.texs.clear(); this.tex = null; this.init(); this.lost = false; });
+      cv.addEventListener('webglcontextrestored', () => { this.texs.clear(); this.tex = null; this.runTex.length = this.runEnd.length = 0; this.init(); this.lost = false; });
     }
   }
 
@@ -152,6 +164,8 @@ export class Gfx {
     const gl = this.gl;
     this.frame++;
     this.nv = this.ni = 0;
+    this.runTex.length = this.runEnd.length = 0;
+    this.batch++;
     this.calls = this.tris = this.shapes = 0;
     this.z = 1 - ZSTEP;
     gl.viewport(0, 0, this.W, this.H);
@@ -166,6 +180,7 @@ export class Gfx {
     gl.uniform2f(this.uSize, this.W, this.H);
     this.applyBlend();
     this.tex = null;
+    this.texUsed = false;
     this.alpha = 1; this.tintAmt = 0;
     this.setTransform(1, 0, 0, 1, 0, 0);
   }
@@ -272,26 +287,35 @@ export class Gfx {
       const wrap = repeat ? gl.REPEAT : gl.CLAMP_TO_EDGE;
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap);
-      t = { tex, w: 0, h: 0, stamp: stamp - 1, used: this.frame };
+      t = { tex, w: 0, h: 0, stamp: stamp - 1, used: this.frame, batch: -1 };
       this.texs.set(cv, t);
     }
     if (t.stamp !== stamp || t.w !== cv.width || t.h !== cv.height) {
-      if (this.tex === t) this.flush();
+      // shapes of the batch still to draw with its old pixels: they go first
+      if (t.batch === this.batch && this.ni) this.flush();
       gl.bindTexture(gl.TEXTURE_2D, t.tex);
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv as TexImageSource);
       t.w = cv.width; t.h = cv.height; t.stamp = stamp;
-      if (this.tex) gl.bindTexture(gl.TEXTURE_2D, this.tex.tex);
     }
     t.used = this.frame;
     return t;
   }
 
+  /** the texture of the shapes that follow: a new run if those before sampled another */
   private bind(t: Tex): void {
+    t.batch = this.batch;
     if (this.tex === t) return;
-    if (this.tex && this.ni) this.flush();
+    if (this.texUsed) this.cut();
     this.tex = t;
-    this.gl.bindTexture(this.gl.TEXTURE_2D, t.tex);
+    this.texUsed = false;
+  }
+
+  /** the shapes since the last run make one, with the current texture */
+  private cut(): void {
+    const from = this.runEnd.length ? this.runEnd[this.runEnd.length - 1] : 0;
+    if (this.ni > from) { this.runTex.push(this.tex ?? this.white); this.runEnd.push(this.ni); }
+    this.texUsed = false;
   }
 
   /**
@@ -300,9 +324,10 @@ export class Gfx {
    */
   image(cv: Canvas, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number, stamp = 0, repeat = false): void {
     const t = this.texture(cv, repeat, stamp);
-    this.bind(t);
-    this.shape();
     this.reserve(4, 6);
+    this.bind(t);
+    this.texUsed = true;
+    this.shape();
     const col = this.pack(1, 1, 1, 1);
     const u0 = sx / t.w, v0 = sy / t.h, u1 = (sx + sw) / t.w, v1 = (sy + sh) / t.h;
     const i = this.v(dx, dy, col, u0, v0, 1);
@@ -316,22 +341,31 @@ export class Gfx {
   useTexture(cv: Canvas, repeat = false, stamp = 0): Tex {
     const t = this.texture(cv, repeat, stamp);
     this.bind(t);
+    this.texUsed = true;
     return t;
   }
 
-  /** send what is batched */
+  /** send what is batched: one upload, a draw call per run */
   flush(): void {
-    if (!this.ni || this.lost) { this.nv = 0; this.ni = 0; return; }
+    if (!this.ni || this.lost) { this.nv = 0; this.ni = 0; this.runTex.length = this.runEnd.length = 0; this.batch++; return; }
     const gl = this.gl;
-    if (!this.tex) this.bind(this.white);
+    this.cut();
     gl.bindVertexArray(this.vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
     gl.bufferData(gl.ARRAY_BUFFER, this.u8.subarray(0, this.nv * STRIDE), gl.STREAM_DRAW);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.ibo);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.idx.subarray(0, this.ni), gl.STREAM_DRAW);
-    gl.drawElements(gl.TRIANGLES, this.ni, gl.UNSIGNED_INT, 0);
-    this.calls++; this.tris += this.ni / 3;
+    let from = 0;
+    for (let r = 0; r < this.runEnd.length; r++) {
+      gl.bindTexture(gl.TEXTURE_2D, this.runTex[r].tex);
+      gl.drawElements(gl.TRIANGLES, this.runEnd[r] - from, gl.UNSIGNED_INT, from * 4);
+      from = this.runEnd[r];
+      this.calls++;
+    }
+    this.tris += this.ni / 3;
     this.nv = 0; this.ni = 0;
+    this.runTex.length = this.runEnd.length = 0;
+    this.batch++;
   }
 
   /** wait for the GPU (measures: the time of a frame includes its drawing) */
