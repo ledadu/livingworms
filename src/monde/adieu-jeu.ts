@@ -5,7 +5,7 @@
 import { fuse } from '../content';
 import type { Spec } from '../engine';
 import type { Creature3 } from '../engine3/creature3';
-import { Farewell, T, stayGoal, type Pt, type Shot } from './adieu';
+import { Farewell, GONE, T, stayGoal, watchGoal, type Pt, type Shot } from './adieu';
 import type { Narrator } from './narration';
 import './adieu.css';
 
@@ -15,8 +15,10 @@ export function initAdieu(narrator: Narrator) {
   let scene: { f: Farewell; t0: number; chapter: number; parent: Creature3; child: Creature3; told: boolean } | null = null;
   let shot: Shot | null = null, dist = 0;
   const homes = new WeakMap<Creature3, { home: Pt; seed: number }>();
+  /** the parent just left, watching its child until it is gone */
+  let watching: Creature3 | null = null;
 
-  const end = () => { scene = null; shot = null; document.body.classList.remove('adieu'); };
+  const end = () => { watching = scene?.parent ?? null; scene = null; shot = null; document.body.classList.remove('adieu'); };
 
   return {
     /** the scene is playing (the swimmer is not ours) */
@@ -44,6 +46,11 @@ export function initAdieu(narrator: Narrator) {
     /** each step: the wished velocity of a parent left behind */
     parentGoal(cr: Creature3, time: number, swimmer: Pt): Pt {
       if (scene && shot && cr === scene.parent) return shot.parent;
+      if (cr === watching) {
+        const p = at(cr);
+        if (Math.hypot(swimmer.x - p.x, swimmer.y - p.y) < GONE) return watchGoal(p, swimmer);
+        watching = null;
+      }
       const h = homes.get(cr);
       return h ? stayGoal(at(cr), h.home, swimmer, time, h.seed) : { x: 0, y: 0 };
     },

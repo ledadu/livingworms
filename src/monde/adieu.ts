@@ -1,7 +1,7 @@
 // The farewell to the parent (docs/mecaniques.md, « L'adieu »): the child is born beside it and turns
-// around it once, the words of the lineage come, then the child swims away down the story while the
-// parent goes a little way with it, stops, and watches it go. The parent stays there afterwards, and
-// turns to look at us when we come back. Pure: positions in, wished velocities and camera out.
+// around it once, the words of the lineage come, then the child moves a little way off, unhurried, still
+// among its brothers and sisters, and is ours again. The parent watches it, and stays there afterwards:
+// it turns to look at us when we come back. Pure: positions in, wished velocities and camera out.
 
 export interface Pt { x: number; y: number }
 
@@ -12,14 +12,16 @@ export const T = {
   /** the child sets off */
   leave: 3,
   /** the parent has stopped following */
-  stop: 5.6,
+  stop: 4.2,
   /** the swimmer is ours again at the latest */
-  end: 11
+  end: 9
 };
-/** the swimmer is ours again as soon as the child is this far */
-export const APART = 720;
-/** how far the child sets off for, and how much deeper */
-const AWAY = 1000, DEEPER = 160;
+/** the swimmer is ours again as soon as the child is this far: near enough to see the siblings around it */
+export const APART = 170;
+/** how far the child moves off, and how much deeper */
+const AWAY = 300, DEEPER = 30;
+/** a parent watches the child it left until it is this far, and comes to meet it only when it comes back */
+export const GONE = 520;
 
 export interface Shot {
   /** wished velocities of the child (the swimmer) and of the parent */
@@ -76,20 +78,19 @@ export class Farewell {
       cv = toward(child, { x: parent.x + Math.cos(a) * 70, y: parent.y + Math.sin(a) * 42 }, 1.3, 30);
       pv = face(parent, child);
     } else {
-      // apart: the child goes, faster and faster; the parent goes with it a little, then stops and watches
-      const u = smooth(T.leave, T.leave + 3, s);
-      cv = toward(child, this.away, lerp(0.9, 2.4, u));
-      const w = 1 - smooth(T.leave + 0.6, T.stop, s);
-      pv = w > 0.05 ? toward(parent, child, 0.9 * w, 200) : face(parent, child);
+      // apart: the child moves off without haste; the parent leans after it a little, then stops and watches
+      cv = toward(child, this.away, lerp(0.6, 1, smooth(T.leave, T.leave + 1.5, s)));
+      const w = 1 - smooth(T.leave + 0.3, T.stop, s);
+      pv = w > 0.05 ? toward(parent, child, 0.4 * w, 200) : face(parent, child, 0.2);
     }
-    // the camera: close on the two, wider as they part, then back with the child
+    // the camera: close on the two, then giving the view back around the child as it moves off
     const mid = { x: (parent.x + child.x) / 2, y: (parent.y + child.y) / 2 };
-    const k = smooth(380, 820, d);
+    const k = smooth(80, APART, d);
     return {
       child: cv, parent: pv,
       focus: { x: lerp(mid.x, child.x, k), y: lerp(mid.y, child.y, k) },
       span: Math.max(this.frame, d + this.size * 2 + 240),
-      close: smooth(0, 2, s) * (1 - smooth(520, APART + 60, d))
+      close: smooth(0, 2, s) * (1 - 0.8 * smooth(80, APART, d))
     };
   }
 }
@@ -104,7 +105,12 @@ export const ROOM = 90;
 export function stayGoal(parent: Pt, home: Pt, swimmer: Pt, time: number, seed = 0): Pt {
   const dx = swimmer.x - parent.x, dy = swimmer.y - parent.y, d = Math.hypot(dx, dy);
   const off = Math.hypot(parent.x - home.x, parent.y - home.y);
-  if (d < 520 && off < 260) return d < 150 ? face(parent, swimmer, 0.35 * Math.min(1, Math.max(0, (d - ROOM) / 60))) : toward(parent, swimmer, 0.7, 120);
+  if (d < GONE && off < 260) return d < 150 ? face(parent, swimmer, 0.35 * Math.min(1, Math.max(0, (d - ROOM) / 60))) : toward(parent, swimmer, 0.7, 120);
   const drift = { x: home.x + Math.sin(time * 0.21 + seed) * 90, y: home.y + Math.cos(time * 0.29 + seed * 1.7) * 45 };
   return toward(parent, drift, 0.55, 80);
+}
+
+/** a parent just left: it stays where it is and keeps looking at the child, until the child is gone (GONE) */
+export function watchGoal(parent: Pt, child: Pt): Pt {
+  return face(parent, child, 0.2);
 }
