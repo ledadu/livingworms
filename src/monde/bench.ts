@@ -19,6 +19,7 @@ import { Gfx } from '../engine3/gfx';
 import { paint3 } from '../engine3/paint-gl';
 import { makeCanvas } from './sprites';
 import { arrival, chapterIndex } from './biomes';
+import { travelShown } from './limites';
 import { ChronoGpu } from './chrono-gpu';
 import { benchText, verdict } from './bench-texte';
 import type { FrameSample, api as Api } from './main';
@@ -143,8 +144,10 @@ export async function runBench(api: A, out: HTMLElement): Promise<BenchResult | 
   const say = (s: string) => { out.innerHTML = `<p class="busy">${s}</p>`; };
   const keep = { farEvery: api.opts.farEvery, lock: api.lockQuality.v, x: api.player.cr.root.x[0], y: api.player.cr.root.y[0] };
   const keepBias = api.bias, keepZoom = api.input.zoomMul;
-  // ?bench=tour: the tour only; ?bench=jeu: the tour as when playing; ?bench=lod: the levels of detail only (quick before / after)
-  const only = new URLSearchParams(location.search).get('bench') || '';
+  // ?bench=tour: the tour only; ?bench=jeu: the tour as when playing; ?bench=lod: the levels of detail only (quick before / after).
+  // The button of the panel: the tour as when playing for the players, everything with ?dev
+  const asked = new URLSearchParams(location.search).get('bench');
+  const only = asked ?? (travelShown(location.search) ? '' : 'jeu');
   const part = (p: string) => !only || only === 'flush' || only === p || (only === 'jeu' && p === 'tour');
   // as when playing, the quality adapts to the device; else it stays whole, for measures that compare
   api.lockQuality.v = only !== 'jeu';
