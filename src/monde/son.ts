@@ -1,14 +1,14 @@
 // The sound of the game: one audio context for the page, woken by the first touch or key (a browser lets a page sound
-// only then) and asleep while the page is hidden. The music (musique-son.ts) and the song's voice (chant-son.ts) each
-// have their bus and their volume (the settings panel), and share one reverb made in the code. Under a note of the
-// song, the music steps back a little.
+// only then) and asleep while the page is hidden. The music (musique-son.ts), the song's voice (chant-son.ts) and the
+// noises of the sea (bruits-son.ts) each have their bus and their volume (the settings panel), and share one reverb
+// made in the code. Under a note of the song, the music steps back a little.
 
 import { clamp, rng } from '../engine';
 import { volumeGain } from './musique';
 
-export interface Volumes { musique: number; chant: number }
+export interface Volumes { musique: number; chant: number; bruits: number }
 /** the volumes the mix is made for (0..1) */
-export const VOLUMES: Volumes = { musique: 0.7, chant: 0.8 };
+export const VOLUMES: Volumes = { musique: 0.7, chant: 0.8, bruits: 0.7 };
 const STORE = 'lignee.son';
 
 /** the volumes kept in the browser's storage, each in 0..1; the defaults for what is missing or unreadable */
@@ -51,10 +51,12 @@ export interface Graph {
   music: GainNode; musicCut: BiquadFilterNode;
   /** where the song's notes come in */
   voice: GainNode;
+  /** where the noises come in, and where the far ones come in that are only heard in the reverb */
+  fx: GainNode; far: GainNode;
   /** how much of each goes to the reverb */
-  musicSend: GainNode; voiceSend: GainNode;
-  /** the dip of the music under the song, its fade in, its volume; the song's volume */
-  duck: GainNode; fade: GainNode; musicVol: GainNode; voiceVol: GainNode;
+  musicSend: GainNode; voiceSend: GainNode; fxSend: GainNode;
+  /** the dip of the music under the song, its fade in, its volume; the song's volume; the noises' volume */
+  duck: GainNode; fade: GainNode; musicVol: GainNode; voiceVol: GainNode; fxVol: GainNode; farVol: GainNode;
   /** a second of white noise (the breath of some notes) */
   noise: AudioBuffer;
   /** what comes out */
@@ -63,6 +65,8 @@ export interface Graph {
 
 /** the level of the music at its bus, so that it sits under the song */
 export const MUSIC_LEVEL = 0.2;
+/** the level of the noises at their bus, so that they sit under the music */
+export const FX_LEVEL = 0.25;
 
 export function buildGraph(c: BaseAudioContext, v: Volumes = VOLUMES): Graph {
   const master = c.createGain(), comp = c.createDynamicsCompressor(), meter = c.createAnalyser();
@@ -94,9 +98,17 @@ export function buildGraph(c: BaseAudioContext, v: Volumes = VOLUMES): Graph {
   voiceSend.gain.value = 0.42;
   voice.connect(voiceVol).connect(master);
   voiceVol.connect(voiceSend).connect(rev);
+  // the noises (bruits-son.ts sets how much of them goes to the reverb, place by place)
+  const fx = c.createGain(), fxVol = c.createGain(), fxSend = c.createGain(), far = c.createGain(), farVol = c.createGain();
+  fx.gain.value = far.gain.value = FX_LEVEL;
+  fxVol.gain.value = farVol.gain.value = volumeGain(v.bruits, VOLUMES.bruits);
+  fxSend.gain.value = 0.3;
+  fx.connect(fxVol).connect(master);
+  fxVol.connect(fxSend).connect(rev);
+  far.connect(farVol).connect(rev);
   const noise = c.createBuffer(1, c.sampleRate, c.sampleRate), nd = noise.getChannelData(0), nr = rng(11);
   for (let i = 0; i < nd.length; i++) nd[i] = nr() * 2 - 1;
-  return { c, music, musicCut, voice, musicSend, voiceSend, duck, fade, musicVol, voiceVol, noise, meter };
+  return { c, music, musicCut, voice, fx, far, musicSend, voiceSend, fxSend, duck, fade, musicVol, voiceVol, fxVol, farVol, noise, meter };
 }
 
 /** the music steps back under a note of the song at t, and comes back after `hold` s */
@@ -166,7 +178,7 @@ function createSon(): Son {
     else void ac.resume().catch(() => { /* waits for the next touch */ });
   });
 
-  const gainOf = (k: keyof Volumes) => (k === 'musique' ? graph?.musicVol : graph?.voiceVol);
+  const gainsOf = (k: keyof Volumes) => (!graph ? [] : k === 'musique' ? [graph.musicVol] : k === 'chant' ? [graph.voiceVol] : [graph.fxVol, graph.farVol]);
   return {
     get graph() { return graph; },
     get awake() { return ac?.state === 'running'; },
@@ -174,8 +186,7 @@ function createSon(): Son {
     get volumes() { return volumes; },
     setVolume(k, v) {
       volumes[k] = clamp(v, 0, 1);
-      const g = gainOf(k);
-      if (g && ac) g.gain.setTargetAtTime(volumeGain(volumes[k], VOLUMES[k]), ac.currentTime, 0.05);
+      if (ac) for (const g of gainsOf(k)) g.gain.setTargetAtTime(volumeGain(volumes[k], VOLUMES[k]), ac.currentTime, 0.05);
       try { localStorage.setItem(STORE, JSON.stringify(volumes)); } catch { /* ignore */ }
     },
     duck() { if (graph && ac) duckAt(graph, ac.currentTime); }

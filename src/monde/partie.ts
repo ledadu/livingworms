@@ -28,6 +28,10 @@ export interface Ancestor {
 /** a note of the song learned (chant.ts): the chapter it belongs to, and the generation that learned it (1: the first) */
 export interface LearnedNote { chapter: string; gen?: number }
 
+/** the free swim after the end of the story (balade.ts): the chapter where we swim, and the creature played there (null:
+ * the one the story ended with, which stays in `creature`) */
+export interface Balade { chapter: string; creature: SavedCreature | null }
+
 export interface Partie {
   v: 1;
   chapter: string;
@@ -36,6 +40,8 @@ export interface Partie {
   lineage: Ancestor[];
   /** the notes of the song learned, in the order they were (games saved before the song have none) */
   notes?: LearnedNote[];
+  /** once the story is over: the Balade libre */
+  balade?: Balade;
   savedAt: number;
 }
 
@@ -58,10 +64,13 @@ export function parsePartie(json: string | null, chapters: readonly string[]): P
     ? o.lineage.filter((a): a is Ancestor => isObject(a) && isObject(a.creature) && typeof a.chapter === 'string')
     : [];
   const notes = Array.isArray(o.notes) ? o.notes.filter((n): n is LearnedNote => isObject(n) && typeof n.chapter === 'string') : undefined;
+  const b = o.balade;
+  const balade = isObject(b) ? { chapter: typeof b.chapter === 'string' && chapters.includes(b.chapter) ? b.chapter : chapters[0], creature: isObject(b.creature) ? b.creature : null } : undefined;
   return {
     v: 1, chapter, lineage,
     creature: isObject(o.creature) ? o.creature : null,
     ...(notes && { notes }),
+    ...(balade && { balade }),
     savedAt: typeof o.savedAt === 'number' ? o.savedAt : 0
   };
 }
