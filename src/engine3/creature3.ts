@@ -13,6 +13,7 @@
 import type { AttDef, NodeDef, PaletteSlot, Spec, SwimDef, SwimMode } from '../engine/types';
 import { ROOT_SLOT, SHAPES, expand, onRim, palette, rimOf, type Slot } from '../engine/defs';
 import { STEP, TAU, clamp, hsla, len2, len3, lerp, rand, wrapAngle } from '../engine/util';
+import { hover, surge, turnPace } from './pilot';
 
 // ----- tiny vector helpers on scalars (no allocation in the hot path) ----- //
 
@@ -510,6 +511,8 @@ export class Creature3 {
   private rear = false;
   /** the parts that push the animal along (drive pull), read for the power of its jets */
   drivers: Seg3[] = [];
+  /** steered by the player: it goes where it is told at an even pace, whatever its way of swimming (pilot.ts) */
+  pilot = false;
 
   constructor(sp: Spec, x: number, y: number, z: number, o: Creature3Options = {}) {
     this.spec = sp;
@@ -668,7 +671,9 @@ export class Creature3 {
     const push = want * (0.1 + 3.6 * this.stroke);
     // it sinks a little (and faster when it has to go down)
     const sink = 0.16 + clamp(dvy, 0, 1.2) * 0.35;
-    this.update(time, h.x * push, h.y * push + sink, h.z * push + dvz * 0.5, accel);
+    // steered, it goes where it is told, its beats a gentle surge, and hovers when left alone
+    if (this.pilot) this.update(time, sp > 0.05 ? dvx * surge(this.stroke) : 0, sp > 0.05 ? dvy * surge(this.stroke) : hover(this.stroke), dvz, accel);
+    else this.update(time, h.x * push, h.y * push + sink, h.z * push + dvz * 0.5, accel);
   }
 
   /**
@@ -694,7 +699,10 @@ export class Creature3 {
     this.aim(h, this.pitch, this.yaw);
     const align = Math.max(0, Math.cos(this.yawGoal - this.yaw)) * Math.max(0, Math.cos(pitchGoal - this.pitch));
     const speed = sp * (this.drivers.length ? 0.15 + 4.2 * this.stroke : 0.1 + 3.6 * this.stroke) * (0.2 + 0.8 * align) * (this.rear ? -0.7 : 1);
-    this.update(time, h.x * speed, h.y * speed, dvz, accel);
+    // steered, it goes where it is told, its jets a gentle surge, whichever way its mantle points
+    const k = this.pilot ? surge(this.stroke) * turnPace(align) : 0;
+    if (this.pilot) this.update(time, dvx * k, dvy * k, dvz, accel);
+    else this.update(time, h.x * speed, h.y * speed, dvz, accel);
   }
 
   /**
@@ -718,7 +726,7 @@ export class Creature3 {
     const face = Math.max(0, Math.cos(err));
     const vx = dvx * (0.15 + 0.85 * face), vz = dvz * 0.5;
     // a walker only leaves the floor when it is told to go up; otherwise it falls back and follows the floor
-    const vy = crawlRise(dvy, this.gap);
+    const vy = crawlRise(dvy, this.gap, this.pilot && len2(dvx, dvy) > 0.05);
     this.rising = vy < 0;
     [this.pitch, this.pitchVel] = this.spring(this.pitch, crawlPitch(vx, dvy, this.gap, sw), this.pitchVel, w);
     this.aim(this.heading3, this.pitch, this.yaw);
@@ -780,11 +788,13 @@ export const AFLOAT = 14;
 /**
  * The vertical speed of a walker told dvy, `gap` above the floor: it rises when
  * told to go up, dives when told to go down in open water, and otherwise sinks
- * slowly back to the floor.
+ * slowly back to the floor. Steered by the player in open water, it goes where
+ * it is told, and only sinks back once left alone.
  */
-export function crawlRise(dvy: number, gap: number): number {
+export function crawlRise(dvy: number, gap: number, steered = false): number {
   if (dvy < -0.3) return dvy;
-  return gap > AFLOAT ? Math.max(0.5, dvy) : 0.5;
+  if (gap <= AFLOAT) return 0.5;
+  return steered ? dvy : Math.max(0.5, dvy);
 }
 
 /**

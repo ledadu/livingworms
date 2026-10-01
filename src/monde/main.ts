@@ -373,6 +373,8 @@ const cam = { x: 420, y: 180 };
 
 function steer(a: Actor, dvx: number, dvy: number, accel: number): void {
   const r = a.cr.root;
+  // the swimmer goes where it is told, whatever its way of swimming (engine3/pilot.ts); the others keep their own
+  a.cr.pilot = a === player;
   if (a === player) { [dvx, dvy] = keys.steer(r.x[0], dvx, dvy); dvx = holdBack(r.x[0], dvx, bounds); }
   a.cr.steer(t + (a.lag ?? 0), dvx, dvy, clamp((a.z - r.z[0]) * 0.035, -0.5, 0.5), accel);
 }
