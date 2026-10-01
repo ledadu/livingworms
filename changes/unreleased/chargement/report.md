@@ -7,6 +7,17 @@ Un écran de chargement qui s'affiche avec les premiers kilo-octets de la page, 
 - `index.html` : l'écran `#chargement` (HTML et CSS en ligne, aucun script) en tête du `<body>`, avec son style dans le `<head>`. Il montre la mer bleu profond, trois rayons, six grains de neige marine qui remontent, la larve (SVG), « La Lignée » et « Nous nous éveillons… ». Les animations n'utilisent que `transform` et `opacity`, que le navigateur anime même quand le script du jeu occupe le processeur. Avec `prefers-reduced-motion`, l'écran reste immobile.
 - `index.html` : la feuille Google Fonts ne bloque plus le premier affichage (`media="print" onload`). Avant, sans réseau, elle retenait la page jusqu'à l'échec de la requête.
 - `src/monde/chargement.ts` : `leverRideau()`, appelé à la fin de `main.ts` juste après le premier `requestAnimationFrame(frame)`. Il attend 3 images, puis lance le fondu (0,9 s, avec un léger zoom) et retire l'élément.
+- **La larve** (deuxième passe, à la demande de l'utilisateur, « fais une plus belle créature ») : c'est le premier ancêtre du jeu (`firstAncestor`), ambré et translucide. Elle est faite de calques HTML superposés, chacun animé seulement par `transform` et `opacity` :
+  - un halo chaud qui respire ;
+  - le corps en goutte (SVG), avec un dégradé lumineux, un liseré clair qui s'estompe vers la queue, un reflet, un trait intérieur et quelques chromatophores ;
+  - deux rangées de 7 cils qui battent en vague (un décalage de phase de 0,1 s de l'un à l'autre) ;
+  - une queue en deux segments emboîtés (un ruban, puis une nageoire voilée et nervurée) qui ondule, le second en retard sur le premier ;
+  - la lueur au cœur du corps, qui pulse ;
+  - un grand œil qui cligne toutes les 5 s.
+
+  Le corps lui-même se gonfle à peine au rythme de la nage. Un screencast de la page publiée, sur le téléphone simulé, montre qu'elle bouge à chaque image (environ 60 images/s) pendant tout le démarrage du jeu, même quand le script occupe le processeur.
+
+  ![La larve](img/larve.jpg)
 - `src/monde/chargement-page.ts` : le plugin de build `chargementPlugin()`, branché dans `vite.config.ts` après `viteSingleFile()`. Vite et le plugin singlefile mettaient dans le `<head>` le script du jeu (590 Ko) et le JSON des Nouveautés (550 Ko) : le `<body>` ne commençait qu'à 1,19 Mo. `scriptsLast()` les déplace, dans le même ordre, à la fin du `<body>`, et le `<body>` commence maintenant à 44 Ko. Rien ne change à l'exécution : le script du jeu est un module, lancé une fois la page lue où qu'il soit placé.
 - Tests : `src/monde/chargement-page.test.ts` vérifie le déplacement, le cas d'un `</head>` dans le code, une page sans script, l'écran avant tout script dans `index.html` et l'absence de feuille de style bloquante.
 - Doc : `docs/direction-artistique.md`, section « L'écran de chargement ».
@@ -34,6 +45,7 @@ Pour le voir : `make up`, puis ouvrir le client. Ou, dans les DevTools, réseau 
 | Comment le faire arriver vite dans la page publiée | Déplacer les scripts du `<head>` à la fin du `<body>` au build (plugin `generateBundle` après singlefile) | Le gain est de 2,2 s au premier affichage, sans rien changer au jeu (`auto`) |
 | Quand le retirer | Après 3 images du monde, puis un fondu de 0,9 s | On découvre une mer déjà en mouvement, et les premières images, les plus lentes, restent cachées (`auto`) |
 | Ce qu'il montre | La larve, le titre et une phrase dans la voix du « nous », des rayons et de la neige marine | C'est cohérent avec l'ouverture de la Nurserie, et léger : un SVG et quelques `div` (`auto`) |
+| La créature (2e passe) | La larve du premier ancêtre, en calques HTML animés seulement par transform et opacity, avec ses cils, sa queue qui ondule, sa lueur et ses clignements | C'est elle qu'on joue en premier. Ces calques sont animés par le compositeur, donc ils bougent même pendant que le jeu démarre (`auto`) |
 | Les polices | Non bloquantes (`media="print" onload`) | Sans réseau, la page restait blanche. Le prix : le titre passe de Georgia à Cormorant après ~1 s, le temps que la police arrive (`auto`) |
 
 Aucune question n'a été posée à l'utilisateur.
@@ -54,6 +66,10 @@ Aucune question n'a été posée à l'utilisateur.
 - **Ce qu'il montre**
   - Une barre ou un pourcentage de progression : on ne connaît pas l'avancement réel d'un module unique, ce serait une fausse barre.
   - Seulement le titre : moins vivant.
+- **La créature**
+  - Un portrait rendu par le moteur (`snapshot3.ts`), embarqué en image : c'est exactement la larve du jeu, mais il pèse 10 à 30 Ko de plus avant le premier affichage et il est figé, à moins d'une suite d'images.
+  - Un SVG animé en SMIL ou une forme qui se déforme : l'ondulation serait plus souple, mais ces animations tournent sur le fil principal et gèleraient pendant le démarrage du jeu.
+  - Une autre créature (méduse, poisson) : plus spectaculaire, mais sans lien avec le début de l'histoire.
 - **Les polices**
   - Les garder bloquantes : le titre serait tout de suite en Cormorant, mais on retrouve la page blanche sans réseau ou sur un réseau lent.
   - Les embarquer dans la page : environ 100 Ko de plus, et la licence et le poids sont à décider.
@@ -67,6 +83,7 @@ Aucune question n'a été posée à l'utilisateur.
 - Après la fusion de `backlog` (les vrais sons, en mp3 dans le script), la page publiée pèse 1,6 Mo (920 Ko compressée) : l'écran s'affiche toujours à 49 Ko du début, mais le jeu mettra plus longtemps à arriver.
 - **Le serveur de dev** (celui qu'ouvre le tableau de bord sur un téléphone) reste lent, environ 16 s, parce qu'il charge des centaines de modules un par un. L'écran le cache, mais ne l'accélère pas.
 - **Si le script du jeu échoue** (erreur au démarrage), l'écran reste affiché indéfiniment, au lieu de l'ancienne page cassée. On pourrait ajouter un message « recharger » après un long délai.
+- La larve est dessinée à la main : elle évoque le premier ancêtre sans en être le rendu exact, et une autre couleur de départ (la palette de la partie) ne s'y reflète pas.
 - **Le saut de police** du titre (Georgia puis Cormorant) se voit sur un réseau lent.
 
 ## Risques de fusion
