@@ -23,7 +23,7 @@ import {
   refreshSnapshot,
   removeQueueEntry,
 } from './roadmap.mjs';
-import { parseBacklog, setTaskStatus, syncBacklog, taskVersion, withLabels, writeTask } from './backlog.mjs';
+import { STATES, depthOf, parseBacklog, setTaskStatus, subtasksOf, syncBacklog, taskVersion, withLabels, writeAfter, writeTask } from './backlog.mjs';
 import { askAboutTask, clearChat, hasChat, markApplied, readChat } from './task-chat.mjs';
 import { renameSync as renameFile } from 'node:fs';
 import { launchTask, resumeTask, runDir, runLog, runLogFrom, runState, stopTask } from './launch.mjs';
@@ -77,6 +77,8 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
     for (const item of items) {
       if (item.kind === 'task') {
         item.version = taskVersion(item);
+        item.depth = depthOf(items, item);
+        item.subtaskCount = subtasksOf(items, item.id).length;
         const chat = hasChat(registry, item.id) ? readChat(registry, item.id) : null;
         item.chat = chat?.messages.length ? { count: chat.messages.length, pending: chat.pending } : null;
       }
@@ -107,7 +109,18 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
   async function prompts(tasks) {
     const { items, sources } = current();
     const byId = new Map(items.map((item) => [item.id, item]));
-    const chosen = tasks.filter((task) => byId.has(task.id)).map((task) => ({ ...byId.get(task.id), name: task.name, base: task.base || project.branches.integration }));
+    // A sub-task chosen with its parent (or an ancestor) goes with it: the parent's agent does it after.
+    const ids = new Set(tasks.map((task) => task.id));
+    const folded = (id) => {
+      for (let up = byId.get(byId.get(id)?.after); up; up = byId.get(up.after)) if (ids.has(up.id)) return true;
+      return false;
+    };
+    const chosen = tasks.filter((task) => byId.has(task.id) && !folded(task.id)).map((task) => ({
+      ...byId.get(task.id),
+      name: task.name,
+      base: task.base || project.branches.integration,
+      subtasks: subtasksOf(items, task.id).filter((sub) => sub.state === 'todo'),
+    }));
     const active = sources.agents.filter((agent) => !agent.archived).map((agent) => ({ name: agent.name }));
     const fileIndex = await files();
     const out = {};
@@ -189,6 +202,17 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
         return json({ ok: false, conflict: error.code === 409, error: error.message }), true;
       }
     }
+    // Drag and drop on the Backlog page: a task becomes the sub-task of another ({ after: id }), or no more ({ after: null }).
+    const afterRoute = /^\/api\/backlog\/after\/([a-z0-9-]+)$/.exec(path);
+    if (afterRoute && post) {
+      const { after = null } = await readBody(request);
+      try {
+        writeAfter({ file: roadmapFile, id: afterRoute[1], after });
+        return json(state({ ok: true })), true;
+      } catch (error) {
+        return json({ ok: false, error: error.message }, error.code ?? 400), true;
+      }
+    }
     if (path === '/api/backlog/new' && post) {
       const { section, text } = await readBody(request);
       try {
@@ -235,17 +259,27 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
     if (path === '/api/roadmap/enqueue' && post) {
       const { tasks = [] } = await readBody(request);
       const job = queuing.then(async () => {
-        const { prompts: generated, chosen } = await prompts(tasks);
+        const { prompts: generated, chosen: all } = await prompts(tasks);
+        // A sub-task waits for its parent: it goes with the parent's agent, or alone once the parent is merged.
+        const byId = new Map(current().items.map((item) => [item.id, item]));
+        const refused = [];
+        const chosen = all.filter((task) => {
+          const parent = byId.get(task.after);
+          if (!parent || parent.state === 'merged' || parent.state === 'done') return true;
+          refused.push({ name: task.name, ok: false, error: `sous-tâche de « ${parent.title} » (${STATES[parent.state]?.label ?? parent.state}) : elle part avec sa tâche mère (coche-la), ou seule une fois celle-ci fusionnée` });
+          return false;
+        });
         const edited = new Map(tasks.map((task) => [task.id, task.prompt]));
         const asked = new Map(tasks.map((task) => [task.id, task]));
         const ready = chosen.map((task) => ({ id: task.id, name: task.name, base: task.base, title: task.title, prompt: edited.get(task.id) || generated[task.id], effort: asked.get(task.id)?.effort, model: asked.get(task.id)?.model }));
-        const results = await enqueue(ready, { queueDir, registry, createWorktree: (name, base) => agentCommand(['new', name, base]) });
+        const results = [...refused, ...(await enqueue(ready, { queueDir, registry, createWorktree: (name, base) => agentCommand(['new', name, base]) }))];
         // The task now names its agent in the backlog: « > 🟣 en file · agent <name> ».
         for (const task of ready) {
           const result = results.find?.((one) => one.name === task.name);
           if (result && result.ok === false) continue;
           const item = chosen.find((one) => one.id === task.id);
           setTaskStatus({ file: roadmapFile, id: task.id, state: 'queued', agents: [...(item?.agents ?? []), task.name] });
+          for (const sub of item?.subtasks ?? []) setTaskStatus({ file: roadmapFile, id: sub.id, state: 'queued', agents: [...sub.agents, task.name] });
         }
         return results;
       });

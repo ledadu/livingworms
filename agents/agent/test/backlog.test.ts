@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { commitBacklog, formatStatus, parseBacklog, parseStatus, setTaskStatus, stateOf, syncBacklog, syncMarkdown, withLabels } from '../backlog.mjs';
+import { commitBacklog, depthOf, setAfter, subtasksOf, formatStatus, parseBacklog, parseStatus, setTaskStatus, stateOf, syncBacklog, syncMarkdown, withLabels } from '../backlog.mjs';
 
 const BACKLOG = `# Backlog
 
@@ -178,5 +178,50 @@ describe('commitBacklog', () => {
     writeFileSync(file, `${BACKLOG}\nplus`);
     expect(commitBacklog({ root, file, branch: 'master' })).toBe(false);
     rmSync(root, { recursive: true, force: true });
+  });
+});
+
+describe('sub-tasks', () => {
+  const FAMILY = `# Backlog
+
+## Son
+
+### De vrais sons
+> ⚪ à faire
+
+Des enregistrements.
+
+### Autre chose
+> 🔵 en cours · agent autre
+
+Texte.
+
+### Les crédits des sons
+> ⚪ à faire
+
+Les auteurs.
+`;
+
+  it('makes a task a sub-task: its block goes after its parent, with its line under the status line', () => {
+    const next = setAfter(FAMILY, 'les-credits-des-sons', 'de-vrais-sons');
+    expect(next).toContain('### De vrais sons\n> ⚪ à faire\n\nDes enregistrements.\n\n### Les crédits des sons\n> ⚪ à faire\n> ↳ après « De vrais sons »\n\nLes auteurs.\n\n### Autre chose');
+    const items = parseBacklog(next);
+    const credits = items.find((item) => item.id === 'les-credits-des-sons');
+    expect(credits).toMatchObject({ after: 'de-vrais-sons', state: 'todo', text: '### Les crédits des sons\n\nLes auteurs.' });
+    expect(subtasksOf(items, 'de-vrais-sons').map((item) => item.id)).toEqual(['les-credits-des-sons']);
+    expect(depthOf(items, credits)).toBe(1);
+    // The status line is still the system's to keep, the sub-task line stays.
+    const synced = setTaskStatus.length && next.replace('> ⚪ à faire\n> ↳', '> 🟣 en file · agent sons\n> ↳');
+    expect(parseBacklog(synced).find((item) => item.id === 'les-credits-des-sons')).toMatchObject({ state: 'queued', after: 'de-vrais-sons' });
+  });
+
+  it('detaches a sub-task, refuses a loop, and ignores a line naming no task', () => {
+    const linked = setAfter(FAMILY, 'les-credits-des-sons', 'de-vrais-sons');
+    expect(() => setAfter(linked, 'de-vrais-sons', 'les-credits-des-sons')).toThrow(/elle-même/);
+    const free = setAfter(linked, 'les-credits-des-sons', null);
+    expect(free).not.toContain('↳');
+    expect(parseBacklog(free).find((item) => item.id === 'les-credits-des-sons').after).toBeNull();
+    const orphan = FAMILY.replace('### Les crédits des sons\n> ⚪ à faire', '### Les crédits des sons\n> ⚪ à faire\n> ↳ après « Rien »');
+    expect(parseBacklog(orphan).find((item) => item.id === 'les-credits-des-sons')).toMatchObject({ after: null, afterTitle: 'Rien' });
   });
 });

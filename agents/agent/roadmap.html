@@ -106,7 +106,17 @@
   .toggle { font-size: 11px; color: var(--muted); cursor: pointer; background: none; border: none; padding: 0 2px; }
   .toggle:hover { color: var(--text); }
   pre { margin: 6px 0 2px; font-size: 11.5px; white-space: pre-wrap; word-break: break-word; color: #c9d1dc; background: var(--bg); border-radius: 6px; padding: 6px 8px; max-height: 360px; overflow: auto; }
-  .choices { font-size: 12px; color: var(--warn); margin-top: 3px; }
+.choices { font-size: 12px; color: var(--warn); margin-top: 3px; }
+  /* Sub-tasks: under their parent, dragged onto another task to become its sub-task (onto the group: no longer). */
+  .row.sub { border-left-style: dashed; }
+  .row .arrow { color: var(--muted); flex: none; }
+  .row.dragging { opacity: .4; }
+  .row.drop, details.section > summary.drop { outline: 2px dashed var(--say); outline-offset: 2px; }
+  .subs { font-size: 11px; color: var(--say); white-space: nowrap; }
+  .after-pick { font-size: 12px; max-width: 220px; }
+  .pick .subs-note { font-size: 11px; color: var(--say); flex-basis: 100%; }
+  .defaults { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--muted); }
+  .defaults select { font-size: 12px; width: auto; }
   /* The tasks chosen, before they are queued. */
   .pick { border: 1px solid var(--line); border-left: 3px solid var(--say); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; background: var(--panel2); }
   .pick .head { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
@@ -135,6 +145,8 @@
   ul.queue li .ask { font-size: 12px; color: var(--warn); }
   ul.queue li .qt span { color: var(--muted); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .empty { color: var(--muted); font-size: 12px; font-style: italic; }
+  /* A phone: a task's title on its own line, its pill and tools below. */
+  @media (max-width: 600px) { .line { flex-wrap: wrap; } .line .title { flex-basis: calc(100% - 50px); white-space: normal; } .after-pick { max-width: 100%; } .layout main { min-width: 0; } }
   @media (max-width: 900px) { .layout { grid-template-columns: 1fr; padding: 12px 16px; } .side { position: static; max-height: none; } header { padding: 12px 16px; } }
   nav.site { display: flex; gap: 4px; flex-wrap: wrap; }
   nav.site a { color: var(--muted); padding: 2px 10px; border-radius: 99px; font-size: 13px; }
@@ -164,6 +176,7 @@
   <aside class="side">
     <section class="panel">
       <h2>Tâches choisies <span id="pick-count"></span></h2>
+      <div class="defaults" title="L'effort et le modèle que prend chaque tâche cochée (retenus d'une visite à l'autre) ; une tâche garde ce que tu lui choisis à la main ou ce que propose ✨ Claude">Par défaut : <label>effort <select id="default-effort"></select></label><label>modèle <select id="default-model"></select></label></div>
       <div id="picks"><span class="empty">Coche des chantiers « à faire » : un nom d'agent, une base et le prompt proposé apparaissent ici.</span></div>
       <div class="line"><button class="btn go" id="enqueue" disabled>Mettre en file</button><button class="btn" id="propose" disabled title="Claude propose un effort et un modèle pour chaque tâche choisie (sauf celles où tu as déjà choisi) ; tu valides ou tu changes">✨ Proposer avec Claude</button><span class="note" id="enqueue-note"></span></div>
       <span class="note">Crée le worktree de chaque tâche (<code>agent.sh new</code>) et l'ajoute à la file. Ensuite, « ▶ Lancer » démarre l'agent tout de suite (le CLI <code>claude</code> dans son worktree), ou l'orchestrateur (la session Claude Code, <code>make agent-queue-wait</code>) les prend.</span>
@@ -260,10 +273,15 @@ function rowHtml(item, marks) {
   const who = item.agent ? `<span class="who" title="${escapeHtml(item.refs.map((ref) => ref.kind === 'queue' ? `file : ${ref.name}` : ref.name || ref.path || `roadmap ${ref.date}`).join(' · '))}">${escapeHtml(item.agent)}${item.inherited ? ' ↑' : ''}</span>` : '';
   const choices = item.choices.length ? `<div class="choices">${item.choices.map((choice) => `✔ ${escapeHtml(choice)}`).join('<br>')}</div>` : '';
   const open = opened.has(item.id);
-  return `<div class="row st-${item.status} kind-${item.kind}${picked.has(item.id) ? ' picked' : ''}" id="t-${escapeHtml(item.id)}">
-    <div class="line">${box}<span class="title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</span>${mark}${who}<span class="pill">${escapeHtml(item.label)}</span>
+  const task = item.kind === 'task';
+  const depth = item.depth ?? 0;
+  const arrow = depth ? '<span class="arrow" title="Sous-tâche : elle part avec l\'agent de sa tâche mère, après elle">↳</span>' : '';
+  const subs = item.subtaskCount ? `<span class="subs" title="Ses sous-tâches partent avec elle, au même agent">+${item.subtaskCount} sous-tâche${item.subtaskCount > 1 ? 's' : ''}</span>` : '';
+  const after = task && afterEditing === item.id ? `<select class="after-pick" data-after-select="${escapeHtml(item.id)}">${afterOptions(item)}</select>` : '';
+  return `<div class="row st-${item.status} kind-${item.kind}${depth ? ' sub' : ''}${picked.has(item.id) ? ' picked' : ''}" id="t-${escapeHtml(item.id)}"${task ? ` draggable="true" data-drag="${escapeHtml(item.id)}"` : ''}${depth ? ` style="margin-left:${depth * 22}px"` : ''}>
+    <div class="line">${box}${arrow}<span class="title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</span>${subs}${mark}${who}<span class="pill">${escapeHtml(item.label)}</span>
       <button class="toggle" data-open="${escapeHtml(item.id)}" title="Texte exact (ligne ${item.line})">${open ? '▾ texte' : '▸ texte'}</button>
-      ${item.kind === 'task' ? `<button class="tool" data-edit="${escapeHtml(item.id)}" title="Modifier le texte du chantier">✎</button><button class="tool${item.chat ? ' has' : ''}" data-chat="${escapeHtml(item.id)}" title="En discuter avec Claude pour l'améliorer, l'affiner ou le corriger">💬${item.chat ? `<small>${item.chat.pending ? '…' : item.chat.count}</small>` : ''}</button>` : ''}</div>
+      ${item.kind === 'task' ? `<button class="tool" data-after="${escapeHtml(item.id)}" title="En faire la sous-tâche d'une autre (ou glisser la ligne sur sa tâche mère ; sur le titre du groupe pour la détacher)">↳</button>${after}<button class="tool" data-edit="${escapeHtml(item.id)}" title="Modifier le texte du chantier">✎</button><button class="tool${item.chat ? ' has' : ''}" data-chat="${escapeHtml(item.id)}" title="En discuter avec Claude pour l'améliorer, l'affiner ou le corriger">💬${item.chat ? `<small>${item.chat.pending ? '…' : item.chat.count}</small>` : ''}</button>` : ''}</div>
     ${choices}${open ? `<pre>${escapeHtml(item.text)}</pre>` : ''}</div>`;
 }
 
@@ -292,7 +310,7 @@ function sectionsHtml() {
         .map(([status, n]) => `${n} ${{ new: 'à faire', active: 'en cours', done: 'livré', archived: 'fusionné' }[status]}${n > 1 && (status === 'done' || status === 'archived') ? 's' : ''}`)
         .join(' · ');
       return `<details class="section" data-section="${escapeHtml(head.id)}" ${closedSections.has(head.id) ? '' : 'open'}>
-        <summary>${escapeHtml(head.title)} <span class="counts">${counts}</span>${head.title !== 'Livré' ? `<button class="tool new" data-new="${escapeHtml(head.title)}" title="Ajouter un chantier à ce groupe">+ chantier</button>` : ''}</summary>
+        <summary data-drop-section="${escapeHtml(head.id)}">${escapeHtml(head.title)} <span class="counts">${counts}</span>${head.title !== 'Livré' ? `<button class="tool new" data-new="${escapeHtml(head.title)}" title="Ajouter un chantier à ce groupe">+ chantier</button>` : ''}</summary>
         <div class="rows">${shown.map((item) => rowHtml(item, marks)).join('')}</div></details>`;
     })
     .join('') || '<p class="empty">Aucun chantier à montrer avec ce filtre.</p>';
@@ -338,7 +356,7 @@ function queueHtml() {
 }
 
 function render() {
-  const key = JSON.stringify([data, filter, [...picked.keys()], [...opened], confirming]);
+  const key = JSON.stringify([data, filter, [...picked.keys()], [...opened], confirming, afterEditing]);
   if (key === lastRendered) return;
   lastRendered = key;
   $('summary').innerHTML = summaryHtml();
@@ -365,6 +383,7 @@ function renderPicks() {
       <span class="set">effort <select class="effort" title="Effort de réflexion de l'agent (claude --effort)">${settingOptions(PROJECT.efforts, PROJECT.defaults.effort)}</select></span>
       <span class="set">modèle <select class="model" title="Modèle de l'agent (claude --model)">${settingOptions(PROJECT.models, PROJECT.defaults.model)}</select></span>
       <span class="why"></span>
+      ${pickNote(item)}
       <span class="edited" hidden>prompt modifié à la main</span><span class="spacer"></span><button class="toggle" data-unpick>✕ retirer</button></div>
       <textarea spellcheck="false" placeholder="prompt…"></textarea>`;
     element.querySelector('.name').addEventListener('input', (event) => {
@@ -419,6 +438,97 @@ function showSettings(element, pick) {
   const why = element.querySelector('.why');
   why.className = `why${pick.by === 'claude' ? ' claude' : ''}`;
   why.textContent = pick.chosen || !pick.why ? '' : `${pick.by === 'claude' ? '✨ Claude' : 'proposé'} : ${pick.why}`;
+}
+
+// Sub-tasks: the menu of a row's « ↳ » (its possible parents), and what a chosen task carries along.
+let afterEditing = null;
+function afterOptions(item) {
+  const below = new Set([item.id]);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const one of data.items) if (one.kind === 'task' && below.has(one.after) && !below.has(one.id)) (below.add(one.id), (grew = true));
+  }
+  const parents = data.items.filter((one) => one.kind === 'task' && !below.has(one.id) && one.state !== 'done');
+  return [`<option value="">${item.after ? '— plus une sous-tâche' : '— sous-tâche de…'}</option>`,
+    ...parents.map((one) => `<option value="${escapeHtml(one.id)}" ${one.id === item.after ? 'selected' : ''}>${escapeHtml(one.title)}</option>`)].join('');
+}
+function pickNote(item) {
+  if (!item) return '';
+  const parent = item.after && data.items.find((one) => one.id === item.after);
+  if (parent && !picked.has(parent.id) && parent.state !== 'merged' && parent.state !== 'done') return `<span class="subs-note">↳ sous-tâche de « ${escapeHtml(parent.title)} » : elle partira avec sa tâche mère (coche-la), ou seule une fois celle-ci fusionnée.</span>`;
+  return item.subtaskCount ? `<span class="subs-note">+ ${item.subtaskCount} sous-tâche${item.subtaskCount > 1 ? 's' : ''}, faites ensuite par le même agent (dans le prompt).</span>` : '';
+}
+async function setAfter(id, after) {
+  const result = await (await fetch(`/api/backlog/after/${encodeURIComponent(id)}`, { method: 'POST', body: JSON.stringify({ after: after || null }) })).json();
+  afterEditing = null;
+  if (!result.ok) {
+    alert(result.error);
+    render();
+    return;
+  }
+  data = result;
+  render();
+  schedulePrompts();
+}
+document.addEventListener('dragstart', (event) => {
+  const row = event.target.closest?.('[data-drag]');
+  if (!row) return;
+  event.dataTransfer.setData('text/x-task', row.dataset.drag);
+  event.dataTransfer.effectAllowed = 'move';
+  row.classList.add('dragging');
+});
+document.addEventListener('dragend', () => document.querySelectorAll('.dragging, .drop').forEach((one) => one.classList.remove('dragging', 'drop')));
+document.addEventListener('dragover', (event) => {
+  const target = event.target.closest?.('[data-drag], [data-drop-section]');
+  if (!target || !event.dataTransfer.types.includes('text/x-task')) return;
+  event.preventDefault();
+  document.querySelectorAll('.drop').forEach((one) => one !== target && one.classList.remove('drop'));
+  target.classList.add('drop');
+});
+document.addEventListener('drop', (event) => {
+  const target = event.target.closest?.('[data-drag], [data-drop-section]');
+  const id = event.dataTransfer.getData('text/x-task');
+  if (!target || !id) return;
+  event.preventDefault();
+  target.classList.remove('drop');
+  if (target.dataset.drag === id) return;
+  setAfter(id, target.dataset.drag ?? null);
+});
+document.addEventListener('change', (event) => {
+  const select = event.target.closest?.('[data-after-select]');
+  if (select) setAfter(select.dataset.afterSelect, select.value);
+});
+
+// The effort and model every newly chosen task takes, kept from one visit to the next.
+const defaults = (() => {
+  try {
+    return JSON.parse(localStorage.getItem('roadmap.defaults') || '{}');
+  } catch {
+    return {};
+  }
+})();
+for (const key of ['effort', 'model']) {
+  const select = $(`default-${key}`);
+  const values = key === 'effort' ? PROJECT.efforts : PROJECT.models;
+  select.innerHTML = settingOptions(values, key === 'effort' ? PROJECT.defaults.effort : PROJECT.defaults.model).replace('<option value="">défaut', '<option value="">proposé / défaut');
+  if (defaults[key] && !values.includes(defaults[key])) select.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(defaults[key])}">${escapeHtml(defaults[key])}</option>`);
+  select.value = defaults[key] ?? '';
+  select.addEventListener('change', () => {
+    defaults[key] = select.value || null;
+    try {
+      localStorage.setItem('roadmap.defaults', JSON.stringify(defaults));
+    } catch {}
+    // The tasks already chosen follow, except where the user or Claude picked.
+    for (const [id, pick] of picked) {
+      if (pick.chosen || pick.by === 'claude') continue;
+      const item = data.items.find((one) => one.id === id);
+      pick[key] = defaults[key] || (key === 'effort' ? item?.suggested?.effort ?? null : null);
+      pick.by = defaults.effort || defaults.model ? 'default' : 'text';
+      pick.why = pick.by === 'text' ? item?.suggested?.why ?? '' : '';
+      const element = document.querySelector(`.pick[data-id="${CSS.escape(id)}"]`);
+      if (element) showSettings(element, pick);
+    }
+  });
 }
 
 let promptTimer = 0;
@@ -490,6 +600,12 @@ document.addEventListener('click', (event) => {
     document.getElementById(`t-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
+  const afterButton = event.target.closest('[data-after]');
+  if (afterButton) {
+    afterEditing = afterEditing === afterButton.dataset.after ? null : afterButton.dataset.after;
+    render();
+    return;
+  }
   const confirm = event.target.closest('[data-confirm]');
   if (confirm) {
     confirming = confirm.dataset.confirm;
@@ -504,7 +620,11 @@ document.addEventListener('change', (event) => {
   const box = event.target.closest('[data-pick]');
   if (!box) return;
   const item = data.items.find((one) => one.id === box.dataset.pick);
-  if (box.checked) picked.set(item.id, { name: item.proposedName, base: '__INTEGRATION__', prompt: '', edited: false, effort: item.suggested?.effort ?? null, model: null, why: item.suggested?.why ?? '', by: 'text', chosen: false });
+  if (box.checked) {
+    picked.set(item.id, defaults.effort || defaults.model
+      ? { name: item.proposedName, base: '__INTEGRATION__', prompt: '', edited: false, effort: defaults.effort || item.suggested?.effort || null, model: defaults.model || null, why: '', by: 'default', chosen: false }
+      : { name: item.proposedName, base: '__INTEGRATION__', prompt: '', edited: false, effort: item.suggested?.effort ?? null, model: null, why: item.suggested?.why ?? '', by: 'text', chosen: false });
+  }
   else picked.delete(item.id);
   render();
   renderPicks();

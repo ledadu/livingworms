@@ -327,6 +327,18 @@ describe('buildPrompt', () => {
   });
 });
 
+describe('buildPrompt with sub-tasks', () => {
+  it('gives the parent\'s agent its sub-tasks after it, in order, with their choices', () => {
+    const task = { id: 'sons', kind: 'task', title: 'De vrais sons', section: 'Son', parent: null, line: 3, text: '### De vrais sons\n\nDes enregistrements.', choices: [], files: [], name: 'sons', base: 'backlog',
+      subtasks: [{ id: 'credits', line: 9, text: '### Les crédits des sons\n\nLes auteurs.', choices: ['Choix : dans le générique'], files: [] }] };
+    const prompt = buildPrompt(task, { mainRoot: '/depot', worktrees: '/depot.worktrees' });
+    expect(prompt).toContain('## Puis ses sous-tâches, dans l’ordre');
+    expect(prompt).toContain('### Sous-tâche 1 (ligne 9)\n\n#### Les crédits des sons\n\nLes auteurs.');
+    expect(prompt).toContain('- Choix : dans le générique');
+    expect(prompt.indexOf('Des enregistrements.')).toBeLessThan(prompt.indexOf('Sous-tâche 1'));
+  });
+});
+
 describe('queue', () => {
   it('creates the worktree then the entry, and refuses bad or taken names', async () => {
     const registry = join(temp(), 'agents');

@@ -408,8 +408,8 @@ export function resolveFiles(files, fileIndex = []) {
 export function buildPrompt(task, { items = [], neighbours = [], active = [], mainRoot, worktrees, teamSize = 1, fileIndex = [], source = project.paths.backlog }) {
   const byId = new Map(items.map((item) => [item.id, item]));
   const parent = task.parent ? byId.get(task.parent) : null;
-  const choices = [...(parent?.choices ?? []), ...(task.choices ?? [])];
-  const files = resolveFiles([...(task.files ?? []), ...(parent?.files ?? [])], fileIndex);
+  const choices = [...(parent?.choices ?? []), ...(task.choices ?? []), ...(task.subtasks ?? []).flatMap((sub) => sub.choices ?? [])];
+  const files = resolveFiles([...(task.files ?? []), ...(task.subtasks ?? []).flatMap((sub) => sub.files ?? []), ...(parent?.files ?? [])], fileIndex);
   const where = parent && parent.title !== task.section ? `${task.section} › ${parent.title}` : task.section;
   const lines = [
     `Tu es l'agent \`${task.name}\`. Lis d'abord la consigne commune ${join(mainRoot, briefPath)} (les {{…}} : ${teamSize} agent${teamSize > 1 ? 's' : ''} en parallèle, worktrees ${worktrees}, dépôt principal ${mainRoot} ; commits terminés par \`{{CO_AUTHORED_BY}}\`) et respecte-la strictement${project.brief ? `, puis la consigne du projet, \`${project.brief}\` dans ton worktree` : ''}.`,
@@ -419,6 +419,13 @@ export function buildPrompt(task, { items = [], neighbours = [], active = [], ma
     '',
     task.text,
     '',
+    ...(task.subtasks?.length ? [
+      '## Puis ses sous-tâches, dans l’ordre',
+      '',
+      `Elles dépendent du chantier ci-dessus et te reviennent aussi. Termine et commite d’abord le chantier, puis chaque sous-tâche à son tour (ses propres commits) ; ton rapport et ton entrée couvrent le tout.`,
+      '',
+      ...task.subtasks.flatMap((sub, index) => [`### Sous-tâche ${index + 1} (ligne ${sub.line})`, '', sub.text.replace(/^###\s+/, '#### '), '']),
+    ] : []),
     '## Choix déjà faits par l’utilisateur',
     '',
     ...(choices.length ? choices.map((choice) => `- ${choice}`) : ['- Aucun : tranche chaque question avec l’option recommandée et liste les autres dans ton rapport.']),

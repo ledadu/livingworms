@@ -27,6 +27,18 @@ export const DELIVERED = project.paths.delivered;
 
 const HEADING = /^(#{2,3})\s+(.+?)\s*#*\s*$/;
 const STATUS_LINE = /^>\s*(.*)$/;
+// A sub-task's link to its parent task, right under its status line: « > ↳ après « Titre de la tâche mère » ».
+const AFTER_LINE = /^>\s*↳\s*après\s*«\s*(.+?)\s*»\s*$/;
+
+/** « > ↳ après « Titre » » -> « Titre », or null. */
+export function parseAfter(line) {
+  return AFTER_LINE.exec(String(line ?? '').trim())?.[1] ?? null;
+}
+
+/** The line that makes a task a sub-task of the task titled `title`. */
+export function formatAfter(title) {
+  return `> ↳ après « ${title} »`;
+}
 
 /** « 🔵 en cours · agent a, b » -> { state, generation, agents }, or null when the line is not a status. */
 export function parseStatus(line) {
@@ -88,7 +100,12 @@ export function parseBacklog(markdown) {
     const next = lines.slice(head.start + 1, end).findIndex((line) => line.trim());
     const statusAt = next >= 0 ? head.start + 1 + next : null;
     const status = statusAt !== null ? parseStatus(lines[statusAt]) : null;
-    const body = lines.slice(head.start, end).filter((_, i) => head.start + i !== (status ? statusAt : -1));
+    // The sub-task line: the first non-blank line after the status line (or in its place).
+    let afterAt = status ? statusAt + 1 : statusAt;
+    while (afterAt !== null && afterAt < end && !lines[afterAt].trim()) afterAt++;
+    const afterTitle = afterAt !== null && afterAt < end ? parseAfter(lines[afterAt]) : null;
+    if (!afterTitle) afterAt = null;
+    const body = lines.slice(head.start, end).filter((_, i) => head.start + i !== (status ? statusAt : -1) && head.start + i !== afterAt);
     const text = body.join('\n').trimEnd();
     items.push({
       id: unique(head.title),
@@ -100,6 +117,9 @@ export function parseBacklog(markdown) {
       start: head.start,
       end,
       statusLine: status ? statusAt : null,
+      afterLine: afterAt,
+      afterTitle,
+      after: null,
       state: status?.state ?? 'todo',
       generation: status?.generation ?? null,
       agents: status?.agents ?? [],
@@ -108,7 +128,89 @@ export function parseBacklog(markdown) {
       files: filesIn(text),
     });
   });
+  // The parent of a sub-task: the task with that title (else that id); none for a missing one or a loop.
+  const tasks = items.filter((item) => item.kind === 'task');
+  for (const task of tasks) {
+    if (!task.afterTitle) continue;
+    const parent = tasks.find((other) => other.title === task.afterTitle) ?? tasks.find((other) => other.id === slugify(task.afterTitle));
+    if (parent && parent !== task) task.after = parent.id;
+  }
+  const byId = new Map(tasks.map((task) => [task.id, task]));
+  for (const task of tasks) {
+    const seen = new Set([task.id]);
+    for (let up = byId.get(task.after); up; up = byId.get(up.after)) {
+      if (seen.has(up.id)) {
+        task.after = null;
+        break;
+      }
+      seen.add(up.id);
+    }
+  }
   return items;
+}
+
+/** A task's sub-tasks, then theirs, in the order of the file (depth-first). */
+export function subtasksOf(items, id) {
+  const out = [];
+  const walk = (parent) => {
+    for (const item of items) {
+      if (item.kind !== 'task' || item.after !== parent || out.includes(item)) continue;
+      out.push(item);
+      walk(item.id);
+    }
+  };
+  walk(id);
+  return out;
+}
+
+/** How deep a task sits under its parents (0: not a sub-task). */
+export function depthOf(items, task) {
+  const byId = new Map(items.map((item) => [item.id, item]));
+  let depth = 0;
+  for (let up = byId.get(task.after); up && depth < 20; up = byId.get(up.after)) depth++;
+  return depth;
+}
+
+/**
+ * The backlog with task `id` made a sub-task of task `after` (null: no longer a sub-task). Its block moves right
+ * after its parent and the parent's other sub-tasks, in the parent's group; its sub-task line follows its status line.
+ */
+export function setAfter(markdown, id, after) {
+  let lines = String(markdown).replace(/\r\n/g, '\n').split('\n');
+  let items = parseBacklog(lines.join('\n'));
+  const task = items.find((item) => item.kind === 'task' && item.id === id);
+  if (!task) throw Object.assign(new Error(`pas de chantier ${id}`), { code: 404 });
+  if (task.afterLine !== null) {
+    lines.splice(task.afterLine, 1);
+    items = parseBacklog(lines.join('\n'));
+  }
+  if (!after) return lines.join('\n');
+  const parent = items.find((item) => item.kind === 'task' && item.id === after);
+  if (!parent) throw Object.assign(new Error(`pas de chantier ${after}`), { code: 404 });
+  if (parent.id === id || subtasksOf(items, id).some((item) => item.id === after)) throw new Error('une tâche ne peut pas devenir la sous-tâche d’elle-même ou de ses propres sous-tâches');
+  // Out with the block, then in again after the parent's family.
+  const moving = items.find((item) => item.id === id);
+  const block = lines.slice(moving.start, moving.end);
+  while (block.length && !block[block.length - 1].trim()) block.pop();
+  lines.splice(moving.start, moving.end - moving.start);
+  items = parseBacklog(lines.join('\n'));
+  const family = [items.find((item) => item.id === after), ...subtasksOf(items, after)];
+  const last = family.reduce((a, b) => (b.end > a.end ? b : a));
+  let at = last.end;
+  while (at > last.start + 1 && !lines[at - 1].trim()) at--;
+  const status = block.findIndex((line, i) => i > 0 && parseStatus(line));
+  block.splice(status > 0 ? status + 1 : 1, 0, formatAfter(parent.title));
+  lines.splice(at, 0, '', ...block, '');
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+/** setAfter on the file, written atomically. */
+export function writeAfter({ file, id, after }) {
+  const next = setAfter(readFileSync(file, 'utf8'), id, after);
+  const temp = `${file}.${process.pid}.tmp`;
+  writeFileSync(temp, next.endsWith('\n') ? next : `${next}\n`);
+  renameSync(temp, file);
+  return parseBacklog(next).find((item) => item.kind === 'task' && item.id === id) ?? null;
 }
 
 /** The items with what the Roadmap page shows: status (new, active, archived, done, paused), label, agent, refs. */
@@ -363,6 +465,7 @@ function checkTaskText(text) {
     if (!inFence && /^#{2,3}\s/.test(line)) throw new Error(`un seul titre ### par chantier ; pour découper, utilise #### (« ${line.trim()} »)`);
   }
   if (lines[1] && parseStatus(lines[1])) lines.splice(1, 1);
+  if (lines[1] && parseAfter(lines[1])) lines.splice(1, 1);
   return lines;
 }
 
@@ -373,7 +476,7 @@ export function replaceTask(markdown, id, text, version) {
   if (!task) throw Object.assign(new Error(`pas de chantier ${id}`), { code: 404 });
   if (version && version !== taskVersion(task)) throw Object.assign(new Error('le chantier a changé entre-temps (fichier modifié ailleurs) : recharge-le avant d’enregistrer'), { code: 409 });
   const [title, ...body] = checkTaskText(text);
-  const status = task.statusLine !== null ? [lines[task.statusLine]] : [];
+  const status = [task.statusLine, task.afterLine].filter((at) => at !== null).map((at) => lines[at]);
   let end = task.end;
   while (end > task.start + 1 && !lines[end - 1].trim()) end--;
   const block = [title, ...status, ...(body.length && body[0].trim() ? [''] : []), ...body];
