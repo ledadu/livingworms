@@ -61,6 +61,8 @@ import { initChant } from './chant-jeu';
 import { noteOf, notesOfGeneration } from './chant';
 import { initLumieres } from './lumieres-jeu';
 import { gameSeed, roomAlong } from './lumieres';
+import { initMusique } from './musique-son';
+import { initReglagesSon } from './son-reglages';
 import './style.css';
 
 type M = ReturnType<typeof moodAt>;
@@ -1229,6 +1231,14 @@ const lumieres = initLumieres({
   say: (name, lines) => !adieu.on && !remontee.on && narrator.say(name, lines)
 });
 
+// ----- the music (musique-son.ts): the ambience of the chapter where the swimmer is ----- //
+
+// (the chapters lit by the lineage going up light up their music too; it steps back for a farewell, dances with a parade)
+const musique = initMusique({
+  where: () => ({ x: player.cr.root.x[0], y: player.cr.root.y[0] }), bright: () => remontee.litAt(player.cr.root.x[0]),
+  moment: () => (adieu.on ? 'adieu' : parade.active ? 'parade' : null)
+});
+
 // ----- the song (chant-jeu.ts) ----- //
 
 // each chapter's note, learned once its opening has been told; the circle of notes; the animals that answer
@@ -1348,6 +1358,7 @@ export const api = {
   biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, generique, traces, rivale, chant, lumieres, ponte, indices, remontee,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
+  musique,
   get dpr() { return dpr; },
   get size() { return [W, H, canvas.width, canvas.height]; },
   setFrameHook: (f: typeof onFrame) => { onFrame = f; },
@@ -1369,6 +1380,7 @@ angleIn.value = String(settings.angle); distIn.value = String(Math.round(setting
 const showVals = () => { angleOut.textContent = settings.angle + '°'; distOut.textContent = Math.round(900 / input.zoomMul) + ''; };
 showVals();
 gear.addEventListener('click', () => { panel.hidden = !panel.hidden; });
+initReglagesSon();
 angleIn.addEventListener('input', () => { settings.angle = +angleIn.value; showVals(); save(); });
 distIn.addEventListener('input', () => { input.zoomMul = 900 / +distIn.value; settings.dist = +distIn.value; showVals(); save(); });
 for (const b of document.querySelectorAll<HTMLButtonElement>('[data-angle]')) {

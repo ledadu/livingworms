@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 420" width="860" height="420" font-family="Georgia, serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#b9c7cc"/>
+    </marker>
+    <style>
+      .box { fill: #0b2533; stroke: #3d6b7d; stroke-width: 1.2; rx: 8; }
+      .hot { fill: #23351f; stroke: #8db36a; }
+      .gold { fill: #3a2f17; stroke: #f6d98a; }
+      .t { fill: #f4efe2; font-size: 14px; }
+      .s { fill: #b9c7cc; font-size: 11px; font-family: sans-serif; }
+      .l { stroke: #b9c7cc; stroke-width: 1.3; fill: none; marker-end: url(#a); }
+      .w { stroke: #7fa8b8; stroke-width: 1.1; fill: none; stroke-dasharray: 4 3; marker-end: url(#a); }
+    </style>
+  </defs>
+  <rect width="860" height="420" fill="#04121c"/>
+  <text x="20" y="30" class="t" font-size="18">Le son de la page (son.ts)</text>
+  <text x="20" y="48" class="s">un contexte audio, éveillé au premier toucher, endormi quand la page est cachée</text>
+
+  <!-- the chapters -->
+  <rect class="box hot" x="20" y="72" width="210" height="150"/>
+  <text x="34" y="94" class="t">Chapitres entendus</text>
+  <text x="34" y="113" class="s">musique-son.ts, partition : musique.ts</text>
+  <text x="34" y="135" class="s">· bourdon qui respire</text>
+  <text x="34" y="152" class="s">· nappes : accords qui enflent</text>
+  <text x="34" y="169" class="s">· harmoniques de la fondamentale</text>
+  <text x="34" y="186" class="s">· notes çà et là</text>
+  <text x="34" y="207" class="s">fondu aux frontières (presence)</text>
+
+  <rect class="box" x="270" y="72" width="128" height="58"/>
+  <text x="282" y="95" class="t">L'eau</text>
+  <text x="282" y="114" class="s">passe-bas : la profondeur</text>
+  <rect class="box" x="270" y="146" width="128" height="58"/>
+  <text x="282" y="169" class="t">Recul</text>
+  <text x="282" y="188" class="s">sous chaque note chantée</text>
+  <rect class="box" x="438" y="110" width="128" height="58"/>
+  <text x="450" y="133" class="t">Musique</text>
+  <text x="450" y="152" class="s">fondu d'entrée · volume</text>
+
+  <path class="l" d="M230 120H268"/>
+  <path class="l" d="M334 130V144"/>
+  <path class="l" d="M398 175C420 175 418 139 436 139"/>
+
+  <!-- the song -->
+  <rect class="box gold" x="20" y="262" width="210" height="96"/>
+  <text x="34" y="285" class="t">Le chant</text>
+  <text x="34" y="304" class="s">chant-son.ts : un timbre par note,</text>
+  <text x="34" y="321" class="s">les neuf à la même force</text>
+  <text x="34" y="342" class="s">chaque note fait reculer la musique</text>
+  <rect class="box" x="438" y="282" width="128" height="58"/>
+  <text x="450" y="305" class="t">Chant</text>
+  <text x="450" y="324" class="s">volume</text>
+  <path class="l" d="M230 311H436"/>
+  <path class="w" d="M180 262C180 236 300 236 330 206"/>
+
+  <!-- reverb and out -->
+  <rect class="box" x="610" y="196" width="112" height="64"/>
+  <text x="622" y="219" class="t">Réverbération</text>
+  <text x="622" y="238" class="s">mono, 2,4 s, faite</text>
+  <text x="622" y="252" class="s">dans le code</text>
+  <rect class="box" x="742" y="110" width="98" height="58"/>
+  <text x="754" y="133" class="t">Sortie</text>
+  <text x="754" y="152" class="s">compresseur</text>
+
+  <path class="l" d="M566 139H740"/>
+  <path class="l" d="M566 311C700 311 790 260 791 170"/>
+  <path class="w" d="M566 150C596 160 616 178 640 194"/>
+  <path class="w" d="M566 300C596 290 620 276 640 262"/>
+  <path class="l" d="M722 214C760 210 780 196 786 170"/>
+  <text x="586" y="186" class="s">part du chapitre</text>
+  <text x="586" y="296" class="s">part du chapitre</text>
+
+  <rect class="box" x="610" y="340" width="230" height="58" stroke-dasharray="5 4"/>
+  <text x="622" y="363" class="t">Bruits (à venir)</text>
+  <text x="622" y="382" class="s">bulles, courant, baleines : un bus de plus</text>
+
+  <text x="270" y="250" class="s">réglages ⚙ « Son » : Musique, Chant (lignee.son)</text>
+</svg>
