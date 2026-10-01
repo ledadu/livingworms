@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import doc from '../../docs/chapitres.md?raw';
 import { BIOMES, chapterIndex, span, type ChapterId } from './biomes';
-import { GATES, SOFT, WORLD_END } from './limites';
+import { FOSSE_BOTTOM, GATES, SOFT } from './limites';
 import { MAX_LINES } from './textes';
 import { BELOW, KINDS, parseTraceTexts, placeBelow, traceKind, tracesOf, worldPlaces, type Place } from './traces';
 
@@ -12,12 +12,12 @@ const lineage = (to: ChapterId) => BIOMES.slice(0, chapterIndex(to) + 1).map((b)
 
 describe('les traces de la lignée', () => {
   it('lies in the chapters one can swim to, down to the Fosse, before their obstacle', () => {
-    expect(places.map((p) => p.id)).toEqual(BIOMES.filter((b) => b.x0 < WORLD_END).map((b) => b.id));
+    expect(places.map((p) => p.id)).toEqual(BIOMES.filter((b) => b.x0 < FOSSE_BOTTOM).map((b) => b.id));
     expect(places[places.length - 1].id).toBe('fosse');
     for (const p of places) {
       const [a, b] = span(p.id), gate = GATES.find((g) => g.chapter === p.id);
       expect(p.x0, p.id).toBeGreaterThan(a);
-      expect(p.x1, p.id).toBeLessThan(Math.min(b, gate ? gate.x - SOFT : b, WORLD_END - SOFT));
+      expect(p.x1, p.id).toBeLessThan(Math.min(b, gate ? gate.x - SOFT : b, FOSSE_BOTTOM - SOFT));
       expect(p.x1 - p.x0, p.id).toBeGreaterThan(600);
     }
     expect(places[at('jardin')].floor).toBe(false);
