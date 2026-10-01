@@ -6,6 +6,7 @@
 
 import type { Box } from '../engine/types';
 import { TAU, wrapAngle } from '../engine/util';
+import { thinnedOut } from '../engine/defs';
 import { drawSelf, drawWebs, setInk, setShade, type DrawOptions, type Seg } from '../engine/render';
 import type { Creature3, Seg3 } from './creature3';
 import type { Proj, Projector } from './view';
@@ -180,7 +181,7 @@ function projectSeg(sh: Shim, cr: Creature3, view: Projector): void {
 export const EPS = 0.6;
 
 /** at level 2, a long row of copies (legs, cilia, filaments) keeps one copy in two (not when a membrane joins them) */
-export const thinned = (c: Shim, o: DrawOptions) => !!o.lod && o.lod >= 2 && !!c.att && c.att.count >= 6 && !(c.att.web > 0) && (c.k & 1) === 1;
+export const thinned = (c: Shim, o: DrawOptions) => !!o.lod && o.lod >= 2 && !!c.att && c.att.count >= 6 && !(c.att.web > 0) && thinnedOut(c.att, c.k);
 export const outside = (b: Box, v?: Box) => !!v && (b[2] < v[0] || b[0] > v[2] || b[3] < v[1] || b[1] > v[3]);
 
 function drawTree(ctx: Ctx, sh: Shim, o: DrawOptions): void {
