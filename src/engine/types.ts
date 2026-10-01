@@ -67,8 +67,6 @@ export interface SwimDef {
   rear?: boolean;
   /** pitch of the head end (rad, negative = raised): when it crawls, and for a glider that swims upright, like a seahorse */
   posture?: number;
-  /** largest pitch of a glider (rad, default 1.2): a manta or a turtle stays nearly level */
-  pitchMax?: number;
 }
 export interface EyesDef { on: boolean; size: number; spread: number; fwd: number; }
 export interface GenInfo { seed: number; archetype: string; mood: string; complexity: number; glow: number; }

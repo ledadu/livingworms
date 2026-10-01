@@ -404,7 +404,7 @@ export const SPECIES: Record<string, () => Spec> = {
   manta: function () {
     return spec({
       name: 'Raie manta', size: 1.5, palette: { hue: 218, harmony: 'complement', sat: 35, light: 30 },
-      swim: { mode: 'steady', speed: 1.5, pitchMax: 0.4 }, ai: 'drifter', eyes: { on: false },
+      swim: { mode: 'steady', speed: 1.5 }, ai: 'drifter', eyes: { on: false },
       body: {
         name: 'Disque', links: 7, len: 6, width: 8, shape: 'spindle', style: 'ribbon', flex: 0.1, spring: 0.4, drag: 0.8,
         color: { slot: 0, pattern: 'edge', pslot: 3, plight: 30, pscale: 0.6 },
@@ -498,7 +498,7 @@ export const SPECIES: Record<string, () => Spec> = {
   requinBaleine: function () {
     return spec({
       name: 'Requin-baleine', size: 1.8, palette: { hue: 208, harmony: 'analog', sat: 35, light: 38 },
-      swim: { mode: 'steady', speed: 1.2, pitchMax: 0.5 }, ai: 'drifter', eyes: { on: true, size: 0.45, spread: 0.85, fwd: 0.2 },
+      swim: { mode: 'steady', speed: 1.2 }, ai: 'drifter', eyes: { on: true, size: 0.45, spread: 0.85, fwd: 0.2 },
       body: {
         name: 'Corps', links: 12, len: 7, width: 8, shape: 'spindle', style: 'ribbon', flex: 0.18, spring: 0.15, drag: 0.8,
         color: { slot: 0, pattern: 'spots', pdensity: 9, pslot: 3, plight: 45, pscale: 0.8 }, motion: { type: 'undulate', amp: 0.08, freq: 0.6 },
@@ -618,7 +618,7 @@ export const SPECIES: Record<string, () => Spec> = {
   tortue: function () {
     return spec({
       name: 'Tortue de mer', palette: { hue: 95, harmony: 'analog', sat: 40, light: 42 },
-      swim: { mode: 'steady', speed: 1.3, pitchMax: 0.5 }, ai: 'drifter', eyes: { on: false },
+      swim: { mode: 'steady', speed: 1.3 }, ai: 'drifter', eyes: { on: false },
       body: {
         name: 'Carapace', links: 5, len: 7, width: 12, shape: 'bloby', style: 'ribbon', flex: 0.05, spring: 0.6, drag: 0.8,
         color: { slot: 0, pattern: 'spots', pdensity: 5, pslot: 3, pscale: 2.2, plight: -10 },

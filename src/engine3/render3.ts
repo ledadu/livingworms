@@ -110,10 +110,10 @@ const P: Proj = { x: 0, y: 0, s: 1, d: 1 };
 const A = { x: 0, y: 0 }, B = { x: 0, y: 0 };
 const tan = { x: 0, y: 0, z: 0 }, bel = { x: 0, y: 0, z: 0 }, lat = { x: 0, y: 0, z: 0 }, wid = { x: 0, y: 0, z: 0 };
 
-/** unit belly axis perpendicular to t (world down, made perpendicular) */
-function bellyOf(t: { x: number; y: number; z: number }, side: { x: number; y: number; z: number }, out: { x: number; y: number; z: number }): void {
-  const d = t.y;
-  out.x = -t.x * d; out.y = 1 - t.y * d; out.z = -t.z * d;
+/** unit belly axis perpendicular to t (the body's own down, made perpendicular) */
+function bellyOf(t: { x: number; y: number; z: number }, down: { x: number; y: number; z: number }, side: { x: number; y: number; z: number }, out: { x: number; y: number; z: number }): void {
+  const d = t.x * down.x + t.y * down.y + t.z * down.z;
+  out.x = down.x - t.x * d; out.y = down.y - t.y * d; out.z = down.z - t.z * d;
   let l = Math.hypot(out.x, out.y, out.z);
   if (l < 0.2) {
     const fd = side.x * t.x + side.y * t.y + side.z * t.z;
@@ -150,7 +150,7 @@ function projectSeg(sh: Shim, cr: Creature3, view: Projector): void {
       let ax: number, ay: number, az: number, bx: number, by: number, bz: number, rb: number;
       if (kind === 'body') {
         // height along the belly axis, thickness across
-        bellyOf(tan, cr.side, bel);
+        bellyOf(tan, cr.down, cr.side, bel);
         lat.x = tan.y * bel.z - tan.z * bel.y; lat.y = tan.z * bel.x - tan.x * bel.z; lat.z = tan.x * bel.y - tan.y * bel.x;
         ax = bel.x; ay = bel.y; az = bel.z; bx = lat.x; by = lat.y; bz = lat.z; rb = r * s.thick;
       } else {
@@ -211,7 +211,7 @@ export function eyeDiscs3(cr: Creature3, view: Projector, fn: (px: number, py: n
   if (!e.on) return;
   const r = cr.root, rad = r.rad[0];
   F.x = -r.dx[1]; F.y = -r.dy[1]; F.z = -r.dz[1];
-  bellyOf(F, cr.side, bel);
+  bellyOf(F, cr.down, cr.side, bel);
   lat.x = F.y * bel.z - F.z * bel.y; lat.y = F.z * bel.x - F.x * bel.z; lat.z = F.x * bel.y - F.y * bel.x;
   const er = Math.max(0.8, rad * 0.3 * e.size);
   const eyes: { sd: number; vis: number }[] = [];
