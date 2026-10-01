@@ -7,6 +7,7 @@
 
 import { EXTRA_MIN, INK_MIN, detail, hullOf, sheenSide, type Seg } from '../engine/render';
 import { hash } from '../engine/util';
+import { thinnedOut } from '../engine/defs';
 import type { Creature3 } from './creature3';
 import { EPS, eyeDiscs3, outside, prepare3, shimOf, type Shim } from './render3';
 import type { Projector } from './view';
@@ -446,7 +447,7 @@ function drawSelf(s: Shim, base: number, addScale: number, addOver: boolean): vo
 }
 
 /** at level 2, long rows of copies keep one in two (as render3) */
-const thinnedGL = (c: Shim) => lod >= 2 && !!c.att && c.att.count >= 6 && !(c.att.web > 0) && (c.k & 1) === 1;
+const thinnedGL = (c: Shim) => lod >= 2 && !!c.att && c.att.count >= 6 && !(c.att.web > 0) && thinnedOut(c.att, c.k);
 
 function tree(sh: Shim, base: number, addScale: number, addOver: boolean, clip?: [number, number, number, number]): void {
   const ch = sh.children;

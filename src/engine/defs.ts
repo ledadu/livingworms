@@ -110,12 +110,13 @@ export const ROOT_SLOT: Slot = { at: 0, angle: 0, scale: 1, phase: 0, side: 1, e
 export function expand(a: AttDef, n: number): Slot[] {
   const out: Slot[] = [], c = Math.max(1, a.count), j = a.jitter || 0;
   const angleTo = a.angleTo === null ? a.angle : a.angleTo;
-  const push = (t: number, angle: number, scale: number, phase: number, side: number, edge: number, k: number) => {
+  // hk, hs: the key and the side of the variation (a centered fan varies by mirror pairs, about its middle)
+  const push = (t: number, angle: number, scale: number, phase: number, side: number, edge: number, k: number, hk = k, hs = side) => {
     if (j) {
       // natural variation, identical on both sides of a mirror
-      angle += side * (hash(k, 1) - 0.5) * 0.7 * j;
-      scale *= 1 + (hash(k, 2) - 0.5) * 0.5 * j;
-      phase += hash(k, 3) * TAU * j;
+      angle += hs * (hash(hk, 1) - 0.5) * 0.7 * j;
+      scale *= 1 + (hash(hk, 2) - 0.5) * 0.5 * j;
+      phase += hash(hk, 3) * TAU * j;
     }
     out.push({ at: clamp(Math.round(t * n), 0, n), angle, scale, phase, side, edge, k, hue: k * (a.hueStep || 0), radial: a.pattern === 'ring' });
   };
@@ -123,12 +124,15 @@ export function expand(a: AttDef, n: number): Slot[] {
     push(a.at, a.angle, a.scale, 0, 1, a.edge, 0);
     push(a.at, -a.angle, a.scale, 0, -1, -a.edge, 0);
   } else if (a.pattern === 'fan') {
+    const mirrored = fanMirrored(a);
     for (let k = 0; k < c; k++) {
       const f = c === 1 ? 0.5 : k / (c - 1);
       const sc = lerp(a.scale, a.scaleTo, Math.abs(f - 0.5) * 2);
       const an = a.angle + a.spread * (f - 0.5), ed = a.edge * (f - 0.5) * 2;
-      push(a.at, an, sc, k * a.phaseStep, 1, ed, k);
-      if (a.mirror && Math.abs(Math.sin(a.angle)) > 0.05) push(a.at, -an, sc, k * a.phaseStep, -1, -ed, k);
+      if (mirrored) {
+        push(a.at, an, sc, k * a.phaseStep, 1, ed, k);
+        push(a.at, -an, sc, k * a.phaseStep, -1, -ed, k);
+      } else push(a.at, an, sc, k * a.phaseStep, 1, ed, k, pairOf(c, k), Math.sign(f - 0.5));
     }
   } else if (a.pattern === 'ring') {
     for (let k = 0; k < c; k++) {
@@ -151,4 +155,39 @@ export function expand(a: AttDef, n: number): Slot[] {
     push(a.at, a.angle, a.scale, 0, 1, a.edge, 0);
   }
   return out;
+}
+
+/** a fan copied on both sides of its parent; otherwise it is centered on its angle, symmetric about its middle */
+export const fanMirrored = (a: AttDef) => a.mirror && Math.abs(Math.sin(a.angle)) > 0.05;
+
+/** the rank of copy k of a row of c from the nearest end: the two copies of a mirror pair of a centered fan share it */
+export const pairOf = (c: number, k: number) => Math.min(k, c - 1 - k);
+
+/**
+ * The copies left out when a long row is thinned out (the smallest level of
+ * detail): every other one, by mirror pairs so that what stays is as
+ * symmetric as the whole: both ends of a centered fan, both sides of an
+ * alternate row.
+ */
+export function thinnedOut(a: AttDef, k: number): boolean {
+  if (a.pattern === 'fan' && !fanMirrored(a)) return pairOf(Math.max(1, a.count), k) % 2 === 1;
+  if (a.pattern === 'series' && a.alternate) return (k >> 1) % 2 === 1;
+  return k % 2 === 1;
+}
+
+/** a centered fan hanging from a bell, down its axis: it hangs all round the rim (see rimOf) */
+export const onRim = (parent: NodeDef, a: AttDef) =>
+  parent.shape === 'bell' && a.pattern === 'fan' && !fanMirrored(a) && Math.abs(Math.sin(a.angle)) <= 0.05 && Math.cos(a.angle) > 0;
+
+/**
+ * Copy k of a centered fan that hangs from the rim of a bell: a cone. It sits
+ * on the rim where it shows at its place across the fan when the bell is seen
+ * from the side (u, -1..1), in front of the bell (back -1) or behind it (back
+ * 1) by mirror pairs, and opens outward by half the spread: from the side it
+ * is the fan as drawn, and it stays symmetric whichever way the bell leans.
+ */
+export function rimOf(a: AttDef, k: number): { u: number; back: number; open: number } {
+  const c = Math.max(1, a.count), d = pairOf(c, k);
+  // pairs in front and behind in turn, two by two, so that thinning out every other pair keeps both
+  return { u: c === 1 ? 0 : (2 * k) / (c - 1) - 1, back: ((d + 1) >> 1) % 2 ? -1 : 1, open: a.spread / 2 };
 }

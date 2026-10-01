@@ -1,6 +1,8 @@
 // The brood screen (docs/mecaniques.md, « La portée »): four eggs hatch over the sea, each child shows what it
-// inherited from the parent and from the partner, and the one we touch is played from then on.
-// The children come from brood() (src/content/portee.ts); the game decides what a choice does (onChoose).
+// inherited from the parent and from the partner, and the one we touch is played from then on. Or all four are
+// left to hatch and live there, without us; or none of them, for now: « Plus tard » leaves the eggs where they
+// were laid (ponte-jeu.ts). The children come from brood() (src/content/portee.ts); the game decides what a choice
+// does (onChoose, onHatch, onLater).
 
 import type { Spec } from '../engine';
 import { snapshot3 } from '../engine3/snapshot3';
@@ -26,17 +28,34 @@ export function traitWords(c: Child, keys: readonly string[] = []): { word: stri
   return c.traits.map((t) => ({ word: TRAIT_LABELS[t], key: keys.includes(t) }));
 }
 
+/** what the brood says of the chapter's obstacle: that the traits in gold cross it, or that no child would */
+export function broodNote(kids: readonly Child[], keys: readonly string[] = [], obstacle?: string): string {
+  if (!obstacle || !keys.length) return '';
+  return kids.some((c) => c.traits.some((t) => keys.includes(t)))
+    ? `Les traits en or franchissent ${obstacle}.`
+    : `Aucun ne franchira ${obstacle} : tu peux laisser les œufs et chercher un autre partenaire.`;
+}
+
+export interface PorteeOptions extends BroodOptions {
+  /** the chapter's obstacle, in the words of the game (obstacles.ts) */
+  obstacle?: string;
+}
+
 export interface Portee {
   readonly isOpen: boolean;
   /** the children shown now (for the tests) */
   readonly children: Child[];
-  open(parent: Spec, partner: Spec, o?: BroodOptions): Child[];
+  open(parent: Spec, partner: Spec, o?: PorteeOptions): Child[];
   /** choose the i-th child, as a touch then « Continuer » would */
   choose(i: number): void;
+  /** all of them, none chosen, as « Les laisser éclore » would: they hatch and live there */
+  hatchAll(): void;
+  /** none for now, as « Plus tard » would: the eggs wait */
+  later(): void;
   close(): void;
 }
 
-export function createPortee(onChoose: (child: Spec, all: Child[], partner: Spec) => void): Portee {
+export function createPortee(onChoose: (child: Spec, all: Child[], partner: Spec) => void, onLater: (all: Child[]) => void = () => {}, onHatch: (all: Child[]) => void = () => {}): Portee {
   const root = document.createElement('div');
   root.id = 'portee';
   root.hidden = true;
@@ -45,6 +64,7 @@ export function createPortee(onChoose: (child: Spec, all: Child[], partner: Spec
   // the sea behind must not follow the finger
   for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'touchmove']) root.addEventListener(ev, (e) => e.stopPropagation());
   document.body.append(root);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !root.hidden) portee.later(); });
 
   let kids: Child[] = [], picked = -1, mate: Spec | null = null;
   let ok: HTMLButtonElement | null = null;
@@ -67,6 +87,8 @@ export function createPortee(onChoose: (child: Spec, all: Child[], partner: Spec
       cards.length = 0;
       const head = document.createElement('header');
       head.innerHTML = '<small>La portée</small><h2>Quatre œufs ont éclos</h2><p>Choisis l’enfant qui continuera la descente.</p>';
+      const note = broodNote(kids, o.keys, o.obstacle);
+      if (note) head.append(Object.assign(document.createElement('p'), { className: 'note', textContent: note }));
       const grid = document.createElement('div');
       grid.className = 'brood';
       kids.forEach((c, i) => {
@@ -106,7 +128,15 @@ export function createPortee(onChoose: (child: Spec, all: Child[], partner: Spec
       ok.disabled = true;
       ok.textContent = 'Touche un enfant';
       ok.addEventListener('click', () => { if (picked >= 0) portee.choose(picked); });
-      root.append(head, grid, ok);
+      const hatch = document.createElement('button');
+      hatch.className = 'hatch';
+      hatch.textContent = 'Les laisser éclore : ils vivront ici';
+      hatch.addEventListener('click', () => portee.hatchAll());
+      const later = document.createElement('button');
+      later.className = 'later';
+      later.textContent = 'Plus tard : les œufs t’attendront ici';
+      later.addEventListener('click', () => portee.later());
+      root.append(head, grid, ok, hatch, later);
       root.hidden = false;
       void root.offsetWidth;
       root.classList.add('show');
@@ -120,6 +150,18 @@ export function createPortee(onChoose: (child: Spec, all: Child[], partner: Spec
       if (!c || root.hidden) return;
       portee.close();
       onChoose(c.spec, kids, mate!);
+    },
+    hatchAll() {
+      if (root.hidden) return;
+      const all = kids;
+      portee.close();
+      onHatch(all);
+    },
+    later() {
+      if (root.hidden) return;
+      const all = kids;
+      portee.close();
+      onLater(all);
     },
     close() {
       root.classList.remove('show', 'hatched');

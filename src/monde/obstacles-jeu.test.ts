@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Spec } from '../engine';
 import { SPECIES, firstAncestor } from '../content/species';
-import { GATES, WORLD_END, newLimits, pass, travel } from './limites';
+import { FOSSE_BOTTOM, GATES, WORLD_END, newLimits, pass, travel } from './limites';
 import { OBSTACLE } from './obstacles';
 import { createKeys } from './obstacles-jeu';
 
@@ -50,8 +50,10 @@ describe('the key obstacles in the game', () => {
     expect(told).toEqual(['recif']);
   });
 
-  it('keeps the end of the world at the bottom of the Fosse, even with a lantern', () => {
+  it('keeps the bottom of the Fosse for a lantern (or the song), and opens the Remontée past it', () => {
     const l = newLimits(), keys = createKeys(l, () => SPECIES.baudroie());
+    keys.force = ['nageoires', 'pinces', 'corpsFin', 'carapace', 'pulsation', 'filaments', 'cils'];
+    expect(keys.bounds()[1]).toBe(FOSSE_BOTTOM);
     keys.force = ['nageoires', 'pinces', 'lanterne', 'carapace', 'pulsation'];
     expect(keys.bounds()[1]).toBe(WORLD_END);
   });

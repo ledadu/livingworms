@@ -6,6 +6,7 @@
 
 import type { Box } from '../engine/types';
 import { TAU, wrapAngle } from '../engine/util';
+import { thinnedOut } from '../engine/defs';
 import { drawSelf, drawWebs, setInk, setShade, type DrawOptions, type Seg } from '../engine/render';
 import type { Creature3, Seg3 } from './creature3';
 import type { Proj, Projector } from './view';
@@ -109,10 +110,10 @@ const P: Proj = { x: 0, y: 0, s: 1, d: 1 };
 const A = { x: 0, y: 0 }, B = { x: 0, y: 0 };
 const tan = { x: 0, y: 0, z: 0 }, bel = { x: 0, y: 0, z: 0 }, lat = { x: 0, y: 0, z: 0 }, wid = { x: 0, y: 0, z: 0 };
 
-/** unit belly axis perpendicular to t (world down, made perpendicular) */
-function bellyOf(t: { x: number; y: number; z: number }, side: { x: number; y: number; z: number }, out: { x: number; y: number; z: number }): void {
-  const d = t.y;
-  out.x = -t.x * d; out.y = 1 - t.y * d; out.z = -t.z * d;
+/** unit belly axis perpendicular to t (the body's own down, made perpendicular) */
+function bellyOf(t: { x: number; y: number; z: number }, down: { x: number; y: number; z: number }, side: { x: number; y: number; z: number }, out: { x: number; y: number; z: number }): void {
+  const d = t.x * down.x + t.y * down.y + t.z * down.z;
+  out.x = down.x - t.x * d; out.y = down.y - t.y * d; out.z = down.z - t.z * d;
   let l = Math.hypot(out.x, out.y, out.z);
   if (l < 0.2) {
     const fd = side.x * t.x + side.y * t.y + side.z * t.z;
@@ -149,7 +150,7 @@ function projectSeg(sh: Shim, cr: Creature3, view: Projector): void {
       let ax: number, ay: number, az: number, bx: number, by: number, bz: number, rb: number;
       if (kind === 'body') {
         // height along the belly axis, thickness across
-        bellyOf(tan, cr.side, bel);
+        bellyOf(tan, cr.down, cr.side, bel);
         lat.x = tan.y * bel.z - tan.z * bel.y; lat.y = tan.z * bel.x - tan.x * bel.z; lat.z = tan.x * bel.y - tan.y * bel.x;
         ax = bel.x; ay = bel.y; az = bel.z; bx = lat.x; by = lat.y; bz = lat.z; rb = r * s.thick;
       } else {
@@ -180,7 +181,7 @@ function projectSeg(sh: Shim, cr: Creature3, view: Projector): void {
 export const EPS = 0.6;
 
 /** at level 2, a long row of copies (legs, cilia, filaments) keeps one copy in two (not when a membrane joins them) */
-export const thinned = (c: Shim, o: DrawOptions) => !!o.lod && o.lod >= 2 && !!c.att && c.att.count >= 6 && !(c.att.web > 0) && (c.k & 1) === 1;
+export const thinned = (c: Shim, o: DrawOptions) => !!o.lod && o.lod >= 2 && !!c.att && c.att.count >= 6 && !(c.att.web > 0) && thinnedOut(c.att, c.k);
 export const outside = (b: Box, v?: Box) => !!v && (b[2] < v[0] || b[0] > v[2] || b[3] < v[1] || b[1] > v[3]);
 
 function drawTree(ctx: Ctx, sh: Shim, o: DrawOptions): void {
@@ -210,7 +211,7 @@ export function eyeDiscs3(cr: Creature3, view: Projector, fn: (px: number, py: n
   if (!e.on) return;
   const r = cr.root, rad = r.rad[0];
   F.x = -r.dx[1]; F.y = -r.dy[1]; F.z = -r.dz[1];
-  bellyOf(F, cr.side, bel);
+  bellyOf(F, cr.down, cr.side, bel);
   lat.x = F.y * bel.z - F.z * bel.y; lat.y = F.z * bel.x - F.x * bel.z; lat.z = F.x * bel.y - F.y * bel.x;
   const er = Math.max(0.8, rad * 0.3 * e.size);
   const eyes: { sd: number; vis: number }[] = [];

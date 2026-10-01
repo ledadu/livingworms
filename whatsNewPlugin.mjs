@@ -13,8 +13,8 @@ import { CHANGES_DIR, loadChanges, repoRoot, whatsNew } from './agents/release/c
 export const BASE = '/whats-new/';
 // The id of the script that holds the data (also in src/monde/nouveautes/data.ts).
 export const DATA_ID = 'whats-new-data';
-// The embedded images: at most `width` pixels wide, JPEG at `quality`, and `budget` bytes in all. A version whose
-// images do not fit any more keeps its text only, and so do the older ones.
+// The embedded images: at most `width` pixels wide, JPEG at `quality`, and `budget` bytes in all (fitImages). An entry
+// whose image does not fit any more keeps its text only, and so do the older ones.
 export const EMBED = { width: 720, quality: 70, budget: 400_000 };
 
 const FOLDER = /^(unreleased|v\d+\.\d+\.\d+)$/;
@@ -82,34 +82,45 @@ async function shrink(file) {
   return bytes?.length ? { type: 'image/jpeg', bytes } : { type, bytes: readFileSync(file) };
 }
 
+// The images that fit in `budget` bytes, by entry id: the newest version first, its entries in the order of the panel.
+// From the first image that does not fit, the entries keep their text: the newest version keeps the images that fit
+// even when they do not all fit, and the images of the older versions are not even made.
+export async function fitImages(releases, imageOf, budget) {
+  const images = new Map();
+  let spent = 0;
+  for (const release of releases) {
+    const found = await Promise.all(release.entries.map(imageOf));
+    for (const [i, image] of found.entries()) {
+      if (!image) continue;
+      if (spent + image.bytes.length > budget) return { images, spent };
+      spent += image.bytes.length;
+      images.set(release.entries[i].id, image);
+    }
+  }
+  return { images, spent };
+}
+
 // The data of the built page: published versions, players' entries, first images in data: URLs within the budget.
 export async function embeddedData(root = repoRoot, log = () => {}, budget = EMBED.budget) {
   const changesDir = join(root, CHANGES_DIR);
   const data = playersOnly(whatsNew(loadChanges(root), { base: BASE, includeUnreleased: false }));
-  // The images of each version, newest first, as long as they fit.
-  const images = [];
-  let spent = 0;
-  for (const release of data.releases) {
-    const shrunk = await Promise.all(
-      release.entries.map((entry) => {
-        const url = entry.images[0];
-        const file = url?.startsWith(BASE) ? changesFile(changesDir, url.slice(BASE.length)) : null;
-        return file && existsSync(file) ? shrink(file) : null;
-      }),
-    );
-    const size = shrunk.reduce((sum, image) => sum + (image?.bytes.length ?? 0), 0);
-    if (spent + size > budget) break;
-    spent += size;
-    images.push(shrunk);
-  }
-  const releases = data.releases.map((release, r) => ({
+  const { images, spent } = await fitImages(data.releases, (entry) => {
+    const url = entry.images[0];
+    const file = url?.startsWith(BASE) ? changesFile(changesDir, url.slice(BASE.length)) : null;
+    return file && existsSync(file) ? shrink(file) : null;
+  }, budget);
+  const releases = data.releases.map((release) => ({
     ...release,
-    entries: release.entries.map((entry, e) => {
-      const image = images[r]?.[e];
+    entries: release.entries.map((entry) => {
+      const image = images.get(entry.id);
       return { ...entry, images: image ? [`data:${image.type};base64,${image.bytes.toString('base64')}`] : [], body: stripImages(entry.body) };
     }),
   }));
-  const shown = releases.slice(0, images.length).map((release) => `v${release.version}`).join(', ') || 'aucune';
+  const shown = releases
+    .map((release) => ({ version: release.version, n: release.entries.filter((entry) => entry.images.length).length, of: release.entries.length }))
+    .filter(({ n }) => n)
+    .map(({ version, n, of }) => `v${version}${n < of ? ` (${n} sur ${of})` : ''}`)
+    .join(', ') || 'aucune';
   log(`nouveautés : ${releases.length} version(s), images de ${shown} (${Math.round(spent / 1024)} Ko${imageMagick() ? '' : ', sans ImageMagick : images telles quelles'})`);
   return { ...data, releases };
 }
