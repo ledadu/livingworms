@@ -179,7 +179,7 @@ Ce que le jeu doux façonne, c'est un animal, qui sera repris dans un jeu plus c
 Des courants dans la mer où l'on se laisse porter pour aller vite : visibles (des stries, des bulles, du plancton qui file), avec leur son, qui mènent d'un coin à un autre d'un chapitre ou vers un endroit caché. On y entre, on file, on en sort quand on veut. Un plaisir simple, qui fait aussi sentir la vitesse avant la nouvelle nage.
 
 ### Les petits jeux des animaux
-> 🔵 en cours · agent petits-jeux-animaux
+> 🟠 fusionné · agent petits-jeux-animaux
 
 Des animaux qui jouent avec nous, sans enjeu : un poisson qui joue à chat (il nous touche et file, on le rattrape, il recommence), un banc qui nous accepte si l'on nage à son rythme et nous emmène vers un coin caché, un poulpe qui se cache et qu'il faut trouver. Ça prolonge les scènes des animaux (« action des annimaux dans la nature »). Une petite récompense douce à la fin (une bouchée, un trésor, une lueur), jamais d'échec.
 
