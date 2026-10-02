@@ -84,6 +84,10 @@
   .f.think { background: none; cursor: pointer; color: var(--soft); }
   .f.think:hover { border-color: var(--accent); color: var(--text); }
   .menu .levels { display: flex; flex-direction: column; }
+  .menu.think-menu { min-width: 0; width: min(620px, calc(100vw - 16px)); }
+  .menu.think-menu button.tk-opt { display: inline-flex; width: auto; padding: 5px 9px; border: 1px solid #2a323d; background: #161b21; border-radius: 8px; color: #b7bfcb; }
+  .menu.think-menu button.tk-opt.on { border-color: var(--tk, var(--m)); background: color-mix(in srgb, var(--tk, var(--m)) 18%, #161b21); color: #e8ebf0; }
+  .ag .head .tk-badge { margin-left: 4px; }
   .menu .levels button.on { background: color-mix(in srgb, var(--accent) 20%, transparent); font-weight: 600; }
   .f.live { color: var(--active); border-color: color-mix(in srgb, var(--active) 45%, var(--line)); }
   .acts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
@@ -154,6 +158,7 @@
   .commits .s { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .drawer textarea { width: 100%; min-height: 90px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; resize: vertical; }
   .drawer select { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
+  .think-box { margin-top: 10px; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); display: flex; flex-direction: column; gap: 6px; }
   .report .md { font-size: 13px; color: var(--soft); margin-top: 6px; }
   .report .md h5 { margin: 12px 0 4px; font-size: 13px; color: var(--text); }
   .report .md p { margin: 5px 0; } .report .md ul { margin: 4px 0; padding-left: 18px; }
@@ -206,6 +211,7 @@
 <aside class="drawer" id="drawer" aria-label="Détail de l'agent"></aside>
 <dialog class="series" id="series"></dialog>
 
+<script src="/think.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (text) => String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -309,7 +315,6 @@ const thinkLabel = (effort) => (effort ? `${effort} · ${PROJECT.effortLabels?.[
 function facts(v, full = false) {
   const d = v.d;
   const out = [];
-  if (v.status !== 'merged') out.push(`<button class="f think" data-think="${esc(v.name)}" title="Réflexion et modèle de l'agent, pour son prochain lancement : cliquer pour changer">🧠 ${esc(v.agent.settings?.effort ?? 'défaut')}${v.agent.settings?.model ? ` · ${esc(v.agent.settings.model)}` : ''}</button>`);
   out.push(`<span class="f${v.commits.length ? ' ok' : ''}">${v.commits.length} commit${v.commits.length > 1 ? 's' : ''}</span>`);
   if (v.status !== 'queued') {
     out.push(v.agent.reportInterim ? `<button class="f warn think" data-report="${esc(v.name)}" title="Son rapport intermédiaire : le lire">🚧 rapport en cours</button>` : `<span class="f${d.report ? ' ok' : ''}">${d.report ? '✓' : '○'} rapport</span>`);
@@ -349,7 +354,7 @@ function nowBox(v) {
 function card(v) {
   const n = esc(v.name);
   return `<article class="ag s-${v.status}${opened === v.name ? ' sel' : ''}" data-open="${n}">
-    <div class="head"><span class="status">${STATUS[v.status].label}</span><span class="name">${n}</span><span class="time">${v.since ? ago(v.since) : ''}</span></div>
+    <div class="head"><span class="status">${STATUS[v.status].label}</span><span class="name">${n}</span><span class="time">${v.since ? ago(v.since) : ''}</span>${Think.badge(v.agent.settings ?? {}, { as: 'button', attrs: `data-think="${n}"`, small: true, fallback: PROJECT.defaults.effort, title: `Réflexion et modèle de ${v.name}, pour son prochain lancement : cliquer pour changer` })}</div>
     <div class="task">${v.taskId ? `<a href="/roadmap#t-${esc(v.taskId)}" title="Le chantier dans le backlog">${esc(v.title)}</a>` : esc(v.title)}</div>
     ${nowBox(v)}
     <div class="facts">${facts(v)}</div>
@@ -589,10 +594,8 @@ function renderDrawer() {
       <div class="facts">${facts(v, true)}</div>
       <div class="box"><h4>Lui parler</h4>
         <textarea id="order-text" placeholder="Un nouvel ordre : ce qu'il doit peaufiner ou faire en plus (il reprend son chantier là où il l'a laissé)">${esc(typed)}</textarea>
-        <div class="acts" style="margin-top:6px"><button class="btn small primary" data-do="order-send" data-name="${n}" ${v.run?.state === 'running' ? 'disabled title="Il travaille : attends qu\'il ait fini, ou arrête-le"' : ''}>Envoyer l'ordre</button>
-        <label class="note">🧠 réflexion <select data-setting="effort" data-name="${n}">${['<option value="">défaut</option>', ...PROJECT.efforts.map((e) => `<option value="${e}" ${e === settings.effort ? 'selected' : ''}>${esc(thinkLabel(e))}</option>`)].join('')}</select></label>
-        <label class="note">modèle <select data-setting="model" data-name="${n}">${opt(PROJECT.models, settings.model, 'défaut')}</select></label></div>
-        <div class="note">La réflexion et le modèle valent pour son prochain lancement (ordre, relance, correction de conflit).</div></div>
+        <div class="acts" style="margin-top:6px"><button class="btn small primary" data-do="order-send" data-name="${n}" ${v.run?.state === 'running' ? 'disabled title="Il travaille : attends qu\'il ait fini, ou arrête-le"' : ''}>Envoyer l'ordre</button></div>
+        <div class="think-box">${Think.picker(v.name, settings)}<div class="note">Valent pour son prochain lancement : ordre, relance, correction de conflit.</div></div></div>
       <div class="box"><h4>Ce qu'il a fait <span class="muted" style="text-transform:none;letter-spacing:0">(${events.length})</span></h4>
         <ul class="timeline">${[...events].reverse().slice(0, 40).map((e) => { const h = human(e); return `<li class="${e.kind}"><span>${e.kind === 'say' ? '💬' : e.kind === 'error' ? '⚠' : '⚙'}</span><span class="t" title="${esc(e.text)}">${h.k ? `<span class="muted">${esc(h.k)}</span> ` : ''}${esc(h.t)}</span><span class="w">${ago(e.time)}</span></li>`; }).join('') || '<li class="muted">Rien encore.</li>'}</ul></div>
       <div class="box"><h4>Ses commits <span class="muted" style="text-transform:none;letter-spacing:0">${esc(agent.diffstat ?? '')}</span></h4>
@@ -723,31 +726,26 @@ function agentMenu(button, name) {
     ${agent.AGENT_ARCHIVED ? `<button data-do="unarchive" data-name="${esc(name)}">↩ Remettre en cours</button>` : ''}`;
   place(menu, button);
 }
-// 🧠 on a card: how much the agent thinks (claude --effort) and its model, for its next start.
+// The badge of a card: how much the agent thinks (claude --effort) and its model, for its next start.
+async function saveThink(name, field, value) {
+  const agent = agents.find((one) => one.AGENT_NAME === name);
+  const body = { effort: agent?.settings?.effort ?? null, model: agent?.settings?.model ?? null, [field]: value };
+  const result = await call(`/api/settings/${name}`, body);
+  const running = agent && view(agent).run?.state === 'running';
+  toast(result.ok ? `${name} : ${Think.word(body.effort, 'réflexion par défaut')}${body.model ? ` · ${body.model}` : ''}${running ? ', pour sa prochaine relance.' : ', pour son prochain lancement.'}` : result.error, !result.ok);
+  if (agent && result.ok) agent.settings = { ...agent.settings, ...body };
+  drawerKey = '';
+  render();
+}
 function thinkMenu(button, name) {
   closeMenu();
   const agent = agents.find((one) => one.AGENT_NAME === name);
-  const current = agent?.settings ?? {};
   const running = view(agent).run?.state === 'running';
   menu = document.createElement('div');
-  menu.className = 'menu';
-  menu.innerHTML = `<div class="hint">Réflexion de <b>${esc(name)}</b>${running ? ' : il travaille, ça vaudra pour sa prochaine relance ou son prochain ordre' : ' : pour son prochain lancement'}</div>
-    <div class="levels">${['', ...PROJECT.efforts].map((e) => `<button data-set-think="${e}" class="${(current.effort ?? '') === e ? 'on' : ''}">${e ? `🧠 ${esc(thinkLabel(e))}` : `défaut${PROJECT.defaults.effort ? ` (${esc(PROJECT.defaults.effort)})` : ''}`}</button>`).join('')}</div>
-    <hr><div class="hint">Modèle</div>
-    <div class="levels">${['', ...PROJECT.models].map((m) => `<button data-set-model="${m}" class="${(current.model ?? '') === m ? 'on' : ''}">${m ? esc(m) : 'défaut'}</button>`).join('')}</div>`;
+  menu.className = 'menu think-menu';
+  menu.innerHTML = `<div class="hint"><b>${esc(name)}</b>${running ? ' · il travaille : vaudra pour sa prochaine relance ou son prochain ordre' : ' · pour son prochain lancement'}</div><div style="padding:6px 8px 8px">${Think.picker(name, agent?.settings ?? {})}</div>`;
   place(menu, button);
-  menu.addEventListener('click', async (event) => {
-    const think = event.target.closest('[data-set-think]');
-    const model = event.target.closest('[data-set-model]');
-    if (!think && !model) return;
-    const body = { effort: current.effort ?? null, model: current.model ?? null };
-    if (think) body.effort = think.dataset.setThink || null;
-    if (model) body.model = model.dataset.setModel || null;
-    closeMenu();
-    const result = await call(`/api/settings/${name}`, body);
-    toast(result.ok ? `${name} : réflexion ${thinkLabel(body.effort) || 'par défaut'}${body.model ? `, ${body.model}` : ''}${running ? ', pour sa prochaine relance.' : ', pour son prochain lancement.'}` : result.error, !result.ok);
-    load();
-  });
+  Think.onPick(menu, (key, field, value) => saveThink(key, field, value));
 }
 function teamMenu(button) {
   closeMenu();
@@ -816,6 +814,8 @@ document.addEventListener('change', async (event) => {
 });
 document.addEventListener('toggle', (event) => { if (event.target.classList?.contains('folded')) store.set('agents.folded', event.target.open); }, true);
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape') (menu ? closeMenu() : opened && closeDrawer()); });
+
+Think.onPick($('drawer'), (key, field, value) => saveThink(key, field, value));
 
 // /agents#<name> opens that agent.
 load().then(() => { const hash = decodeURIComponent(location.hash.slice(1)); if (hash && agents.some((a) => a.AGENT_NAME === hash)) openDrawer(hash); });

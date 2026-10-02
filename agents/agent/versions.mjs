@@ -211,7 +211,7 @@ export function versionsRoutes({ registry, readEnv, pageFile, changesRoot = proc
     const report = /^\/report\/([\w.-]+)\/([a-z0-9-]+)$/.exec(path);
     if (report) return page(response, 'text/html; charset=utf-8', pageFile('report.html').replaceAll('__FOLDER__', report[1]).replaceAll('__SLUG__', report[2])), true;
     if (path === '/versions') return page(response, 'text/html; charset=utf-8', pageFile('dashboard.html')), true;
-    const asset = { '/markdown.js': 'text/javascript', '/versions.js': 'text/javascript', '/versions.css': 'text/css' }[path];
+    const asset = { '/markdown.js': 'text/javascript', '/think.js': 'text/javascript', '/versions.js': 'text/javascript', '/versions.css': 'text/css' }[path];
     if (asset) return page(response, `${asset}; charset=utf-8`, pageFile(path.slice(1))), true;
     if (path === '/api/versions') return json(response, versionsState()), true;
     const action = /^\/api\/(assign|assign-many|plan|unplan|publish)$/.exec(path);
