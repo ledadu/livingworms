@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notifications · Agents __PROJECT__</title>
+<style>
+  :root {
+    --bg: #111418; --panel: #1a1f26; --panel2: #222933; --line: #2e3744; --text: #e6e9ee; --muted: #8b95a5;
+    --ok: #4cc38a; --warn: #e5b454; --off: #5b6472; --accent: #7aa7ff; --bad: #ef6b6b; --say: #c8b6ff; --ask: #ff8ad8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; background: var(--bg); z-index: 2; flex-wrap: wrap; }
+  h1 { font-size: 18px; margin: 0; }
+  h2 { font-size: 15px; margin: 0 0 10px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  h2 .n { font-size: 12px; color: var(--muted); font-weight: 400; }
+  a { color: var(--accent); text-decoration: none; }
+  .spacer { flex: 1; }
+  .muted { color: var(--muted); }
+  main { max-width: 900px; margin: 0 auto; padding: 16px 20px 60px; display: flex; flex-direction: column; gap: 18px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .btn { font: inherit; font-size: 13px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #0b1220; font-weight: 600; }
+  .btn.danger { color: var(--bad); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .note { font-size: 12px; color: var(--muted); }
+  .note.good { color: var(--ok); } .note.bad { color: var(--bad); }
+  input[type=text], input[type=time], input[type=number], select { font: inherit; font-size: 13px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+  input[type=checkbox], input[type=radio] { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+  .state { font-size: 13px; padding: 8px 10px; border-radius: 8px; background: var(--panel2); border-left: 3px solid var(--off); }
+  .state.on { border-left-color: var(--ok); } .state.warn { border-left-color: var(--warn); } .state.bad { border-left-color: var(--bad); }
+  .events { display: flex; flex-direction: column; gap: 2px; }
+  .event { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: start; padding: 7px 4px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .event:last-child { border-bottom: none; }
+  .event b { font-weight: 600; }
+  .event small { display: block; color: var(--muted); font-size: 12px; }
+  .tag { font-size: 10px; padding: 1px 7px; border-radius: 99px; color: #2a0b22; background: var(--ask); white-space: nowrap; font-weight: 600; }
+  fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  legend { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; padding: 0 4px; }
+  label.opt { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .devices { display: flex; flex-direction: column; gap: 8px; }
+  .device { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 8px 10px; background: var(--panel2); border-radius: 8px; border-left: 3px solid var(--off); }
+  .device.me { border-left-color: var(--accent); }
+  .device.editing { outline: 1px solid var(--accent); }
+  .device .what { flex: 1; min-width: 180px; }
+  .device .what small { display: block; color: var(--muted); font-size: 12px; }
+  .device .what small.bad { color: var(--bad); }
+  .muted-agents { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+  .muted-agents label { font-family: ui-monospace, monospace; font-size: 12px; }
+  .disabled { opacity: .5; pointer-events: none; }
+  nav.site { display: flex; gap: 4px; flex-wrap: wrap; }
+  nav.site a { color: var(--muted); padding: 2px 10px; border-radius: 99px; font-size: 13px; }
+  nav.site a:hover { color: var(--text); background: var(--panel2, #222933); text-decoration: none; }
+  nav.site a.on { color: #0b1220; background: var(--accent); font-weight: 600; }
+  @media (max-width: 600px) { header, main { padding-left: 16px; padding-right: 16px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Agents __PROJECT__</h1>
+  <nav class="site"><a href="/">Accueil</a><a href="/agents">Agents</a><a href="/journal">Journal</a><a href="/versions">Versions</a><a href="/roadmap">Backlog</a><a href="/questions">Questions</a><a href="/notifications">🔔 Notifications</a></nav><script>document.querySelector(`nav.site a[href="${location.pathname}"]`)?.classList.add('on');</script>
+</header>
+<main>
+  <section>
+    <h2>Cet appareil</h2>
+    <div class="state" id="state">…</div>
+    <div class="row" style="margin-top:10px">
+      <label>Nom <input type="text" id="name" maxlength="60" placeholder="Mon téléphone"></label>
+      <button class="btn primary" id="enable">🔔 Activer sur cet appareil</button>
+      <button class="btn" id="test" hidden>Envoyer un essai</button>
+      <button class="btn danger" id="disable" hidden>Désactiver ici</button>
+      <span class="note" id="note"></span>
+    </div>
+  </section>
+
+  <section id="settings-section" hidden>
+    <h2>Réglages <span class="n" id="editing"></span><span class="spacer"></span><span class="note" id="saved"></span></h2>
+    <label class="opt" style="margin-bottom:10px"><input type="checkbox" data-set="enabled"><b>Recevoir les notifications sur cet appareil</b></label>
+    <div id="settings-body">
+      <fieldset>
+        <legend>Ce qui me notifie</legend>
+        <div class="events" id="events"></div>
+      </fieldset>
+      <div class="grid" style="margin-top:12px">
+        <fieldset>
+          <legend>Heures calmes</legend>
+          <label class="opt"><input type="checkbox" data-set="quiet.enabled">Pas de notification entre</label>
+          <div class="row"><input type="time" data-set="quiet.from"> et <input type="time" data-set="quiet.to"> <span class="note" id="tz"></span></div>
+          <label class="opt"><input type="radio" name="quiet-mode" value="hold" data-set="quiet.mode">Les garder et me les donner ensuite, en un résumé</label>
+          <label class="opt"><input type="radio" name="quiet-mode" value="drop" data-set="quiet.mode">Les oublier</label>
+          <label class="opt"><input type="checkbox" data-set="quiet.urgent">Sauf les urgentes (questions, erreurs)</label>
+        </fieldset>
+        <fieldset>
+          <legend>Présentation</legend>
+          <label class="opt"><input type="radio" name="detail" value="full" data-set="detail">Tout le détail (noms, titres)</label>
+          <label class="opt"><input type="radio" name="detail" value="short" data-set="detail">Discret : seulement ce qui s'est passé</label>
+          <label class="opt"><input type="checkbox" data-set="sound">Son</label>
+          <label class="opt"><input type="checkbox" data-set="vibrate">Vibration (plus marquée pour les urgentes)</label>
+          <label class="opt"><input type="checkbox" data-set="sticky">Les urgentes restent à l'écran jusqu'à ce que je les touche</label>
+        </fieldset>
+        <fieldset>
+          <legend>Regroupement</legend>
+          <label class="opt"><input type="radio" name="group" value="each" data-set="group">Une notification par événement</label>
+          <label class="opt"><input type="radio" name="group" value="agent" data-set="group">Une par agent : la dernière remplace la précédente</label>
+          <label class="opt"><input type="radio" name="group" value="digest" data-set="group"><span>Un résumé toutes les <input type="number" min="1" max="240" style="width:64px" data-set="digestMinutes"> min (les urgentes tout de suite)</span></label>
+        </fieldset>
+        <fieldset>
+          <legend>Agents en sourdine</legend>
+          <div class="muted-agents" id="muted"></div>
+          <span class="note">Rien de ces agents, quel que soit l'événement.</span>
+        </fieldset>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Appareils abonnés <span class="n" id="count"></span></h2>
+    <div class="devices" id="devices"></div>
+    <p class="note">Chaque appareil a ses propres réglages : touche « Régler » pour changer ceux d'un autre. Un appareil qui se désabonne (navigateur effacé, permission retirée) est retiré tout seul au prochain envoi.</p>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const escapeHtml = (text) => String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+let info = null;          // GET /api/notify
+let myId = null;          // this device's id, when subscribed
+let editing = null;       // the device whose settings are shown
+const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && window.isSecureContext;
+
+const defaultName = () => {
+  const ua = navigator.userAgent;
+  const what = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iPhone' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : 'Linux';
+  const browser = /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'navigateur';
+  return `${/Mobile|Android|iPhone/.test(ua) ? 'Téléphone' : 'Ordinateur'} ${what} · ${browser}`;
+};
+
+async function idOf(endpoint) {
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(endpoint));
+  return [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, '0')).join('').slice(0, 16);
+}
+
+function keyBytes(base64url) {
+  const text = atob(base64url.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((base64url.length + 3) % 4));
+  return Uint8Array.from(text, (c) => c.charCodeAt(0));
+}
+
+async function load() {
+  info = await (await fetch('/api/notify', { cache: 'no-store' })).json();
+  myId = null;
+  if (supported) {
+    const registration = await navigator.serviceWorker.getRegistration('/');
+    const subscription = await registration?.pushManager.getSubscription();
+    if (subscription) {
+      const id = await idOf(subscription.endpoint);
+      if (info.devices.some((device) => device.id === id)) myId = id;
+    }
+  }
+  if (!editing || !info.devices.some((device) => device.id === editing)) editing = myId ?? info.devices[0]?.id ?? null;
+  render();
+}
+
+function render() {
+  const me = info.devices.find((device) => device.id === myId);
+  const state = $('state');
+  if (!supported) {
+    state.className = 'state bad';
+    state.innerHTML = window.isSecureContext ? 'Ce navigateur ne sait pas recevoir de notifications web.' : 'Les notifications demandent une adresse sûre : ouvre le tableau de bord par son adresse <b>https://…ts.net</b> (Tailscale) ou par <b>localhost</b>.';
+  } else if (Notification.permission === 'denied') {
+    state.className = 'state bad';
+    state.textContent = 'Les notifications sont bloquées pour ce site : autorise-les dans les réglages du navigateur (le cadenas près de l’adresse), puis recharge.';
+  } else if (me) {
+    state.className = me.settings.enabled ? 'state on' : 'state warn';
+    state.innerHTML = `${me.settings.enabled ? '✓ Activées' : '⏸ En pause'} sur cet appareil, « <b>${escapeHtml(me.name)}</b> »${me.lastSentAt ? ` · dernière envoyée ${new Date(me.lastSentAt).toLocaleString('fr-FR')}` : ''}${me.lastError ? ` · <span style="color:var(--bad)">${escapeHtml(me.lastError)}</span>` : ''}${me.held ? ` · ${me.held} en attente` : ''}`;
+  } else {
+    state.className = 'state';
+    state.textContent = 'Pas encore activées sur cet appareil.';
+  }
+  $('enable').hidden = !supported || Notification.permission === 'denied' || Boolean(me);
+  $('test').hidden = $('disable').hidden = !me;
+  if (!$('name').value) $('name').value = me?.name ?? defaultName();
+
+  $('count').textContent = info.devices.length ? `(${info.devices.length})` : '';
+  $('devices').innerHTML = info.devices.length ? info.devices.map((device) => `<div class="device${device.id === myId ? ' me' : ''}${device.id === editing ? ' editing' : ''}">
+      <div class="what"><b>${escapeHtml(device.name)}</b>${device.id === myId ? ' <span class="note">(cet appareil)</span>' : ''}
+        <small>${device.settings.enabled ? `${Object.values(device.settings.events).filter(Boolean).length} événements` : 'en pause'} · ${escapeHtml(device.timeZone)}${device.lastSentAt ? ` · dernière ${new Date(device.lastSentAt).toLocaleString('fr-FR')}` : ''}${device.held ? ` · ${device.held} en attente` : ''}</small>
+        ${device.lastError ? `<small class="bad">${escapeHtml(device.lastError)}</small>` : ''}</div>
+      <button class="btn" data-edit="${device.id}">Régler</button><button class="btn" data-test="${device.id}">Essai</button><button class="btn danger" data-remove="${device.id}">Retirer</button></div>`).join('')
+    : '<p class="note">Aucun appareil : active les notifications sur ton téléphone, en ouvrant cette page dessus.</p>';
+
+  const device = info.devices.find((one) => one.id === editing);
+  $('settings-section').hidden = !device;
+  if (!device) return;
+  $('editing').textContent = `de « ${device.name} »`;
+  $('tz').textContent = `(heure de l'appareil, ${device.timeZone})`;
+  $('events').innerHTML = Object.entries(info.events).map(([key, event]) => `<label class="event"><input type="checkbox" data-event="${key}" ${device.settings.events[key] ? 'checked' : ''}>
+      <span><b>${escapeHtml(event.label)}</b><small>${escapeHtml(event.hint)}</small></span>${event.urgent ? '<span class="tag" title="Peut passer pendant les heures calmes, plus marquée">urgente</span>' : '<span></span>'}</label>`).join('');
+  const agents = [...new Set([...info.agents, ...device.settings.mutedAgents])].sort();
+  $('muted').innerHTML = agents.length ? agents.map((name) => `<label class="opt"><input type="checkbox" data-mute="${name}" ${device.settings.mutedAgents.includes(name) ? 'checked' : ''}>${escapeHtml(name)}</label>`).join('') : '<span class="note">Aucun agent pour l’instant.</span>';
+  for (const input of document.querySelectorAll('[data-set]')) {
+    const value = input.dataset.set.split('.').reduce((at, key) => at?.[key], device.settings);
+    if (input.type === 'checkbox') input.checked = Boolean(value);
+    else if (input.type === 'radio') input.checked = input.value === value;
+    else input.value = value;
+  }
+  $('settings-body').classList.toggle('disabled', !device.settings.enabled);
+}
+
+// Every change is saved at once (a short delay for the typed ones).
+let saveTimer = 0;
+function collect() {
+  const device = info.devices.find((one) => one.id === editing);
+  const settings = structuredClone(device.settings);
+  for (const input of document.querySelectorAll('[data-set]')) {
+    const path = input.dataset.set.split('.');
+    const last = path.pop();
+    const at = path.reduce((one, key) => one[key], settings);
+    if (input.type === 'checkbox') at[last] = input.checked;
+    else if (input.type === 'radio') { if (input.checked) at[last] = input.value; }
+    else at[last] = input.type === 'number' ? Number(input.value) : input.value;
+  }
+  for (const box of document.querySelectorAll('[data-event]')) settings.events[box.dataset.event] = box.checked;
+  settings.mutedAgents = [...document.querySelectorAll('[data-mute]:checked')].map((box) => box.dataset.mute);
+  return settings;
+}
+async function save() {
+  const id = editing;
+  const result = await (await fetch(`/api/notify/device/${id}`, { method: 'POST', body: JSON.stringify({ settings: collect() }) })).json();
+  $('saved').className = result.ok ? 'note good' : 'note bad';
+  $('saved').textContent = result.ok ? 'enregistré' : result.error;
+  if (result.ok) {
+    info.devices = info.devices.map((one) => (one.id === id ? result.device : one));
+    render();
+  }
+  setTimeout(() => ($('saved').textContent = ''), 2000);
+}
+document.addEventListener('change', (event) => {
+  if (!event.target.closest('#settings-section')) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(save, event.target.type === 'number' || event.target.type === 'time' ? 500 : 0);
+});
+
+$('enable').addEventListener('click', async () => {
+  const note = $('note');
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') throw new Error('permission refusée');
+    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    await navigator.serviceWorker.ready;
+    const subscription = (await registration.pushManager.getSubscription())
+      ?? await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(info.publicKey) });
+    const result = await (await fetch('/api/notify/subscribe', { method: 'POST', body: JSON.stringify({ subscription: subscription.toJSON(), name: $('name').value.trim(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }) })).json();
+    if (!result.ok) throw new Error(result.error);
+    editing = result.device.id;
+    note.className = 'note good';
+    note.textContent = 'Activées : règle ce qui te notifie ci-dessous, puis « Envoyer un essai ».';
+    await load();
+  } catch (error) {
+    note.className = 'note bad';
+    note.textContent = `Échec : ${error.message}`;
+  }
+});
+
+$('disable').addEventListener('click', async () => {
+  if (!confirm('Ne plus recevoir de notifications sur cet appareil ?')) return;
+  const registration = await navigator.serviceWorker.getRegistration('/');
+  const subscription = await registration?.pushManager.getSubscription();
+  await subscription?.unsubscribe();
+  if (myId) await fetch(`/api/notify/device/${myId}/remove`, { method: 'POST', body: '{}' });
+  editing = null;
+  await load();
+});
+
+$('name').addEventListener('change', async () => {
+  if (!myId || !$('name').value.trim()) return;
+  await fetch(`/api/notify/device/${myId}`, { method: 'POST', body: JSON.stringify({ name: $('name').value.trim() }) });
+  await load();
+});
+
+async function test(id) {
+  const note = $('note');
+  note.className = 'note';
+  note.textContent = 'Envoi…';
+  const result = await (await fetch(`/api/notify/device/${id}/test`, { method: 'POST', body: '{}' })).json();
+  note.className = result.ok ? 'note good' : 'note bad';
+  note.textContent = result.ok ? 'Essai envoyé : il doit arriver dans quelques secondes.' : `Échec : ${result.error}`;
+  await load();
+}
+$('test').addEventListener('click', () => test(myId));
+
+$('devices').addEventListener('click', async (event) => {
+  const edit = event.target.closest('[data-edit]');
+  const testing = event.target.closest('[data-test]');
+  const remove = event.target.closest('[data-remove]');
+  if (edit) (editing = edit.dataset.edit, render(), $('settings-section').scrollIntoView({ behavior: 'smooth' }));
+  if (testing) test(testing.dataset.test);
+  if (remove && confirm('Retirer cet appareil ? Il ne recevra plus rien.')) {
+    await fetch(`/api/notify/device/${remove.dataset.remove}/remove`, { method: 'POST', body: '{}' });
+    await load();
+  }
+});
+
+if (supported) navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+load();
+</script>
+</body>
+</html>

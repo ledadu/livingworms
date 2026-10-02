@@ -54,6 +54,16 @@ Le tableau de bord lance des agents, fusionne, publie et retire des worktrees : 
   `tailscale serve status` montre ce qui est servi, `sudo tailscale serve --https=443 off` l'arrête.
 - **Limites** : les liens vers les serveurs de dev (le jeu d'un agent, « Tester cette version ») pointent vers `localhost` et ne s'ouvrent pas à distance. La machine doit rester allumée, sans veille ; sous WSL, le WSL aussi : Windows l'arrête quand plus aucun terminal ni VS Code n'y est ouvert.
 
+### Notifications sur le téléphone
+
+La page **🔔 Notifications** (`/notifications`, [`notifications.html`](../agent/notifications.html)) abonne un appareil aux notifications du tableau de bord : la **Web Push** standard des navigateurs, envoyée par le tableau de bord lui-même ([`notify.mjs`](../agent/notify.mjs) : chiffrement RFC 8291 et signature VAPID RFC 8292 avec `node:crypto`, sans dépendance). Le service de push du navigateur ne transporte qu'un message chiffré : aucun tiers ne lit les notifications. Il faut une adresse sûre : `https://…ts.net` (Tailscale, voir ci-dessus) ou `localhost`. Sur Android avec Chrome, rien à installer ; sur iPhone, il faut d'abord ajouter la page à l'écran d'accueil.
+
+- **Activer** : sur l'appareil, ouvrir la page, **🔔 Activer sur cet appareil** (le navigateur demande la permission), puis **Envoyer un essai**. Le service worker ([`sw.js`](../agent/sw.js)) affiche chaque notification et ouvre sa page quand on la touche (un onglet du tableau de bord déjà ouvert s'il y en a un).
+- **Les événements** ([`notify-events.mjs`](../agent/notify-events.mjs), un instantané toutes les 10 s comparé au précédent) : une question d'un agent, un agent qui a fini, un agent arrêté en erreur (ou dont le processus a disparu), « Accepter » qui refuse une branche (`<nom>.accept.log`), une tâche acceptée, un agent qui démarre (dont ⚡ auto), la fusion en série finie, un retour d'agent à lire, Claude qui a répondu dans le backlog (💬 ou 🧩), une version publiée. Seuls les agents lancés depuis le tableau de bord ont un processus suivi (fini, en erreur).
+- **Les réglages, par appareil** : les événements voulus ; les **heures calmes** (dans le fuseau de l'appareil ; les garder pour un résumé à la fin, ou les oublier ; laisser passer les urgentes : questions et erreurs) ; la **présentation** (tout le détail, ou discret : seulement ce qui s'est passé, pour un écran verrouillé ; son ; vibration ; les urgentes qui restent à l'écran) ; le **regroupement** (une par événement, une par agent qui remplace la précédente, ou un résumé toutes les N minutes, les urgentes tout de suite) ; les **agents en sourdine**. Chaque changement est enregistré aussitôt ; « Régler » change ceux d'un autre appareil.
+- **Fichiers** : `.git/agents/push/vapid.json` (la paire de clés du tableau de bord, faite une fois), `devices.json` (chaque appareil : abonnement, nom, fuseau, réglages, notifications gardées). Un appareil qui s'est désabonné (404 ou 410 du service de push) est retiré au premier envoi. `AGENTS_NO_NOTIFY=1` coupe la surveillance.
+- **Routes** : `GET /api/notify` (clé publique, événements, appareils sans leurs clés, agents), `POST /api/notify/subscribe`, `POST /api/notify/device/<id>` (`{ settings }` ou `{ name }`), `…/test`, `…/remove` ; `/sw.js`.
+
 ### Accueil : la carte de l'écosystème
 
 La page `/` ([`hub.html`](../agent/hub.html), agrégation dans [`hub.mjs`](../agent/hub.mjs)) dessine en SVG, sans dépendance, tout ce qui entoure le jeu. Le cadriciel pose trois zones, **Documentation**, **Équipe d'agents** et **Versions et publication**, et des flux numérotés qui racontent le cycle d'une nouveauté : backlog → tâches → agents → branches → intégration → version → publiées. Le projet complète la carte par `hub` dans son `agents.config.mjs` : ses zones (la rangée du bas, `y ≥ 406`, est libre), ses nœuds (le jeu, son serveur, sa supervision…), ses flux (qui prolongent le cycle, par exemple jusqu'aux joueurs puis de la télémétrie vers le backlog), ses lectures en direct et, s'il le veut, une double hélice (`hub.helix`).
@@ -121,6 +131,8 @@ Texte libre ; un chantier se découpe en titres #### ou en puces en gras.
 - **Relier à la main** un chantier à un agent lancé par l'orchestrateur : `make backlog-link TASK=<id> NAME=<agent>` (`make backlog` liste les identifiants).
 
 ### Page Backlog
+
+> Une refonte est en cours : la maquette `/roadmap/v2` ([`roadmap-v2.html`](../agent/roadmap-v2.html)) tourne à côté de cette page, sur les mêmes données et actions ; le constat et les choix sont dans [backlog-ux.md](backlog-ux.md).
 
 La page **Backlog** (`/roadmap`, bouton « ⟳ Rafraîchir le backlog » en en-tête du tableau de bord ; [`roadmap-routes.mjs`](../agent/roadmap-routes.mjs), [`roadmap.html`](../agent/roadmap.html)) relit `docs/backlog.md` **du dépôt principal**, synchronise ses états et montre ses chantiers par groupe, avec leur état et leur agent. La consigne générée cite le chantier en entier (sous-titres compris) avec sa ligne dans `docs/backlog.md` ([`roadmap.mjs`](../agent/roadmap.mjs) `buildPrompt`).
 
