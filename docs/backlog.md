@@ -12,6 +12,29 @@ Les documents de conception : [vision](vision.md), [chapitres](chapitres.md), [m
 
 ## Étape 4 — Lignée
 
+### Grandir jusqu'à la maturité
+> ⚪ à faire
+
+Nouveau concept : chaque créature naît ou apparaît **petite** et doit **grandir jusqu'à la maturité** avant de pouvoir faire des enfants. Pour grandir, elle mange (voir les sous-tâches). Aujourd'hui un enfant sort de son œuf à 30 % de sa taille et grandit tout seul en 7 s (`engine3/grow.ts`, « La ponte » de `docs/mecaniques.md`) : la croissance devient une étape de jeu.
+
+- La créature jouée grandit à chaque bouchée, sans à-coup (`grow.ts`), jusqu'à sa taille adulte ; on voit où elle en est sans chiffre (sa taille, et un signe doux quand elle est mûre : une lueur, ses couleurs qui s'affirment).
+- Tant qu'elle n'est pas mûre, un partenaire ne danse pas avec elle : il la remarque, mais lui fait comprendre qu'elle est trop jeune (et la lignée le dit une fois) ; la parade et l'accouplement ne s'ouvrent qu'à maturité.
+- Le rythme doit rester plaisant : quelques minutes de jeu par génération au plus, jamais une corvée ; la nourriture se trouve facilement là où l'on nage. Le régler pour la première génération (la larve) comme pour les suivantes.
+- Les autres créatures (frères et sœurs, ancêtres, animaux de la mer) peuvent naître petites et grandir aussi, sans que ça coûte en performance.
+- La sauvegarde garde la taille atteinte. Mettre à jour `docs/mecaniques.md` (une section « Grandir ») et les tests.
+
+### Manger : la nourriture végétale
+> ⚪ à faire
+> ↳ après « Grandir jusqu'à la maturité »
+
+La première nourriture, végétale : de petites choses à manger sur les algues et les plantes du décor (bourgeons, grains, fruits d'algue, filaments tendres…), qu'on cueille en passant dessus ou en les touchant de la bouche. Une bouchée fait grandir un peu ; ce qui a été mangé repousse lentement. Visible sans être criard, de la couleur de chaque chapitre, et présent dans tous les chapitres où il y a des plantes (dans le Jardin de méduses et la Fosse, voir la sous-tâche suivante). Une petite animation de bouchée (la créature avale, un éclat doux) et un petit son.
+
+### Manger : le plancton et les polypes
+> ⚪ à faire
+> ↳ après « Manger : la nourriture végétale »
+
+D'autres nourritures, « un peu vivantes » : des nuages de **plancton** qui dérivent dans l'eau (on les traverse pour les gober, comme les poissons qui gobent déjà du plancton), et les **polypes** des coraux qu'on peut picorer (ils se rétractent un moment, comme les timides de la flore). C'est la nourriture des chapitres sans plantes (le Jardin de méduses, la Fosse, où le plancton luit dans le noir). Chaque nourriture peut faire grandir plus ou moins ; à voir si certaines espèces préfèrent l'une ou l'autre selon leur corps (bouche, tentacules, filaments).
+
 ### L'enfant reste près de ses frères
 > 🟠 fusionné · agent enfant-reste-pres
 
