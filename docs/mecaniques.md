@@ -239,13 +239,24 @@ Une forme choisie peut déplaire (une nage pénible, un aspect qui ne nous va pa
 
 ## Contrôles et interface
 
-- **Un doigt** : nager en suivant le doigt (en place).
+- **Un doigt** : nager en suivant le doigt (en place). Voir « Piloter », ci-dessous.
 - **Deux doigts** : zoomer (en place).
 - **Chanter** : un bouton en bas, qui ouvre le cercle de notes.
 - **Écran de la lignée** : l'arbre, accessible à tout moment par le bouton en haut à gauche (voir « L'arbre de la lignée »).
 - **Interface minimale** : pas de chiffres. Le texte narratif est la seule vraie interface.
 - **Le son** : la musique et le chant se règlent dans le panneau ⚙, section « Son » ([direction artistique](direction-artistique.md#le-son)).
 - **L'Atelier** n'est pas dans l'histoire : il revient après la fin, dans la « Balade libre » (décision validée, voir ci-dessous). Son bouton ✎ est caché pendant l'histoire, et pendant une nouvelle histoire commencée après une fin (`applyAtelierAccess`, `src/monde/atelier-access.ts`). Pour le développement, `?atelier` ou `?dev` (qui montre aussi le voyage du panneau ⚙) dans l'adresse le montre toujours ; `monde.unlockBalade()` ouvre la Balade dans la console.
+
+### Piloter
+
+Toutes les créatures se pilotent aussi facilement, quelle que soit leur façon de nager, celle de leur espèce ou celle qu'un enfant tient de l'un de ses parents (une portée avec une méduse donne souvent un enfant qui nage comme elle, en cloche, sur un autre corps). Le nageur que l'on pilote va **là où on le lui dit, à une allure égale**. Son corps garde sa façon de nager : la cloche bat et penche vers où elle va, le manteau d'un poulpe se gonfle et file devant ses bras (et tombe bras en avant quand il descend), les pattes d'un marcheur marchent ou rament. Seuls les à-coups sont lissés hors de sa route (`src/engine3/pilot.ts`, `pilot` dans `creature3.ts`, testés) :
+
+- **une cloche** (méduses) suit le doigt dans toutes les directions, vers le bas aussi, au lieu d'avancer seulement selon son axe et à chaque battement ; chaque battement n'est plus qu'un petit élan (de 0,8 à 1,6 fois l'allure, 1 en moyenne, `SURGE`). Lâchée, elle reste où elle est et bat sur place, au lieu de monter vers la surface ;
+- **un jet** (poulpe, calmar, nautile) va vers le doigt quel que soit le sens de son manteau, ses jets en petit élan, un peu moins vite pendant qu'il se retourne (`turnPace`) ;
+- **un marcheur** en pleine eau garde sa profondeur quand on le pilote à l'horizontale, au lieu de retomber et de remonter par saccades ; lâché, il retombe doucement sur ses pattes, comme avant ;
+- **un poisson** (glisse, saccades, pulsations) nageait déjà ainsi pour nous : rien ne change pour lui.
+
+Mesuré sur le bestiaire et des portées avec chaque méduse : pour aller vers un doigt à 300 px, une cloche mettait 7 à 8 s, en manquait certains et s'écartait de 30 à 40° de sa route. Pilotée, elle met 2,1 s et s'en écarte de 7 à 8°. Un poisson met 2,3 s. Les animaux de la mer ne sont pas pilotés : ils gardent leurs à-coups et leur façon de nager (la méduse se laisse couler, le poulpe file par jets).
 
 ## La Balade libre
 
