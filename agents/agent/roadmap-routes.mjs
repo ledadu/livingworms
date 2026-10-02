@@ -24,7 +24,7 @@ import {
   removeQueueEntry,
 } from './roadmap.mjs';
 import { STATES, depthOf, dueAuto, foldedSubtasks, parseBacklog, setTaskStatus, subtasksOf, syncBacklog, taskVersion, withLabels, writeAfter, writeAuto, writeTask } from './backlog.mjs';
-import { askAboutTask, chatKey, clearChat, hasChat, markApplied, markCreated, readChat } from './task-chat.mjs';
+import { askAboutTask, chatKey, clearChat, hasChat, markApplied, markCreated, markSeen, readChat, settleTurns, unseen } from './task-chat.mjs';
 import { renameSync as renameFile } from 'node:fs';
 import { launchTask, resumeTask, runDir, runLog, runLogFrom, runState, stopTask } from './launch.mjs';
 import { EFFORTS, project, renderPage } from '../config.mjs';
@@ -80,9 +80,9 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
         item.depth = depthOf(items, item);
         item.subtaskCount = subtasksOf(items, item.id).length;
         const chat = hasChat(registry, item.id) ? readChat(registry, item.id) : null;
-        item.chat = chat?.messages.length ? { count: chat.messages.length, pending: chat.pending } : null;
+        item.chat = chat?.messages.length ? { count: chat.messages.length, pending: chat.pending, unseen: unseen(chat) } : null;
         const subChat = hasChat(registry, chatKey(item.id, 'subtasks')) ? readChat(registry, chatKey(item.id, 'subtasks')) : null;
-        item.subChat = subChat?.messages.length ? { count: subChat.messages.length, pending: subChat.pending } : null;
+        item.subChat = subChat?.messages.length ? { count: subChat.messages.length, pending: subChat.pending, unseen: unseen(subChat) } : null;
       }
       if (item.kind !== 'task' || item.status !== 'new') continue;
       item.proposedName = proposeName(item.title, taken);
@@ -231,6 +231,12 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
     }
   }
   if (!process.env.AGENTS_NO_AUTO) setInterval(autoLaunch, 20_000).unref();
+  // The chats with Claude run on their own: their answers join the threads even when no page is open.
+  setInterval(() => {
+    try {
+      settleTurns(registry);
+    } catch {}
+  }, 3000).unref();
 
   /** Handles the request when it is one of the roadmap's; returns false otherwise. */
   return async function handleRoadmap(request, response, path) {
@@ -314,16 +320,18 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
         return json({ ok: false, error: error.message }), true;
       }
     }
-    const chatRoute = /^\/api\/backlog\/chat\/([a-z0-9-]+)(?:\/(apply|clear|subtask))?$/.exec(path);
+    const chatRoute = /^\/api\/backlog\/chat\/([a-z0-9-]+)(?:\/(apply|clear|subtask|seen))?$/.exec(path);
     if (chatRoute) {
       const [, id, action] = chatRoute;
       // ?mode=subtasks : the thread about the task's sub-tasks (🧩), else its own (💬).
       const mode = new URL(request.url ?? '/', 'http://localhost').searchParams.get('mode') === 'subtasks' ? 'subtasks' : 'task';
       const key = chatKey(id, mode);
-      if (!post) return json(readChat(registry, key)), true;
+      // ?seen=1 : the dialog shows the thread, its answers count as seen (« Pour toi », notifications).
+      if (!post) return json(new URL(request.url ?? '/', 'http://localhost').searchParams.get('seen') === '1' ? (readChat(registry, key), markSeen(registry, key)) : readChat(registry, key)), true;
       const body = await readBody(request);
       try {
         if (action === 'clear') return json({ ok: true, chat: clearChat(registry, key) }), true;
+        if (action === 'seen') return json({ ok: true, chat: markSeen(registry, key) }), true;
         if (action === 'apply') {
           const chat = readChat(registry, key);
           const proposal = chat.messages[body.index]?.proposal;

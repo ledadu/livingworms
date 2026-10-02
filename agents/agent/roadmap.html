@@ -764,7 +764,7 @@ $('enqueue').addEventListener('click', async () => {
 document.getElementById('td-effort').innerHTML = ['<option value="">défaut</option>', ...PROJECT.efforts.map((e) => `<option value="${e}">${e} · ${PROJECT.effortLabels?.[e] ?? ''}</option>`)].join('');
 const dialog = { id: null, section: null, version: null, saved: '', chat: null, poll: null, mode: 'task' };
 // The thread of the dialog: the task's own (💬) or the one about its sub-tasks (🧩).
-const chatUrl = (id, action = '') => `/api/backlog/chat/${encodeURIComponent(id)}${action ? `/${action}` : ''}${dialog.mode === 'subtasks' ? '?mode=subtasks' : ''}`;
+const chatUrl = (id, action = '', seen = false) => `/api/backlog/chat/${encodeURIComponent(id)}${action ? `/${action}` : ''}?${dialog.mode === 'subtasks' ? 'mode=subtasks&' : ''}${seen ? 'seen=1' : ''}`;
 const md = (text) => `<div class="md">${window.renderMarkdown ? window.renderMarkdown(String(text ?? '')) : escapeHtml(text)}</div>`;
 
 // A line diff (longest common subsequence) of the current text and a proposal.
@@ -817,7 +817,7 @@ function renderThread() {
 
 async function pollChat() {
   if (!dialog.id || !$('task-dialog').open) return;
-  dialog.chat = await (await fetch(chatUrl(dialog.id), { cache: 'no-store' })).json();
+  dialog.chat = await (await fetch(chatUrl(dialog.id, '', true), { cache: 'no-store' })).json();
   renderThread();
 }
 
@@ -825,7 +825,8 @@ async function openTask(id, { focus = 'text', mode = 'task' } = {}) {
   const result = await (await fetch(`/api/backlog/task/${encodeURIComponent(id)}`, { cache: 'no-store' })).json();
   if (!result.ok) return alert(result.error);
   dialog.mode = mode;
-  const chat = mode === 'subtasks' ? await (await fetch(chatUrl(id), { cache: 'no-store' })).json() : result.chat;
+  // Shown, the thread's answers count as seen (« Pour toi », notifications).
+  const chat = await (await fetch(chatUrl(id, '', true), { cache: 'no-store' })).json();
   Object.assign(dialog, { id, section: result.task.section, version: result.task.version, saved: result.task.text, chat });
   $('td-chat-head').innerHTML = mode === 'subtasks'
     ? '🧩 Sous-tâches, avec Claude <span style="text-transform:none;letter-spacing:0">(imaginer, découper, ordonner ; chaque sous-tâche proposée se crée d’un clic)</span>'

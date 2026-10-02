@@ -134,7 +134,7 @@ describe('events', () => {
   const empty = { runs: {}, queue: {}, questions: {}, refusals: {}, archived: [], train: null, versions: [], chats: {} };
   it('says nothing the first time, then what changed', () => {
     expect(diffFacts(null, empty)).toEqual([]);
-    const before = { ...empty, runs: { danse: { state: 'running', code: null, startedAt: 't1' } }, chats: { nid: { pending: true, count: 1, title: 'Nid', mode: 'task', error: false } } };
+    const before = { ...empty, runs: { danse: { state: 'running', code: null, startedAt: 't1' } }, chats: { nid: { pending: true, count: 1, title: 'Nid', mode: 'task', error: false, answerAt: null, seen: true } } };
     const after = {
       ...empty,
       runs: { danse: { state: 'done', code: 0, startedAt: 't1' }, son: { state: 'running', code: null, startedAt: 't2' }, casse: { state: 'error', code: 1, startedAt: 't0' } },
@@ -144,11 +144,14 @@ describe('events', () => {
       archived: ['vieux'],
       train: { startedAt: 't', finishedAt: 't9', items: [{ name: 'a', state: 'accepted', message: '' }, { name: 'b', state: 'failed', message: 'conflit' }] },
       versions: ['v0.8.0'],
-      chats: { nid: { pending: false, count: 2, title: 'Nid', mode: 'task', error: false } },
+      chats: { nid: { pending: false, count: 2, title: 'Nid', mode: 'subtasks', error: false, answerAt: 't5', subtasks: 1, proposals: 0, seen: false } },
     };
     const types = diffFacts(before, after).map((event) => `${event.type}:${event.agent ?? ''}`);
     expect(types).toEqual(['agent-done:danse', 'agent-launched:son', 'question:son', 'accept-refused:danse', 'accepted:vieux', 'merge-train:', 'version:', 'chat:']);
     expect(diffFacts(before, after)[0]).toMatchObject({ title: 'danse a fini', body: 'Le moteur de danse\nPrêt à tester et à accepter.' });
+    expect(diffFacts(before, after).at(-1)).toMatchObject({ title: '🧩 Claude a répondu : Nid', body: '1 sous-tâche proposée, à créer', url: '/roadmap/v1?open=nid&mode=subtasks' });
+    // Seen in the meantime (the thread was opened): nothing to tell.
+    expect(diffFacts(before, { ...after, chats: { nid: { ...after.chats.nid, seen: true } } }).map((event) => event.type)).not.toContain('chat');
     // A run that was already over is not told again.
     expect(diffFacts(after, after)).toEqual([]);
     expect(diffFacts({ ...after, runs: { ...after.runs, casse: { state: 'running', code: null, startedAt: 't0' } } }, after).map((event) => event.type)).toEqual(['agent-error']);

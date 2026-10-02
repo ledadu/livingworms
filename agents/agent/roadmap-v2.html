@@ -77,6 +77,10 @@
   .state.active::before { box-shadow: 0 0 0 0 var(--active); animation: pulse 1.6s infinite; }
   @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--active) 70%, transparent); } 100% { box-shadow: 0 0 0 7px transparent; } }
   .agent { font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--soft); background: var(--panel3); border-radius: 5px; padding: 0 6px; }
+  .fresh-chat { color: #0b1220; background: var(--active); border-radius: 99px; padding: 1px 8px; font-weight: 600; font-size: 11.5px; white-space: nowrap; animation: fresh 2s ease-in-out infinite; }
+  .fresh-chat.wait { background: var(--panel3); color: var(--soft); animation: none; }
+  @keyframes fresh { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--active) 30%, transparent); } }
+  .chat-banner { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 8px 10px; margin: 8px 0; border-radius: 8px; border: 1px solid var(--active); background: color-mix(in srgb, var(--active) 10%, var(--bg)); font-size: 13px; }
   .new-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--todo); display: inline-block; }
   .auto { color: var(--auto); }
   .more { background: none; border: 1px solid transparent; border-radius: 6px; color: var(--muted); padding: 2px 8px; cursor: pointer; font-size: 16px; line-height: 1; }
@@ -382,8 +386,15 @@ function meta(item, stripped = false) {
     parts.push(info && info.status !== 'idle' ? `<span class="badge ag-${info.status}" title="${esc(info.name)} : ${esc(info.label)}">${esc(info.label)}</span><span class="agent">${esc(info.name)}</span>` : `<span class="agent">${esc(item.agent)}</span>`);
   }
   if (item.auto) parts.push(`<span class="auto" title="Lancée d'elle-même à la fusion de sa mère">⚡ auto</span>${item.auto.effort || item.auto.model ? Think.badge(item.auto, { small: true }) : ''}`);
-  if (item.chat) parts.push(`<span title="Discussion 💬">💬 ${item.chat.pending ? '…' : item.chat.count}</span>`);
-  if (item.subChat) parts.push(`<span title="Discussion des sous-tâches 🧩">🧩 ${item.subChat.pending ? '…' : item.subChat.count}</span>`);
+  // A chat with Claude: thinking (…), or an answer not seen yet, which stands out with what it proposes.
+  const chatTag = (chat, icon, mode) => {
+    if (!chat) return '';
+    if (chat.pending) return `<span class="fresh-chat wait" title="Claude réfléchit">${icon} Claude réfléchit…</span>`;
+    const u = chat.unseen ?? {};
+    if (u.answers) return `<a class="fresh-chat" href="/roadmap/v1?open=${esc(item.id)}&mode=${mode}" title="Une réponse de Claude que tu n'as pas encore vue">${icon} ${u.error ? 'erreur, à renvoyer' : u.subtasks ? `${u.subtasks} sous-tâche${u.subtasks > 1 ? 's' : ''} proposée${u.subtasks > 1 ? 's' : ''}` : u.proposals ? 'nouvelle version proposée' : 'nouvelle réponse'}</a>`;
+    return `<span title="Discussion">${icon} ${chat.count}</span>`;
+  };
+  parts.push(chatTag(item.chat, '💬', 'chat'), chatTag(item.subChat, '🧩', 'subtasks'));
   if (isNew(item)) parts.push('<span class="new-dot" title="Nouveau ou modifié depuis le rafraîchissement"></span>');
   return parts.filter(Boolean).join('');
 }
@@ -527,6 +538,7 @@ function detailPanel(item) {
     <h3>${esc(item.title)}</h3>
     <div class="where">${esc(item.section)} · ligne ${item.line}${parent ? ` · ↳ après « <a href="#" data-open="${esc(parent.id)}">${esc(parent.title)}</a> »` : ''}</div>
     <div class="row">${stateTag(item) || '<span class="state todo">à faire</span>'}${item.auto ? '<span class="auto">⚡ auto</span>' : ''}</div>
+    ${[['chat', item.chat, '💬'], ['subtasks', item.subChat, '🧩']].filter(([, chat]) => chat?.unseen?.answers || chat?.pending).map(([mode, chat, icon]) => `<div class="chat-banner">${icon} ${chat.pending ? 'Claude réfléchit à ta demande… tu peux partir, sa réponse t’attendra ici et dans « Pour toi ».' : `<b>Claude a répondu</b> ${chat.unseen.subtasks ? `: ${chat.unseen.subtasks} sous-tâche${chat.unseen.subtasks > 1 ? 's' : ''} proposée${chat.unseen.subtasks > 1 ? 's' : ''}, à créer d'un clic` : chat.unseen.proposals ? ': une nouvelle version du texte, à appliquer' : ''}`}<span style="flex:1"></span>${chat.pending ? '' : `<a class="btn primary" href="/roadmap/v1?open=${esc(item.id)}&mode=${mode}">Voir sa réponse</a>`}</div>`).join('')}
     ${agentBox}
     ${info?.exists && info.status !== 'merged' ? `<div class="think-box"><div class="muted" style="font-size:12px">Son agent <b class="mono">${esc(info.name)}</b> · ${info.status === 'working' ? 'vaut pour sa prochaine relance ou son prochain ordre' : 'vaut pour son prochain lancement'}</div>${Think.picker(`agent:${info.name}`, { effort: info.effort, model: info.model }, { compact: true })}</div>` : ''}
     ${item.auto && item.state === 'todo' ? `<div class="think-box"><div class="auto" style="font-size:12px">⚡ lancée d'elle-même à la fusion de sa mère, avec :</div>${Think.picker(`auto:${item.id}`, item.auto, { compact: true })}</div>` : ''}

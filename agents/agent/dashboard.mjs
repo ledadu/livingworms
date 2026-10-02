@@ -28,6 +28,7 @@ import { EVENTS, DEFAULT_SETTINGS, notifier as makeNotifier, publicDevice, readD
 import { watchEvents } from './notify-events.mjs';
 import { conversation } from './team.mjs';
 import { navState } from './workflow.mjs';
+import { readChat, unseen } from './task-chat.mjs';
 import { diffSnapshots, readSnapshot } from './roadmap.mjs';
 import { listQuestions } from './questions.mjs';
 import { parseBacklog as parseTasks, withLabels as labelTasks } from './backlog.mjs';
@@ -797,7 +798,15 @@ async function handle(request, response) {
       queue = readQueue(join(runsRegistry, 'queue')).map((entry) => ({ ...entry, run: runState(runsRegistry, entry.name) }));
     } catch {}
     const questions = listQuestions(registry, { status: 'pending' });
-    return json({ ok: true, ...navState({ agents: latest?.agents ?? [], queue, tasks, news, questions }) });
+    const chats = [];
+    try {
+      for (const file of readdirSync(join(registry, 'chats')).filter((one) => one.endsWith('.json'))) {
+        const key = file.slice(0, -5);
+        const chat = readChat(registry, key);
+        chats.push({ id: key.replace(/--sous-taches$/, ''), mode: key.endsWith('--sous-taches') ? 'subtasks' : 'task', title: chat.title ?? key, unseen: unseen(chat) });
+      }
+    } catch {}
+    return json({ ok: true, ...navState({ agents: latest?.agents ?? [], queue, tasks, news, questions, chats }) });
   }
   // The messages between agents (team.mjs), to and from one: the drawer of the Agents page.
   if (path === '/api/team/messages') {

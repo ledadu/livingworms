@@ -1,7 +1,8 @@
 // What happens around the agents, as events for the notifications (notify.mjs): a snapshot of the facts every few
 // seconds (runs, questions, refused accepts, accepted tasks, merge train, versions, chats of the backlog), compared with
 // the previous one. readFacts reads the files, diffFacts is pure.
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { unseen } from './task-chat.mjs';
 import { join } from 'node:path';
 import { runState } from './launch.mjs';
 import { readTrain } from './merge-train.mjs';
@@ -50,7 +51,10 @@ export function readFacts({ registry, runsRegistry = registry, root }) {
   const chats = {};
   for (const file of list(join(registry, 'chats'), (one) => one.endsWith('.json'))) {
     const chat = readJson(join(registry, 'chats', file));
-    if (chat) chats[file.slice(0, -5)] = { pending: Boolean(chat.pending), count: chat.messages?.length ?? 0, title: chat.title ?? '', mode: chat.mode ?? 'task', error: Boolean(chat.messages?.at(-1)?.error) };
+    if (!chat) continue;
+    const last = [...(chat.messages ?? [])].reverse().find((message) => message.role === 'assistant');
+    const fresh = unseen(chat);
+    chats[file.slice(0, -5)] = { pending: Boolean(chat.pending), count: chat.messages?.length ?? 0, title: chat.title ?? '', mode: chat.mode ?? 'task', error: Boolean(last?.error), answerAt: last?.at ?? null, subtasks: fresh.subtasks, proposals: fresh.proposals, seen: !fresh.answers };
   }
   return {
     runs,
@@ -102,19 +106,23 @@ export function diffFacts(previous, next) {
   for (const version of next.versions) {
     if (!previous.versions.includes(version)) events.push({ type: 'version', key: version, title: `Version ${version} publiée`, body: 'Son tag est posé (sans push).', url: '/versions?tab=released' });
   }
+  // A new answer of Claude in a chat of the backlog, not seen yet: told once, whenever it came (the facts are kept
+  // across restarts of the dashboard, see watchEvents).
   for (const [key, chat] of Object.entries(next.chats)) {
     const before = previous.chats[key];
-    if (before?.pending && !chat.pending) {
-      const id = key.replace(/--sous-taches$/, '');
-      events.push({ type: 'chat', key: `${key}-${chat.count}`, title: `${chat.mode === 'subtasks' ? '🧩' : '💬'} Claude a répondu${chat.error ? ' (erreur)' : ''}`, body: chat.title, url: `/roadmap#t-${id}` });
-    }
+    if (!chat.answerAt || chat.seen || chat.answerAt === before?.answerAt) continue;
+    const id = key.replace(/--sous-taches$/, '');
+    const what = chat.error ? 'erreur : renvoie ton message' : [chat.subtasks ? `${chat.subtasks} sous-tâche${chat.subtasks > 1 ? 's' : ''} proposée${chat.subtasks > 1 ? 's' : ''}, à créer` : '', chat.proposals ? 'une nouvelle version du texte, à appliquer' : ''].filter(Boolean).join(' · ');
+    events.push({ type: 'chat', key: `${key}-${chat.answerAt}`, title: `${chat.mode === 'subtasks' ? '🧩' : '💬'} Claude a répondu : ${chat.title}`, body: what || 'Sa réponse t’attend.', url: `/roadmap/v1?open=${id}&mode=${chat.mode === 'subtasks' ? 'subtasks' : 'chat'}` });
   }
   return events;
 }
 
 /** Watches the facts every `everyMs` and hands each event to `notify`; then lets held notifications go (`tick`). */
 export function watchEvents({ registry, runsRegistry = registry, root, notifier, everyMs = 10_000, log = console }) {
-  let previous = null;
+  // The last facts seen are kept on disk: what happens while the dashboard is down is told when it comes back.
+  const stateFile = join(registry, 'push', 'last-facts.json');
+  let previous = readJson(stateFile);
   let busy = false;
   const step = async () => {
     if (busy) return;
@@ -123,6 +131,11 @@ export function watchEvents({ registry, runsRegistry = registry, root, notifier,
       const next = readFacts({ registry, runsRegistry, root });
       for (const event of diffFacts(previous, next)) await notifier.notify(event);
       previous = next;
+      try {
+        mkdirSync(join(registry, 'push'), { recursive: true });
+        writeFileSync(`${stateFile}.tmp`, JSON.stringify(next));
+        renameSync(`${stateFile}.tmp`, stateFile);
+      } catch {}
       await notifier.tick();
     } catch (error) {
       log.error?.(`notify: ${error.message}`);

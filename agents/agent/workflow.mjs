@@ -26,7 +26,7 @@ export function agentStage(agent, entry = null, now = Date.now()) {
  * entries; `tasks`: the backlog's tasks with their state; `news`: the tasks new or changed since the last refresh;
  * `questions`: the pending ones.
  */
-export function navState({ agents = [], queue = [], tasks = [], news = 0, questions = [], now = Date.now() }) {
+export function navState({ agents = [], queue = [], tasks = [], news = 0, questions = [], chats = [], now = Date.now() }) {
   const staged = agents.map((agent) => {
     const name = agent.AGENT_NAME;
     const entry = queue.find((one) => one.name === name) ?? null;
@@ -38,6 +38,14 @@ export function navState({ agents = [], queue = [], tasks = [], news = 0, questi
     ...questions.map((q) => ({ kind: q.type === 'feedback' ? 'feedback' : 'question', agent: q.agent, title: q.title, url: '/questions' })),
     ...staged.filter((one) => one.stage === 'error').map((one) => ({ kind: 'error', agent: one.name, title: one.title, url: `/agents#${one.name}` })),
     ...staged.filter((one) => one.stage === 'review').map((one) => ({ kind: 'review', agent: one.name, title: one.title, detail: one.said, url: `/agents#${one.name}` })),
+    // An answer of Claude in a chat of the backlog, not seen yet: what it proposes, and the way back to it.
+    ...chats.filter((chat) => chat.unseen?.answers).map((chat) => ({
+      kind: 'chat',
+      agent: chat.mode === 'subtasks' ? '🧩 Claude' : '💬 Claude',
+      title: chat.title,
+      detail: chat.unseen.error ? 'erreur : à renvoyer' : [chat.unseen.subtasks ? `${chat.unseen.subtasks} sous-tâche${chat.unseen.subtasks > 1 ? 's' : ''} proposée${chat.unseen.subtasks > 1 ? 's' : ''}, à créer` : '', chat.unseen.proposals ? 'une nouvelle version du texte, à appliquer' : ''].filter(Boolean).join(' · ') || 'nouvelle réponse',
+      url: `/roadmap/v1?open=${chat.id}${chat.mode === 'subtasks' ? '&mode=subtasks' : '&mode=chat'}`,
+    })),
   ];
   return {
     backlog: { todo: tasks.filter((task) => task.state === 'todo').length, news },

@@ -1,9 +1,9 @@
 import '../../test/env.mjs';
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { askAboutTask, chatArgs, chatKey, chatPrompt, clearChat, markApplied, markCreated, readChat, splitAnswer } from '../task-chat.mjs';
+import { askAboutTask, chatArgs, chatKey, chatPrompt, clearChat, markApplied, markCreated, markSeen, readChat, settleTurn, splitAnswer, unseen } from '../task-chat.mjs';
 
 // A fake `claude`: notes its arguments and stdin, answers like `claude -p --output-format json` (FAKE_ANSWER).
 const FAKE = `#!/bin/sh
@@ -95,4 +95,22 @@ describe('task chat', () => {
     await until(() => !readChat(registry, 'nid').pending);
     expect(readChat(registry, 'nid').messages[1].error).toBeTruthy();
   });
+
+  it('keeps an answer whose dashboard went away, and says so when the turn was cut', () => {
+    const { registry } = setup();
+    const dir = join(registry, 'chats');
+    mkdirSync(join(dir, 'nid.turn'), { recursive: true });
+    // A turn over while the dashboard was down: its answer is in its files.
+    writeFileSync(join(dir, 'nid.json'), JSON.stringify({ id: 'nid', title: 'Nid', sessionId: 's', pending: true, turn: { pid: 999999, startedAt: 't' }, messages: [{ role: 'user', text: 'Découpe', at: '2026-10-02T04:16:00Z' }] }));
+    writeFileSync(join(dir, 'nid.turn', 'out'), `${JSON.stringify({ result: 'Voilà.\n\n```sous-tache\n### Collision\n\nLe décor.\n```', total_cost_usd: 0.1 })}\n`);
+    writeFileSync(join(dir, 'nid.turn', 'exit'), '0\n');
+    const chat = readChat(registry, 'nid');
+    expect(chat).toMatchObject({ pending: false, messages: [{ role: 'user' }, { role: 'assistant', text: 'Voilà.', subtasks: ['### Collision\n\nLe décor.'] }] });
+    expect(unseen(chat)).toMatchObject({ answers: 1, subtasks: 1, proposals: 0 });
+    expect(unseen(markSeen(registry, 'nid'))).toMatchObject({ answers: 0 });
+    // A turn whose process is gone without an answer: an error, not a thread stuck « réfléchit ».
+    writeFileSync(join(dir, 'cut.json'), JSON.stringify({ id: 'cut', pending: true, turn: { pid: 999999 }, messages: [{ role: 'user', text: 'x', at: 't' }] }));
+    expect(settleTurn(registry, 'cut')).toMatchObject({ pending: false, messages: [{}, { role: 'assistant', error: expect.stringMatching(/interrompu/) }] });
+  });
 });
+

@@ -52,7 +52,7 @@
     .wf-item:hover { background: color-mix(in srgb, var(--c) 14%, transparent); }
     .wf-item b { font-family: ui-monospace, monospace; font-size: 12.5px; }
     .wf-item small { display: block; color: #8b95a5; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .wf-item.question { --c: #ff8ad8; } .wf-item.error { --c: #ef6b6b; } .wf-item.review { --c: #ffb547; } .wf-item.publish { --c: #4cc38a; } .wf-item.feedback { --c: #c8b6ff; }
+    .wf-item.question { --c: #ff8ad8; } .wf-item.error { --c: #ef6b6b; } .wf-item.review { --c: #ffb547; } .wf-item.publish { --c: #4cc38a; } .wf-item.chat { --c: #7aa7ff; } .wf-item.feedback { --c: #c8b6ff; }
     .wf-calm { color: #8b95a5; font-size: 13px; padding: 10px; }
     .wf-tabs { display: none; }
     @media (max-width: 860px) {
@@ -120,8 +120,8 @@
     const el = bar.querySelector(`[data-wf-sub="${key}"]`);
     if (el) el.innerHTML = html;
   };
-  const ICON = { question: '❓', feedback: '💬', error: '⚠', review: '✋', publish: '📦' };
-  const WORD = { question: 'te pose une question', feedback: 'te laisse un mot', error: 's’est arrêté en erreur', review: 'a fini : à tester et accepter' };
+  const ICON = { question: '❓', feedback: '💬', error: '⚠', review: '✋', publish: '📦', chat: '✉' };
+  const WORD = { question: 'te pose une question', feedback: 'te laisse un mot', error: 's’est arrêté en erreur', review: 'a fini : à tester et accepter', chat: 'a répondu' };
 
   async function refresh() {
     let nav;

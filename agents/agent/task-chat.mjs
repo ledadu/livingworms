@@ -8,8 +8,9 @@
 // AGENTS_CLAUDE_BIN: the executable (tests use a fake one).
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readdirSync } from 'node:fs';
 import { claudeBin } from './launch.mjs';
 import { project } from '../config.mjs';
 
@@ -20,12 +21,18 @@ const chatFile = (registry, id) => join(chatDir(registry), `${id}.json`);
 /** The thread of a task in a mode: its own (« task ») or the one about its sub-tasks (« subtasks »). */
 export const chatKey = (id, mode = 'task') => (mode === 'subtasks' ? `${id}--sous-taches` : id);
 
-export function readChat(registry, id) {
+function rawChat(registry, id) {
   try {
     return JSON.parse(readFileSync(chatFile(registry, id), 'utf8'));
   } catch {
     return { id, sessionId: null, pending: false, messages: [] };
   }
+}
+
+/** A thread, its turn under way settled first when it is over (see settleTurn). */
+export function readChat(registry, id) {
+  const chat = rawChat(registry, id);
+  return chat.pending && chat.turn ? settleTurn(registry, id, chat) : chat;
 }
 
 function writeChat(registry, chat) {
@@ -48,7 +55,7 @@ function subtasksNow(subtasks = []) {
   return `Ses sous-tâches actuelles, dans l'ordre :\n${subtasks.map((sub) => `- « ${sub.title} » (${sub.label ?? sub.state}${sub.auto ? ', lancée d’elle-même à la fusion de sa mère' : ''})`).join('\n')}`;
 }
 
-const SUBTASK_RULES = `**Les sous-tâches** : un chantier peut avoir des sous-tâches, des chantiers à part faits **après** lui (ils en dépendent). Par défaut, l'agent du chantier les fait à sa suite, dans le même prompt ; une sous-tâche marquée ⚡ auto part plutôt avec son propre agent, d'elle-même, quand le chantier est fusionné. Pour proposer une sous-tâche, donne-la dans un bloc \`\`\`sous-tache (un bloc par sous-tâche, autant que tu veux, dans l'ordre où elles doivent se faire) : elle commence par son titre « ### … », sans ligne d'état ni ligne « ↳ », jamais de titre ## ou d'autre ###, et se suffit à elle-même (un agent qui ne connaît qu'elle doit pouvoir la faire). L'utilisateur la crée lui-même d'un clic, rangée sous ce chantier. **Ne mets jamais une sous-tâche dans le texte du chantier** (pas de section « Sous-tâches » dans un bloc \`\`\`tache) : si le chantier doit perdre une partie qui devient sous-tâche, propose aussi sa nouvelle version, sans cette partie.`;
+const SUBTASK_RULES = `**Les sous-tâches** : un chantier peut avoir des sous-tâches, des chantiers à part faits **après** lui (ils en dépendent). Par défaut, l'agent du chantier les fait à sa suite, dans le même prompt ; une sous-tâche marquée ⚡ auto part plutôt avec son propre agent, d'elle-même, quand le chantier est fusionné. Pour proposer une sous-tâche, donne-la dans un bloc \`\`\`sous-tache (un bloc par sous-tâche, autant que tu veux, dans l'ordre où elles doivent se faire) : elle commence par son titre « ### … », sans ligne d'état ni ligne « ↳ », jamais de titre ## ou d'autre ###, et se suffit à elle-même (un agent qui ne connaît qu'elle doit pouvoir la faire). Son titre est un titre, sans marque (pas de « ⚡ auto » : si elle mérite son propre agent lancé de lui-même, dis-le hors du bloc, l'utilisateur le règle d'un clic). L'utilisateur la crée lui-même d'un clic, rangée sous ce chantier. **Ne mets jamais une sous-tâche dans le texte du chantier** (pas de section « Sous-tâches » dans un bloc \`\`\`tache) : si le chantier doit perdre une partie qui devient sous-tâche, propose aussi sa nouvelle version, sans cette partie.`;
 
 /** What Claude reads on a turn: the role and the rules on the first one, the task as it stands now on every one. */
 export function chatPrompt({ task, message, first, root, mode = 'task', subtasks = [] }) {
@@ -104,36 +111,106 @@ export function askAboutTask({ registry, root, task, message, mode = 'task', sub
   chat.messages.push({ role: 'user', text, at: now() });
   writeChat(registry, chat);
 
-  const childEnv = { ...env };
+  // The turn runs on its own, out of the dashboard's process: its answer is written to <chats>/<key>.turn/ and read back
+  // by settleTurn, so that a restart of the dashboard (or leaving the page) never loses it.
+  const dir = turnDir(registry, key);
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'prompt.md'), chatPrompt({ task, message: text, first, root, mode, subtasks }));
+  const childEnv = { ...env, CHAT_TURN_DIR: dir };
   delete childEnv.CLAUDECODE;
   delete childEnv.CLAUDE_CODE_ENTRYPOINT;
-  const child = spawn(claudeBin(env), chatArgs({ sessionId: chat.sessionId, resume: !first, effort: chat.effort }), { cwd: root, env: childEnv, stdio: ['pipe', 'pipe', 'pipe'] });
-  let stdout = '';
-  let stderr = '';
-  child.stdout.on('data', (chunk) => (stdout += chunk));
-  child.stderr.on('data', (chunk) => (stderr += chunk));
-  const timer = setTimeout(() => child.kill('SIGTERM'), timeoutMs);
-  const finish = (answer) => {
-    clearTimeout(timer);
-    const latest = readChat(registry, key);
-    latest.pending = false;
-    latest.messages.push({ role: 'assistant', at: now(), ...answer });
-    writeChat(registry, latest);
-  };
-  child.on('error', (error) => finish({ text: '', error: `claude introuvable : ${error.message}` }));
-  child.on('close', (code) => {
+  const out = openSync(join(dir, 'out'), 'w');
+  const err = openSync(join(dir, 'err'), 'w');
+  let child;
+  try {
+    child = spawn('/bin/sh', ['-c', '"$@" <"$CHAT_TURN_DIR/prompt.md"; code=$?; echo $code >"$CHAT_TURN_DIR/exit.tmp" && mv "$CHAT_TURN_DIR/exit.tmp" "$CHAT_TURN_DIR/exit"', 'sh', claudeBin(env), ...chatArgs({ sessionId: chat.sessionId, resume: !first, effort: chat.effort })], {
+      cwd: root, env: childEnv, detached: true, stdio: ['ignore', out, err],
+    });
+  } finally {
+    closeSync(out);
+    closeSync(err);
+  }
+  child.on('error', () => {});
+  child.unref();
+  const latest = rawChat(registry, key);
+  latest.turn = { pid: child.pid, startedAt: now(), deadline: Date.now() + timeoutMs };
+  writeChat(registry, latest);
+  return readChat(registry, key);
+}
+
+const turnDir = (registry, key) => join(chatDir(registry), `${key}.turn`);
+const alive = (pid) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Settles a turn under way when it is over: its answer (or its error) joins the thread, pending is lifted. Over: its
+ * exit code is written; its process is gone without one (killed, machine restarted); or it ran past its deadline (it
+ * is then stopped). Otherwise the thread is returned as it is.
+ */
+export function settleTurn(registry, key, chat = rawChat(registry, key), now = () => new Date().toISOString()) {
+  if (!chat.pending || !chat.turn) return chat;
+  const dir = turnDir(registry, key);
+  const read = (name) => (existsSync(join(dir, name)) ? readFileSync(join(dir, name), 'utf8') : '');
+  const exit = read('exit').trim();
+  let answer = null;
+  if (exit !== '') {
     let result = null;
     try {
-      result = JSON.parse(stdout.trim().split('\n').filter(Boolean).at(-1) ?? '');
+      result = JSON.parse(read('out').trim().split('\n').filter(Boolean).at(-1) ?? '');
     } catch {}
-    if (!result || result.is_error || code !== 0 && !result.result) {
-      finish({ text: '', error: (result?.result || stderr || stdout || `claude s'est arrêté (code ${code})`).toString().trim().slice(0, 2000) });
-      return;
-    }
-    finish({ ...splitAnswer(result.result), cost: result.total_cost_usd ?? null });
-  });
-  child.stdin.end(chatPrompt({ task, message: text, first, root, mode, subtasks }));
-  return readChat(registry, key);
+    answer = !result || result.is_error || (Number(exit) !== 0 && !result.result)
+      ? { text: '', error: (result?.result || read('err') || read('out') || `claude s'est arrêté (code ${exit})`).toString().trim().slice(0, 2000) }
+      : { ...splitAnswer(result.result), cost: result.total_cost_usd ?? null };
+  } else if (!alive(chat.turn.pid)) {
+    answer = { text: '', error: 'Claude a été interrompu avant de répondre (machine ou tableau de bord redémarré) : renvoie ton message.' };
+  } else if (Date.now() > (chat.turn.deadline ?? Infinity)) {
+    try {
+      process.kill(-chat.turn.pid, 'SIGTERM');
+    } catch {}
+    answer = { text: '', error: 'Claude a mis trop de temps à répondre : renvoie ton message, ou découpe ta demande.' };
+  }
+  if (!answer) return chat;
+  const latest = rawChat(registry, key);
+  latest.pending = false;
+  delete latest.turn;
+  latest.messages.push({ role: 'assistant', at: now(), ...answer });
+  writeChat(registry, latest);
+  rmSync(dir, { recursive: true, force: true });
+  return latest;
+}
+
+/** Settles every turn under way (the dashboard, every few seconds). */
+export function settleTurns(registry) {
+  let files = [];
+  try {
+    files = readdirSync(chatDir(registry)).filter((file) => file.endsWith('.json'));
+  } catch {}
+  for (const file of files) readChat(registry, file.slice(0, -5));
+}
+
+/** What a thread has that the user has not seen yet: the answers after he last opened it, and their proposals. */
+export function unseen(chat) {
+  const since = chat.seenAt ?? '';
+  const answers = (chat.messages ?? []).filter((message) => message.role === 'assistant' && (message.at ?? '') > since);
+  const subtasks = answers.reduce((n, message) => n + (message.subtasks ?? []).filter((_, i) => !message.created?.[i]).length, 0);
+  const proposals = answers.filter((message) => message.proposal && !message.appliedAt).length;
+  return { answers: answers.length, subtasks, proposals, at: answers.at(-1)?.at ?? null, error: Boolean(answers.at(-1)?.error) };
+}
+
+/** The user opened the thread: what was there counts as seen. */
+export function markSeen(registry, key, now = () => new Date().toISOString()) {
+  const chat = rawChat(registry, key);
+  if (!chat.messages?.length) return chat;
+  chat.seenAt = now();
+  writeChat(registry, chat);
+  return chat;
 }
 
 /** Marks a proposal as applied (the page shows it so), or forgets the whole thread. */
