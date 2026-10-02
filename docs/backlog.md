@@ -116,14 +116,26 @@ Même pour des sons libres de droit, nommer les personnes qui les ont publiés :
 
 Le jeu reste doux, sans échec ni score. Cette partie prépare aussi la suite : l'animal façonné ici sera repris dans un jeu plus combatif, il lui faut une vraie nage et une fiche qui le décrit. Du corps aux aptitudes et aux capacités, pour les deux jeux : [animal.md](animal.md).
 
+### Les aptitudes de l'animal
+> ⚪ à faire
+
+Un module pur et testé, `src/content/aptitudes.ts`, qui calcule d'après le corps (le `Spec`) ses **mesures** (taille, masse, poussée, blindage, prise, sens…), ses **huit aptitudes** de 0 à 1 (vitesse, accélération, agilité, endurance, robustesse, force, perception, discrétion) et ses **capacités** (élan, jet, planer, bond, se faufiler, éclair, pincer, piquer, se blinder, fouiller), selon [animal.md](animal.md). Les formules sont simples et réglées sur le bestiaire (l'anguille, le crabe, la méduse, la larve comme repères), avec des compromis venus de la physique : aucun animal n'est le meilleur partout. Un jeune a les aptitudes de sa taille (la maturité). Un test calcule le profil de tout le bestiaire et de croisements au hasard, et vérifie qu'aucun ne domine. Les traits d'aujourd'hui restent lus comme avant (les obstacles n'en dépendent que par eux). Rien ne change dans le jeu ; « La nage » peut ensuite lire vitesse, accélération, agilité et endurance.
+
 ### La nage : accélération et élan
 > ⚪ à faire
+> ↳ après « Les aptitudes de l'animal »
 
 Une meilleure façon de se déplacer pour la créature jouée : une **accélération** (un geste simple : double toucher, ou maintenir ; une touche au clavier) qui donne un élan rapide, puis se recharge seule ; de l'**élan et de l'inertie** (on glisse après l'accélération, les virages se prennent en courbe) sans perdre la facilité de pilotage gagnée avec « deplacement relou » (`src/engine3/pilot.ts`). La force et la durée de l'élan viennent du corps (nageoires, cloche, jet, pattes). Agréable sur téléphone comme à la souris ; le corps garde son allure (un poisson bat plus vite de la queue, une cloche pulse plus fort). Voir [animal.md](animal.md).
 
-### Les capacités de nage par corps
+### Le profil de l'animal
 > ⚪ à faire
 > ↳ après « La nage : accélération et élan »
+
+Les aptitudes, sans aucun chiffre : un profil **qualitatif, beau, et du thème du jeu** (choix de l'utilisateur). Proposition dans [animal.md](animal.md#le-profil-de-lanimal) : une « rose des sables vivante » à huit branches, une par aptitude, chacune une chose de la mer qui la dit sans mot (un trait de courant, une bulle, une spirale de nageoire, une vague, une plaque, une pince, une lueur, une ombre), plus longue et plus lumineuse quand l'aptitude est forte, dans les couleurs de la créature, qui ondule au rythme de sa nage et s'ouvre à maturité. Dans l'arbre des espèces, côte à côte dans l'écran de la portée pour comparer les enfants, et sur la fiche exportée. Proposer deux ou trois esquisses (captures) et faire choisir par le tableau de bord avant de finir.
+
+### Les capacités de nage par corps
+> ⚪ à faire
+> ↳ après « Le profil de l'animal »
 
 Chaque manière de nager a sa capacité, qui donne envie de choisir une espèce pour elle : un **jet** qui fuse loin d'un coup, une **cloche** qui plane et descend lentement, un **marcheur** qui bondit depuis le fond, un **poisson** vif dans les virages, une **anguille** qui se glisse dans les passages étroits. Déclenchées par le même geste que l'accélération, selon le corps. Elles peuvent servir aux obstacles des chapitres (sans en devenir la seule clé), et se voient dans l'écran de la portée (ce qu'un enfant saura faire). Voir [animal.md](animal.md).
 
@@ -131,7 +143,7 @@ Chaque manière de nager a sa capacité, qui donne envie de choisir une espèce 
 > ⚪ à faire
 > ↳ après « Les capacités de nage par corps »
 
-Ce que le jeu doux façonne, c'est un animal, qui sera repris dans un jeu plus combatif : il lui faut une **fiche** propre, lisible par un autre programme. Son corps (l'espèce et ses pièces, comme aujourd'hui), ses traits, et des **mesures calculées d'après son corps** : vitesse, accélération, agilité, endurance, taille, régime, capacités. Pas de chiffres dans le jeu doux (ou très discrets, dans l'arbre des espèces) ; un format versionné et documenté (`docs/`), exportable (un fichier ou un lien depuis l'arbre de la lignée), testé. Proposer le format et poser la question par le tableau de bord pour ce que le jeu suivant devra en lire. Voir [animal.md](animal.md).
+Ce que le jeu doux façonne, c'est un animal, qui sera repris dans un jeu plus combatif : il lui faut une **fiche** propre, lisible par un autre programme. Son corps (l'espèce et ses pièces, comme aujourd'hui), ses traits, et des **mesures calculées d'après son corps** : vitesse, accélération, agilité, endurance, taille, régime, capacités. Pas de chiffres dans le jeu doux (ou très discrets, dans l'arbre des espèces) ; un format versionné et documenté (`docs/`), exportable (un fichier ou un lien depuis l'arbre de la lignée), testé. Le jeu suivant est en temps réel, l'animal y continuera d'évoluer (la lignée continue, les symbioses… voir [animal.md](animal.md#évoluer-encore-dans-le-jeu-combatif)) et le joueur y choisira ses capacités actives : la fiche porte donc toute la lignée et toutes les capacités possibles. Proposer le format et poser la question par le tableau de bord pour ce que le jeu suivant devra en lire. Voir [animal.md](animal.md).
 
 ### Le courant à surfer
 > ⚪ à faire

@@ -1,6 +1,6 @@
 # L'animal : du corps aux aptitudes
 
-Une première réflexion, à discuter : comment les caractéristiques d'un animal (son déplacement, ses pouvoirs, ses aptitudes) se lisent dans **le jeu doux** (La Lignée) et dans **le jeu combatif** qui reprendra l'animal façonné ici. Rien n'est encore codé ; les chantiers « La nage : accélération et élan », « Les capacités de nage par corps » et « La fiche de l'animal » ([backlog](backlog.md)) partiront d'ici.
+Une première réflexion, dont les premiers choix sont faits (voir [Les décisions](#les-décisions)) : comment les caractéristiques d'un animal (son déplacement, ses pouvoirs, ses aptitudes) se lisent dans **le jeu doux** (La Lignée) et dans **le jeu combatif** qui reprendra l'animal façonné ici. Rien n'est encore codé ; les chantiers « La nage : accélération et élan », « Les capacités de nage par corps » et « La fiche de l'animal » ([backlog](backlog.md)) partiront d'ici.
 
 ## Le principe : un seul animal, deux lectures
 
@@ -81,13 +81,13 @@ Des actions, chacune liée à une partie ou une manière de nager, déclenchée 
 
 Les traits d'aujourd'hui deviennent des capacités : rien n'est perdu, les obstacles des chapitres continuent de les lire.
 
-Pour le jeu combatif, il faudra sans doute **limiter les capacités actives** (deux ou trois, choisies parmi celles du corps), sinon un animal fait de tout serait trop riche.
+Dans le jeu combatif, **le joueur choisit ses capacités actives** parmi celles que son corps permet : la fiche les liste toutes, le jeu combatif décide combien on en emporte et comment on les choisit (avant une partie, ou en jeu).
 
 ## La croissance et le régime
 
 - **La maturité** (chantier « Grandir jusqu'à la maturité ») agit sur les mesures : un jeune est petit, donc agile et discret mais faible et fragile. Ses aptitudes suivent sa taille ; c'est un compromis de plus, joli à sentir.
 - **Le régime** (« Le régime selon le corps ») dit ce qui nourrit le mieux : il découle de la prise, des filaments et de la bouche. Dans le jeu combatif, il pourrait dire ce qui soigne ou recharge.
-- À trancher : manger fait-il seulement grandir, ou aussi monter des aptitudes ? La [vision](vision.md) dit « pas d'objets ni d'expérience : on progresse uniquement par ce que le corps transmet ». Proposition : manger fait grandir jusqu'à la taille adulte de l'espèce et rien au-delà ; les aptitudes restent celles du corps.
+- **Manger fait grandir jusqu'à la taille adulte de l'espèce, et rien au-delà** (décidé) : les aptitudes restent celles du corps adulte, comme le veut la [vision](vision.md) (« on progresse uniquement par ce que le corps transmet »). Un jeune a les aptitudes de sa taille ; adulte, celles de son espèce.
 
 ## L'équilibre
 
@@ -115,17 +115,46 @@ Ce que le jeu doux exporte (chantier « La fiche de l'animal ») : un fichier JS
 
 Le corps suffit pour tout recalculer ; les mesures, aptitudes et capacités sont là pour que le jeu combatif n'ait pas à embarquer le moteur de La Lignée, et pour qu'un changement de formule se voie (la version).
 
-## Ce qu'il faut trancher
+## Le profil de l'animal
 
-1. **Le jeu combatif** : en temps réel ou au tour par tour ? Seul contre des créatures, ou entre joueurs ? Ça change tout le besoin d'équilibre.
-2. **L'animal continue-t-il d'évoluer** dans le jeu combatif (nouvelles générations, nouveaux partenaires), ou arrive-t-il figé ?
-3. **Des chiffres dans le jeu doux ?** Proposition : aucun, ou un profil en forme (une étoile à huit branches, sans nombre) dans l'arbre des espèces, pour aider à choisir.
-4. **Combien de capacités actives** dans le jeu combatif ?
-5. **Manger d'autres animaux** : jusqu'où, dans le jeu doux (proposition : de petites proies qui fuient, gobées sans combat, voir « La chasse douce ») ?
+Pas de chiffres, mais un **profil qualitatif, beau, et du thème du jeu** (décidé). Proposition : **une rose des sables vivante**, une forme de la mer à huit branches, une par aptitude, dessinée dans les couleurs de la créature.
+
+- **Chaque branche est une chose de la mer** qui dit l'aptitude sans mot : la vitesse, un trait de courant effilé ; l'accélération, une bulle qui file ; l'agilité, une spirale de nageoire ; l'endurance, une vague longue ; la robustesse, une plaque de coquille ; la force, une pince ; la perception, un œil ou une lueur ; la discrétion, une ombre transparente. Plus l'aptitude est forte, plus la branche est longue, pleine, lumineuse.
+- **Elle respire et bouge** comme une anémone : les branches ondulent, la forme pulse au rythme de la nage de l'animal (une cloche pulse, un poisson ondule).
+- **Elle change avec la croissance** : petite et pâle chez le jeune, elle s'ouvre à maturité.
+- **Où** : dans l'arbre des espèces, à côté de chaque forme (pour choisir quelle forme reprendre), dans l'écran de la portée (pour comparer les enfants : leurs roses côte à côte), et sur la fiche exportée.
+- On compare d'un coup d'œil, sans rien lire : « celui-là a une grande pince et une petite ombre ».
+
+## Évoluer encore, dans le jeu combatif
+
+L'animal ne sera pas figé (décidé) : il continue d'évoluer dans le jeu combatif. Des pistes, à choisir ou combiner, qui gardent la règle « tout vient du corps » :
+
+1. **La lignée continue** : entre deux combats, l'animal rencontre des espèces du monde combatif et fait des petits, comme ici ; on continue avec un enfant. C'est le cœur de La Lignée, transposé : la fiche porte toute la lignée, le jeu combatif l'allonge.
+2. **Les symbioses** : un animal s'associe à un autre qui vit sur lui (une anémone sur la carapace d'un crabe, des poissons nettoyeurs, des algues qui le camouflent). Le symbiote est une partie visible ajoutée au corps, qui apporte sa capacité (piquer, se cacher) ; on peut en changer.
+3. **Les mues** : à certains moments, l'animal mue et peut renforcer une partie qu'il a (une pince plus grosse, une carapace plus épaisse), au prix d'une autre (la masse monte, l'agilité baisse). Le corps change, donc les aptitudes, toujours avec un compromis.
+4. **Les mutations** : rarement, à la naissance, une partie nouvelle ou une variation (une couleur, une épine, une nageoire de plus), comme un cadeau du hasard.
+5. **Les marques** : ce que l'animal a vécu se voit sur lui (cicatrices, couleurs plus vives, une coquille usée) sans rien changer à ses aptitudes : sa fierté, pas sa force.
+
+Proposition : **1 et 2 d'abord** (elles prolongent ce que La Lignée sait déjà faire : fusionner des corps, attacher des parties), puis 3 si le combat demande plus de choix.
+
+## Les décisions
+
+| Question | Décidé |
+| --- | --- |
+| Manger fait-il monter les aptitudes ? | Non : manger fait grandir jusqu'à la taille adulte de l'espèce, sans faire monter les aptitudes. |
+| Le jeu combatif | En temps réel. |
+| L'animal y évolue-t-il ? | Oui, il pourra continuer d'évoluer (pistes ci-dessus, à choisir). |
+| Des chiffres dans le jeu doux ? | Non : un profil sans nombres, qualitatif, beau, en rapport avec l'aptitude et le thème du jeu (la rose des sables vivante, à valider). |
+| Combien de capacités actives ? | Le joueur choisit, parmi celles de son corps. |
+
+Reste ouvert : seul contre des créatures ou entre joueurs (ce qui décide du besoin d'un budget d'équilibre), et quelles pistes d'évolution garder.
 
 ## Par où commencer
 
-1. **Un module pur** `src/content/aptitudes.ts` (mesures, aptitudes, capacités), avec ses tests et le profil du bestiaire : sans rien changer au jeu. Il gagnerait à être une sous-tâche avant « Les capacités de nage par corps ».
+Dans l'ordre du [backlog](backlog.md) (étape 7, une tâche mère et ses sous-tâches, faites par le même agent) :
+
+1. **« Les aptitudes de l'animal »** : un module pur `src/content/aptitudes.ts` (mesures, aptitudes, capacités), avec ses tests et le profil du bestiaire, sans rien changer au jeu.
 2. **« La nage : accélération et élan »** lit la vitesse, l'accélération, l'agilité et l'endurance.
-3. **« Les capacités de nage par corps »** branche les capacités sur le geste d'élan.
-4. **« La fiche de l'animal »** exporte le tout.
+3. **« Le profil de l'animal »** : la rose dessinée, dans l'arbre des espèces et la portée.
+4. **« Les capacités de nage par corps »** branche les capacités sur le geste d'élan.
+5. **« La fiche de l'animal »** exporte le tout.
