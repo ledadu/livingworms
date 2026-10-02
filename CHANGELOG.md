@@ -2,6 +2,35 @@
 
 Le changelog de La Lignée, version après version. Généré depuis [`changes/`](changes/) par `make whats-new` : ne pas modifier à la main.
 
+## À venir : Version 0.10 (v0.10.0)
+
+### ✨ Nouveautés
+
+- **Reprendre une espèce d'autrefois** : Ta nouvelle forme ne te plaît pas ? Ouvre l'arbre de la lignée et redeviens l'un de tes ancêtres, là où tu nages 🐚 — [rapport](changes/unreleased/revenir-espece/report.md)
+
+### 🔧 Améliorations
+
+- **C'est toi qui choisis le moment de t'accoupler** : Danse avec ton partenaire, puis touche « S'accoupler » et regarde-les danser à deux 🪼 — [rapport](changes/unreleased/declencher-accouplement/report.md)
+- **Des musiques qui changent** : Reste un moment dans un chapitre et écoute : sa musique respire, s'éclaircit, se remplit, puis repart ailleurs 🌊 — [rapport](changes/unreleased/musiques-qui-changent/report.md)
+- **Des sons qui viennent de quelque part** : Ce qui sonne près de toi s'entend net, ce qui est loin se perd dans l'eau, et le chant ne coupe plus 🫧 — [rapport](changes/unreleased/distance-sons/report.md)
+- **La vraie mer dans les oreilles** : L'eau, le ressac, les bulles, la glace qui se fend et le chant des baleines sont maintenant de vrais enregistrements 🌊 — [rapport](changes/unreleased/vrais-sons-ambiance/report.md)
+- **Les deux parents veillent sur la portée** : Au-dessus des quatre œufs, le parent et le partenaire, reliés par un fil d'or ✨ — [rapport](changes/unreleased/parents-dessus-portee/report.md)
+- **Ton enfant reste près des siens** : Après l'éclosion, ton enfant s'écarte à peine, et ses frères et sœurs nagent encore autour de lui 🐠 — [rapport](changes/unreleased/enfant-reste-pres/report.md)
+- **Un écran d'accueil pendant que la mer se prépare** : Plus de page blanche au lancement : la larve t'attend déjà dans la lumière bleue 🌊 — [rapport](changes/unreleased/chargement/report.md)
+
+### 🩹 Corrections
+
+- **La croix de l'arbre répond partout** : Descends aussi loin que tu veux dans ta lignée, la croix est toujours là pour refermer l'arbre 🐚 — [rapport](changes/unreleased/croix-arbre-especes/report.md)
+- **Toutes les créatures se pilotent bien** : Même un enfant de méduse suit ton doigt partout, en douceur 🪼 — [rapport](changes/unreleased/deplacement-relou/report.md)
+
+## Version 0.9 (v0.9.0, 2026-10-02)
+
+### ✨ Nouveautés
+
+- **Des amis qui nous suivent** : Reste un moment avec un petit poisson curieux, et il nagera avec toi jusqu'à la fin de ta génération 🐠 — [rapport](changes/v0.9.0/amis-qui-suivent/report.md)
+- **Les animaux jouent avec toi** : Un poisson qui joue à chat, un banc qui t'emmène dans son coin caché, un poulpe qui se cache dans le sable 🐙 — [rapport](changes/v0.9.0/petits-jeux-animaux/report.md)
+- **Les créatures dansent pour de vrai** : Twist, moonwalk, tango ou danse des canards : après la parade, les deux danseurs se lâchent 🦀 — [rapport](changes/v0.9.0/moteur-danse/report.md)
+
 ## Version 0.7 (v0.7.0, 2026-10-01)
 
 ### ✨ Nouveautés

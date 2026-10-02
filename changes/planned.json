@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "0.8.0",
+      "title": "",
+      "intro": "",
+      "entries": [
+        "revenir-espece",
+        "declencher-accouplement",
+        "musiques-qui-changent",
+        "distance-sons",
+        "vrais-sons-ambiance",
+        "parents-dessus-portee",
+        "enfant-reste-pres",
+        "chargement",
+        "croix-arbre-especes",
+        "deplacement-relou"
+      ]
+    }
+  ]
+}
