@@ -23,8 +23,8 @@ import {
   refreshSnapshot,
   removeQueueEntry,
 } from './roadmap.mjs';
-import { STATES, depthOf, parseBacklog, setTaskStatus, subtasksOf, syncBacklog, taskVersion, withLabels, writeAfter, writeTask } from './backlog.mjs';
-import { askAboutTask, clearChat, hasChat, markApplied, readChat } from './task-chat.mjs';
+import { STATES, depthOf, dueAuto, foldedSubtasks, parseBacklog, setTaskStatus, subtasksOf, syncBacklog, taskVersion, withLabels, writeAfter, writeAuto, writeTask } from './backlog.mjs';
+import { askAboutTask, chatKey, clearChat, hasChat, markApplied, markCreated, readChat } from './task-chat.mjs';
 import { renameSync as renameFile } from 'node:fs';
 import { launchTask, resumeTask, runDir, runLog, runLogFrom, runState, stopTask } from './launch.mjs';
 import { project, renderPage } from '../config.mjs';
@@ -81,6 +81,8 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
         item.subtaskCount = subtasksOf(items, item.id).length;
         const chat = hasChat(registry, item.id) ? readChat(registry, item.id) : null;
         item.chat = chat?.messages.length ? { count: chat.messages.length, pending: chat.pending } : null;
+        const subChat = hasChat(registry, chatKey(item.id, 'subtasks')) ? readChat(registry, chatKey(item.id, 'subtasks')) : null;
+        item.subChat = subChat?.messages.length ? { count: subChat.messages.length, pending: subChat.pending } : null;
       }
       if (item.kind !== 'task' || item.status !== 'new') continue;
       item.proposedName = proposeName(item.title, taken);
@@ -109,17 +111,21 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
   async function prompts(tasks) {
     const { items, sources } = current();
     const byId = new Map(items.map((item) => [item.id, item]));
-    // A sub-task chosen with its parent (or an ancestor) goes with it: the parent's agent does it after.
+    // A sub-task chosen with its parent (or an ancestor) goes with it: the parent's agent does it after (an « auto »
+    // one has its own agent, launched once the parent is merged).
     const ids = new Set(tasks.map((task) => task.id));
     const folded = (id) => {
-      for (let up = byId.get(byId.get(id)?.after); up; up = byId.get(up.after)) if (ids.has(up.id)) return true;
+      for (let item = byId.get(id), up = byId.get(item?.after); up; item = up, up = byId.get(up.after)) {
+        if (item.auto) return false;
+        if (ids.has(up.id)) return true;
+      }
       return false;
     };
     const chosen = tasks.filter((task) => byId.has(task.id) && !folded(task.id)).map((task) => ({
       ...byId.get(task.id),
       name: task.name,
       base: task.base || project.branches.integration,
-      subtasks: subtasksOf(items, task.id).filter((sub) => sub.state === 'todo'),
+      subtasks: foldedSubtasks(items, task.id),
     }));
     const active = sources.agents.filter((agent) => !agent.archived).map((agent) => ({ name: agent.name }));
     const fileIndex = await files();
@@ -163,6 +169,69 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
   // One request at a time may create worktrees.
   let queuing = Promise.resolve();
 
+  // Queues tasks ({ id, name, base, prompt?, effort?, model? }): their worktrees, queue entries and status lines. One
+  // call at a time may create worktrees.
+  function enqueueTasks(tasks) {
+    const job = queuing.then(async () => {
+      const { prompts: generated, chosen: all } = await prompts(tasks);
+      // A sub-task waits for its parent: it goes with the parent's agent, or alone once the parent is merged.
+      const byId = new Map(current().items.map((item) => [item.id, item]));
+      const refused = [];
+      const chosen = all.filter((task) => {
+        const parent = byId.get(task.after);
+        if (!parent || parent.state === 'merged' || parent.state === 'done') return true;
+        refused.push({ name: task.name, ok: false, error: `sous-tâche de « ${parent.title} » (${STATES[parent.state]?.label ?? parent.state}) : elle part avec sa tâche mère (coche-la), ou seule une fois celle-ci fusionnée` });
+        return false;
+      });
+      const edited = new Map(tasks.map((task) => [task.id, task.prompt]));
+      const asked = new Map(tasks.map((task) => [task.id, task]));
+      const ready = chosen.map((task) => ({ id: task.id, name: task.name, base: task.base, title: task.title, prompt: edited.get(task.id) || generated[task.id], effort: asked.get(task.id)?.effort, model: asked.get(task.id)?.model }));
+      const results = [...refused, ...(await enqueue(ready, { queueDir, registry, createWorktree: (name, base) => agentCommand(['new', name, base]) }))];
+      // The task now names its agent in the backlog: « > 🟣 en file · agent <name> ».
+      for (const task of ready) {
+        const result = results.find?.((one) => one.name === task.name);
+        if (result && result.ok === false) continue;
+        const item = chosen.find((one) => one.id === task.id);
+        setTaskStatus({ file: roadmapFile, id: task.id, state: 'queued', agents: [...(item?.agents ?? []), task.name] });
+        for (const sub of item?.subtasks ?? []) setTaskStatus({ file: roadmapFile, id: sub.id, state: 'queued', agents: [...sub.agents, task.name] });
+      }
+      return results;
+    });
+    queuing = job.catch(() => {});
+    return job;
+  }
+
+  // « ↳ … · auto » : a sub-task launched by itself, by its own agent, once its parent is merged (checked every 20 s).
+  let autoBusy = false;
+  async function autoLaunch() {
+    if (autoBusy) return;
+    autoBusy = true;
+    try {
+      const { items, queue } = current();
+      const queued = new Set(queue.filter((entry) => entry.status !== 'cancelled').map((entry) => entry.id));
+      for (const task of dueAuto(items, queued)) {
+        const name = task.proposedName ?? proposeName(task.title);
+        const results = await enqueueTasks([{ id: task.id, name, base: project.branches.integration, effort: task.auto.effort ?? undefined, model: task.auto.model ?? undefined }]);
+        const result = results.find((one) => one.name === name);
+        if (result?.ok === false) {
+          console.error(`auto ${task.id}: ${result.error}`);
+          continue;
+        }
+        try {
+          launchTask({ registry, queueDir, name });
+          console.log(`auto: ${name} lancée (${task.title}), sa tâche mère est fusionnée`);
+        } catch (error) {
+          console.error(`auto ${name}: ${error.message}`);
+        }
+      }
+    } catch (error) {
+      console.error(`auto: ${error.message}`);
+    } finally {
+      autoBusy = false;
+    }
+  }
+  if (!process.env.AGENTS_NO_AUTO) setInterval(autoLaunch, 20_000).unref();
+
   /** Handles the request when it is one of the roadmap's; returns false otherwise. */
   return async function handleRoadmap(request, response, path) {
     const json = (value, status = 200) => {
@@ -170,9 +239,20 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
       response.end(JSON.stringify(value));
     };
     const post = request.method === 'POST';
-    if (path === '/roadmap') {
+    // The Backlog page (roadmap-v2.html); the old one stays on /roadmap/v1 for editing and the chats, for now.
+    if (path === '/roadmap/v2') {
+      response.writeHead(302, { location: '/roadmap' });
+      response.end();
+      return true;
+    }
+    if (path === '/roadmap/v1') {
       response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       response.end(renderPage(readFileSync(join(here, 'roadmap.html'), 'utf8')));
+      return true;
+    }
+    if (path === '/roadmap') {
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+      response.end(renderPage(readFileSync(join(here, 'roadmap-v2.html'), 'utf8')));
       return true;
     }
     // The output of a run, rendered (run.html reads /api/queue/<name>/log?from=… and parses the stream-json).
@@ -213,6 +293,18 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
         return json({ ok: false, error: error.message }, error.code ?? 400), true;
       }
     }
+    // « ⚡ auto » on a sub-task: { auto: true, effort, model } or { auto: false }.
+    const autoRoute = /^\/api\/backlog\/auto\/([a-z0-9-]+)$/.exec(path);
+    if (autoRoute && post) {
+      const { auto = false, effort = null, model = null } = await readBody(request);
+      try {
+        writeAuto({ file: roadmapFile, id: autoRoute[1], auto: auto ? { effort, model } : null });
+        if (auto) setTimeout(autoLaunch, 100);
+        return json(state({ ok: true })), true;
+      } catch (error) {
+        return json({ ok: false, error: error.message }, error.code ?? 400), true;
+      }
+    }
     if (path === '/api/backlog/new' && post) {
       const { section, text } = await readBody(request);
       try {
@@ -222,27 +314,51 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
         return json({ ok: false, error: error.message }), true;
       }
     }
-    const chatRoute = /^\/api\/backlog\/chat\/([a-z0-9-]+)(?:\/(apply|clear))?$/.exec(path);
+    const chatRoute = /^\/api\/backlog\/chat\/([a-z0-9-]+)(?:\/(apply|clear|subtask))?$/.exec(path);
     if (chatRoute) {
       const [, id, action] = chatRoute;
-      if (!post) return json(readChat(registry, id)), true;
+      // ?mode=subtasks : the thread about the task's sub-tasks (🧩), else its own (💬).
+      const mode = new URL(request.url ?? '/', 'http://localhost').searchParams.get('mode') === 'subtasks' ? 'subtasks' : 'task';
+      const key = chatKey(id, mode);
+      if (!post) return json(readChat(registry, key)), true;
       const body = await readBody(request);
       try {
-        if (action === 'clear') return json({ ok: true, chat: clearChat(registry, id) }), true;
+        if (action === 'clear') return json({ ok: true, chat: clearChat(registry, key) }), true;
         if (action === 'apply') {
-          const chat = readChat(registry, id);
+          const chat = readChat(registry, key);
           const proposal = chat.messages[body.index]?.proposal;
           if (!proposal) return json({ ok: false, error: 'pas de proposition à ce message' }), true;
           const task = writeTask({ file: roadmapFile, id, text: proposal, version: body.version });
           let newId = task?.id ?? id;
-          markApplied(registry, id, body.index);
-          if (newId !== id && !hasChat(registry, newId)) renameFile(join(registry, 'chats', `${id}.json`), join(registry, 'chats', `${newId}.json`));
-          else newId = hasChat(registry, newId) && newId !== id ? id : newId;
-          return json({ ok: true, id: newId, version: task ? taskVersion(task) : null, chat: readChat(registry, newId), ...state() }), true;
+          markApplied(registry, key, body.index);
+          // A new title is a new id: the threads follow the task.
+          if (newId !== id) {
+            for (const one of ['task', 'subtasks']) {
+              const from = join(registry, 'chats', `${chatKey(id, one)}.json`);
+              if (existsSync(from) && !hasChat(registry, chatKey(newId, one))) renameFile(from, join(registry, 'chats', `${chatKey(newId, one)}.json`));
+            }
+            if (!hasChat(registry, chatKey(newId, mode))) newId = id;
+          }
+          return json({ ok: true, id: newId, version: task ? taskVersion(task) : null, chat: readChat(registry, chatKey(newId, mode)), ...state() }), true;
+        }
+        if (action === 'subtask') {
+          // « Créer la sous-tâche » : a ```sous-tache block of the thread becomes a task under this one.
+          const chat = readChat(registry, key);
+          const text = chat.messages[body.index]?.subtasks?.[body.sub];
+          if (!text) return json({ ok: false, error: 'pas de sous-tâche à ce message' }), true;
+          if (chat.messages[body.index].created?.[body.sub]) return json({ ok: false, error: 'sous-tâche déjà créée' }), true;
+          const parent = taskOf(id);
+          if (!parent) return json({ ok: false, error: `pas de chantier ${id}` }), true;
+          const created = writeTask({ file: roadmapFile, section: parent.section, text });
+          if (!created) return json({ ok: false, error: 'sous-tâche non créée' }), true;
+          writeAfter({ file: roadmapFile, id: created.id, after: id });
+          return json({ ok: true, created: created.id, chat: markCreated(registry, key, body.index, body.sub, created.id), ...state() }), true;
         }
         const task = taskOf(id);
         if (!task) return json({ ok: false, error: `pas de chantier ${id}` }), true;
-        return json({ ok: true, chat: askAboutTask({ registry, root, task, message: body.message }) }), true;
+        const items = withLabels(parseBacklog(readFileSync(roadmapFile, 'utf8')));
+        const subtasks = subtasksOf(items, id).map((sub) => ({ title: sub.title, state: sub.state, label: sub.label, auto: Boolean(sub.auto) }));
+        return json({ ok: true, chat: askAboutTask({ registry, root, task, message: body.message, mode, subtasks }) }), true;
       } catch (error) {
         return json({ ok: false, conflict: error.code === 409, error: error.message }), true;
       }
@@ -258,33 +374,7 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
     }
     if (path === '/api/roadmap/enqueue' && post) {
       const { tasks = [] } = await readBody(request);
-      const job = queuing.then(async () => {
-        const { prompts: generated, chosen: all } = await prompts(tasks);
-        // A sub-task waits for its parent: it goes with the parent's agent, or alone once the parent is merged.
-        const byId = new Map(current().items.map((item) => [item.id, item]));
-        const refused = [];
-        const chosen = all.filter((task) => {
-          const parent = byId.get(task.after);
-          if (!parent || parent.state === 'merged' || parent.state === 'done') return true;
-          refused.push({ name: task.name, ok: false, error: `sous-tâche de « ${parent.title} » (${STATES[parent.state]?.label ?? parent.state}) : elle part avec sa tâche mère (coche-la), ou seule une fois celle-ci fusionnée` });
-          return false;
-        });
-        const edited = new Map(tasks.map((task) => [task.id, task.prompt]));
-        const asked = new Map(tasks.map((task) => [task.id, task]));
-        const ready = chosen.map((task) => ({ id: task.id, name: task.name, base: task.base, title: task.title, prompt: edited.get(task.id) || generated[task.id], effort: asked.get(task.id)?.effort, model: asked.get(task.id)?.model }));
-        const results = [...refused, ...(await enqueue(ready, { queueDir, registry, createWorktree: (name, base) => agentCommand(['new', name, base]) }))];
-        // The task now names its agent in the backlog: « > 🟣 en file · agent <name> ».
-        for (const task of ready) {
-          const result = results.find?.((one) => one.name === task.name);
-          if (result && result.ok === false) continue;
-          const item = chosen.find((one) => one.id === task.id);
-          setTaskStatus({ file: roadmapFile, id: task.id, state: 'queued', agents: [...(item?.agents ?? []), task.name] });
-          for (const sub of item?.subtasks ?? []) setTaskStatus({ file: roadmapFile, id: sub.id, state: 'queued', agents: [...sub.agents, task.name] });
-        }
-        return results;
-      });
-      queuing = job.catch(() => {});
-      return json({ results: await job, queue: queueWithRuns() }), true;
+      return json({ results: await enqueueTasks(tasks), queue: queueWithRuns() }), true;
     }
     // « ✨ Proposer » : Claude proposes an effort and a model for each chosen task (settings.mjs, one call, no tools).
     if (path === '/api/roadmap/propose' && post) {

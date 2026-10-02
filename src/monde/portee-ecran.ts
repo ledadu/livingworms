@@ -89,6 +89,23 @@ export function createPortee(onChoose: (child: Spec, all: Child[], partner: Spec
       head.innerHTML = '<small>La portée</small><h2>Quatre œufs ont éclos</h2><p>Choisis l’enfant qui continuera la descente.</p>';
       const note = broodNote(kids, o.keys, o.obstacle);
       if (note) head.append(Object.assign(document.createElement('p'), { className: 'note', textContent: note }));
+      // the two parents, smaller, joined by a thread of gold: where each child's lines « de … » come from
+      const pair = document.createElement('div');
+      pair.className = 'parents';
+      const faces = [parent, partner].map((sp, k) => {
+        const fig = document.createElement('figure');
+        fig.className = k ? 'partner' : 'parent';
+        const cv = document.createElement('canvas');
+        const cap = document.createElement('figcaption');
+        cap.textContent = sp.name;
+        fig.append(cv, cap);
+        return fig;
+      });
+      const link = document.createElement('span');
+      link.className = 'link';
+      link.textContent = '+';
+      link.setAttribute('aria-hidden', 'true');
+      pair.append(faces[0], link, faces[1]);
       const grid = document.createElement('div');
       grid.className = 'brood';
       kids.forEach((c, i) => {
@@ -136,12 +153,15 @@ export function createPortee(onChoose: (child: Spec, all: Child[], partner: Spec
       later.className = 'later';
       later.textContent = 'Plus tard : les œufs t’attendront ici';
       later.addEventListener('click', () => portee.later());
-      root.append(head, grid, ok, hatch, later);
+      root.append(head, pair, grid, ok, hatch, later);
       root.hidden = false;
       void root.offsetWidth;
       root.classList.add('show');
       // the portraits once the cards have their size
-      requestAnimationFrame(() => kids.forEach((c, i) => snapshot3(c.spec, cards[i].querySelector('canvas')!, { pad: 8, max: 3 })));
+      requestAnimationFrame(() => {
+        [parent, partner].forEach((sp, k) => snapshot3(sp, faces[k].querySelector('canvas')!, { pad: 6, max: 2 }));
+        kids.forEach((c, i) => snapshot3(c.spec, cards[i].querySelector('canvas')!, { pad: 8, max: 3 }));
+      });
       window.setTimeout(() => root.classList.add('hatched'), HATCH_STEP * (kids.length - 1) + HATCH);
       return kids;
     },

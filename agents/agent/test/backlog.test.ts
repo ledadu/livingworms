@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { commitBacklog, depthOf, setAfter, subtasksOf, formatStatus, parseBacklog, parseStatus, setTaskStatus, stateOf, syncBacklog, syncMarkdown, withLabels } from '../backlog.mjs';
+import { commitBacklog, depthOf, dueAuto, foldedSubtasks, setAfter, setAuto, subtasksOf, formatStatus, parseBacklog, parseStatus, setTaskStatus, stateOf, syncBacklog, syncMarkdown, withLabels } from '../backlog.mjs';
 
 const BACKLOG = `# Backlog
 
@@ -220,6 +220,22 @@ Les auteurs.
     const moved = setAfter(chained, 'autre-chose', 'de-vrais-sons');
     const titles = parseBacklog(moved).filter((item) => item.kind === 'task').map((item) => `${item.title}<${item.after ?? ''}`);
     expect(titles).toEqual(['De vrais sons<', 'Autre chose<de-vrais-sons', 'Les crédits des sons<autre-chose']);
+  });
+
+  it('marks a sub-task « auto », keeps it when moved, leaves it out of its parent\'s agent, and says when it is due', () => {
+    const linked = setAfter(FAMILY, 'les-credits-des-sons', 'de-vrais-sons');
+    const auto = setAuto(linked, 'les-credits-des-sons', { effort: 'xhigh', model: null });
+    expect(auto).toContain('> ↳ après « De vrais sons » · auto · effort xhigh');
+    const items = parseBacklog(auto);
+    expect(items.find((item) => item.id === 'les-credits-des-sons')).toMatchObject({ after: 'de-vrais-sons', auto: { effort: 'xhigh', model: null } });
+    expect(foldedSubtasks(items, 'de-vrais-sons')).toEqual([]);
+    expect(dueAuto(items)).toEqual([]);
+    const merged = parseBacklog(auto.replace('### De vrais sons\n> ⚪ à faire', '### De vrais sons\n> 🟠 fusionné · agent sons'));
+    expect(dueAuto(merged).map((item) => item.id)).toEqual(['les-credits-des-sons']);
+    expect(dueAuto(merged, new Set(['les-credits-des-sons']))).toEqual([]);
+    expect(setAfter(auto, 'les-credits-des-sons', 'autre-chose')).toContain('> ↳ après « Autre chose » · auto · effort xhigh');
+    expect(setAuto(auto, 'les-credits-des-sons', null)).toContain('> ↳ après « De vrais sons »\n');
+    expect(() => setAuto(FAMILY, 'autre-chose', {})).toThrow(/sous-tâche/);
   });
 
   it('detaches a sub-task, refuses a loop, and ignores a line naming no task', () => {
