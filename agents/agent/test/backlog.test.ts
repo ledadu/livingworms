@@ -215,6 +215,13 @@ Les auteurs.
     expect(parseBacklog(synced).find((item) => item.id === 'les-credits-des-sons')).toMatchObject({ state: 'queued', after: 'de-vrais-sons' });
   });
 
+  it('moves a task with its own sub-tasks', () => {
+    const chained = setAfter(FAMILY, 'les-credits-des-sons', 'autre-chose');
+    const moved = setAfter(chained, 'autre-chose', 'de-vrais-sons');
+    const titles = parseBacklog(moved).filter((item) => item.kind === 'task').map((item) => `${item.title}<${item.after ?? ''}`);
+    expect(titles).toEqual(['De vrais sons<', 'Autre chose<de-vrais-sons', 'Les crédits des sons<autre-chose']);
+  });
+
   it('detaches a sub-task, refuses a loop, and ignores a line naming no task', () => {
     const linked = setAfter(FAMILY, 'les-credits-des-sons', 'de-vrais-sons');
     expect(() => setAfter(linked, 'de-vrais-sons', 'les-credits-des-sons')).toThrow(/elle-même/);

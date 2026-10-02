@@ -188,19 +188,23 @@ export function setAfter(markdown, id, after) {
   const parent = items.find((item) => item.kind === 'task' && item.id === after);
   if (!parent) throw Object.assign(new Error(`pas de chantier ${after}`), { code: 404 });
   if (parent.id === id || subtasksOf(items, id).some((item) => item.id === after)) throw new Error('une tâche ne peut pas devenir la sous-tâche d’elle-même ou de ses propres sous-tâches');
-  // Out with the block, then in again after the parent's family.
-  const moving = items.find((item) => item.id === id);
-  const block = lines.slice(moving.start, moving.end);
-  while (block.length && !block[block.length - 1].trim()) block.pop();
-  lines.splice(moving.start, moving.end - moving.start);
+  // Out with the block and its own sub-tasks' (they go along), then in again after the parent's family.
+  const moving = [items.find((item) => item.id === id), ...subtasksOf(items, id)];
+  const blocks = moving.map((item) => {
+    const block = lines.slice(item.start, item.end);
+    while (block.length && !block[block.length - 1].trim()) block.pop();
+    return block;
+  });
+  for (const item of [...moving].sort((a, b) => b.start - a.start)) lines.splice(item.start, item.end - item.start);
   items = parseBacklog(lines.join('\n'));
   const family = [items.find((item) => item.id === after), ...subtasksOf(items, after)];
   const last = family.reduce((a, b) => (b.end > a.end ? b : a));
   let at = last.end;
   while (at > last.start + 1 && !lines[at - 1].trim()) at--;
+  const [block] = blocks;
   const status = block.findIndex((line, i) => i > 0 && parseStatus(line));
   block.splice(status > 0 ? status + 1 : 1, 0, formatAfter(parent.title));
-  lines.splice(at, 0, '', ...block, '');
+  lines.splice(at, 0, ...blocks.flatMap((one) => ['', ...one]), '');
   return lines.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
