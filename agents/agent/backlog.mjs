@@ -27,17 +27,34 @@ export const DELIVERED = project.paths.delivered;
 
 const HEADING = /^(#{2,3})\s+(.+?)\s*#*\s*$/;
 const STATUS_LINE = /^>\s*(.*)$/;
-// A sub-task's link to its parent task, right under its status line: « > ↳ après « Titre de la tâche mère » ».
-const AFTER_LINE = /^>\s*↳\s*après\s*«\s*(.+?)\s*»\s*$/;
+// A sub-task's link to its parent task, right under its status line: « > ↳ après « Titre de la tâche mère » », then
+// its options: « · auto » (launched by itself, by its own agent, once its parent is merged), « · effort xhigh »,
+// « · modèle opus » (the settings of that launch).
+const AFTER_LINE = /^>\s*↳\s*après\s*«\s*(.+?)\s*»\s*((?:·.*)?)$/;
+
+/** « > ↳ après « Titre » · auto · effort high » -> { title, auto, effort, model }, or null. */
+export function parseAfterLine(line) {
+  const match = AFTER_LINE.exec(String(line ?? '').trim());
+  if (!match) return null;
+  const out = { title: match[1], auto: false, effort: null, model: null };
+  for (const part of match[2].split('·').map((one) => one.trim()).filter(Boolean)) {
+    if (part === 'auto') out.auto = true;
+    const effort = /^effort\s+(\S+)$/.exec(part);
+    if (effort) out.effort = effort[1];
+    const model = /^mod[eè]le\s+(\S+)$/.exec(part);
+    if (model) out.model = model[1];
+  }
+  return out;
+}
 
 /** « > ↳ après « Titre » » -> « Titre », or null. */
 export function parseAfter(line) {
-  return AFTER_LINE.exec(String(line ?? '').trim())?.[1] ?? null;
+  return parseAfterLine(line)?.title ?? null;
 }
 
-/** The line that makes a task a sub-task of the task titled `title`. */
-export function formatAfter(title) {
-  return `> ↳ après « ${title} »`;
+/** The line that makes a task a sub-task of the task titled `title`, with its options. */
+export function formatAfter(title, { auto = false, effort = null, model = null } = {}) {
+  return `> ↳ après « ${title} »${auto ? ' · auto' : ''}${auto && effort ? ` · effort ${effort}` : ''}${auto && model ? ` · modèle ${model}` : ''}`;
 }
 
 /** « 🔵 en cours · agent a, b » -> { state, generation, agents }, or null when the line is not a status. */
@@ -103,7 +120,8 @@ export function parseBacklog(markdown) {
     // The sub-task line: the first non-blank line after the status line (or in its place).
     let afterAt = status ? statusAt + 1 : statusAt;
     while (afterAt !== null && afterAt < end && !lines[afterAt].trim()) afterAt++;
-    const afterTitle = afterAt !== null && afterAt < end ? parseAfter(lines[afterAt]) : null;
+    const afterLink = afterAt !== null && afterAt < end ? parseAfterLine(lines[afterAt]) : null;
+    const afterTitle = afterLink?.title ?? null;
     if (!afterTitle) afterAt = null;
     const body = lines.slice(head.start, end).filter((_, i) => head.start + i !== (status ? statusAt : -1) && head.start + i !== afterAt);
     const text = body.join('\n').trimEnd();
@@ -120,6 +138,7 @@ export function parseBacklog(markdown) {
       afterLine: afterAt,
       afterTitle,
       after: null,
+      auto: afterLink?.auto ? { effort: afterLink.effort, model: afterLink.model } : null,
       state: status?.state ?? 'todo',
       generation: status?.generation ?? null,
       agents: status?.agents ?? [],
@@ -163,6 +182,20 @@ export function subtasksOf(items, id) {
   return out;
 }
 
+/** The sub-tasks a task's agent does after it: those still to do, but not an « auto » one (its own agent) nor its own. */
+export function foldedSubtasks(items, id) {
+  const out = [];
+  const walk = (parent) => {
+    for (const item of items) {
+      if (item.kind !== 'task' || item.after !== parent || item.auto || out.includes(item)) continue;
+      if (item.state === 'todo') out.push(item);
+      walk(item.id);
+    }
+  };
+  walk(id);
+  return out;
+}
+
 /** How deep a task sits under its parents (0: not a sub-task). */
 export function depthOf(items, task) {
   const byId = new Map(items.map((item) => [item.id, item]));
@@ -180,6 +213,7 @@ export function setAfter(markdown, id, after) {
   let items = parseBacklog(lines.join('\n'));
   const task = items.find((item) => item.kind === 'task' && item.id === id);
   if (!task) throw Object.assign(new Error(`pas de chantier ${id}`), { code: 404 });
+  const options = task.afterLine !== null ? parseAfterLine(lines[task.afterLine]) : null;
   if (task.afterLine !== null) {
     lines.splice(task.afterLine, 1);
     items = parseBacklog(lines.join('\n'));
@@ -203,9 +237,38 @@ export function setAfter(markdown, id, after) {
   while (at > last.start + 1 && !lines[at - 1].trim()) at--;
   const [block] = blocks;
   const status = block.findIndex((line, i) => i > 0 && parseStatus(line));
-  block.splice(status > 0 ? status + 1 : 1, 0, formatAfter(parent.title));
+  block.splice(status > 0 ? status + 1 : 1, 0, formatAfter(parent.title, options ?? {}));
   lines.splice(at, 0, ...blocks.flatMap((one) => ['', ...one]), '');
   return lines.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+/** The backlog with sub-task `id` launched by itself once its parent is merged (`auto`: { effort, model }), or no more (null). */
+export function setAuto(markdown, id, auto) {
+  const lines = String(markdown).replace(/\r\n/g, '\n').split('\n');
+  const task = parseBacklog(lines.join('\n')).find((item) => item.kind === 'task' && item.id === id);
+  if (!task) throw Object.assign(new Error(`pas de chantier ${id}`), { code: 404 });
+  if (task.afterLine === null || !task.after) throw new Error('seule une sous-tâche se lance d’elle-même, à la fin de sa tâche mère');
+  lines[task.afterLine] = formatAfter(task.afterTitle, auto ? { auto: true, effort: auto.effort ?? null, model: auto.model ?? null } : {});
+  return lines.join('\n');
+}
+
+/** setAuto on the file, written atomically. */
+export function writeAuto({ file, id, auto }) {
+  const next = setAuto(readFileSync(file, 'utf8'), id, auto);
+  const temp = `${file}.${process.pid}.tmp`;
+  writeFileSync(temp, next);
+  renameSync(temp, file);
+  return parseBacklog(next).find((item) => item.kind === 'task' && item.id === id) ?? null;
+}
+
+/**
+ * The sub-tasks to launch now by themselves: `auto`, still to do, not queued, whose parent is merged or delivered.
+ * `queued`: the ids of the tasks already in the queue.
+ */
+export function dueAuto(items, queued = new Set()) {
+  const byId = new Map(items.filter((item) => item.kind === 'task').map((item) => [item.id, item]));
+  return [...byId.values()].filter((task) => task.auto && task.state === 'todo' && !queued.has(task.id)
+    && ['merged', 'done'].includes(byId.get(task.after)?.state));
 }
 
 /** setAfter on the file, written atomically. */

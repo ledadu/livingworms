@@ -315,4 +315,41 @@ describe('dashboard routes', () => {
       Object.assign(process.env, previous);
     }
   });
+
+  it('launches an « auto » sub-task by itself, with its own agent, once its parent is merged', async () => {
+    const { base, registry, bin } = setup('mere');
+    mkdirSync(join(base, 'docs'), { recursive: true });
+    mkdirSync(join(base, 'changes/unreleased/mere'), { recursive: true });
+    writeFileSync(join(base, 'docs/backlog.md'), '# Backlog\n\n## Son\n\n### Mère\n> 🟠 fusionné · agent mere\n\nTexte.\n\n### Fille\n> ⚪ à faire\n> ↳ après « Mère »\n\nLa suite.\n');
+    // A fake agent.sh: `new <name> <base>` makes the worktree and its registry file.
+    const agentSh = join(base, 'agent.sh');
+    writeFileSync(agentSh, `#!/bin/sh\n[ "$1" = new ] || exit 0\nmkdir -p "${base}/worktrees/$2"\nprintf 'AGENT_NAME=%s\\nAGENT_DIR=%s\\n' "$2" "${base}/worktrees/$2" >"${registry}/$2.env"\n`);
+    chmodSync(agentSh, 0o755);
+    const previous = { ...process.env };
+    Object.assign(process.env, { AGENTS_CLAUDE_BIN: bin, AGENTS_AGENT_SH: agentSh, AGENTS_NO_AUTO: '1' });
+    delete process.env.AGENTS_REGISTRY;
+    const handle = roadmapRoutes({ mainRoot: base, registry, here: join(here, '..') });
+    const server = createServer((request, response) => {
+      const path = new URL(request.url ?? '/', 'http://localhost').pathname;
+      handle(request, response, path).then((done: boolean) => done || (response.writeHead(404), response.end()));
+    });
+    await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    try {
+      const set = await (await fetch(`${url}/api/backlog/auto/fille`, { method: 'POST', body: JSON.stringify({ auto: true, effort: 'high' }) })).json();
+      expect(set.ok).toBe(true);
+      expect(readFileSync(join(base, 'docs/backlog.md'), 'utf8')).toContain('> ↳ après « Mère » · auto · effort high');
+      let queue: { name: string; status: string; effort?: string; run?: { pid: number } }[] = [];
+      await until(() => existsSync(join(registry, 'queue', 'fille.json')) && JSON.parse(readFileSync(join(registry, 'queue', 'fille.json'), 'utf8')).status === 'launched', 8000);
+      queue = await (await fetch(`${url}/api/queue`)).json();
+      const entry = queue.find((one) => one.name === 'fille')!;
+      expect(entry).toMatchObject({ status: 'launched', effort: 'high' });
+      if (entry.run?.pid) pids.push(entry.run.pid);
+      expect(readFileSync(join(base, 'docs/backlog.md'), 'utf8')).toMatch(/### Fille\n> 🟣 en file · agent fille|### Fille\n> 🔵 en cours · agent fille/);
+    } finally {
+      server.close();
+      for (const key of Object.keys(process.env)) if (!(key in previous)) delete process.env[key];
+      Object.assign(process.env, previous);
+    }
+  });
 });

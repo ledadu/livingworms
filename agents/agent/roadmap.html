@@ -113,6 +113,8 @@
   .row.dragging { opacity: .4; }
   .row.drop, details.section > summary.drop { outline: 2px dashed var(--say); outline-offset: 2px; }
   .subs { font-size: 11px; color: var(--say); white-space: nowrap; }
+  .auto { font-size: 11px; color: var(--warn); white-space: nowrap; }
+  .tool.on { color: var(--warn); border-color: var(--warn); }
   .after-pick { font-size: 12px; max-width: 220px; }
   .pick .subs-note { font-size: 11px; color: var(--say); flex-basis: 100%; }
   .defaults { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--muted); }
@@ -276,12 +278,13 @@ function rowHtml(item, marks) {
   const task = item.kind === 'task';
   const depth = item.depth ?? 0;
   const arrow = depth ? '<span class="arrow" title="Sous-tâche : elle part avec l\'agent de sa tâche mère, après elle">↳</span>' : '';
+  const auto = item.auto ? `<span class="auto" title="Lancée d'elle-même, par son propre agent, dès que sa tâche mère est fusionnée">⚡ auto${item.auto.effort ? ` · ${escapeHtml(item.auto.effort)}` : ''}${item.auto.model ? ` · ${escapeHtml(item.auto.model)}` : ''}</span>` : '';
   const subs = item.subtaskCount ? `<span class="subs" title="Ses sous-tâches partent avec elle, au même agent">+${item.subtaskCount} sous-tâche${item.subtaskCount > 1 ? 's' : ''}</span>` : '';
   const after = task && afterEditing === item.id ? `<select class="after-pick" data-after-select="${escapeHtml(item.id)}">${afterOptions(item)}</select>` : '';
   return `<div class="row st-${item.status} kind-${item.kind}${depth ? ' sub' : ''}${picked.has(item.id) ? ' picked' : ''}" id="t-${escapeHtml(item.id)}"${task ? ` draggable="true" data-drag="${escapeHtml(item.id)}"` : ''}${depth ? ` style="margin-left:${depth * 22}px"` : ''}>
-    <div class="line">${box}${arrow}<span class="title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</span>${subs}${mark}${who}<span class="pill">${escapeHtml(item.label)}</span>
+    <div class="line">${box}${arrow}<span class="title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</span>${auto}${subs}${mark}${who}<span class="pill">${escapeHtml(item.label)}</span>
       <button class="toggle" data-open="${escapeHtml(item.id)}" title="Texte exact (ligne ${item.line})">${open ? '▾ texte' : '▸ texte'}</button>
-      ${item.kind === 'task' ? `<button class="tool" data-after="${escapeHtml(item.id)}" title="En faire la sous-tâche d'une autre (ou glisser la ligne sur sa tâche mère ; sur le titre du groupe pour la détacher)">↳</button>${after}<button class="tool" data-edit="${escapeHtml(item.id)}" title="Modifier le texte du chantier">✎</button><button class="tool${item.chat ? ' has' : ''}" data-chat="${escapeHtml(item.id)}" title="En discuter avec Claude pour l'améliorer, l'affiner ou le corriger">💬${item.chat ? `<small>${item.chat.pending ? '…' : item.chat.count}</small>` : ''}</button>` : ''}</div>
+      ${item.kind === 'task' ? `${depth && item.state === 'todo' ? `<button class="tool${item.auto ? ' on' : ''}" data-auto="${escapeHtml(item.id)}" title="${item.auto ? 'Ne plus la lancer d\'elle-même' : 'La lancer d\'elle-même, par son propre agent, dès que sa tâche mère est fusionnée (avec l\'effort et le modèle « Par défaut »)'}">⚡</button>` : ''}<button class="tool" data-after="${escapeHtml(item.id)}" title="En faire la sous-tâche d'une autre (ou glisser la ligne sur sa tâche mère ; sur le titre du groupe pour la détacher)">↳</button>${after}<button class="tool" data-edit="${escapeHtml(item.id)}" title="Modifier le texte du chantier">✎</button><button class="tool${item.chat ? ' has' : ''}" data-chat="${escapeHtml(item.id)}" title="En discuter avec Claude pour l'améliorer, l'affiner ou le corriger">💬${item.chat ? `<small>${item.chat.pending ? '…' : item.chat.count}</small>` : ''}</button>` : ''}</div>
     ${choices}${open ? `<pre>${escapeHtml(item.text)}</pre>` : ''}</div>`;
 }
 
@@ -455,8 +458,12 @@ function afterOptions(item) {
 function pickNote(item) {
   if (!item) return '';
   const parent = item.after && data.items.find((one) => one.id === item.after);
+  if (parent && item.auto && !picked.has(parent.id) && parent.state !== 'merged' && parent.state !== 'done') return `<span class="subs-note">⚡ elle partira d'elle-même, à la fusion de « ${escapeHtml(parent.title)} ».</span>`;
   if (parent && !picked.has(parent.id) && parent.state !== 'merged' && parent.state !== 'done') return `<span class="subs-note">↳ sous-tâche de « ${escapeHtml(parent.title)} » : elle partira avec sa tâche mère (coche-la), ou seule une fois celle-ci fusionnée.</span>`;
-  return item.subtaskCount ? `<span class="subs-note">+ ${item.subtaskCount} sous-tâche${item.subtaskCount > 1 ? 's' : ''}, faites ensuite par le même agent (dans le prompt).</span>` : '';
+  const folded = data.items.filter((one) => one.kind === 'task' && one.after === item.id && !one.auto && one.state === 'todo').length;
+  const autos = data.items.filter((one) => one.kind === 'task' && one.after === item.id && one.auto && one.state === 'todo').length;
+  return [folded ? `+ ${folded} sous-tâche${folded > 1 ? 's' : ''}, faites ensuite par le même agent (dans le prompt).` : '', autos ? `⚡ ${autos} sous-tâche${autos > 1 ? 's' : ''} lancée${autos > 1 ? 's' : ''} d'elle${autos > 1 ? 's' : ''}-même${autos > 1 ? 's' : ''} à sa fusion.` : '']
+    .filter(Boolean).map((text) => `<span class="subs-note">${text}</span>`).join('');
 }
 async function setAfter(id, after) {
   const result = await (await fetch(`/api/backlog/after/${encodeURIComponent(id)}`, { method: 'POST', body: JSON.stringify({ after: after || null }) })).json();
@@ -466,6 +473,14 @@ async function setAfter(id, after) {
     render();
     return;
   }
+  data = result;
+  render();
+  schedulePrompts();
+}
+async function setAuto(id, auto) {
+  const body = auto ? { auto: true, effort: defaults.effort ?? null, model: defaults.model ?? null } : { auto: false };
+  const result = await (await fetch(`/api/backlog/auto/${encodeURIComponent(id)}`, { method: 'POST', body: JSON.stringify(body) })).json();
+  if (!result.ok) return alert(result.error);
   data = result;
   render();
   schedulePrompts();
@@ -598,6 +613,12 @@ document.addEventListener('click', (event) => {
     opened.add(id);
     render();
     document.getElementById(`t-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  const autoButton = event.target.closest('[data-auto]');
+  if (autoButton) {
+    const item = data.items.find((one) => one.id === autoButton.dataset.auto);
+    setAuto(item.id, !item.auto);
     return;
   }
   const afterButton = event.target.closest('[data-after]');
