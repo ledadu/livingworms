@@ -2,7 +2,7 @@
 #portee {
   position: fixed; inset: 0; z-index: 20; box-sizing: border-box; overflow-y: auto;
   padding: calc(18px + env(safe-area-inset-top, 0px)) 14px calc(18px + env(safe-area-inset-bottom, 0px));
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 14px;
   background: radial-gradient(ellipse at 50% 45%, rgba(4,28,42,0.72), rgba(2,14,24,0.9));
   opacity: 0; transition: opacity 1.2s ease;
 }
@@ -72,3 +72,20 @@
 #portee .traits span.key { border-color: rgba(246,217,138,0.85); color: #f6d98a; }
 /* the words of the chapter wait behind the brood */
 body:has(#portee.show) #chapter { opacity: 0; }
+/* the two parents above the brood, smaller, joined by a thread of gold (a band on a short screen) */
+#portee .parents { display: flex; align-items: center; justify-content: center; gap: 6px; width: min(420px, 100%); margin: -4px 0 -2px; }
+#portee .parents figure { margin: 0; flex: 0 1 132px; min-width: 0; text-align: center; }
+#portee .parents canvas { opacity: 0.92; transform: none; transition: none; animation: portee-float 6s ease-in-out infinite; }
+#portee .parents figure.partner canvas { animation-delay: -3s; }
+#portee .parents figcaption { font-style: italic; font-size: clamp(15px, 3.8vw, 17px); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#portee .parents figcaption::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 2px; background: #f6d98a; }
+#portee .parents .partner figcaption::before { background: #8fd8e8; }
+#portee .parents .link {
+  flex: 1 1 40px; max-width: 90px; position: relative; text-align: center; color: #f6d98a; font-size: 22px; line-height: 1;
+  text-shadow: 0 0 10px rgba(246,217,138,0.8);
+}
+#portee .parents .link::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; z-index: -1;
+  background: linear-gradient(90deg, transparent, rgba(246,217,138,0.75), transparent); box-shadow: 0 0 8px rgba(246,217,138,0.5);
+}
+@media (max-height: 700px), (max-width: 480px) { #portee .parents figure { flex-basis: 96px; } #portee .parents figcaption { font-size: 14px; } }
