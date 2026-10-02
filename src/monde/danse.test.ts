@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { RISE, figuresOf, newDanse, over, pose, styleOf, wished, type Pt, type Style } from './danse';
+import { BEAT, LONGEST, RISE, danceAt, facing, figuresOf, newDanse, over, pose, signature, styleOf, wished, type Pt, type Style } from './danse';
 import { STEP } from '../engine';
+import { DANCES, DANCE_IDS, type DanceId } from '../engine3/dance';
 
 /** a seeded chance (mulberry32) */
 const seeded = (n: number) => () => {
@@ -15,10 +16,10 @@ const at = (i: number) => ({ a: { x: 1000 + 60 * (i % 3), y: 400 }, b: { x: 900,
 describe('the dance for two', () => {
   it('lasts a few seconds, opens turning around each other and ends face to face', () => {
     for (const styles of PAIRS) for (let k = 1; k < 20; k++) {
-      const { a, b } = at(k), d = newDanse(a, b, styles, 50, seeded(k * 7919));
+      const { a, b } = at(k), d = newDanse(a, b, styles, 50, seeded(k * 7919), { beat: k % 2 ? 0.42 : 0.7 });
       const f = figuresOf(d);
       expect(d.time).toBeGreaterThan(4);
-      expect(d.time).toBeLessThan(12);
+      expect(d.time).toBeLessThan(18);
       expect(f[0]).toBe(styles.filter((s) => s === 'walk').length === 1 ? 'halo' : 'tour');
       expect(f[f.length - 1]).toBe('face');
       expect(new Set(f).size).toBe(f.length);
@@ -92,6 +93,85 @@ describe('the dance for two', () => {
       }
       expect(worst).toBeLessThan(d.r * 0.6);
     }
+  });
+
+  it('has one round or two as before, and one or two real dances, on the beat', () => {
+    for (const styles of PAIRS) for (let k = 1; k < 40; k++) {
+      const { a, b } = at(k), beat = 0.42 + (k % 5) * 0.07, d = newDanse(a, b, styles, 50, seeded(k * 613), { beat });
+      const dances = d.steps.filter((s) => s.dance), rounds = d.steps.filter((s) => !s.dance && s.fig !== 'face');
+      expect(dances.length).toBeGreaterThanOrEqual(1);
+      expect(dances.length).toBeLessThanOrEqual(2);
+      expect(rounds.length).toBeGreaterThanOrEqual(1);
+      expect(rounds.length).toBeLessThanOrEqual(2);
+      expect(dances.length + rounds.length).toBeLessThanOrEqual(3);
+      if (dances.length === 2) expect(d.time).toBeLessThanOrEqual(LONGEST);
+      for (const s of dances) {
+        expect(s.t1 - s.t0).toBeCloseTo(DANCES[s.dance!].beats * beat, 9);
+        expect(danceAt(d, (s.t0 + s.t1) / 2)).toEqual({ id: s.dance, t0: s.t0 });
+      }
+      expect(danceAt(d, d.time - 0.1)).toBe(null);
+    }
+    expect(newDanse(at(1).a, at(1).b, ['swim', 'swim'], 50, seeded(1)).beat).toBe(BEAT);
+  });
+
+  it('draws the dances by the two bodies: a walker dances on the floor, two bells undulate', () => {
+    const count = (styles: [Style, Style]) => {
+      const n = {} as Record<DanceId, number>;
+      for (let k = 0; k < 400; k++) for (const s of newDanse(at(k).a, at(k).b, styles, 50, seeded(k * 97 + 3)).steps) if (s.dance) n[s.dance] = (n[s.dance] ?? 0) + 1;
+      return n;
+    };
+    const walkers = count(['walk', 'walk']), bells = count(['drift', 'drift']), swimmers = count(['swim', 'swim']);
+    expect(walkers.crabe + walkers.moonwalk).toBeGreaterThan(walkers.valse * 4);
+    expect(bells.vague).toBeGreaterThan(bells.crabe * 4);
+    expect(bells.vague + bells.valse).toBeGreaterThan(swimmers.vague + swimmers.valse);
+    // every dance comes up for two swimmers, the greeting never
+    for (const id of DANCE_IDS) expect(swimmers[id], id).toBeGreaterThan(10);
+    expect(swimmers.salut).toBeUndefined();
+  });
+
+  it('is never the same twice in a row', () => {
+    for (const styles of PAIRS) {
+      let last: string | null = null;
+      for (let k = 0; k < 60; k++) {
+        const d = newDanse(at(k).a, at(k).b, styles, 50, seeded(k % 3), { last });
+        expect(signature(d)).not.toBe(last);
+        last = signature(d);
+      }
+    }
+  });
+
+  it('dances the dances asked for (tests, captures)', () => {
+    const d = newDanse(at(1).a, at(1).b, ['swim', 'swim'], 50, seeded(5), { dances: ['tango', 'valse'], beat: 0.5 });
+    expect(figuresOf(d).filter((f) => f in DANCES)).toEqual(['tango', 'valse']);
+  });
+
+  it('keeps the two face to face in a real dance: neither is told to go away from the other', () => {
+    for (const id of ['twist', 'crabe', 'tango'] as DanceId[]) for (const styles of PAIRS) {
+      const d = newDanse({ x: 0, y: 500 }, { x: 140, y: 500 }, styles, 50, seeded(4), { dances: [id] });
+      const st = d.steps.find((s) => s.dance)!;
+      let faced = 0;
+      for (let s = st.t0; s < st.t1; s += STEP) {
+        const q = pose(d, s);
+        // where they are: at their places, past them, or each on the other's side
+        for (const [ax, bx] of [[q.a.x, q.b.x], [q.a.x + 30 * Math.sign(q.a.x - q.b.x), q.b.x], [q.b.x, q.a.x]]) {
+          const A = { x: ax, y: q.a.y }, B = { x: bx, y: q.b.y }, f = facing(d, s, A, B);
+          if (!f) continue;
+          faced++;
+          expect(f.a).toBe(B.x > A.x ? 1 : -1);
+          expect(f.b).toBe(-f.a);
+          const v = wished(d, s, A, B);
+          expect(v.a.x * f.a).toBeGreaterThanOrEqual(0);
+          expect(v.b.x * f.b).toBeGreaterThanOrEqual(0);
+        }
+      }
+      expect(faced).toBeGreaterThan(90);
+    }
+    // the waltz turns: no facing; nor one right above the other
+    const w = newDanse({ x: 0, y: 500 }, { x: 140, y: 500 }, ['swim', 'swim'], 50, seeded(4), { dances: ['valse'] });
+    const st = w.steps.find((s) => s.dance)!;
+    expect(facing(w, (st.t0 + st.t1) / 2, { x: 0, y: 500 }, { x: 140, y: 500 })).toBe(null);
+    const t = newDanse({ x: 0, y: 500 }, { x: 140, y: 500 }, ['swim', 'swim'], 50, seeded(4), { dances: ['twist'] }), ts = t.steps.find((s) => s.dance)!;
+    expect(facing(t, (ts.t0 + ts.t1) / 2, { x: 0, y: 500 }, { x: 5, y: 400 })).toBe(null);
   });
 
   it('knows a walker, a swimmer and a bell', () => {

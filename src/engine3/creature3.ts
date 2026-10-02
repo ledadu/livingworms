@@ -14,6 +14,7 @@ import type { AttDef, NodeDef, PaletteSlot, Spec, SwimDef, SwimMode } from '../e
 import { ROOT_SLOT, SHAPES, expand, onRim, palette, rimOf, type Slot } from '../engine/defs';
 import { STEP, TAU, clamp, hsla, len2, len3, lerp, rand, wrapAngle } from '../engine/util';
 import { hover, surge, turnPace } from './pilot';
+import { ROW, TRUNK, along, limbOf, slot, type Groove } from './groove';
 
 // ----- tiny vector helpers on scalars (no allocation in the hot path) ----- //
 
@@ -126,6 +127,8 @@ export class Seg3 {
   anchor: V | null = null;
   /** the way the head points: the first link runs the opposite way (animals with a driven heading) */
   headDir: V | null = null;
+  /** the kind of limb a dance moves (groove.ts), for a part on the trunk; -1: none (set by instantiate) */
+  limb = -1;
   x: Float32Array; y: Float32Array; z: Float32Array;
   ox: Float32Array; oy: Float32Array; oz: Float32Array;
   /** direction of link i (from node i-1 to node i); index 0 repeats index 1 */
@@ -296,6 +299,9 @@ export class Seg3 {
       const flip = this.creature.planar ? this.flip * s.side : 1;
       const c = new Seg3(a.node, a, this, s, flip, this.scale * s.scale, p, dir, nb, this.creature);
       c.rim = r;
+      // a limb of the trunk dances (groove.ts); a fin at the end of the trunk, along it, is its tail: it follows it
+      const tail = !r && !s.radial && a.node.role === 'fin' && at >= this.n && Math.abs(s.angle) < 1.2;
+      if (!this.parent && !this.creature.planar && !tail) c.limb = limbOf(a.node);
       this.children.push(c);
     }
   }
@@ -333,17 +339,36 @@ export class Seg3 {
     // the body of an animal pulled by its arms fills while they open and empties on the stroke
     if (!this.parent && cr.drivers.length && cr.mode === 'jet') this.pulse = m.amp * (0.3 + 0.7 * cr.open);
     const pull = drv === 'pull' && !cr.planar && !!this.parent && !!this.att;
+    // a dance (groove.ts): this limb swings and rises by its kind, its side and its place in the row, and curls
+    const g = cr.groove, gl = g ? this.limb : -1;
+    let gSwing = 0, gRaise = 0, gCurl = 0, gSide = 1;
 
     let fixed: V | null = null;
     if (this.parent) {
       const p = this.parent, k = this.at;
+      if (gl >= 0) {
+        const ring = pull ? (TAU * (this.k + 0.5)) / this.att!.count : 0;
+        gSide = this.rim ? (this.rim.u < 0 ? -1 : 1) : pull ? (Math.cos(ring) < 0 ? -1 : 1) : this.rel < -1e-4 ? -1 : this.rel > 1e-4 ? 1 : this.side < 0 ? -1 : 1;
+        const u = this.rim ? (this.rim.u + 1) / 2 : pull ? ring / TAU : k / p.n, o = slot(gl, gSide < 0 ? 0 : 1, 0);
+        gSwing = along(g!.swing, o, ROW, u); gRaise = along(g!.raise, o, ROW, u); gCurl = g!.curl[gl * 2 + (gSide < 0 ? 0 : 1)];
+      }
       if (pull) {
         // swimming: open slowly, close at once (the stroke); walking: wide open, each arm stepping in turn
         const hi = 0.35 + m.amp * 0.9;
         const open = cr.mode === 'crawl' ? hi * 0.75 + 0.3 * Math.sin(w + this.k * Math.PI) : 0.12 + (hi - 0.12) * openOf(w);
-        p.ringMount(k, this.k, this.att!.count, open, this.dir, this.nb, this.m);
-      } else if (this.rim) p.rimMount(k, this.rim.u, this.rim.back, this.rim.open, this.dir, this.nb, this.m);
-      else p.mountFor(d, { at: k, angle: this.rel / (p.flip || 1), scale: 1, phase: 0, side: this.side, edge: this.edge, k: this.k, hue: 0, radial: this.radial }, k, this.dir, this.nb, this.m);
+        p.ringMount(k, this.k, this.att!.count, open + RING_DANCE * (gRaise + gSwing), this.dir, this.nb, this.m);
+      } else if (this.rim) p.rimMount(k, this.rim.u, this.rim.back, this.rim.open + RING_DANCE * (gRaise + gSwing), this.dir, this.nb, this.m);
+      else {
+        p.mountFor(d, { at: k, angle: this.rel / (p.flip || 1), scale: 1, phase: 0, side: this.side, edge: this.edge, k: this.k, hue: 0, radial: this.radial }, k, this.dir, this.nb, this.m);
+        if (gRaise) {
+          // it rises toward the body's up, whichever way it points; pointing straight down, up its own side
+          const ax = cross(cr.down, this.dir, this.tmp), l = len3(ax.x, ax.y, ax.z);
+          let ang = gRaise;
+          if (l > 0.2) { ax.x /= l; ax.y /= l; ax.z /= l; }
+          else { const i = Math.max(1, k); ax.x = p.dx[i]; ax.y = p.dy[i]; ax.z = p.dz[i]; ang *= gSide; }
+          rotate(this.dir, ax, ang, this.dir); rotate(this.nb, ax, ang, this.nb);
+        }
+      }
       if (len3(this.nb.x, this.nb.y, this.nb.z) < 0.5) { this.nb.x = p.nb.x; this.nb.y = p.nb.y; this.nb.z = p.nb.z; }
       const pr = p.rad[k] * (1 + p.pulse * (p.pulseU ? 1 : k / p.n)) * Math.abs(this.edge);
       ox[0] = x[0]; oy[0] = y[0]; oz[0] = z[0];
@@ -354,6 +379,7 @@ export class Seg3 {
       if (type === 'wave') ang = m.amp * Math.sin(w) * fl;
       else if (type === 'row') ang = m.amp * rowCurve(w) * fl;
       else if (type === 'flutter') ang = m.amp * (0.6 * Math.sin(w) + 0.4 * Math.sin(w * 2.7 + 1.3)) * fl;
+      if (!pull && !this.rim) ang += gSwing;
       if (ang) rotate(this.dir, this.nb, ang, this.tg), fixed = this.tg;
     } else if (this.headDir) {
       this.tg.x = -this.headDir.x; this.tg.y = -this.headDir.y; this.tg.z = -this.headDir.z;
@@ -366,13 +392,15 @@ export class Seg3 {
     const bends = this.bends, lens = this.lens, soak = 0.2 + 0.4 * d.flex, F = cr.planar ? this.flip : 1;
     // curl: arms open and close; recoil: they trail straight behind on every jet stroke and relax between
     const power = cr.stroke;
-    const extra = pull ? (((cr.mode === 'crawl' ? 0.35 : 0.6 * openOf(w)) * m.amp) / n) * 2
+    const extra = (pull ? (((cr.mode === 'crawl' ? 0.35 : 0.6 * openOf(w)) * m.amp) / n) * 2
       : type === 'curl' ? ((m.amp * (0.5 + 0.5 * Math.sin(w)) * (1 - 0.8 * cr.stroke) * F) / n) * 2
-      : type === 'recoil' ? (((m.amp * (1 - power) + 0.3 * Math.sin(w)) * F) / n) * 2 : 0;
+      : type === 'recoil' ? (((m.amp * (1 - power) + 0.3 * Math.sin(w)) * F) / n) * 2 : 0) + gCurl / n;
     const und = type === 'undulate' ? m.amp * 0.5 : 0, wk = (TAU * m.wave) / n;
     const a = this.tmp, tgt = this.t, prev = this.b, nbi = this.l;
     let mnx = x[0], mxx = x[0], mny = y[0], mxy = y[0], mnz = z[0], mxz = z[0];
     const dyn = !this.parent && !this.anchor && !cr.planar;
+    // the trunk of a dancer bends a little more along its length (groove.ts)
+    const gb = dyn && g ? g.bend : null, gn = 1 / Math.max(1, n - 1);
 
     for (let i = 1; i <= n; i++) {
       let px2 = x[i], py2 = y[i], pz2 = z[i];
@@ -393,7 +421,7 @@ export class Seg3 {
           else norm(nbi);
           this.lastNb.x = nbi.x; this.lastNb.y = nbi.y; this.lastNb.z = nbi.z;
         } else { nbi.x = this.nb.x; nbi.y = this.nb.y; nbi.z = this.nb.z; }
-        rotate(prev, nbi, bends[i] * (dyn ? this.flip : 1) + extra + (und ? und * Math.sin(w - i * wk) : 0), tgt);
+        rotate(prev, nbi, bends[i] * (dyn ? this.flip : 1) + extra + (und ? und * Math.sin(w - i * wk) : 0) + (gb ? along(gb, 0, TRUNK, (i - 1) * gn) / n : 0), tgt);
         // shape memory: pulled toward the rest bend, never further than amax from it
         let dot = a.x * tgt.x + a.y * tgt.y + a.z * tgt.z;
         dot = dot > 1 ? 1 : dot < -1 ? -1 : dot;
@@ -441,6 +469,9 @@ function thrustOf(w: number): number {
   const f = (((w / TAU) % 1) + 1) % 1;
   return f < 0.3 ? Math.sin((Math.PI * f) / 0.3) : 0;
 }
+
+/** a dance opens arms set in a ring or round a rim this much of what it turns another limb (they all open at once) */
+const RING_DANCE = 0.6;
 
 /** the motion that goes with each drive */
 const DRIVE_MOTION: Record<string, string> = { pull: 'none', paddle: 'row', walk: 'row', ripple: 'wave' };
@@ -513,6 +544,11 @@ export class Creature3 {
   drivers: Seg3[] = [];
   /** steered by the player: it goes where it is told at an even pace, whatever its way of swimming (pilot.ts) */
   pilot = false;
+  /** a dance laid over its swim (groove.ts, dance.ts), read at each update; null: it only swims */
+  groove: Groove | null = null;
+  /** how far the dance has moved the body from where it swims (px) */
+  gx = 0; gy = 0;
+  private tiltH = v3(); private tiltD = v3(); private tiltA = v3();
 
   constructor(sp: Spec, x: number, y: number, z: number, o: Creature3Options = {}) {
     this.spec = sp;
@@ -553,7 +589,16 @@ export class Creature3 {
     // remember which side the belly faces when swimming straight up or down
     const hl = len2(this.vx, this.vz);
     if (hl > 0.4) { this.side.x = this.vz / hl; this.side.z = -this.vx / hl; }
+    // a dance moves the whole body a little from where it swims (no speed added, nothing bends), and turns its head
+    // for this update only
+    const g = this.groove, hd = r.headDir, dn = this.down;
+    if (g) {
+      if (g.x !== this.gx || g.y !== this.gy) this.translate(g.x - this.gx, g.y - this.gy, 0);
+      this.gx = g.x; this.gy = g.y;
+    } else this.gx = this.gy = 0;
+    if (g && hd && (g.pitch || g.yaw || g.roll)) this.tilt(g, hd);
     r.update(time);
+    r.headDir = hd; this.down = dn;
     const b = this.box;
     b[0] = b[1] = b[2] = Infinity; b[3] = b[4] = b[5] = -Infinity;
     for (const s of this.list) {
@@ -757,6 +802,21 @@ export class Creature3 {
     // an upright body does not go where its head points: it goes where it is told
     if (this.spec.swim.posture !== undefined) this.update(time, dvx * (0.25 + 0.75 * align), dvy, dvz, accel);
     else this.update(time, h.x * speed, h.y * speed, h.z * speed + dvz, accel);
+  }
+
+  /** the head turned by a dance: nose down about the axis across the body (across the screen for an upright one),
+   * then about the vertical, then the belly rolled about the length (a bell keeps the world's down) */
+  private tilt(g: Groove, hd: V): void {
+    const h = this.tiltH, d = this.tiltD, a = this.tiltA;
+    h.x = hd.x; h.y = hd.y; h.z = hd.z;
+    d.x = this.down.x; d.y = this.down.y; d.z = this.down.z;
+    cross(h, d, a);
+    if (len3(a.x, a.y, a.z) < 0.2) { a.x = 0; a.y = 0; a.z = 1; } else norm(a);
+    if (g.pitch) { rotate(h, a, g.pitch, h); rotate(d, a, g.pitch, d); }
+    if (g.yaw) { rotate(h, DOWN, -g.yaw, h); rotate(d, DOWN, -g.yaw, d); }
+    if (g.roll) rotate(d, h, g.roll, d);
+    this.root.headDir = h;
+    if (this.mode !== 'bell') this.down = d;
   }
 
   /** direction the head points */
