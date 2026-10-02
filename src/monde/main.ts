@@ -68,6 +68,7 @@ import { initMusique } from './musique-son';
 import { initReglagesSon } from './son-reglages';
 import { initOndes } from './ondes-jeu';
 import { initVie } from './vie-jeu';
+import { initJeux } from './jeux-jeu';
 import { initBruits } from './bruits-son';
 import { panOnScreen } from './ecoute';
 import { bubblingAt, currentNear, springTrains } from './bruits';
@@ -474,12 +475,13 @@ function update(): void {
   rivale.step({ x: px, y: py }, t);
   lumieres.step({ x: px, y: py }, t);
   vie.step(t, p, actors);
+  jeux.step(t, p, actors);
   retour.step();
 
   flow.clear();
   // the animals simulated this step: near the swimmer, and within sight unless the game holds them (hors-champ.ts)
   awake.length = 0;
-  for (const a of actors) if (Math.abs(a.cr.root.x[0] - px) < 1100 && (awakeOutOfSight(a.kind, parade.leads(a) || !!vie.goal(a)) || inSight(view, a.cr.root.x[0], a.z))) awake.push(a);
+  for (const a of actors) if (Math.abs(a.cr.root.x[0] - px) < 1100 && (awakeOutOfSight(a.kind, parade.leads(a) || !!vie.goal(a) || jeux.holds(a)) || inSight(view, a.cr.root.x[0], a.z))) awake.push(a);
   const inPlane = (a: Actor) => Math.abs(a.cr.root.z[0]) < 60;
   let nNear = 0;
   for (const a of awake) if (inPlane(a)) flow.add(a.cr);
@@ -523,7 +525,7 @@ function update(): void {
       collide(c);
       continue;
     }
-    const v = vie.goal(a);
+    const v = jeux.goal(a) ?? vie.goal(a);
     if (v) { steer(a, v.x, v.y, v.accel); collide(c); continue; }
     if (t > a.next || Math.hypot(a.tx - x, a.ty - y) < 20) {
       a.next = t + rand(3, 8);
@@ -717,6 +719,7 @@ function render(): void {
   pushReliefs(items, { view, gx, ctx, dpr, plane }, cam.x, cam.y);
   traces.items({ view, dpr, plane, draw: drawSprite, lights }, cam.x, (d, fn) => items.push({ d, fn, k: 'trace' }));
   vie.items({ view, ctx, gx, dpr, plane }, cam.x, (d, fn) => items.push({ d, fn, k: 'vie' }));
+  jeux.items({ view, ctx, gx, dpr, plane, lights }, cam.x, (d, fn) => items.push({ d, fn, k: 'jeux' }));
   ponte.items({ view, gx, ctx, dpr, lights }, cam.x, (d, fn) => items.push({ d, fn, k: 'eggs' }));
   let np = 0;
   for (const pl of plants) {
@@ -1354,8 +1357,20 @@ ondes.onCall((x, y, z, size) => bruits.cry(x - player.cr.root.x[0], y - player.c
 // ----- the life of the animals (vie-jeu.ts) ----- //
 
 // alone, in twos, in groups, around the swimmer; when we sing, the sea listens
-const vie = initVie({ floor: floorAt, held: (a) => parade.leads(a as Actor), busy: () => parade.active || adieu.on || remontee.on, sand: (x) => moodAt(x).sand });
+const vie = initVie({ floor: floorAt, held: (a) => parade.leads(a as Actor) || jeux.holds(a), busy: () => parade.active || adieu.on || remontee.on, sand: (x) => moodAt(x).sand });
 chant.onNote(() => vie.hush());
+// the little games of the animals (jeux-jeu.ts): a fish plays tag, a shoal takes us in, an octopus hides
+const jeux = initJeux({
+  floor: floorAt, sand: (x) => moodAt(x).sand,
+  keep: (x, y) => { x = clamp(x, bounds[0] + 60, bounds[1] - 60); return { x, y: clamp(y, Math.max(40, ceilAt(x, 0) + 50), floorAt(x, 0) - 40) }; },
+  nook: (x, dir) => { const nx = clamp(x + dir * 760, bounds[0] + 80, bounds[1] - 80); return { x: nx, y: Math.max(ceilAt(nx, 0) + 60, floorAt(nx, 0) - 70) }; },
+  // (not a partner of the chapter: staying near it starts the parade)
+  free: (a) => (a as Actor).partner === undefined && !parade.leads(a as Actor) && !vie.actOf(a),
+  busy: () => paused || parade.active || adieu.on || remontee.on || portee.isOpen,
+  courting: () => parade.noticed > 0,
+  say: (name, lines) => !adieu.on && !remontee.on && narrator.say(name, lines),
+  sound: (k) => bruits.play(k)
+});
 
 // ----- loop ----- //
 
@@ -1458,7 +1473,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, retour, generique, traces, rivale, chant, lumieres, ponte, indices, remontee, ondes, vie,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, retour, generique, traces, rivale, chant, lumieres, ponte, indices, remontee, ondes, vie, jeux,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   musique, bruits,
