@@ -12,6 +12,11 @@ Les documents de conception : [vision](vision.md), [chapitres](chapitres.md), [m
 
 ## Étape 4 — Lignée
 
+### Les parents au-dessus de la portée
+> ⚪ à faire
+
+Prioritaire, petit. Dans l'écran de la portée (le choix entre les 4 enfants, `src/monde/portee-ecran.ts`), montrer **les deux parents en image** au-dessus des enfants : le parent (la créature jouée) et le partenaire, chacun avec son portrait (`snapshot3`, comme les enfants) et son nom, côte à côte, un peu plus petits que les enfants, avec un signe doux qui les relie (un « + », un fil de lumière dorée). On voit ainsi d'un coup d'œil d'où vient ce que chaque enfant a hérité (« de Première : … / de Méduse lune : … »). Garder l'écran lisible sur téléphone (petite hauteur : les parents plus petits, ou en bandeau) ; une capture avant/après dans le rapport.
+
 ### Grandir jusqu'à la maturité
 > ⚪ à faire
 
