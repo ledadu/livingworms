@@ -151,22 +151,27 @@ describe('the dance for two', () => {
       const st = d.steps.find((s) => s.dance)!;
       let faced = 0;
       for (let s = st.t0; s < st.t1; s += STEP) {
-        const f = facing(d, s), q = pose(d, s);
-        if (!f) continue;
-        faced++;
-        expect(f.a).toBe(q.b.x >= q.a.x ? 1 : -1);
-        expect(f.b).toBe(-f.a);
-        // even from the wrong side of its place
-        const v = wished(d, s, { x: q.a.x + 30 * f.a, y: q.a.y }, { x: q.b.x + 30 * f.b, y: q.b.y });
-        expect(v.a.x * f.a).toBeGreaterThanOrEqual(0);
-        expect(v.b.x * f.b).toBeGreaterThanOrEqual(0);
+        const q = pose(d, s);
+        // where they are: at their places, past them, or each on the other's side
+        for (const [ax, bx] of [[q.a.x, q.b.x], [q.a.x + 30 * Math.sign(q.a.x - q.b.x), q.b.x], [q.b.x, q.a.x]]) {
+          const A = { x: ax, y: q.a.y }, B = { x: bx, y: q.b.y }, f = facing(d, s, A, B);
+          if (!f) continue;
+          faced++;
+          expect(f.a).toBe(B.x > A.x ? 1 : -1);
+          expect(f.b).toBe(-f.a);
+          const v = wished(d, s, A, B);
+          expect(v.a.x * f.a).toBeGreaterThanOrEqual(0);
+          expect(v.b.x * f.b).toBeGreaterThanOrEqual(0);
+        }
       }
-      expect(faced).toBeGreaterThan(30);
+      expect(faced).toBeGreaterThan(90);
     }
-    // the waltz turns: no facing
+    // the waltz turns: no facing; nor one right above the other
     const w = newDanse({ x: 0, y: 500 }, { x: 140, y: 500 }, ['swim', 'swim'], 50, seeded(4), { dances: ['valse'] });
     const st = w.steps.find((s) => s.dance)!;
-    expect(facing(w, (st.t0 + st.t1) / 2)).toBe(null);
+    expect(facing(w, (st.t0 + st.t1) / 2, { x: 0, y: 500 }, { x: 140, y: 500 })).toBe(null);
+    const t = newDanse({ x: 0, y: 500 }, { x: 140, y: 500 }, ['swim', 'swim'], 50, seeded(4), { dances: ['twist'] }), ts = t.steps.find((s) => s.dance)!;
+    expect(facing(t, (ts.t0 + ts.t1) / 2, { x: 0, y: 500 }, { x: 5, y: 400 })).toBe(null);
   });
 
   it('knows a walker, a swimmer and a bell', () => {

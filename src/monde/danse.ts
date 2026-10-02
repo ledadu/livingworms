@@ -217,7 +217,7 @@ function inFigure(d: Danse, s: Step, u: number): { a: Pt; b: Pt; rise: number } 
         a = { x: rho * Math.cos(t), y: rho * flat * Math.sin(t) };
       } else {
         // face to face (close for a tango), coming closer over the first bar, then dancing where they are
-        const side = Math.cos(s.ang) >= 0 ? 1 : -1, gap = R * ((dc.floor === 'close' ? 0.4 : 0.62) + 0.3 * (1 - ease((u * dc.beats) / dc.bar)));
+        const side = Math.cos(s.ang) >= 0 ? 1 : -1, gap = R * ((dc.floor === 'close' ? 0.3 : 0.62) + 0.3 * (1 - ease((u * dc.beats) / dc.bar)));
         a = { x: side * gap, y: 0 };
       }
       break;
@@ -275,12 +275,15 @@ export function danceAt(d: Danse, s: number): { id: DanceId; t0: number } | null
   return st.dance ? { id: st.dance, t0: st.t0 } : null;
 }
 
-/** in a real dance face to face, once the two are there (after its blend): the way each faces (1: right), toward the
- * other; else null */
-export function facing(d: Danse, s: number): { a: 1 | -1; b: 1 | -1 } | null {
+/** the gap across under which two dancers, one above the other, need not turn to each other (px) */
+const ABOVE = 12;
+
+/** in a real dance face to face, once begun (after its blend), the two where they are: the way each faces (1: right),
+ * toward the other; else null */
+export function facing(d: Danse, s: number, a: Pt, b: Pt): { a: 1 | -1; b: 1 | -1 } | null {
   const st = stepAt(d, s);
-  if (!st.dance || DANCES[st.dance].floor === 'turn' || s - st.t0 < BLEND) return null;
-  const q = pose(d, s), right = q.b.x >= q.a.x;
+  if (!st.dance || DANCES[st.dance].floor === 'turn' || s - st.t0 < BLEND || Math.abs(b.x - a.x) < ABOVE) return null;
+  const right = b.x > a.x;
   return { a: right ? 1 : -1, b: right ? -1 : 1 };
 }
 
@@ -303,7 +306,7 @@ export function wished(d: Danse, s: number, a: Pt, b: Pt, keep: (p: Pt, who: 0 |
   };
   const va = go(a, now.a, next.a, MAX[d.styles[0]]), vb = go(b, now.b, next.b, MAX[d.styles[1]]);
   // in a real dance face to face, neither is told to go away from the other: it would turn its back on it
-  const f = facing(d, s);
+  const f = facing(d, s, a, b);
   if (f) {
     if (va.x * f.a < 0) va.x = 0;
     if (vb.x * f.b < 0) vb.x = 0;

@@ -218,10 +218,10 @@ export function initParade(deps: Deps) {
           deps.danse.play(c, id, { role: 0, beat: danse.beat, ago: cur.t - st.t0, hold: false });
           deps.danse.play(p0, id, { role: 1, beat: danse.beat, ago: cur.t - st.t0, hold: false, sound: false });
         }
-        const f = facing(danse, cur.t);
+        // led by where they swim, not by where the steps move them, and turned to each other
+        const at = { x: r.x[0] - c.gx, y: r.y[0] - c.gy }, us = { x: px - p0.gx, y: py - p0.gy }, f = facing(danse, cur.t, at, us);
         if (f) { faceTo(c, f.a); faceTo(p0, f.b); }
-        // led by where they swim, not by where the steps move them
-        const v = wished(danse, cur.t, { x: r.x[0] - c.gx, y: r.y[0] - c.gy }, { x: px - p0.gx, y: py - p0.gy }, (q, who) => deps.keep(q.x, q.y, who ? walks : floor));
+        const v = wished(danse, cur.t, at, us, (q, who) => deps.keep(q.x, q.y, who ? walks : floor));
         goal = v.a; cur.lead = v.b;
         wake(motes, cur.light, tick, { x: r.x[0], y: r.y[0] }, swimmer, 1);
         eau.dancer(c, 1, 0);

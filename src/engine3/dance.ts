@@ -72,9 +72,11 @@ function bend(c: Ctx, f: (u: number) => number): void {
   for (let p = 0; p < TRUNK; p++) c.g.bend[p] += k * f(p / (TRUNK - 1));
 }
 
-/** pitch (+: nose down), yaw and roll, the last two the other way for a mirrored dancer */
+/** pitch (+: nose down), yaw and roll, the last two the other way for a mirrored dancer; a bell, round all about,
+ * leans to a side for a roll */
 function head(c: Ctx, pitch: number, yaw: number, roll: number): void {
-  c.g.pitch += c.w * pitch; c.g.yaw += c.w * c.m * yaw; c.g.roll += c.w * c.m * roll;
+  c.g.pitch += c.w * (pitch + (c.k.bell ? c.m * roll : 0)); c.g.yaw += c.w * c.m * yaw;
+  if (!c.k.bell) c.g.roll += c.w * c.m * roll;
 }
 
 function shift(c: Ctx, x: number, y: number): void { c.g.x += c.w * c.m * x; c.g.y += c.w * y; }
