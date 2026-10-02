@@ -7,6 +7,7 @@ La carte des documents du jeu. On commence par la vision, puis on descend selon 
 - [Vision](vision.md) : le pitch, les trois piliers, ce qu'il n'y a pas, en une page.
 - [Chapitres](chapitres.md) : la trame en 10 chapitres, de la Nurserie à la Remontée, avec leurs obstacles, partenaires, notes et textes.
 - [Mécaniques](mecaniques.md) : la boucle d'un chapitre, la parade, la portée, les traits, le chant, l'arbre de la lignée, les ancêtres.
+- [L'animal](animal.md) : du corps aux aptitudes et aux capacités, lu par le jeu doux et par le futur jeu combatif (réflexion à discuter).
 - [Direction artistique et son](direction-artistique.md) : les décors, les palettes par chapitre, la musique et les bruits.
 
 ## Les choix

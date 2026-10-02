@@ -114,24 +114,24 @@ Même pour des sons libres de droit, nommer les personnes qui les ont publiés :
 
 ## Étape 7 — Nager et jouer avec la mer
 
-Le jeu reste doux, sans échec ni score. Cette partie prépare aussi la suite : l'animal façonné ici sera repris dans un jeu plus combatif, il lui faut une vraie nage et une fiche qui le décrit.
+Le jeu reste doux, sans échec ni score. Cette partie prépare aussi la suite : l'animal façonné ici sera repris dans un jeu plus combatif, il lui faut une vraie nage et une fiche qui le décrit. Du corps aux aptitudes et aux capacités, pour les deux jeux : [animal.md](animal.md).
 
 ### La nage : accélération et élan
 > ⚪ à faire
 
-Une meilleure façon de se déplacer pour la créature jouée : une **accélération** (un geste simple : double toucher, ou maintenir ; une touche au clavier) qui donne un élan rapide, puis se recharge seule ; de l'**élan et de l'inertie** (on glisse après l'accélération, les virages se prennent en courbe) sans perdre la facilité de pilotage gagnée avec « deplacement relou » (`src/engine3/pilot.ts`). La force et la durée de l'élan viennent du corps (nageoires, cloche, jet, pattes). Agréable sur téléphone comme à la souris ; le corps garde son allure (un poisson bat plus vite de la queue, une cloche pulse plus fort).
+Une meilleure façon de se déplacer pour la créature jouée : une **accélération** (un geste simple : double toucher, ou maintenir ; une touche au clavier) qui donne un élan rapide, puis se recharge seule ; de l'**élan et de l'inertie** (on glisse après l'accélération, les virages se prennent en courbe) sans perdre la facilité de pilotage gagnée avec « deplacement relou » (`src/engine3/pilot.ts`). La force et la durée de l'élan viennent du corps (nageoires, cloche, jet, pattes). Agréable sur téléphone comme à la souris ; le corps garde son allure (un poisson bat plus vite de la queue, une cloche pulse plus fort). Voir [animal.md](animal.md).
 
 ### Les capacités de nage par corps
 > ⚪ à faire
 > ↳ après « La nage : accélération et élan »
 
-Chaque manière de nager a sa capacité, qui donne envie de choisir une espèce pour elle : un **jet** qui fuse loin d'un coup, une **cloche** qui plane et descend lentement, un **marcheur** qui bondit depuis le fond, un **poisson** vif dans les virages, une **anguille** qui se glisse dans les passages étroits. Déclenchées par le même geste que l'accélération, selon le corps. Elles peuvent servir aux obstacles des chapitres (sans en devenir la seule clé), et se voient dans l'écran de la portée (ce qu'un enfant saura faire).
+Chaque manière de nager a sa capacité, qui donne envie de choisir une espèce pour elle : un **jet** qui fuse loin d'un coup, une **cloche** qui plane et descend lentement, un **marcheur** qui bondit depuis le fond, un **poisson** vif dans les virages, une **anguille** qui se glisse dans les passages étroits. Déclenchées par le même geste que l'accélération, selon le corps. Elles peuvent servir aux obstacles des chapitres (sans en devenir la seule clé), et se voient dans l'écran de la portée (ce qu'un enfant saura faire). Voir [animal.md](animal.md).
 
 ### La fiche de l'animal
 > ⚪ à faire
 > ↳ après « Les capacités de nage par corps »
 
-Ce que le jeu doux façonne, c'est un animal, qui sera repris dans un jeu plus combatif : il lui faut une **fiche** propre, lisible par un autre programme. Son corps (l'espèce et ses pièces, comme aujourd'hui), ses traits, et des **mesures calculées d'après son corps** : vitesse, accélération, agilité, endurance, taille, régime, capacités. Pas de chiffres dans le jeu doux (ou très discrets, dans l'arbre des espèces) ; un format versionné et documenté (`docs/`), exportable (un fichier ou un lien depuis l'arbre de la lignée), testé. Proposer le format et poser la question par le tableau de bord pour ce que le jeu suivant devra en lire.
+Ce que le jeu doux façonne, c'est un animal, qui sera repris dans un jeu plus combatif : il lui faut une **fiche** propre, lisible par un autre programme. Son corps (l'espèce et ses pièces, comme aujourd'hui), ses traits, et des **mesures calculées d'après son corps** : vitesse, accélération, agilité, endurance, taille, régime, capacités. Pas de chiffres dans le jeu doux (ou très discrets, dans l'arbre des espèces) ; un format versionné et documenté (`docs/`), exportable (un fichier ou un lien depuis l'arbre de la lignée), testé. Proposer le format et poser la question par le tableau de bord pour ce que le jeu suivant devra en lire. Voir [animal.md](animal.md).
 
 ### Le courant à surfer
 > ⚪ à faire
