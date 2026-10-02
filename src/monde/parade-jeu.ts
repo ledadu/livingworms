@@ -1,7 +1,8 @@
 // The parade in the world (parade.ts for its rules): a partner of the chapter notices us when we stay near it, then
 // leads the dance; its wake shines, and ours takes its colours when we swim in time with it. Once we have danced a
 // while, « S'accoupler » shows above it (accoupler.ts): when we choose, the two dance on their own for a few seconds
-// (danse.ts), then a figure of light as rich as the parade was good, and the result for the litter (onEnd, last).
+// (danse.ts), its real dances played on both bodies (danse-jeu.ts), then a figure of light as rich as the parade was
+// good, and the result for the litter (onEnd, last).
 // The lights of each parade are drawn from the genes of the two dancers and a little chance (lueur.ts). The dance
 // happens in a patch of water that the dancers stir and that carries their light (parade-eau.ts): the wakes curl,
 // the figure blooms like ink. Swimming away before we mate, we leave the parade: the partner lets us go.
@@ -11,7 +12,9 @@ import type { Creature3 } from '../engine3/creature3';
 import type { Proj, View } from '../engine3/view';
 import { SPECIES } from '../content';
 import { LEAVE_TIME, READY_NEAR, START_HOLD, START_NEAR, approach, away, lead, newParade, partsOf, quality, ready, stepParade, type Parade, type Parts, type Pt } from './parade';
-import { figuresOf, newDanse, over, styleOf, wished, type Danse } from './danse';
+import { danceAt, facing, figuresOf, newDanse, over, signature, stepAt, styleOf, wished, type Danse } from './danse';
+import { faceTo, type DanseGame } from './danse-jeu';
+import type { DanceId } from '../engine3/dance';
 import { initAccoupler } from './accoupler';
 import { env } from './sprites';
 import { Motes, burst, genesOf, lueurOf, notice, wake, type Lueur } from './lueur';
@@ -42,6 +45,8 @@ interface Deps {
   keep(x: number, y: number, floor: boolean): Pt;
   /** while this is true (words on the screen, a panel open), no partner notices us */
   quiet?(): boolean;
+  /** the dances, played on the two bodies during the dance for two, on the beat of the chapter */
+  danse?: DanseGame;
 }
 
 /** the length of a body, for the room of the dance */
@@ -63,7 +68,11 @@ export function initParade(deps: Deps) {
     called: boolean;
     /** the dance for two, once we chose to mate, its time (s), and where the swimmer is led */
     danse: Danse | null; t: number; lead: Pt | null;
+    /** the figure whose steps the two are dancing (its start, s) */
+    show: number;
   } | null = null;
+  /** the dance for two before (never the same twice in a row), and real dances forced for the next one (tests) */
+  let lastDanse: string | null = null, forceDances: DanceId[] | null = null;
   /** the light of the last parade (its figures come back rarely), and figures forced for the next one (tests) */
   let light: Lueur | null = null, force: Partial<Lueur> | null = null;
   let last: ParadeResult | null = null;
@@ -82,7 +91,7 @@ export function initParade(deps: Deps) {
     const pace = Math.min(1.9, Math.max(1.1, sp.swim.speed * 0.9));
     light = lueurOf(genesOf(sp, a.cr.list), genesOf(player.spec, player.list), Math.random, light);
     if (force) { light = { ...light, ...force }; force = null; }
-    cur = { a, p: newParade({ x: r.x[0], y: r.y[0] }, { x: pr.x[0], y: pr.y[0] }, pace), z0: a.z, id: idOf(sp), chapter: deps.chapter(), light, away: 0, called: false, danse: null, t: 0, lead: null };
+    cur = { a, p: newParade({ x: r.x[0], y: r.y[0] }, { x: pr.x[0], y: pr.y[0] }, pace), z0: a.z, id: idOf(sp), chapter: deps.chapter(), light, away: 0, called: false, danse: null, t: 0, lead: null, show: -1 };
     // the water around the figure of eight, calm, and the colours of its light
     eau.place(cur.p.ax, cur.p.ay);
     eau.colours(light.hues[0], light.hues[1] ?? light.hues[0]);
@@ -104,8 +113,11 @@ export function initParade(deps: Deps) {
     const { a } = cur, r = a.cr.root, pr = player.root;
     cur.p.done = true;
     cur.danse = newDanse({ x: r.x[0], y: r.y[0] }, { x: pr.x[0], y: pr.y[0] },
-      [styleOf(a.cr.spec.swim.mode, a.kind === 'floor'), styleOf(player.spec.swim.mode, false)], (sizeOf(a.cr) + sizeOf(player)) / 2);
-    cur.t = 0;
+      [styleOf(a.cr.spec.swim.mode, a.kind === 'floor'), styleOf(player.spec.swim.mode, false)], (sizeOf(a.cr) + sizeOf(player)) / 2,
+      Math.random, { beat: deps.danse?.beatAt(r.x[0]), last: lastDanse, dances: forceDances ?? undefined });
+    lastDanse = signature(cur.danse);
+    forceDances = null;
+    cur.t = 0; cur.show = -1;
     button.place(null);
   }
 
@@ -148,7 +160,7 @@ export function initParade(deps: Deps) {
     get state() {
       return cur && {
         partner: cur.id, time: cur.p.time, sync: cur.p.sync, quality: quality(cur.p), parts: partsOf(cur.p),
-        ready: ready(cur.p), canMate: canMate(), dance: cur.danse && { time: cur.t, length: cur.danse.time, figures: figuresOf(cur.danse) }
+        ready: ready(cur.p), canMate: canMate(), dance: cur.danse && { time: cur.t, length: cur.danse.time, figures: figuresOf(cur.danse), beat: cur.danse.beat, dancing: danceAt(cur.danse, cur.t)?.id ?? null }
       };
     },
     /** we are dancing for two: the swimmer is not ours */
@@ -169,6 +181,8 @@ export function initParade(deps: Deps) {
     water: eau,
     /** figures forced for the next parade (tests, captures): { wake, burst, echo, hues… } */
     forceLight(o: Partial<Lueur> | null) { force = o; },
+    /** the real dances of the next dance for two, in order (tests, captures) */
+    forceDances(ids: DanceId[] | null) { forceDances = ids; },
     /** how far a partner has noticed us (0..1) */
     get noticed() { return Math.min(1, hold / START_HOLD); },
     /** is this animal led by the parade (its goal is `goal`) */
@@ -197,7 +211,17 @@ export function initParade(deps: Deps) {
         const { a, danse } = cur, c = a.cr, r = c.root, floor = a.kind === 'floor', walks = danse.styles[1] === 'walk';
         cur.t += STEP;
         if (over(danse, cur.t)) { cur.lead = null; finish(); return; }
-        const v = wished(danse, cur.t, { x: r.x[0], y: r.y[0] }, { x: px, y: py }, (q, who) => deps.keep(q.x, q.y, who ? walks : floor));
+        // a real dance: its steps on both bodies, the partner leading, we answer; face to face, the greeting
+        const st = stepAt(danse, cur.t), id = st.dance ?? (st.fig === 'face' ? 'salut' : null);
+        if (deps.danse && id && cur.show !== st.t0) {
+          cur.show = st.t0;
+          deps.danse.play(c, id, { role: 0, beat: danse.beat, ago: cur.t - st.t0, hold: false });
+          deps.danse.play(p0, id, { role: 1, beat: danse.beat, ago: cur.t - st.t0, hold: false, sound: false });
+        }
+        const f = facing(danse, cur.t);
+        if (f) { faceTo(c, f.a); faceTo(p0, f.b); }
+        // led by where they swim, not by where the steps move them
+        const v = wished(danse, cur.t, { x: r.x[0] - c.gx, y: r.y[0] - c.gy }, { x: px - p0.gx, y: py - p0.gy }, (q, who) => deps.keep(q.x, q.y, who ? walks : floor));
         goal = v.a; cur.lead = v.b;
         wake(motes, cur.light, tick, { x: r.x[0], y: r.y[0] }, swimmer, 1);
         eau.dancer(c, 1, 0);

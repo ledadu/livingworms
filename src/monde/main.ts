@@ -48,6 +48,7 @@ import { createPortee } from './portee-ecran';
 import { KEYS, OBSTACLE, crosses } from './obstacles';
 import { brood } from '../content/portee';
 import { initParade } from './parade-jeu';
+import { initDanse } from './danse-jeu';
 import { initAdieu, testChild } from './adieu-jeu';
 import { mateFor } from './arbre';
 import { initArbre } from './arbre-ecran';
@@ -406,8 +407,11 @@ const limits = newLimits();
 const keys = createKeys(limits, () => player.cr.spec);
 let bounds = keys.bounds();
 
+// the dances (danse-jeu.ts): steps laid over the swim, on the beat of the chapter's music
+const danse = initDanse({ swimmer: () => player.cr, pan: (x, y) => panOnScreen(view.project(x, y, 0, heardAt).x, view.W) });
 // the parade with a partner of the chapter (parade-jeu.ts): it leads, we follow
 const parade = initParade({
+  danse,
   chapter: () => BIOMES[biomeIndex(player.cr.root.x[0])].id,
   quiet: () => paused || portee.isOpen || adieu.on || remontee.on || chant.isOpen || !!document.getElementById('chapter')?.classList.contains('show'),
   keep: (x, y, floor) => {
@@ -445,6 +449,7 @@ const counts = { near: 0, live: 0, plants: 0, items: 0 };
 
 function update(): void {
   t += STEP;
+  danse.step(t);
   const p = player.cr, r = p.root, f = input.follow, kd = input.keyDir(), lead = adieu.lead(t) ?? remontee.lead(t) ?? parade.lead();
   if (lead) steer(player, lead.x, lead.y, 0.06);
   else if (auto.on) {
@@ -488,6 +493,7 @@ function update(): void {
     nNear++;
     const c = a.cr, cr = c.root, x = cr.x[0], y = cr.y[0];
     if (parade.leads(a)) { steer(a, parade.goal.x, parade.goal.y, 0.06); collide(c); continue; }
+    if (danse.holds(c)) { steer(a, 0, 0, 0.05); collide(c); continue; }
     if (a.kind === 'rival') {
       const v = rivale.goal(c, t, { x: px, y: py });
       steer(a, v.x, v.y, 0.05);
@@ -1461,7 +1467,7 @@ export const api = {
   biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, retour, generique, traces, rivale, chant, lumieres, ponte, indices, remontee, ondes, vie,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
-  musique, bruits,
+  musique, bruits, danse,
   get dpr() { return dpr; },
   get size() { return [W, H, canvas.width, canvas.height]; },
   setFrameHook: (f: typeof onFrame) => { onFrame = f; },
@@ -1512,6 +1518,8 @@ porteeBtn.addEventListener('click', () => {
 const generiqueBtn = document.getElementById('generiqueBtn')!;
 generiqueBtn.hidden = !travelShown(location.search);
 generiqueBtn.addEventListener('click', () => { panel.hidden = true; generique.play(); });
+// each dance played on the swimmer, for the tests (?dev)
+if (travelShown(location.search)) danse.devList(generiqueBtn, () => player.cr, () => { panel.hidden = true; });
 const benchOut = document.getElementById('benchOut')!;
 document.getElementById('benchBtn')!.addEventListener('click', () => { panel.hidden = true; void runBench(api, benchOut); });
 for (const el of [panel, gear, benchOut, document.getElementById('atBtn')!]) for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'wheel']) el.addEventListener(ev, (e) => e.stopPropagation());
