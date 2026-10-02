@@ -113,7 +113,7 @@ Le jeu guide vers le bon partenaire, sans flèche ni chiffre, dans la voix de la
   - Le texte d'adieu du chapitre arrive (une ouverture de chapitre attend qu'il s'efface).
   - L'enfant s'écarte un peu, sans hâte, vers la suite de la descente (300 px visés, au pas) ; ses frères et sœurs, sortis de leurs œufs juste après lui, restent autour et vivent leur vie là où ils sont nés. Le parent se penche un peu vers lui, s'arrête et le regarde. La caméra rend la vue peu à peu, autour de l'enfant, le parent encore dans le cadre.
   - On reprend la main dès que l'enfant est à 170 px du parent (`APART`), ou au bout de 9 s ; le texte finit de s'effacer pendant qu'on nage, et c'est nous qui partons, à notre rythme.
-  - Le parent nous regarde partir sans nous suivre, tant qu'on est à moins de 520 px (`GONE`, `watchGoal`). Ensuite il reste là où on l'a quitté, d'une visite à l'autre (voir « Les ancêtres ») : il y dérive doucement, et quand on revient il se tourne vers nous et vient un peu à notre rencontre, jusqu'à 90 px de nous (`ROOM`). Les larves-sœurs de la première génération restent avec lui.
+  - Le parent nous regarde partir, puis, la scène finie, il nage avec nous comme un ami, avec le partenaire de la parade s'il nage assez bien pour suivre, tant qu'on reste dans leur chapitre (voir « Les amis qui suivent »). Quand on le quitte, il reste là où on l'a quitté, d'une visite à l'autre (voir « Les ancêtres ») : il y dérive doucement, et quand on revient il se tourne vers nous et vient un peu à notre rencontre, jusqu'à 90 px de nous (`ROOM`). Les larves-sœurs de la première génération restent avec lui.
   - La naissance est enregistrée dans la partie (`partie.born`).
   - Pour l'essayer : `monde.farewell(enfant)` ; sans enfant, un enfant d'essai est fait par `fuse` avec la première espèce du chapitre. En jeu, le choix d'un enfant de la portée la lance ; la parade ne commence pas pendant la scène, et aucun autre texte (celui d'un obstacle, une ouverture) ne passe par-dessus l'adieu.
 
@@ -236,6 +236,31 @@ Une forme choisie peut déplaire (une nage pénible, un aspect qui ne nous va pa
   - Chaque trace est dessinée une seule fois, à la première approche (quelques millisecondes), puis seulement relavée par l'eau.
   - Pour les tests : `monde.traces.list` (les traces, avec leur position), `monde.skip.add('trace')` (sans elles, pour des captures avant / après).
 - À la Remontée, tous les ancêtres remontent avec toi, en formation : chacun vient avec la note qu'il a apprise, puis la lignée remonte en V derrière toi (voir [chapitres.md](chapitres.md#10-la-remontée-du-fond-à-la-surface)).
+
+## Les amis qui suivent
+
+Un petit animal avec qui l'on a passé un moment nous suit, et nos parents aussi après une naissance : un compagnon de la génération, qui nage autour de nous de chapitre en chapitre, chante avec nous, nous montre parfois quelque chose, et reste dans le monde quand la génération change, comme les ancêtres.
+
+- **Le lien** : il se tisse, sans rien à l'écran, avec chaque petit nageur proche (pas une méduse, ni un jet, ni un marcheur, ni un partenaire ; assez vif pour nous suivre, pas plus long que 150 px). Rester calme près d'un animal venu nous regarder le tisse le plus vite (une dizaine de secondes) ; partager un festin près de lui, ou regarder de près une autre de ses scènes, le tisse plus lentement ; un animal qui répond à notre chant y gagne d'un coup. Un petit jeu des animaux joué jusqu'à son cadeau (le chat, le banc qui nous emmène : [direction artistique](direction-artistique.md#les-petits-jeux-des-animaux)) en fait aussitôt un ami, le poisson avec qui l'on a joué ou le meneur du banc, s'il peut nous suivre (le poulpe caché, non). Foncer sur lui le défait ; loin de nous, il s'efface peu à peu. Rien ne se tisse pendant une parade, un adieu, la Remontée ou une portée.
+- **L'ami** : quand le lien est plein, l'animal devient l'ami de la génération. Il s'illumine trois fois de sa couleur (jamais l'or des partenaires), chante la note de son chapitre et la lignée le dit, sous le nom de son espèce. Un seul ami par génération.
+- **Il nous suit** : quand on nage, à côté de nous, un peu en arrière, de son côté ; quand on s'arrête, il tourne lentement autour de nous. Il presse l'allure s'il reste en arrière, et revient près de nous après un voyage ou un rechargement. Pendant une parade ou un adieu, il nous laisse de la place. Près de nous, une faible lueur de sa couleur respire, pour qu'on le reconnaisse.
+- **Il chante avec nous** : chaque note de notre chant, il la reprend juste après nous, une octave plus haut, avec la lumière de la note.
+- **Il nous montre** : une demi-minute après être devenu notre ami, puis toutes les minute à minute et demie, il part devant (jamais à plus de 280 px de nous : il nous attend, tourné vers nous) vers une trace de la lignée qu'on n'a pas encore vue dans les environs, sinon vers un coin un peu plus loin où, quand on l'y rejoint, de la nourriture tombe et les animaux viennent. Sa lueur s'avive pendant qu'il nous mène.
+- **Les parents** (choix de l'utilisateur) : après une naissance, une fois la scène de l'adieu finie, les deux parents nagent avec l'enfant comme des amis : le parent qu'on était, et le partenaire de la parade s'il nage assez bien pour suivre (un poisson, pas une cloche, un jet ni un marcheur). Ils ont leur lueur et chantent avec nous, mais ne nous mènent nulle part. Quand on quitte leur chapitre, le parent reste là où on le quitte, parmi les ancêtres (sa place est gardée dans la sauvegarde, comptée depuis le début de son chapitre), et le partenaire retourne à sa vie. Une autre naissance avant cela les remplace par les nouveaux parents.
+- **Quand la génération change** (une naissance, une forme reprise dans l'arbre), il reste où il est, gardé dans la sauvegarde avec sa place. La première fois qu'on repasse près de lui dans une visite, il nous reconnaît : trois éclats, sa note, les mots de la lignée, et il nage avec nous un moment avant de retourner chez lui.
+- **Ce qui n'y entre pas** : il ne joue plus les scènes de la vie des animaux et ne répond plus au chant comme les autres (il le chante avec nous). Il ne joue plus aux petits jeux non plus.
+
+Les mots de la lignée (*propositions*) :
+
+Un ami :
+
+> Il est resté près de nous. Il nage avec nous, maintenant. Nous ne sommes plus tout à fait seuls.
+
+Retrouvailles :
+
+> Il nous a reconnus. Ce n'est plus la même génération, mais c'est la même lignée.
+
+- **Dans le code** : les règles dans `src/monde/amis.ts` (pures, testées), le jeu dans `amis-jeu.ts`, branché par `main.ts` (le genre d'acteur `ami`) ; la sauvegarde dans `partie.ts` (`friends` : l'id de l'espèce dans le bestiaire, la génération, et une fois celle-ci finie le chapitre et la place, comme les ancêtres). Pour les tests : `monde.amis.list` (les amis, leur rôle : `friend`, `old` ou `parent`, où), `monde.amis.bonds` (les liens qui se tissent), `monde.amis.befriend(acteur)`, `monde.amis.played(créature, monde.actors)` (la fin d'un petit jeu, `jeux.onPlayed`), `monde.amis.show()`, `monde.partie.friends`, et la couche `ami` de `monde.skip` (sans leur lueur).
 
 ## Contrôles et interface
 

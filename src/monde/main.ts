@@ -69,6 +69,7 @@ import { initReglagesSon } from './son-reglages';
 import { initOndes } from './ondes-jeu';
 import { initVie } from './vie-jeu';
 import { initJeux } from './jeux-jeu';
+import { initAmis } from './amis-jeu';
 import { initBruits } from './bruits-son';
 import { panOnScreen } from './ecoute';
 import { bubblingAt, currentNear, springTrains } from './bruits';
@@ -150,7 +151,7 @@ const causticCv = causticTile(256, 7, 5);
 const caustic = ctx.createPattern(causticCv, 'repeat')!;
 
 interface Actor {
-  cr: Creature3; kind: 'player' | 'swim' | 'floor' | 'surface' | 'sib' | 'parent' | 'rival' | 'answer' | 'ancestor';
+  cr: Creature3; kind: 'player' | 'swim' | 'floor' | 'surface' | 'sib' | 'parent' | 'rival' | 'answer' | 'ancestor' | 'ami';
   z: number; hx: number; hy: number; tx: number; ty: number; next: number;
   buf: HTMLCanvasElement | null;
   /** last baked image and the frame it was made (far animals are re-baked only every few frames) */
@@ -476,6 +477,7 @@ function update(): void {
   lumieres.step({ x: px, y: py }, t);
   vie.step(t, p, actors);
   jeux.step(t, p, actors);
+  amis.step(t, p, actors);
   retour.step();
 
   flow.clear();
@@ -514,6 +516,13 @@ function update(): void {
       const v = remontee.follow(c, t);
       steer(a, v.x, v.y, 0.06);
       remontee.carry(c);
+      collide(c);
+      continue;
+    }
+    if (a.kind === 'ami') {
+      const v = amis.goal(c, t);
+      steer(a, v.x, v.y, 0.05);
+      remontee.carry(c, true);
       collide(c);
       continue;
     }
@@ -644,6 +653,7 @@ function render(): void {
   rivale.lights(view, lights, P, t, { x: pr.x[0], y: pr.y[0] });
   if (!skip.has('answer')) lumieres.lights(view, lights, P, t);
   retour.lights(view, lights, P);
+  if (!skip.has('ami')) amis.lights(view, lights, P, t);
   if (gx) {
     const [r, g, b] = hsl01(m.deep.h, m.deep.s, m.deep.l);
     gx.begin(r, g, b);
@@ -1248,7 +1258,8 @@ function farewell(child?: Spec, mate?: Spec, from?: { x: number; y: number }, si
   const sp = child ?? testChild(old.spec, mate ??= SPECIES[BIOMES[bi].fauna[0][0]]());
   // the siblings stay with it
   for (const a of actors) if (a.kind === 'sib') { a.kind = 'swim'; a.hx = x; a.hy = y; }
-  actors.push({ cr: old, kind: 'parent', z: 0, hx: x, hy: y, tx: x, ty: y, next: 0, buf: null, spr: null, bakedAt: -99 });
+  const left: Actor = { cr: old, kind: 'parent', z: 0, hx: x, hy: y, tx: x, ty: y, next: 0, buf: null, spr: null, bakedAt: -99 };
+  actors.push(left);
   const at = from ?? { x: x - 60, y: Math.min(y + 40, floorAt(x - 60, 0) - 30) };
   const cr = new Creature3(sp, at.x, at.y, 0, { dir: { x: 1, y: 0, z: 0 }, scale: 0.8 * size });
   for (let i = 0; i < 60; i++) cr.update(i * STEP, 0, 0, 0, 0.1);
@@ -1257,6 +1268,8 @@ function farewell(child?: Spec, mate?: Spec, from?: { x: number; y: number }, si
   // a new game has not saved its first creature yet: it is the parent all the same
   if (!partie.creature) partie.becomes(old.spec);
   partie.born(sp, BIOMES[bi].id, mate && mateFor(mate), placeOf(x, y, BIOMES[bi].x0));
+  // once the farewell is over, the two parents swim with the child for the rest of their chapter (amis-jeu.ts)
+  amis.born(left, actors.find((a) => a.cr.spec === mate) ?? null, balade.on ? null : partie.lineage.length - 1);
   return cr;
 }
 // the parents left in earlier visits swim where they were left (ancetres.ts); the first one's siblings stay with it
@@ -1372,6 +1385,30 @@ const jeux = initJeux({
   sound: (k) => bruits.play(k)
 });
 
+// ----- the friends who follow (amis-jeu.ts) ----- //
+
+// a little swimmer we kept company with follows the generation, sings with us, shows us things, and stays when it ends
+const amis = initAmis({
+  partie, species: (id) => (SPECIES[id] ? SPECIES[id]() : null), idOf: (sp) => mateFor(sp).id,
+  add: (sp, x, y) => addActor(sp, x, y, 'ami', 0.8), actOf: (a) => vie.actOf(a as Actor),
+  traces: () => traces.list.map((q) => ({ x: q.x, y: q.y, seen: q.toldAt > 0 })),
+  feast: (at) => vie.feast(actors, at), sing: (cr, c) => chant.echo(cr, c),
+  say: (name, lines) => !adieu.on && !remontee.on && !narrator.quiet() && !chapterEl.classList.contains('show') && narrator.say(name, lines),
+  aside: () => parade.active || adieu.on,
+  busy: () => paused || parade.active || adieu.on || remontee.on || portee.isOpen,
+  keep: (q) => ({ x: q.x, y: clamp(q.y, Math.max(40, ceilAt(q.x, 0) + 50), floorAt(q.x, 0) - 60) }),
+  parentStays: (cr, home, k) => {
+    adieu.stay(cr, home);
+    // counted from the start of the chapter where it gave birth, like its place left at the farewell
+    const c = BIOMES.find((b) => b.id === partie.lineage[k ?? -1]?.chapter);
+    if (k !== null && c) partie.placeAncestor(k, placeOf(home.x, home.y, c.x0));
+  }
+});
+chant.onNote((c) => amis.hear(c));
+chant.onLight((kind, _, cr) => { if (kind === 'answer') amis.answered(cr, actors); });
+// a little game played to its gift makes a friend of the animal we played with
+jeux.onPlayed((cr, gift) => { if (gift) amis.played(cr, actors); });
+
 // ----- loop ----- //
 
 let last = performance.now(), acc = 0, fn = 0, fsum = 0;
@@ -1473,7 +1510,7 @@ function clearCrowd(): void {
 
 export const api = {
   settings, opts, detail, onlySp, player, stats, counts, jardin, actors, plants, rocks, decor, view, input, timeScale, skip, lockQuality, auto, front, frontCount,
-  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, retour, generique, traces, rivale, chant, lumieres, ponte, indices, remontee, ondes, vie, jeux,
+  biomes: BIOMES, narrator, limits, keys, get bounds() { return bounds; }, carcasse: CARCASSE, fosse, partie, parade, teleport, gotoBiome, spawnCrowd, clearCrowd, spawn, floorAt, becomes, portee, openPortee, farewell, adieu, arbre, retour, generique, traces, rivale, chant, lumieres, ponte, indices, remontee, ondes, vie, jeux, amis,
   setQuality: (q: number) => { quality = q; resize(); },
   renderer, gfx: gx, setBias, get bias() { return bias; }, get quality() { return quality; }, lodCount,
   musique, bruits,
