@@ -189,7 +189,7 @@ Des animaux qui jouent avec nous, sans enjeu : un poisson qui joue à chat (il n
 Des choses rares à trouver dans chaque chapitre : une perle, une coquille ancienne, une fleur qui ne s'ouvre que si l'on chante, un fossile dans la Carcasse, un cristal dans le Glacier. Un **carnet** les garde (ouvert depuis les réglages ou l'arbre), avec un mot de la lignée sur chacun ; ceux qu'on n'a pas encore trouvés y sont des silhouettes. Gardé dans la sauvegarde. On collectionne, rien ne presse.
 
 ### Les amis qui suivent
-> 🔵 en cours · agent amis-qui-suivent
+> 🟠 fusionné · agent amis-qui-suivent
 
 Un petit animal qu'on a nourri, aidé ou avec qui on a joué nous suit un moment, et peut-être d'un chapitre à l'autre : un compagnon de la génération, qui nage autour de nous, chante avec nous, nous montre parfois un trésor ou une nourriture. Il reste dans le monde quand on change de génération, comme les ancêtres.
 
