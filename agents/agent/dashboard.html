@@ -158,7 +158,7 @@
 <body>
 <header>
   <h1>Agents __PROJECT__</h1>
-  <nav class="site"><a href="/">Accueil</a><a href="/agents">Agents</a><a href="/journal">Journal</a><a href="/versions">Versions</a><a href="/roadmap">Backlog</a><a href="/questions">Questions</a></nav><script>document.querySelector(`nav.site a[href="${location.pathname}"]`)?.classList.add('on');</script>
+  <nav class="site"><a href="/">Accueil</a><a href="/agents">Agents</a><a href="/journal">Journal</a><a href="/versions">Versions</a><a href="/roadmap">Backlog</a><a href="/questions">Questions</a><a href="/notifications" title="Notifications sur ton téléphone">🔔</a></nav><script>document.querySelector(`nav.site a[href="${location.pathname}"]`)?.classList.add('on');</script>
   <a class="btn" href="/roadmap?refresh=1" title="Relire __BACKLOG__, voir les chantiers nouveaux et en mettre en file">⟳ Rafraîchir le backlog</a>
   <span class="summary" id="summary">…</span>
   <span class="spacer"></span>
@@ -221,7 +221,7 @@ try {
 // /versions opens on the versions tabs.
 if (location.pathname === '/versions' && !/^(pending|released|branches|v:)/.test(currentTab)) currentTab = 'pending';
 // /agents opens on the tasks (their versions tabs have /versions); ?tab=… picks a tab, from the links of the home page.
-if (location.pathname === '/agents' && /^(pending|released|branches|v:)/.test(currentTab)) currentTab = 'active';
+if (location.pathname.startsWith('/agents') && /^(pending|released|branches|v:)/.test(currentTab)) currentTab = 'active';
 const askedTab = new URLSearchParams(location.search).get('tab');
 if (askedTab && /^(active|pending|released|branches|v:[\d.]+)$/.test(askedTab)) currentTab = askedTab;
 

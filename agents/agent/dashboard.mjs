@@ -24,6 +24,8 @@ import { markQueue, readQueue } from './roadmap.mjs';
 import { readSettings, writeSettings } from './settings.mjs';
 import { push, pushPlan } from '../release/push.mjs';
 import { dashboardToken, guard } from './access.mjs';
+import { EVENTS, DEFAULT_SETTINGS, notifier as makeNotifier, publicDevice, readDevices, removeDevice, subscribe, updateDevice, vapidKeys } from './notify.mjs';
+import { watchEvents } from './notify-events.mjs';
 import { briefPath, project, renderPage, renderText } from '../config.mjs';
 
 const run = promisify(execFile);
@@ -639,6 +641,10 @@ const hub = createHub({ port, root: mainRoot, snapshot: () => latest, page: page
 // (access.mjs).
 const token = dashboardToken(registry);
 
+// Notifications on the phone (notify.mjs, notify-events.mjs, /notifications): what happens around the agents, every 10 s.
+const notifier = makeNotifier(registry);
+if (!process.env.AGENTS_NO_NOTIFY) watchEvents({ registry, runsRegistry, root: mainRoot, notifier });
+
 createServer((request, response) => {
   if (guard(request, response, token)) return;
   handle(request, response).catch((error) => {
@@ -648,6 +654,57 @@ createServer((request, response) => {
   });
 }).listen(port, () => console.log(`agents dashboard: http://localhost:${port} (from another machine: its token once, ?token=…, see make agent-dashboard-token)`));
 
+// « 🔔 Notifications » : the page, the service worker, and the devices with their settings.
+async function notifyRoutes(path, request, response, json) {
+  if (path === '/notifications') {
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+    response.end(pageFile('notifications.html'));
+    return true;
+  }
+  if (path === '/sw.js') {
+    response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-cache', 'service-worker-allowed': '/' });
+    response.end(readFileSync(join(here, 'sw.js'), 'utf8'));
+    return true;
+  }
+  if (!path.startsWith('/api/notify')) return false;
+  const post = request.method === 'POST';
+  const body = post ? await new Promise((done) => {
+    let text = '';
+    request.on('data', (chunk) => (text += chunk));
+    request.on('end', () => {
+      try {
+        done(JSON.parse(text || '{}'));
+      } catch {
+        done({});
+      }
+    });
+  }) : {};
+  try {
+    if (path === '/api/notify' && !post) {
+      const agents = readdirSync(registry).filter((file) => file.endsWith('.env')).map((file) => file.slice(0, -4)).filter((name) => readEnv(join(registry, `${name}.env`)).AGENT_KIND !== 'release');
+      json({ ok: true, publicKey: vapidKeys(registry).publicKey, events: EVENTS, defaults: DEFAULT_SETTINGS, devices: readDevices(registry).map(publicDevice), agents });
+      return true;
+    }
+    if (path === '/api/notify/subscribe' && post) {
+      const origin = request.headers.origin || `https://${request.headers['x-forwarded-host'] || request.headers.host}`;
+      json({ ok: true, device: publicDevice(subscribe(registry, { ...body, origin })) });
+      return true;
+    }
+    const device = /^\/api\/notify\/device\/([0-9a-f]{16})(?:\/(remove|test))?$/.exec(path);
+    if (device && post) {
+      const [, id, action] = device;
+      if (action === 'remove') (removeDevice(registry, id), json({ ok: true }));
+      else if (action === 'test') json(await notifier.test(id));
+      else json({ ok: true, device: publicDevice(updateDevice(registry, id, body)) });
+      return true;
+    }
+    json({ ok: false, error: 'route inconnue' });
+  } catch (error) {
+    json({ ok: false, error: error.message });
+  }
+  return true;
+}
+
 async function handle(request, response) {
   const path = new URL(request.url ?? '/', 'http://localhost').pathname;
   if (await handleQuestions(request, response, registry)) return;
@@ -656,6 +713,7 @@ async function handle(request, response) {
     response.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
     response.end(JSON.stringify(value));
   };
+  if (await notifyRoutes(path, request, response, json)) return;
   const progressOf = /^\/api\/progress\/([a-z0-9-]+)$/.exec(path);
   if (progressOf) return json(progress(progressOf[1], 400));
   if (path === '/api/commits') return json(await commits());
