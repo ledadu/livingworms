@@ -168,6 +168,8 @@ sh -c '"$@" <prompt.md; echo $? >exit' sh claude -p --session-id <uuid> --permis
 
 ## Effort et modèle d'un agent
 
+> **La réflexion** : l'effort (`claude --effort`) s'affiche partout sous ce nom, avec un mot par niveau (low · rapide, medium · normale, high · approfondie, xhigh · très poussée, max · maximale ; `EFFORT_LABELS` de `config.mjs`, `PROJECT.effortLabels` dans les pages). Elle se règle : **Backlog**, la réflexion par défaut de la barre de choix, celle de chaque tâche dans « Revoir les prompts », celle de l'agent d'un chantier en file ou au travail depuis sa fiche, et celle d'une sous-tâche ⚡ auto ; **Agents**, la pastille 🧠 de chaque carte (un menu : réflexion et modèle) et le tiroir ; **les discussions 💬 et 🧩** avec Claude, un menu « réflexion » gardé pour les messages suivants (`chat.effort`, passé à `claude -p --effort`). Celle d'un agent vaut pour son prochain lancement : ordre, relance, correction de conflit (y compris dans une série).
+
 Chaque agent peut avoir son **effort** (`low`, `medium`, `high`, `xhigh`, `max` : la réflexion que Claude s'accorde) et son **modèle** (`opus`, `sonnet`, `fable`, `haiku`, ou un identifiant complet). Sans choix, `defaults.effort` et `defaults.model` d'`agents.config.mjs` s'appliquent, et s'ils sont vides, ceux de Claude Code (aucun `--effort` ni `--model`). Le module [`settings.mjs`](../agent/settings.mjs) (testé) tient tout cela.
 
 - **Où ils vivent** : deux lignes du fichier de l'agent dans le registre, `AGENT_EFFORT=` et `AGENT_MODEL=` (`.git/agents/<nom>.env`).

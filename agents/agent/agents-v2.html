@@ -81,6 +81,10 @@
   .f { font-size: 11.5px; color: var(--muted); border: 1px solid var(--line); border-radius: 99px; padding: 1px 8px; white-space: nowrap; }
   .f.ok { color: var(--done); border-color: color-mix(in srgb, var(--done) 40%, var(--line)); }
   .f.warn { color: var(--auto); border-color: color-mix(in srgb, var(--auto) 45%, var(--line)); }
+  .f.think { background: none; cursor: pointer; color: var(--soft); }
+  .f.think:hover { border-color: var(--accent); color: var(--text); }
+  .menu .levels { display: flex; flex-direction: column; }
+  .menu .levels button.on { background: color-mix(in srgb, var(--accent) 20%, transparent); font-weight: 600; }
   .f.live { color: var(--active); border-color: color-mix(in srgb, var(--active) 45%, var(--line)); }
   .acts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   .more { margin-left: auto; background: none; border: 1px solid transparent; border-radius: 6px; color: var(--muted); padding: 2px 9px; cursor: pointer; font-size: 17px; line-height: 1; }
@@ -294,9 +298,11 @@ async function load() {
 }
 
 // ---------------------------------------------------------------- pieces
+const thinkLabel = (effort) => (effort ? `${effort} · ${PROJECT.effortLabels?.[effort] ?? ''}` : '');
 function facts(v, full = false) {
   const d = v.d;
   const out = [];
+  if (v.status !== 'merged') out.push(`<button class="f think" data-think="${esc(v.name)}" title="Réflexion et modèle de l'agent, pour son prochain lancement : cliquer pour changer">🧠 ${esc(v.agent.settings?.effort ?? 'défaut')}${v.agent.settings?.model ? ` · ${esc(v.agent.settings.model)}` : ''}</button>`);
   out.push(`<span class="f${v.commits.length ? ' ok' : ''}">${v.commits.length} commit${v.commits.length > 1 ? 's' : ''}</span>`);
   if (v.status !== 'queued') {
     out.push(`<span class="f${d.report ? ' ok' : ''}">${d.report ? '✓' : '○'} rapport</span>`);
@@ -549,9 +555,9 @@ function renderDrawer() {
       <div class="box"><h4>Lui parler</h4>
         <textarea id="order-text" placeholder="Un nouvel ordre : ce qu'il doit peaufiner ou faire en plus (il reprend son chantier là où il l'a laissé)">${esc(typed)}</textarea>
         <div class="acts" style="margin-top:6px"><button class="btn small primary" data-do="order-send" data-name="${n}" ${v.run?.state === 'running' ? 'disabled title="Il travaille : attends qu\'il ait fini, ou arrête-le"' : ''}>Envoyer l'ordre</button>
-        <label class="note">effort <select data-setting="effort" data-name="${n}">${opt(PROJECT.efforts, settings.effort, `défaut${PROJECT.defaults.effort ? ` (${esc(PROJECT.defaults.effort)})` : ''}`)}</select></label>
+        <label class="note">🧠 réflexion <select data-setting="effort" data-name="${n}">${['<option value="">défaut</option>', ...PROJECT.efforts.map((e) => `<option value="${e}" ${e === settings.effort ? 'selected' : ''}>${esc(thinkLabel(e))}</option>`)].join('')}</select></label>
         <label class="note">modèle <select data-setting="model" data-name="${n}">${opt(PROJECT.models, settings.model, 'défaut')}</select></label></div>
-        <div class="note">L'effort et le modèle valent pour son prochain lancement (ordre, relance).</div></div>
+        <div class="note">La réflexion et le modèle valent pour son prochain lancement (ordre, relance, correction de conflit).</div></div>
       <div class="box"><h4>Ce qu'il a fait <span class="muted" style="text-transform:none;letter-spacing:0">(${events.length})</span></h4>
         <ul class="timeline">${[...events].reverse().slice(0, 40).map((e) => { const h = human(e); return `<li class="${e.kind}"><span>${e.kind === 'say' ? '💬' : e.kind === 'error' ? '⚠' : '⚙'}</span><span class="t" title="${esc(e.text)}">${h.k ? `<span class="muted">${esc(h.k)}</span> ` : ''}${esc(h.t)}</span><span class="w">${ago(e.time)}</span></li>`; }).join('') || '<li class="muted">Rien encore.</li>'}</ul></div>
       <div class="box"><h4>Ses commits <span class="muted" style="text-transform:none;letter-spacing:0">${esc(agent.diffstat ?? '')}</span></h4>
@@ -680,6 +686,32 @@ function agentMenu(button, name) {
     ${agent.AGENT_ARCHIVED ? `<button data-do="unarchive" data-name="${esc(name)}">↩ Remettre en cours</button>` : ''}`;
   place(menu, button);
 }
+// 🧠 on a card: how much the agent thinks (claude --effort) and its model, for its next start.
+function thinkMenu(button, name) {
+  closeMenu();
+  const agent = agents.find((one) => one.AGENT_NAME === name);
+  const current = agent?.settings ?? {};
+  const running = view(agent).run?.state === 'running';
+  menu = document.createElement('div');
+  menu.className = 'menu';
+  menu.innerHTML = `<div class="hint">Réflexion de <b>${esc(name)}</b>${running ? ' : il travaille, ça vaudra pour sa prochaine relance ou son prochain ordre' : ' : pour son prochain lancement'}</div>
+    <div class="levels">${['', ...PROJECT.efforts].map((e) => `<button data-set-think="${e}" class="${(current.effort ?? '') === e ? 'on' : ''}">${e ? `🧠 ${esc(thinkLabel(e))}` : `défaut${PROJECT.defaults.effort ? ` (${esc(PROJECT.defaults.effort)})` : ''}`}</button>`).join('')}</div>
+    <hr><div class="hint">Modèle</div>
+    <div class="levels">${['', ...PROJECT.models].map((m) => `<button data-set-model="${m}" class="${(current.model ?? '') === m ? 'on' : ''}">${m ? esc(m) : 'défaut'}</button>`).join('')}</div>`;
+  place(menu, button);
+  menu.addEventListener('click', async (event) => {
+    const think = event.target.closest('[data-set-think]');
+    const model = event.target.closest('[data-set-model]');
+    if (!think && !model) return;
+    const body = { effort: current.effort ?? null, model: current.model ?? null };
+    if (think) body.effort = think.dataset.setThink || null;
+    if (model) body.model = model.dataset.setModel || null;
+    closeMenu();
+    const result = await call(`/api/settings/${name}`, body);
+    toast(result.ok ? `${name} : réflexion ${thinkLabel(body.effort) || 'par défaut'}${body.model ? `, ${body.model}` : ''}${running ? ', pour sa prochaine relance.' : ', pour son prochain lancement.'}` : result.error, !result.ok);
+    load();
+  });
+}
 function teamMenu(button) {
   closeMenu();
   menu = document.createElement('div');
@@ -706,6 +738,8 @@ document.addEventListener('click', async (event) => {
   const team = event.target.closest('[data-team]');
   if (team) return (closeMenu(), teamAction(team.dataset.team));
   if (event.target.closest('[data-team-menu]')) return (event.stopPropagation(), teamMenu(event.target.closest('[data-team-menu]')));
+  const think = event.target.closest('[data-think]');
+  if (think) return (event.stopPropagation(), thinkMenu(think, think.dataset.think));
   const more = event.target.closest('[data-menu]');
   if (more) return (event.stopPropagation(), agentMenu(more, more.dataset.menu));
   const doIt = event.target.closest('[data-do]');
