@@ -69,6 +69,12 @@ Manger d'autres êtres vivants, en restant un jeu gentil : de tout petits animau
 
 Ce qu'on mange dépend de ce qu'on est devenu : une bouche de chasseur grandit mieux avec des proies, des filaments ou des tentacules avec le plancton, une bouche de brouteur avec le végétal (lu des traits du corps, `src/content/traits.ts`). Toute créature peut tout manger, mais pas avec le même profit : l'hérédité prend du sens, sans jamais bloquer. La lignée le dit à la naissance d'une forme qui change de régime, et les nourritures qui lui conviennent le mieux luisent un peu plus pour elle.
 
+### Le chant qui fait des choses
+> ⚪ à faire
+> ↳ après « Manger : la nourriture végétale »
+
+Le chant ouvre déjà des passages et fait répondre des animaux ; il peut faire plus, pour donner envie de chanter partout : faire éclore des fleurs, allumer le plancton autour de nous, calmer un grand animal qui passe, réveiller un banc qui se met à danser, faire tomber un fruit d'algue (une bouchée). Chaque note a son effet, simple et joli ; rien n'est obligatoire.
+
 ### L'enfant reste près de ses frères
 > 🟠 fusionné · agent enfant-reste-pres
 
@@ -182,11 +188,6 @@ Des animaux qui jouent avec nous, sans enjeu : un poisson qui joue à chat (il n
 
 Des choses rares à trouver dans chaque chapitre : une perle, une coquille ancienne, une fleur qui ne s'ouvre que si l'on chante, un fossile dans la Carcasse, un cristal dans le Glacier. Un **carnet** les garde (ouvert depuis les réglages ou l'arbre), avec un mot de la lignée sur chacun ; ceux qu'on n'a pas encore trouvés y sont des silhouettes. Gardé dans la sauvegarde. On collectionne, rien ne presse.
 
-### Le chant qui fait des choses
-> ⚪ à faire
-
-Le chant ouvre déjà des passages et fait répondre des animaux ; il peut faire plus, pour donner envie de chanter partout : faire éclore des fleurs, allumer le plancton autour de nous, calmer un grand animal qui passe, réveiller un banc qui se met à danser, faire tomber un fruit d'algue (une bouchée). Chaque note a son effet, simple et joli ; rien n'est obligatoire.
-
 ### Les amis qui suivent
 > ⚪ à faire
 
@@ -196,6 +197,41 @@ Un petit animal qu'on a nourri, aidé ou avec qui on a joué nous suit un moment
 > ⚪ à faire
 
 Un instant photo à tout moment (un bouton discret) : la créature jouée, cadrée joliment dans son décor, avec ses amis autour. Les portraits vont dans l'**album de la lignée**, une page par génération, consultable depuis l'arbre et repris dans le générique (`generique-image.ts`). Téléchargeables comme l'image souvenir.
+
+- Le bouton prend l'image du monde seule, sans l'interface. Elle est cadrée sur la créature jouée (centrée, à une taille lisible, sans être coupée par les bords) et élargie juste assez pour inclure les amis proches.
+- Réutiliser ce que fait déjà l'image souvenir (`generique-ecran.ts` : `toBlob` en JPEG, `downloadsBlocked`, `souvenirFileName`) : le portrait se télécharge là où le souvenir se télécharge, et pas ailleurs.
+- L'album garde les portraits d'une partie à l'autre, avec la sauvegarde de la lignée. Le nombre de portraits gardés par génération est plafonné, pour que la sauvegarde ne grossisse pas sans limite.
+- Le générique reprend au moins un portrait par génération quand il y en a un.
+
+### Le shoot automatique des beaux moments
+> ⚪ à faire
+> ↳ après « Le portrait de la génération »
+
+En plus du bouton, le jeu prend tout seul, de temps en temps, une photo d'un beau moment. Il le fait sans prévenir, avec seulement un signe très discret (un petit éclat au bord de l'écran). Ces photos vont dans l'album avec les portraits manuels, marquées « prise par la mer ». Le joueur peut les retirer.
+
+Une **note de beauté** est calculée régulièrement (pas à chaque image : quelques fois par seconde suffisent). Elle combine les critères suivants :
+- **Événement en cours** (poids fort) : danse ou parade, ponte, éclosion, retrouvailles avec un ami, première entrée dans un nouveau biome, rencontre d'une créature rare ou d'un grand animal.
+- **Composition** : la créature jouée est entièrement visible, ni minuscule ni coupée, et aucun obstacle ne la masque.
+- **Compagnie** : des amis sont proches et visibles dans le cadre. La note monte avec leur nombre, puis plafonne.
+- **Lumière et décor** : la scène n'est pas trop sombre. Le décor est notable (lueurs, bancs, grotte, glacier, surface).
+- **Calme du mouvement** : vitesse modérée, pas de fuite ni de virage brusque, pour que l'image ne soit pas illisible.
+- **Nouveauté** : la note baisse si une photo semblable existe déjà dans la génération (même biome, même événement, mêmes amis).
+
+Le **tirage est semi-aléatoire**. Au-dessus d'un seuil, la probabilité de déclencher grandit avec la note. Deux photos auto sont séparées d'un délai minimal, et leur nombre est plafonné par génération (3 par défaut). Un événement fort qui dure (une danse) donne au plus une photo, prise près de son sommet.
+
+#### Critères de sortie
+
+- La note de beauté est une fonction pure. Elle reçoit un état décrit (événement, position et taille à l'écran, amis, luminosité, vitesse, photos déjà prises) et rend une note. Elle a des tests unitaires : une danse avec des amis bien cadrée bat une nage seule dans le noir, et un doublon perd sa note.
+- Le tirage prend un aléa injecté, donc il est reproductible en test. Les tests vérifient le délai minimal, le plafond par génération et la photo unique par événement long.
+- La capture ne provoque pas d'à-coup visible. Elle est faite juste après un rendu (attention au canvas WebGL sans `preserveDrawingBuffer`), et l'encodage se fait hors du chemin chaud.
+- Les photos auto et manuelles apparaissent dans l'album, sur la bonne page de génération. Le marquage « prise par la mer » est visible, et le retrait fonctionne.
+- La sauvegarde reste bornée en taille : plafond par génération, JPEG compressé, définition réduite pour les vignettes.
+
+#### Risques
+
+- Le coût de la capture et de l'encodage sur les petites machines.
+- Une note mal réglée qui déclenche trop souvent ou jamais. Exposer les seuils comme constantes faciles à régler.
+- La taille de la sauvegarde si les images sont stockées en pleine définition.
 
 ## Autour du jeu
 
