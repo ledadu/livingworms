@@ -158,14 +158,14 @@ export function initVie(d: VieDeps) {
     }
   }
 
-  /** food falls a little ahead of the swimmer, for those near enough to come (false: not enough of them) */
-  function feast(near: Animal[], sw: Swimmer): boolean {
-    const side = R() < 0.5 ? -1 : 1, x = sw.x + side * (140 + R() * 160);
+  /** food falls a little ahead of the swimmer (or above this spot), for those near enough to come (false: not enough of them) */
+  function feast(near: Animal[], sw: Swimmer, spot?: { x: number; y: number }): boolean {
+    const side = R() < 0.5 ? -1 : 1, x = spot ? spot.x : sw.x + side * (140 + R() * 160);
     const free = freeNear(near).filter((a) => GESTES.festin.fits(being(a)) && Math.abs(a.cr.root.x[0] - x) < 650 && Math.abs(a.z) <= 160)
       .sort((p, q) => Math.abs(p.cr.root.x[0] - x) - Math.abs(q.cr.root.x[0] - x)).slice(0, GESTES.festin.n[1]);
     if (free.length < GESTES.festin.n[0]) return false;
     const bs = free.map(being);
-    start(newAct('festin', bs, now, R, world, sw, { x, y: Math.max(40, sw.y - 260) }), new Map(bs.map((b, i) => [b, free[i]])));
+    start(newAct('festin', bs, now, R, world, sw, { x, y: Math.max(40, (spot?.y ?? sw.y) - 260) }), new Map(bs.map((b, i) => [b, free[i]])));
     return true;
   }
 
@@ -219,10 +219,10 @@ export function initVie(d: VieDeps) {
       start(newAct(id, bs, now, rng(Math.floor(now * 1000) + 7), world, swimmer, swimmer && id === 'festin' ? { x: swimmer.x, y: Math.max(40, swimmer.y - 200) } : undefined), new Map(bs.map((b, i) => [b, who[i]])));
       return true;
     },
-    /** food falls now near the swimmer, for the animals around (tests, captures) */
-    feast(actors: readonly Animal[]): boolean {
+    /** food falls now near the swimmer, or above this spot (a friend shows it, amis-jeu.ts), for the animals around */
+    feast(actors: readonly Animal[], spot?: { x: number; y: number }): boolean {
       if (!swimmer) return false;
-      return feast(actors.filter((a) => a.kind === 'swim' || a.kind === 'floor'), swimmer);
+      return feast(actors.filter((a) => a.kind === 'swim' || a.kind === 'floor'), swimmer, spot);
     },
 
     /** the puffs of sand and the food, into the scene's items at their depth */

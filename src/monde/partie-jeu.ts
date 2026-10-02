@@ -3,7 +3,7 @@
 // (balade.ts) keeps its own chapter and creature: the lineage stays as the story left it.
 import { openBalade, playIn, playedOf, resumeOf, wander } from './balade';
 import { returnTo } from './retour';
-import { birth, clearPartie, learnNote, loadPartie, openStore, reachChapter, renameAncestor, replaceCreature, savePartie, type Mate, type Partie, type Place, type SavedCreature } from './partie';
+import { befriend, birth, clearPartie, friendStays, generation, learnNote, placeAncestor, loadPartie, openStore, reachChapter, renameAncestor, replaceCreature, savePartie, type Mate, type Partie, type Place, type SavedCreature } from './partie';
 
 const plain = (sp: object): SavedCreature => JSON.parse(JSON.stringify(sp)) as SavedCreature;
 
@@ -62,6 +62,16 @@ export function initPartie(chapters: readonly string[]) {
     /** the story is over: the Balade libre opens, for good in this game */
     open() { if (!p.balade) keep(openBalade(p)); },
     /** the note of this chapter learned by the generation played (chant.ts) */
-    learn(chapter: string) { const next = learnNote(p, chapter); if (next !== p) keep(next); }
+    learn(chapter: string) { const next = learnNote(p, chapter); if (next !== p) keep(next); },
+    /** the generation played now (1: the first) */
+    get gen() { return generation(p); },
+    /** the friends of the generations (amis.ts) */
+    get friends() { return p.friends ?? []; },
+    /** an animal of this species (its bestiary id) follows the generation played */
+    befriend(id: string) { const next = befriend(p, id); if (next !== p) keep(next); },
+    /** the friend of that generation stays at this place of this chapter */
+    friendStays(gen: number, chapter: string, at: Place) { const next = friendStays(p, gen, chapter, at); if (next !== p) keep(next); },
+    /** the k-th ancestor was left at another place of its chapter */
+    placeAncestor(k: number, at: Place) { const next = placeAncestor(p, k, at); if (next !== p) keep(next); }
   };
 }

@@ -87,8 +87,8 @@ export function initChant(d: ChantDeps) {
     notes = notes.filter(knows);
     if (!me || !notes.length) return;
     const x = me.root.x[0], y = me.root.y[0];
-    // (the sisters of the first larva swim with the singer: they do not answer it)
-    const near = sea.filter((a) => a.cr !== me && a.kind !== 'sib' && Math.abs(a.cr.root.x[0] - x) < HEARD);
+    // (the sisters of the first larva swim with the singer: they do not answer it; a friend sings with it, amis-jeu.ts)
+    const near = sea.filter((a) => a.cr !== me && a.kind !== 'sib' && a.kind !== 'ami' && Math.abs(a.cr.root.x[0] - x) < HEARD);
     const ls = near.map((a) => ({
       x: a.cr.root.x[0], y: a.cr.root.y[0], z: a.cr.root.z[0], chapter: biomeIndex(a.hx), glows: glowOf(a.cr.list) > GLOWS
     }));
@@ -229,6 +229,15 @@ export function initChant(d: ChantDeps) {
     /** the answers to the song being sung (tests): the animal, the chapter of the note it answers, when (s after the song starts) */
     get answers() { return (song?.answers ?? []).map((an) => ({ name: an.a.cr.spec.name, chapter: NOTES[song!.notes[an.k]].chapter, at: an.at, done: an.done })); },
     get voice() { return voice; },
+    /** an animal sings this note, an octave up, with its light (a friend, amis-jeu.ts) */
+    echo(cr: Creature3, chapter: ChapterId): void {
+      const n = noteOf(chapter);
+      if (!n) return;
+      const r = cr.root;
+      d.view.project(r.x[0], r.y[0], r.z[0], P);
+      voice.note(n.chapter, n.freq, { gain: 0.4, octave: 1, pan: panOnScreen(P.x, d.view.W) });
+      shine({ kind: 'answer', note: n, at: cr, t0: now, dur: 2.4, size: 80 + r.rad[0] * 4 });
+    },
     step,
     draw
   };

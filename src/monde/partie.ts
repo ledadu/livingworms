@@ -34,6 +34,10 @@ export interface LearnedNote { chapter: string; gen?: number }
  * the one the story ended with, which stays in `creature`) */
 export interface Balade { chapter: string; creature: SavedCreature | null }
 
+/** a friend that followed a generation (amis.ts): its species id in the bestiary, the generation it followed (1: the
+ * first) and, once that generation is over, the chapter and the place where it stayed */
+export interface Friend { id: string; gen: number; chapter?: string; at?: Place }
+
 export interface Partie {
   v: 1;
   chapter: string;
@@ -44,6 +48,8 @@ export interface Partie {
   notes?: LearnedNote[];
   /** once the story is over: the Balade libre */
   balade?: Balade;
+  /** the friends of the generations, the oldest first (games saved before the friends have none) */
+  friends?: Friend[];
   savedAt: number;
 }
 
@@ -54,6 +60,9 @@ export function newPartie(chapter: string): Partie {
 }
 
 const isObject = (o: unknown): o is SavedCreature => typeof o === 'object' && o !== null && !Array.isArray(o);
+
+const isFriend = (f: unknown): f is Friend => isObject(f) && typeof f.id === 'string' && f.id !== '' && typeof f.gen === 'number'
+  && (f.chapter === undefined || typeof f.chapter === 'string') && (f.at === undefined || (isObject(f.at) && Number.isFinite(f.at.x) && Number.isFinite(f.at.y)));
 
 /** a saved game read back, or null; an unknown chapter becomes the first one */
 export function parsePartie(json: string | null, chapters: readonly string[]): Partie | null {
@@ -66,6 +75,7 @@ export function parsePartie(json: string | null, chapters: readonly string[]): P
     ? o.lineage.filter((a): a is Ancestor => isObject(a) && isObject(a.creature) && typeof a.chapter === 'string')
     : [];
   const notes = Array.isArray(o.notes) ? o.notes.filter((n): n is LearnedNote => isObject(n) && typeof n.chapter === 'string') : undefined;
+  const friends = Array.isArray(o.friends) ? o.friends.filter(isFriend) : undefined;
   const b = o.balade;
   const balade = isObject(b) ? { chapter: typeof b.chapter === 'string' && chapters.includes(b.chapter) ? b.chapter : chapters[0], creature: isObject(b.creature) ? b.creature : null } : undefined;
   return {
@@ -73,6 +83,7 @@ export function parsePartie(json: string | null, chapters: readonly string[]): P
     creature: isObject(o.creature) ? o.creature : null,
     ...(notes && { notes }),
     ...(balade && { balade }),
+    ...(friends && { friends }),
     savedAt: typeof o.savedAt === 'number' ? o.savedAt : 0
   };
 }
@@ -138,4 +149,32 @@ export function reachChapter(p: Partie, chapter: string, order?: readonly string
 /** localStorage, or null when the browser blocks it */
 export function openStore(): Store | null {
   try { localStorage.getItem(PARTIE_KEY); return localStorage; } catch { return null; }
+}
+
+/** the generation played now (1: the first) */
+export const generation = (p: Partie) => p.lineage.length + 1;
+
+/** an animal of this species follows the generation played: one friend per generation, the first one stays */
+export function befriend(p: Partie, id: string): Partie {
+  const gen = generation(p);
+  if (!id || p.friends?.some((f) => f.gen === gen)) return p;
+  return { ...p, friends: [...(p.friends ?? []), { id, gen }] };
+}
+
+/** the friend of that generation stays in this chapter, at this place (its generation is over) */
+export function friendStays(p: Partie, gen: number, chapter: string, at: Place): Partie {
+  const i = p.friends?.findIndex((f) => f.gen === gen && !f.at) ?? -1;
+  if (i < 0) return p;
+  const friends = p.friends!.slice();
+  friends[i] = { ...friends[i], chapter, at };
+  return { ...p, friends };
+}
+
+/** the k-th ancestor was left at another place of its chapter (its parents swam with the child a while, amis.ts) */
+export function placeAncestor(p: Partie, k: number, at: Place): Partie {
+  const a = p.lineage[k];
+  if (!a) return p;
+  const lineage = p.lineage.slice();
+  lineage[k] = { ...a, at };
+  return { ...p, lineage };
 }
