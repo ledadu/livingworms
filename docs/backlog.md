@@ -35,7 +35,7 @@ Prioritaire. Pendant l'accouplement, la danse à deux (`src/monde/danse.ts`, « 
 Quand les deux chantiers sont fusionnés (« Les parents au-dessus de la portée » et le moteur de danse) : dans l'écran de la portée, les deux parents ne sont plus de simples portraits figés, ils **dansent** au-dessus des enfants, avec le moteur de danse. Une danse joyeuse, en duo (en miroir ou en canon), qui change à chaque portée selon leurs deux corps, en boucle douce pendant qu'on choisit ; les parents restent petits et ne prennent pas le regard aux enfants. Garder l'écran fluide sur téléphone (deux petites créatures animées, pas plus) et l'animation coupée si l'utilisateur préfère moins de mouvement (`prefers-reduced-motion` : portraits figés comme avant). Une courte séquence ou des captures dans le rapport.
 
 ### Grandir jusqu'à la maturité
-> ⚪ à faire
+> 🔵 en cours · agent grandir-jusqu-maturite
 
 Nouveau concept : chaque créature naît ou apparaît **petite** et doit **grandir jusqu'à la maturité** avant de pouvoir faire des enfants. Pour grandir, elle mange (voir les sous-tâches). Aujourd'hui un enfant sort de son œuf à 30 % de sa taille et grandit tout seul en 7 s (`engine3/grow.ts`, « La ponte » de `docs/mecaniques.md`) : la croissance devient une étape de jeu.
 
@@ -46,31 +46,31 @@ Nouveau concept : chaque créature naît ou apparaît **petite** et doit **grand
 - La sauvegarde garde la taille atteinte. Mettre à jour `docs/mecaniques.md` (une section « Grandir ») et les tests.
 
 ### Manger : la nourriture végétale
-> ⚪ à faire
+> 🔵 en cours · agent grandir-jusqu-maturite
 > ↳ après « Grandir jusqu'à la maturité »
 
 La première nourriture, végétale : de petites choses à manger sur les algues et les plantes du décor (bourgeons, grains, fruits d'algue, filaments tendres…), qu'on cueille en passant dessus ou en les touchant de la bouche. Une bouchée fait grandir un peu ; ce qui a été mangé repousse lentement. Visible sans être criard, de la couleur de chaque chapitre, et présent dans tous les chapitres où il y a des plantes (dans le Jardin de méduses et la Fosse, voir la sous-tâche suivante). Une petite animation de bouchée (la créature avale, un éclat doux) et un petit son.
 
 ### Manger : le plancton et les polypes
-> ⚪ à faire
+> 🔵 en cours · agent grandir-jusqu-maturite
 > ↳ après « Manger : la nourriture végétale »
 
 D'autres nourritures, « un peu vivantes » : des nuages de **plancton** qui dérivent dans l'eau (on les traverse pour les gober, comme les poissons qui gobent déjà du plancton), et les **polypes** des coraux qu'on peut picorer (ils se rétractent un moment, comme les timides de la flore). C'est la nourriture des chapitres sans plantes (le Jardin de méduses, la Fosse, où le plancton luit dans le noir). Chaque nourriture peut faire grandir plus ou moins ; à voir si certaines espèces préfèrent l'une ou l'autre selon leur corps (bouche, tentacules, filaments).
 
 ### La chasse douce
-> ⚪ à faire
+> 🔵 en cours · agent grandir-jusqu-maturite
 > ↳ après « Manger : le plancton et les polypes »
 
 Manger d'autres êtres vivants, en restant un jeu gentil : de tout petits animaux (minuscules crevettes, vers, larves) qui détalent quand on approche. Les attraper demande un peu de vitesse et d'adresse (l'accélération de « La nage : accélération et élan » aide, sans être indispensable) ; on les gobe d'un coup, sans sang ni combat, et il en revient toujours. Ils nourrissent plus que le végétal. Aucun échec : une proie qui s'échappe, on en trouve une autre. C'est aussi un premier pas vers le jeu plus combatif qui suivra (poursuivre, viser, accélérer).
 
 ### Le régime selon le corps
-> ⚪ à faire
+> 🔵 en cours · agent grandir-jusqu-maturite
 > ↳ après « La chasse douce »
 
 Ce qu'on mange dépend de ce qu'on est devenu : une bouche de chasseur grandit mieux avec des proies, des filaments ou des tentacules avec le plancton, une bouche de brouteur avec le végétal (lu des traits du corps, `src/content/traits.ts`). Toute créature peut tout manger, mais pas avec le même profit : l'hérédité prend du sens, sans jamais bloquer. La lignée le dit à la naissance d'une forme qui change de régime, et les nourritures qui lui conviennent le mieux luisent un peu plus pour elle.
 
 ### Le chant qui fait des choses
-> ⚪ à faire
+> 🔵 en cours · agent grandir-jusqu-maturite
 > ↳ après « Manger : la nourriture végétale »
 
 Le chant ouvre déjà des passages et fait répondre des animaux ; il peut faire plus, pour donner envie de chanter partout : faire éclore des fleurs, allumer le plancton autour de nous, calmer un grand animal qui passe, réveiller un banc qui se met à danser, faire tomber un fruit d'algue (une bouchée). Chaque note a son effet, simple et joli ; rien n'est obligatoire.
@@ -179,7 +179,7 @@ Ce que le jeu doux façonne, c'est un animal, qui sera repris dans un jeu plus c
 Des courants dans la mer où l'on se laisse porter pour aller vite : visibles (des stries, des bulles, du plancton qui file), avec leur son, qui mènent d'un coin à un autre d'un chapitre ou vers un endroit caché. On y entre, on file, on en sort quand on veut. Un plaisir simple, qui fait aussi sentir la vitesse avant la nouvelle nage.
 
 ### Les petits jeux des animaux
-> ⚪ à faire
+> 🔵 en cours · agent petits-jeux-animaux
 
 Des animaux qui jouent avec nous, sans enjeu : un poisson qui joue à chat (il nous touche et file, on le rattrape, il recommence), un banc qui nous accepte si l'on nage à son rythme et nous emmène vers un coin caché, un poulpe qui se cache et qu'il faut trouver. Ça prolonge les scènes des animaux (« action des annimaux dans la nature »). Une petite récompense douce à la fin (une bouchée, un trésor, une lueur), jamais d'échec.
 
@@ -189,7 +189,7 @@ Des animaux qui jouent avec nous, sans enjeu : un poisson qui joue à chat (il n
 Des choses rares à trouver dans chaque chapitre : une perle, une coquille ancienne, une fleur qui ne s'ouvre que si l'on chante, un fossile dans la Carcasse, un cristal dans le Glacier. Un **carnet** les garde (ouvert depuis les réglages ou l'arbre), avec un mot de la lignée sur chacun ; ceux qu'on n'a pas encore trouvés y sont des silhouettes. Gardé dans la sauvegarde. On collectionne, rien ne presse.
 
 ### Les amis qui suivent
-> ⚪ à faire
+> 🔵 en cours · agent amis-qui-suivent
 
 Un petit animal qu'on a nourri, aidé ou avec qui on a joué nous suit un moment, et peut-être d'un chapitre à l'autre : un compagnon de la génération, qui nage autour de nous, chante avec nous, nous montre parfois un trésor ou une nourriture. Il reste dans le monde quand on change de génération, comme les ancêtres.
 
@@ -207,30 +207,48 @@ Un instant photo à tout moment (un bouton discret) : la créature jouée, cadr�
 > ⚪ à faire
 > ↳ après « Le portrait de la génération »
 
-En plus du bouton, le jeu prend tout seul, de temps en temps, une photo d'un beau moment. Il le fait sans prévenir, avec seulement un signe très discret (un petit éclat au bord de l'écran). Ces photos vont dans l'album avec les portraits manuels, marquées « prise par la mer ». Le joueur peut les retirer.
+En plus du bouton photo, le jeu prend tout seul, de temps en temps, une photo d'un beau moment. Rien ne l'annonce avant. Au moment du déclic, un signe très discret prévient le joueur : un petit éclat bref au bord de l'écran et un son de déclic très doux. La photo entre **directement dans l'album**, sans validation, avec les portraits manuels, marquée « prise par la mer ». Le joueur peut la retirer depuis l'album.
 
-Une **note de beauté** est calculée régulièrement (pas à chaque image : quelques fois par seconde suffisent). Elle combine les critères suivants :
+Ce chantier s'appuie sur l'album de « L'instant photo » (une page par génération, sauvegarde plafonnée) : il réutilise sa capture et son stockage, sans les dupliquer.
+
+#### La note de beauté
+
+La note est calculée régulièrement, pas à chaque image : quelques fois par seconde suffisent. Elle combine les critères suivants :
 - **Événement en cours** (poids fort) : danse ou parade, ponte, éclosion, retrouvailles avec un ami, première entrée dans un nouveau biome, rencontre d'une créature rare ou d'un grand animal.
 - **Composition** : la créature jouée est entièrement visible, ni minuscule ni coupée, et aucun obstacle ne la masque.
 - **Compagnie** : des amis sont proches et visibles dans le cadre. La note monte avec leur nombre, puis plafonne.
 - **Lumière et décor** : la scène n'est pas trop sombre. Le décor est notable (lueurs, bancs, grotte, glacier, surface).
-- **Calme du mouvement** : vitesse modérée, pas de fuite ni de virage brusque, pour que l'image ne soit pas illisible.
+- **Calme du mouvement** : vitesse modérée, pas de fuite ni de virage brusque, pour que l'image reste lisible.
 - **Nouveauté** : la note baisse si une photo semblable existe déjà dans la génération (même biome, même événement, mêmes amis).
 
-Le **tirage est semi-aléatoire**. Au-dessus d'un seuil, la probabilité de déclencher grandit avec la note. Deux photos auto sont séparées d'un délai minimal, et leur nombre est plafonné par génération (3 par défaut). Un événement fort qui dure (une danse) donne au plus une photo, prise près de son sommet.
+#### Le tirage
+
+- Le tirage est semi-aléatoire : au-dessus d'un seuil, la probabilité de déclencher grandit avec la note.
+- Un délai minimal sépare deux photos auto.
+- **3 photos auto au plus par génération.** Le plafond compte les déclics : retirer une photo de l'album ne libère pas de place pour une nouvelle photo auto.
+- Un événement fort qui dure (une danse) donne au plus une photo, prise près de son sommet.
+- Les seuils, les poids, le délai et le plafond sont des constantes nommées, regroupées et faciles à régler.
+
+#### Le signal du déclic
+
+- Un éclat bref (moins d'une demi-seconde), au bord de l'écran, de faible intensité. Il ne masque pas la créature et n'interrompt pas le jeu.
+- Un son de déclic doux, joué par le moteur de bruits (`src/monde/bruits-son.ts`). Il respecte le volume et la coupure du son (`src/monde/son-reglages.ts`).
+- Ni texte, ni fenêtre, ni pause.
 
 #### Critères de sortie
 
-- La note de beauté est une fonction pure. Elle reçoit un état décrit (événement, position et taille à l'écran, amis, luminosité, vitesse, photos déjà prises) et rend une note. Elle a des tests unitaires : une danse avec des amis bien cadrée bat une nage seule dans le noir, et un doublon perd sa note.
-- Le tirage prend un aléa injecté, donc il est reproductible en test. Les tests vérifient le délai minimal, le plafond par génération et la photo unique par événement long.
+- La note de beauté est une fonction pure. Elle reçoit un état décrit (événement, position et taille à l'écran, amis, luminosité, vitesse, photos déjà prises) et rend une note. Ses tests unitaires vérifient qu'une danse avec des amis, bien cadrée, bat une nage seule dans le noir, et qu'un doublon perd sa note.
+- Le tirage prend un aléa injecté, il est donc reproductible en test. Les tests vérifient le délai minimal, le plafond de 3 par génération (y compris après le retrait d'une photo) et la photo unique par événement long.
+- À chaque photo auto, l'éclat et le déclic se produisent une fois, au moment de la capture. Sans son, seul l'éclat apparaît.
 - La capture ne provoque pas d'à-coup visible. Elle est faite juste après un rendu (attention au canvas WebGL sans `preserveDrawingBuffer`), et l'encodage se fait hors du chemin chaud.
-- Les photos auto et manuelles apparaissent dans l'album, sur la bonne page de génération. Le marquage « prise par la mer » est visible, et le retrait fonctionne.
+- Les photos auto apparaissent dans l'album sans action du joueur, sur la bonne page de génération, mêlées aux portraits manuels. Le marquage « prise par la mer » est visible, et le retrait fonctionne et survit à la sauvegarde.
 - La sauvegarde reste bornée en taille : plafond par génération, JPEG compressé, définition réduite pour les vignettes.
 
 #### Risques
 
 - Le coût de la capture et de l'encodage sur les petites machines.
-- Une note mal réglée qui déclenche trop souvent ou jamais. Exposer les seuils comme constantes faciles à régler.
+- Une note mal réglée qui déclenche trop souvent ou jamais : d'où les constantes regroupées.
+- Un signal trop visible ou trop sonore, qui casse le moment qu'il photographie.
 - La taille de la sauvegarde si les images sont stockées en pleine définition.
 
 ## Autour du jeu
