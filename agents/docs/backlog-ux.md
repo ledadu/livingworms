@@ -39,6 +39,23 @@ Mesuré sur la page réelle : 19 lignes affichées, 13 entrées dans la file des
 - **La vue Tableau** : quatre colonnes, À faire, En file, En cours, Fusionnés ; une sous-tâche y dit sa place (« ↳ 3/6 »).
 - La page ne se redessine que si quelque chose a changé (la relecture toutes les 5 s garde le survol et le défilement).
 
+## Le lien avec les agents (deuxième version de la maquette)
+
+Retours : « on ne voit pas assez visuellement les tâches qui ont un agent, et dans quel état il est » ; « le lien avec l'agent manque de travail » ; le panneau Agents doit être un résumé qui renvoie à la page Agents, avec les fonctions en raccourci.
+
+- **L'état vivant de l'agent** est lu sur `/api/agents` (comme la page Agents) : **en file**, **au travail** (son processus tourne, ou il a bougé depuis moins de 10 min), **fini · à accepter**, **en erreur**, **acceptée**, **en pause**.
+- **Une carte avec un agent vivant ressort** : une bordure de la couleur de son état (bleu au travail, avec un point qui bat ; orange à accepter ; rouge en erreur ; jaune en file), un fond teinté, et une **bande** sous le titre : l'état, le nom de l'agent, **ce qu'il fait en ce moment** (son dernier outil, ou son dernier mot quand il a fini), ses commits, depuis combien de temps, et ses **raccourcis** : Sortie, ■ arrêter, ▶ Tester (ou Ouvrir si son jeu tourne), ✓ Accepter, ↻ Relancer. Une tâche acceptée garde seulement une pastille « acceptée » et le nom de l'agent.
+- **La fiche** montre la même bande, puis les livrables (commits, rapport, entrée, captures, à jour avec sa base) et un lien vers sa carte sur la page Agents.
+- **Le panneau Agents devient un résumé** : les nombres (« 2 au travail · 1 fini · à accepter »), les agents vivants (les erreurs et les « à accepter » d'abord), chacun avec son chantier (cliquable) et ses raccourcis, les autres repliés, et « Page Agents → ».
+- **Le Tableau suit les agents** : À faire, En file, **Au travail**, **À accepter**, Acceptées. Il prend toute la largeur ; la fiche s'y ouvre en tiroir.
+
+## Le glisser-déposer
+
+À la souris, on glisse dès que la carte a bougé de quelques pixels ; au doigt, par un **appui long** (350 ms, une petite vibration), et la page ne défile plus jusqu'au dépôt. Une étiquette suit le pointeur et dit ce que fera le dépôt.
+
+- **Liste** : déposer un chantier **sur un autre** en fait une étape de sa chaîne (« Étape de « … » ») ; **sur le titre d'un groupe**, il n'est plus une sous-tâche. Refusé sur lui-même, sur ses propres étapes ou sur un chantier livré.
+- **Tableau** : d'« À faire » vers « En file », il est mis en file (avec l'effort et le modèle par défaut) ; vers « Au travail », mis en file et lancé ; d'« En file » vers « Au travail », lancé ; d'« À accepter » vers « Acceptées », accepté (avec confirmation). Le reste est refusé, et l'étiquette le dit.
+
 ## Ce qui reste dans l'ancienne page, pour l'instant
 
 Le temps de la maquette, « ✎ Modifier · 💬 · 🧩 » renvoie à `/roadmap` : l'édition du texte, les deux discussions avec Claude, l'ajout d'un chantier (« + chantier ») et le glisser-déposer des sous-tâches. La refonte les ramène dans la fiche.
@@ -47,10 +64,10 @@ Le temps de la maquette, « ✎ Modifier · 💬 · 🧩 » renvoie à `/roadmap
 
 1. **La fiche devient l'endroit de travail** : le texte modifiable sur place (aperçu et Markdown), les deux discussions en onglets (💬 Le chantier, 🧩 Sous-tâches), les propositions de Claude en différences, « Créer la sous-tâche » qui l'ajoute aussitôt à la chaîne affichée.
 2. **Créer un chantier** depuis la liste (« + » sur un groupe) dans la fiche, vide, prête à écrire ou à discuter.
-3. **Glisser-déposer** : une carte sur une autre pour en faire une étape de sa chaîne ; réordonner les étapes ; dans le Tableau, glisser une carte « À faire » dans « En file » la met en file.
+3. **Glisser-déposer** (fait dans la maquette, voir plus haut) ; reste à **réordonner** les étapes d'une chaîne et les chantiers d'un groupe.
 4. **Une priorité** explicite (un ordre dans le groupe, ou une marque « prioritaire »), au lieu d'un mot dans le texte.
 5. **Des raccourcis** : `/` chercher, `j`/`k` descendre et monter, `x` choisir, `Entrée` ouvrir, `Échap` fermer.
-6. **Le panneau Agents rejoint la page Agents** à terme : sur la page Backlog, n'en garder qu'un résumé (« 3 au travail ») qui l'ouvre.
+6. **Le panneau Agents** : un résumé avec raccourcis qui renvoie à la page Agents (décidé, fait dans la maquette).
 7. **Remplacer `/roadmap`** quand la maquette fait tout : l'ancienne page reste un temps sous `/roadmap/v1`.
 
 ## À trancher
@@ -58,4 +75,3 @@ Le temps de la maquette, « ✎ Modifier · 💬 · 🧩 » renvoie à `/roadmap
 - **Liste ou Tableau par défaut ?** La liste montre les chaînes et l'ordre du backlog ; le tableau montre le flux des agents. Proposition : la liste, le tableau en second.
 - **Les livrés** : un filtre (comme dans la maquette) ou une page à part (« Livré », par version) ?
 - **La priorité** : un ordre manuel par glisser-déposer, ou une simple marque ?
-- **Le panneau Agents sur cette page** : le garder, ou seulement un résumé qui renvoie à la page Agents ?
