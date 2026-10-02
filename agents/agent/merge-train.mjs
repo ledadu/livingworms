@@ -133,3 +133,53 @@ export async function stepTrain(registry, { accept, fix, runState, now = () => n
   if (train.items.every(isFinal)) train.finishedAt = now();
   return save();
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Before the train: where conflicts may come from, and an order that keeps them few.
+
+/**
+ * What each agent's branch risks when merged: the files it changed since it left its base (`files`), those its base
+ * also changed since (`withBase`: a conflict is possible there now) and those the other agents of the list changed
+ * too (`withOthers`: { name: files }, a conflict is possible once that one is merged first). `git(args)` answers git's
+ * output; `branchOf(name)` and `baseOf(name)` give each agent's branch and base.
+ */
+export async function previewTrain(names, { git, branchOf, baseOf }) {
+  const changed = async (from, to) => (await git(['diff', '--name-only', `${from}..${to}`])).split('\n').filter(Boolean);
+  const out = {};
+  for (const name of names) {
+    const branch = branchOf(name);
+    const base = baseOf(name);
+    try {
+      const fork = (await git(['merge-base', base, branch])).trim();
+      const behind = Number((await git(['rev-list', '--count', `${fork}..${base}`])).trim()) || 0;
+      const files = await changed(fork, branch);
+      const moved = new Set(await changed(fork, base));
+      out[name] = { base, behind, files, withBase: files.filter((file) => moved.has(file)) };
+    } catch (error) {
+      out[name] = { base, behind: 0, files: [], withBase: [], error: String(error.message ?? error).split('\n')[0] };
+    }
+  }
+  for (const name of names) {
+    const mine = new Set(out[name].files);
+    out[name].withOthers = Object.fromEntries(names.filter((other) => other !== name)
+      .map((other) => [other, out[other].files.filter((file) => mine.has(file))])
+      .filter(([, files]) => files.length));
+  }
+  return out;
+}
+
+/**
+ * The order that keeps conflicts few: the agents that risk nothing first (nothing in common with their base nor with
+ * the others), then by fewer files in common, then by smaller branches; the given order breaks ties.
+ */
+export function suggestOrder(names, preview) {
+  const risk = (name) => {
+    const one = preview[name] ?? { withBase: [], withOthers: {}, files: [] };
+    const shared = new Set(Object.values(one.withOthers ?? {}).flat());
+    return [one.withBase.length + shared.size, one.files.length];
+  };
+  return names.map((name, index) => ({ name, index, risk: risk(name) }))
+    .sort((a, b) => a.risk[0] - b.risk[0] || a.risk[1] - b.risk[1] || a.index - b.index)
+    .map((one) => one.name);
+}
+

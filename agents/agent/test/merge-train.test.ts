@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { clearTrain, MAX_FIXES, readTrain, startTrain, stepTrain, stopTrain } from '../merge-train.mjs';
+import { clearTrain, MAX_FIXES, previewTrain, readTrain, startTrain, stepTrain, stopTrain, suggestOrder } from '../merge-train.mjs';
 
 const folders: string[] = [];
 afterEach(() => {
@@ -138,3 +138,17 @@ describe('merge train', () => {
     expect(readTrain(dir).finishedAt).toBeTruthy();
   });
 });
+
+describe('before the train', () => {
+  it('finds the files an agent shares with its base and with the others', async () => {
+    const diffs: Record<string, string> = { 'f..agent/a': 'src/a.ts\nsrc/shared.ts', 'f..backlog': 'src/shared.ts\ndocs/x.md', 'f..agent/b': 'src/b.ts\nsrc/a.ts', 'f..agent/c': 'src/c.ts' };
+    const git = async (args: string[]) => (args[0] === 'merge-base' ? 'f\n' : args[0] === 'rev-list' ? '3\n' : diffs[args[2]] ?? '');
+    const preview = await previewTrain(['a', 'b', 'c'], { git, branchOf: (name: string) => `agent/${name}`, baseOf: () => 'backlog' });
+    expect(preview.a).toMatchObject({ behind: 3, withBase: ['src/shared.ts'], withOthers: { b: ['src/a.ts'] } });
+    expect(preview.b).toMatchObject({ withBase: [], withOthers: { a: ['src/a.ts'] } });
+    expect(preview.c).toMatchObject({ withBase: [], withOthers: {} });
+    // c risks nothing, b shares one file, a two: c, b, a.
+    expect(suggestOrder(['a', 'b', 'c'], preview)).toEqual(['c', 'b', 'a']);
+  });
+});
+

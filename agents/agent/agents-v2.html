@@ -85,8 +85,6 @@
   .acts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   .more { margin-left: auto; background: none; border: 1px solid transparent; border-radius: 6px; color: var(--muted); padding: 2px 9px; cursor: pointer; font-size: 17px; line-height: 1; }
   .more:hover { border-color: var(--line2); color: var(--text); }
-  .pickme { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); cursor: pointer; }
-  .pickme input { accent-color: var(--auto); width: 15px; height: 15px; margin: 0; }
   .note { font-size: 12px; color: var(--muted); }
   .note.bad { color: var(--bad); } .note.good { color: var(--done); }
   .folded summary { cursor: pointer; color: var(--muted); font-size: 13px; list-style: none; display: inline-flex; gap: 6px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 99px; }
@@ -94,12 +92,44 @@
   .folded .grid { margin-top: 10px; }
   .folded .ag { opacity: .8; }
 
-  /* Merge train */
-  .train { border: 1px solid var(--auto); border-radius: var(--r); padding: 10px 14px; background: color-mix(in srgb, var(--auto) 7%, var(--panel)); }
-  .train .items { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
-  .train .it { font-size: 12px; border-radius: 99px; padding: 2px 9px; background: var(--panel3); }
-  .train .it.accepted { background: var(--done); color: #08130d; } .train .it.failed { background: var(--bad); color: #200; } .train .it.accepting, .train .it.fixing { background: var(--active); color: #0b1220; }
-
+  /* Accepting in series */
+  .train { border: 1px solid color-mix(in srgb, var(--auto) 60%, var(--line)); border-radius: var(--r); padding: 12px 14px; background: color-mix(in srgb, var(--auto) 6%, var(--panel)); }
+  .train.over { border-color: var(--line2); background: var(--panel); }
+  .train .th { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .train .bar { height: 5px; border-radius: 3px; background: var(--panel3); margin: 10px 0; overflow: hidden; }
+  .train .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--done), var(--auto)); transition: width .4s; }
+  .train .blocked { border: 1px solid var(--auto); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; color: var(--auto); font-size: 13px; }
+  .train .blocked small { color: var(--muted); }
+  .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .steps .step { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 4px; border-radius: 8px; }
+  .steps .step.now { background: color-mix(in srgb, var(--active) 10%, transparent); }
+  .steps .dot { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; border: 1.5px solid var(--line2); color: var(--muted); }
+  .steps .t-accepted .dot { background: var(--done); border-color: var(--done); color: #08130d; }
+  .steps .t-failed .dot { background: var(--bad); border-color: var(--bad); color: #200; }
+  .steps .t-accepting .dot, .steps .t-fixing .dot { border-color: var(--active); color: var(--active); animation: pulse 1.4s infinite; --c: var(--active); }
+  .steps .body { min-width: 0; font-size: 13px; }
+  .steps .body small { display: block; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .steps .body small.msg { white-space: normal; color: var(--soft); }
+  .steps .t-failed small.msg { color: var(--bad); }
+  .steps .st { font-size: 12px; color: var(--soft); margin-left: 6px; }
+  .steps .t-skipped { opacity: .55; }
+  dialog.series { width: min(760px, 96vw); max-height: 90vh; padding: 0; background: var(--panel); color: var(--text); border: 1px solid var(--line2); border-radius: 14px; }
+  dialog.series::backdrop { background: rgba(0, 0, 0, .55); }
+  .sd { display: flex; flex-direction: column; max-height: 90vh; }
+  .sd .sh { display: flex; align-items: center; gap: 10px; padding: 14px 16px 6px; }
+  .sd .sh h3 { margin: 0; font-size: 17px; flex: 1; }
+  .sd > p { margin: 0; padding: 0 16px 10px; }
+  .pick-list { list-style: none; margin: 0; padding: 4px 16px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+  .pick-list li { display: grid; grid-template-columns: 20px 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+  .pick-list li.off { opacity: .5; }
+  .pick-list .chk input { accent-color: var(--done); width: 16px; height: 16px; margin: 0; }
+  .pick-list .num { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--done); display: grid; place-items: center; font-size: 12px; color: var(--done); }
+  .pick-list .body { min-width: 0; font-size: 13px; }
+  .pick-list .body .muted { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pick-list .facts { margin-top: 4px; }
+  .pick-list .moves { display: flex; gap: 4px; }
+  .sd .sf { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--line); margin-top: 8px; }
+  .linklike { background: none; border: none; color: var(--accent); cursor: pointer; padding: 0; }
   /* Drawer: everything about one agent */
   .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100%); z-index: 40; background: var(--bg); border-left: 1px solid var(--line); box-shadow: -24px 0 50px rgba(0, 0, 0, .45); transform: translateX(105%); transition: transform .2s; display: flex; flex-direction: column; }
   .drawer.open { transform: none; }
@@ -131,9 +161,6 @@
   .menu hr { border: none; border-top: 1px solid var(--line); margin: 4px 0; }
   .menu .hint { font-size: 11.5px; color: var(--muted); padding: 2px 10px 6px; }
 
-  .pickbar { position: fixed; left: 50%; bottom: 16px; transform: translate(-50%, 160%); transition: transform .2s; z-index: 30; width: min(760px, calc(100% - 24px));
-    background: var(--panel2); border: 1px solid var(--auto); border-radius: 14px; box-shadow: 0 14px 40px rgba(0, 0, 0, .5); display: flex; gap: 10px; align-items: center; padding: 10px 14px; flex-wrap: wrap; }
-  .pickbar.show { transform: translate(-50%, 0); }
   .toast { position: fixed; right: 16px; bottom: 16px; z-index: 70; background: var(--panel3); border: 1px solid var(--line2); border-radius: 10px; padding: 10px 14px; max-width: 460px; box-shadow: 0 10px 30px rgba(0, 0, 0, .4); }
   .toast.bad { border-color: var(--bad); }
 
@@ -166,7 +193,7 @@
 
 <div class="shade" id="shade"></div>
 <aside class="drawer" id="drawer" aria-label="Détail de l'agent"></aside>
-<div class="pickbar" id="pickbar"><b id="pick-n" style="color:var(--auto)"></b><span class="note">accepter l'un après l'autre ; sur un conflit, l'agent le règle puis la fusion reprend</span><span class="spacer"></span><button class="btn" id="pick-clear">Vider</button><button class="btn ok" id="pick-go">✓ Accepter en série</button></div>
+<dialog class="series" id="series"></dialog>
 
 <script>
 const $ = (id) => document.getElementById(id);
@@ -197,7 +224,6 @@ let train = null;
 let mainRoot = '';
 let filter = store.get('agents.filter', 'live');
 let opened = null;
-const picked = new Set(store.get('agents.picked', []));
 const notes = new Map(); // name -> { text, bad }
 
 // ---------------------------------------------------------------- what an agent is doing, in words
@@ -286,6 +312,7 @@ function facts(v, full = false) {
 // The one or two things to do with an agent now, as buttons.
 function mainActions(v) {
   const n = esc(v.name);
+  if (inTrain(v.name)) return `<a class="btn small" href="/run/${n}" target="_blank">Sortie</a>`;
   const tryBtn = v.serving ? `<a class="btn small" href="http://localhost:${esc(v.agent.CLIENT_PORT)}" target="_blank">↗ Ouvrir sa version</a>` : `<button class="btn small" data-do="try" data-name="${n}">▶ Tester</button>`;
   if (v.asks) return `<a class="btn small primary" href="/questions">❓ Répondre</a>`;
   if (v.status === 'review') {
@@ -308,13 +335,12 @@ function nowBox(v) {
 }
 function card(v) {
   const n = esc(v.name);
-  const pickable = v.status === 'review' && v.commits.length && !v.asks;
   return `<article class="ag s-${v.status}${opened === v.name ? ' sel' : ''}" data-open="${n}">
     <div class="head"><span class="status">${STATUS[v.status].label}</span><span class="name">${n}</span><span class="time">${v.since ? ago(v.since) : ''}</span></div>
     <div class="task">${v.taskId ? `<a href="/roadmap#t-${esc(v.taskId)}" title="Le chantier dans le backlog">${esc(v.title)}</a>` : esc(v.title)}</div>
     ${nowBox(v)}
     <div class="facts">${facts(v)}</div>
-    <div class="acts">${mainActions(v)}${pickable ? `<label class="pickme" title="À accepter dans la fusion en série"><input type="checkbox" data-pick="${n}" ${picked.has(v.name) ? 'checked' : ''}>en série</label>` : ''}<button class="more" data-menu="${n}" aria-label="Plus d'actions">⋯</button></div>
+    <div class="acts">${mainActions(v)}${inTrain(v.name) ? `<span class="f live">${esc(inTrain(v.name))}</span>` : ''}<button class="more" data-menu="${n}" aria-label="Plus d'actions">⋯</button></div>
     ${notes.get(v.name) ? `<div class="note ${notes.get(v.name).bad ? 'bad' : 'good'}">${esc(notes.get(v.name).text)}</div>` : ''}
   </article>`;
 }
@@ -339,22 +365,21 @@ function render() {
     '<button class="btn small" data-team-menu>Équipe ⋯</button>',
   ].join('');
 
-  // Train
-  const t = Boolean(train?.items?.length);
-  $('train-sec').innerHTML = t ? `<div class="train"><b>🔀 Fusion en série</b> <span class="note">${train.finishedAt ? 'finie' : train.blocked ? `en attente : ${esc(train.blocked)}` : 'en cours'}</span>
-    <span style="float:right">${train.finishedAt ? '<button class="btn small" data-train="clear">✕ Fermer</button>' : '<button class="btn small danger" data-train="stop">■ Arrêter la file</button>'}</span>
-    <div class="items">${(train.items ?? []).map((it) => `<span class="it ${esc(it.state)}" title="${esc(it.message ?? '')}">${esc(it.name)} · ${esc({ waiting: 'en attente', accepting: 'fusion…', fixing: 'règle ses conflits', accepted: 'acceptée', failed: 'échec', skipped: 'sautée' }[it.state] ?? it.state)}</span>`).join('')}</div></div>` : '';
+  // The series under way, or just over: one step per task.
+  $('train-sec').innerHTML = trainPanel(views);
 
   // Inbox: what needs you, most urgent first.
   const inbox = [];
   for (const v of views) {
+    // A task in the series is followed there: no second « Accepter » here.
+    if (inTrain(v.name)) continue;
     const n = esc(v.name);
     const title = esc(v.title);
     if (v.asks) inbox.push({ c: 'var(--ask)', html: `<span class="what">❓ <b>${n}</b> te pose ${v.asks > 1 ? `${v.asks} questions` : 'une question'}<small>${title}</small></span><a class="btn small primary" href="/questions">Répondre</a>` });
     else if (v.status === 'error') inbox.push({ c: 'var(--bad)', html: `<span class="what">⚠ <b>${n}</b> s'est arrêté<small>${esc(v.error)} · ${title}</small></span>${mainActions(v)}` });
     else if (v.status === 'review') inbox.push({ c: 'var(--auto)', html: `<span class="what">✋ <b>${n}</b> a fini « ${title} »<small>${esc(v.said || 'rapport remis')}</small></span>${mainActions(v)}` });
   }
-  $('inbox-n').textContent = inbox.length ? `(${inbox.length})` : '';
+  $('inbox-n').innerHTML = `${inbox.length ? `(${inbox.length})` : ''}${acceptable(views).length > 1 && !trainRunning() ? ` <button class="btn small ok" data-series style="margin-left:8px;text-transform:none;letter-spacing:0">✓ Tout accepter… (${acceptable(views).length})</button>` : ''}`;
   $('inbox').innerHTML = inbox.map((one) => `<div class="todo-line" style="--c:${one.c}">${one.html}</div>`).join('') || '<div class="calm">Rien ne t’attend : les agents travaillent ou sont au repos.</div>';
 
   // Grid
@@ -363,11 +388,124 @@ function render() {
   $('grid').innerHTML = shown.map(card).join('') || '<div class="calm">Aucun agent ici.</div>';
   const merged = by('merged');
   $('folded').innerHTML = filter === 'live' && merged.length ? `<details class="folded"${store.get('agents.folded', false) ? ' open' : ''} style="margin-top:14px"><summary>✓ ${merged.length} acceptée${merged.length > 1 ? 's' : ''}, en attente de publication ou de nettoyage ▸</summary><div class="grid">${merged.map(card).join('')}</div></details>` : '';
-  for (const name of [...picked]) if (!views.some((v) => v.name === name && v.status === 'review')) picked.delete(name);
-  $('pickbar').classList.toggle('show', picked.size > 0);
-  $('pick-n').textContent = `${picked.size} à accepter en série`;
   if (opened) renderDrawer();
 }
+
+// ---------------------------------------------------------------- accepting in series
+// The finished agents « Accepter » would take: over, with commits, no question pending, not refused, not in a series.
+const acceptable = (views) => views.filter((v) => v.status === 'review' && v.commits.length && !v.asks && !v.refused && !inTrain(v.name));
+const trainRunning = () => Boolean(train?.items?.length && !train.finishedAt);
+const TRAIN_STATE = {
+  waiting: { icon: '○', label: 'en attente' },
+  accepting: { icon: '⟳', label: 'fusion…' },
+  fixing: { icon: '🔀', label: 'règle un conflit' },
+  accepted: { icon: '✓', label: 'acceptée' },
+  failed: { icon: '✕', label: 'échec' },
+  skipped: { icon: '–', label: 'sautée' },
+};
+function inTrain(name) {
+  const item = trainRunning() && train.items.find((one) => one.name === name && !['accepted', 'failed', 'skipped'].includes(one.state));
+  return item ? `en série · ${TRAIN_STATE[item.state]?.label ?? item.state}` : '';
+}
+function trainPanel(views) {
+  if (!train?.items?.length) return '';
+  const items = train.items;
+  const over = Boolean(train.finishedAt);
+  const count = (state) => items.filter((it) => it.state === state).length;
+  const done = items.filter((it) => ['accepted', 'failed', 'skipped'].includes(it.state)).length;
+  const title = (name) => views.find((v) => v.name === name)?.title ?? '';
+  const more = acceptable(views);
+  const head = over
+    ? `<b>Acceptation en série finie</b> <span class="note">${count('accepted')} acceptée${count('accepted') > 1 ? 's' : ''}${count('failed') ? ` · <span style="color:var(--bad)">${count('failed')} en échec</span>` : ''}${count('skipped') ? ` · ${count('skipped')} sautée${count('skipped') > 1 ? 's' : ''}` : ''}</span>`
+    : `<b>Acceptation en série</b> <span class="note">${done} sur ${items.length}</span>`;
+  const rows = items.map((it, index) => {
+    const st = TRAIN_STATE[it.state] ?? { icon: '?', label: it.state };
+    const current = !over && !['accepted', 'failed', 'skipped', 'waiting'].includes(it.state);
+    const detail = it.state === 'fixing' ? `l'agent fusionne ${esc(views.find((v) => v.name === it.name)?.d?.base ?? 'sa base')} et règle le conflit (essai ${it.fixes} sur 2), puis la fusion reprend`
+      : it.state === 'accepting' ? 'fusion dans le dépôt principal…'
+      : it.message && it.state !== 'accepted' ? esc(it.message) : it.state === 'accepted' ? esc(it.message || 'fusionnée') : '';
+    const action = it.state === 'fixing' ? `<button class="btn small" data-do="open" data-name="${esc(it.name)}">Voir ce qu'il fait</button>`
+      : it.state === 'failed' ? `<button class="btn small" data-do="open" data-name="${esc(it.name)}">Ouvrir l'agent</button>` : '';
+    return `<li class="step t-${esc(it.state)}${current ? ' now' : ''}"><span class="dot">${index + 1}</span><span class="body"><b class="mono">${esc(it.name)}</b> <span class="st">${st.icon} ${st.label}</span><small>${esc(title(it.name))}</small>${detail ? `<small class="msg">${detail}</small>` : ''}</span>${action}</li>`;
+  }).join('');
+  const blocked = train.blocked && !over ? `<div class="blocked">⏸ En attente du dépôt principal : ${esc(train.blocked)}<br><small>Règle ça, la file reprend toute seule.</small></div>` : '';
+  const controls = over
+    ? `<button class="btn small" data-train="clear">✕ Fermer</button>`
+    : `${more.length ? `<button class="btn small" data-series-add>+ Ajouter les finies (${more.length})</button>` : ''}<button class="btn small danger" data-train="stop" title="Les tâches pas encore traitées sont sautées ; celle en cours finit">■ Arrêter après celle en cours</button>`;
+  return `<div class="train${over ? ' over' : ''}"><div class="th">${head}<span class="spacer"></span>${controls}</div>
+    <div class="bar"><i style="width:${Math.round((done / items.length) * 100)}%"></i></div>${blocked}<ol class="steps">${rows}</ol></div>`;
+}
+
+// The dialog before a series: which ones, in which order, and what may conflict.
+let series = { names: [], include: new Set(), preview: {}, suggested: [], loading: false, add: false };
+async function openSeries(add = false) {
+  const views = agents.map(view);
+  const names = acceptable(views).map((v) => v.name);
+  series = { names, include: new Set(names), preview: {}, suggested: names, loading: true, add };
+  renderSeries();
+  $('series').showModal();
+  const result = await (await fetch(`/api/merge-train/preview?names=${names.join(',')}`, { cache: 'no-store' })).json();
+  series.preview = result.preview ?? {};
+  series.suggested = result.order ?? names;
+  series.names = [...series.suggested];
+  series.loading = false;
+  renderSeries();
+}
+function risk(name) {
+  const p = series.preview[name];
+  if (!p) return series.loading ? '<span class="note">analyse…</span>' : '';
+  const others = Object.entries(p.withOthers ?? {}).filter(([other]) => series.include.has(other));
+  const before = others.filter(([other]) => series.names.indexOf(other) < series.names.indexOf(name));
+  const out = [];
+  if (p.withBase.length) out.push(`<span class="f warn" title="${esc(p.withBase.join('\n'))}">⚠ ${p.withBase.length} fichier${p.withBase.length > 1 ? 's' : ''} aussi changé${p.withBase.length > 1 ? 's' : ''} sur ${esc(p.base)}</span>`);
+  for (const [other, files] of before) out.push(`<span class="f warn" title="${esc(files.join('\n'))}">⚠ après ${esc(other)} : ${files.map((file) => esc(file.split('/').pop())).join(', ')}</span>`);
+  if (!out.length) out.push('<span class="f ok">✓ rien en commun : sans conflit attendu</span>');
+  if (p.behind) out.push(`<span class="f">${p.behind} commit${p.behind > 1 ? 's' : ''} de ${esc(p.base)} à rattraper</span>`);
+  return out.join('');
+}
+function renderSeries() {
+  const views = agents.map(view);
+  const chosen = series.names.filter((name) => series.include.has(name));
+  const conflicts = chosen.filter((name) => (series.preview[name]?.withBase.length) || Object.keys(series.preview[name]?.withOthers ?? {}).some((other) => series.include.has(other) && chosen.indexOf(other) < chosen.indexOf(name))).length;
+  const suggested = series.suggested.filter((name) => series.include.has(name)).join() === chosen.join();
+  $('series').innerHTML = `<form method="dialog" class="sd">
+    <div class="sh"><h3>${series.add ? 'Ajouter à la série' : 'Tout accepter, l’une après l’autre'}</h3><button class="btn small" value="cancel">✕</button></div>
+    <p class="note">Chaque branche est fusionnée dans sa base, dans le dépôt principal, <b>dans cet ordre</b>. Si une fusion bute sur un conflit, l'agent concerné fusionne sa base dans sa branche et le règle lui-même (2 essais au plus), puis la série reprend. Une tâche qui échoue est laissée de côté et la série continue.</p>
+    <ol class="pick-list">${series.names.map((name, index) => {
+      const v = views.find((one) => one.name === name);
+      return `<li class="${series.include.has(name) ? '' : 'off'}"><label class="chk"><input type="checkbox" data-s-include="${esc(name)}" ${series.include.has(name) ? 'checked' : ''}></label>
+        <span class="num">${series.include.has(name) ? chosen.indexOf(name) + 1 : '–'}</span>
+        <span class="body"><b class="mono">${esc(name)}</b> <span class="muted">${esc(v?.title ?? '')}</span><span class="facts">${series.include.has(name) ? risk(name) : '<span class="note">pas dans cette série</span>'}</span></span>
+        <span class="moves"><button type="button" class="btn small" data-s-move="${esc(name)}" data-dir="-1" ${index ? '' : 'disabled'} aria-label="Plus tôt">↑</button><button type="button" class="btn small" data-s-move="${esc(name)}" data-dir="1" ${index < series.names.length - 1 ? '' : 'disabled'} aria-label="Plus tard">↓</button></span></li>`;
+    }).join('')}</ol>
+    <div class="sf"><span class="note">${series.loading ? 'Analyse des fichiers en commun…' : conflicts ? `${conflicts} pourrait demander une correction par son agent.` : 'Aucun conflit attendu.'}${!series.loading && !suggested ? ' <button type="button" class="linklike" data-s-suggest>Revenir à l’ordre conseillé</button>' : !series.loading && chosen.length > 1 ? ' Ordre conseillé : les moins risquées d’abord.' : ''}</span>
+      <span class="spacer"></span><button class="btn" value="cancel">Annuler</button><button type="button" class="btn ok" data-s-go ${chosen.length ? '' : 'disabled'}>✓ ${series.add ? 'Ajouter' : 'Accepter'} les ${chosen.length}, dans cet ordre</button></div></form>`;
+}
+document.addEventListener('click', async (event) => {
+  if (event.target.closest('[data-series]')) return openSeries(false);
+  if (event.target.closest('[data-series-add]')) return openSeries(true);
+  const move = event.target.closest('[data-s-move]');
+  if (move) {
+    const i = series.names.indexOf(move.dataset.sMove);
+    const j = i + Number(move.dataset.dir);
+    [series.names[i], series.names[j]] = [series.names[j], series.names[i]];
+    return renderSeries();
+  }
+  if (event.target.closest('[data-s-suggest]')) return (series.names = [...series.suggested], renderSeries());
+  if (event.target.closest('[data-s-go]')) {
+    const names = series.names.filter((name) => series.include.has(name));
+    const result = await call('/api/merge-train', { names });
+    $('series').close();
+    toast(result.ok ? `Série lancée : ${names.length} à accepter, dans l'ordre.` : result.error, !result.ok);
+    return load();
+  }
+});
+document.addEventListener('change', (event) => {
+  const box = event.target.closest('[data-s-include]');
+  if (!box) return;
+  box.checked ? series.include.add(box.dataset.sInclude) : series.include.delete(box.dataset.sInclude);
+  renderSeries();
+});
 
 // ---------------------------------------------------------------- drawer
 let progress = { name: null, events: [] };
@@ -590,12 +728,6 @@ document.addEventListener('click', async (event) => {
   if (open) openDrawer(open.dataset.open);
 });
 document.addEventListener('change', async (event) => {
-  const pick = event.target.closest('[data-pick]');
-  if (pick) {
-    pick.checked ? picked.add(pick.dataset.pick) : picked.delete(pick.dataset.pick);
-    store.set('agents.picked', [...picked]);
-    return render();
-  }
   if (event.target.id === 'alone') {
     await call('/api/questions/settings', { autonomous: event.target.checked });
     toast(event.target.checked ? 'Les agents décident seuls (option recommandée).' : 'Les agents te posent leurs choix et attendent ta réponse.');
@@ -611,15 +743,6 @@ document.addEventListener('change', async (event) => {
 });
 document.addEventListener('toggle', (event) => { if (event.target.classList?.contains('folded')) store.set('agents.folded', event.target.open); }, true);
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape') (menu ? closeMenu() : opened && closeDrawer()); });
-$('pick-clear').addEventListener('click', () => (picked.clear(), store.set('agents.picked', []), render()));
-$('pick-go').addEventListener('click', async () => {
-  const names = [...picked];
-  if (!confirm(`Accepter l'une après l'autre : ${names.join(', ')} ?\n\nSur un conflit, l'agent fusionne sa base et le règle lui-même, puis la fusion reprend.`)) return;
-  const result = await call('/api/merge-train', { names });
-  if (result.ok) (picked.clear(), store.set('agents.picked', []));
-  toast(result.ok ? result.message ?? 'File de fusion lancée.' : result.error, !result.ok);
-  load();
-});
 
 // /agents#<name> opens that agent.
 load().then(() => { const hash = decodeURIComponent(location.hash.slice(1)); if (hash && agents.some((a) => a.AGENT_NAME === hash)) openDrawer(hash); });
