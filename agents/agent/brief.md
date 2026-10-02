@@ -41,6 +41,17 @@ Tu es un agent parmi {{NOMBRE}}, qui travaillent **en parallèle** sur {{SOURCE}
 - **Lire la réponse** : des lignes `clé: valeur`. `status: answered` : applique la réponse (`choice:` ou `approved:`, et `comment:`). `status: auto` ou `expired` : l'utilisateur t'a laissé décider (« Décider seul », actif par défaut) ou n'a pas répondu à temps : prends l'option recommandée, comme avant. `status: pending` : l'attente de cet appel est finie ; avance sur autre chose si tu peux, puis `ask.mjs --resume <id>`. `--withdraw <id>` si la question n'a plus lieu d'être.
 - **Rapport** : dans « Choix retenus », indique pour chaque question posée si le choix vient de l'utilisateur ou est `auto`.
 
+## L'équipe
+
+Tu n'es pas seul : d'autres agents travaillent en même temps, et le backlog bouge. Les outils **`mcp__equipe__…`** (serveur MCP « equipe », donné à chaque agent lancé par le tableau de bord) te le montrent ; sinon, la même chose en ligne de commande : `node agents/agent/team.mjs <commande>` depuis ton worktree (`--help`).
+
+- **`lies`** (`team.mjs related`) : **au début de ton chantier**, puis avant de toucher un fichier partagé. Les agents qui changent les mêmes fichiers que toi (et lesquels), ta tâche mère et tes sous-tâches, les tâches qui nomment tes fichiers.
+- **`qui`** (`who <fichier>`) : qui d'autre change ce fichier, commité ou pas encore.
+- **`taches`**, **`tache`** (`tasks`, `task <id|mot>`) : le backlog à jour (état, agent, sous-tâches), et le texte entier d'une tâche ; **`agents`** : les autres agents, leur état et leurs fichiers.
+- **`ecrire`** (`say <agent|tous> "…" [--about <fichier>]`) : préviens l'agent concerné quand tu changes une chose qu'il utilise (fichier partagé, fonction renommée, format, choix qui le touche). Court, concret, une fois par sujet ; pas de discussion : chacun reste maître de son chantier.
+- **`messages`** (`inbox`) : lis tes messages **aux étapes clés** (après chaque commit, avant ta réponse finale) et tiens-en compte ; s'ils demandent un vrai choix, passe par `ask.mjs`.
+- Tu ne modifies toujours que ton worktree : un conflit possible se règle en prévenant l'autre et en restant additif, jamais en touchant sa branche.
+
 ## Rapport et entrée pour les joueurs (obligatoires)
 
 Dans `changes/unreleased/<ton-nom>/` (voir `agents/docs/changes.md` et le `changes/README.md` du projet, pour le ton) :
@@ -56,6 +67,7 @@ Dans `changes/unreleased/<ton-nom>/` (voir `agents/docs/changes.md` et le `chang
   ## Risques de fusion      fichiers partagés touchés et nature des changements
   ```
 
+- **Rapport intermédiaire, tout au long du chantier** : n'attends pas la fin. Dès ta première étape franchie, écris `report.md` dans la même forme, avec **en tête, sous le titre, la ligne** `> 🚧 En cours : <où tu en es, ce qui reste, en une ou deux phrases>`, et remplis ce que tu sais déjà (Livré jusqu'ici, Choix retenus, Risques de fusion). **Mets-le à jour à chaque étape** (et commite-le avec elle) : l'utilisateur le lit sur le tableau de bord pendant que tu travailles. À la fin, retire la ligne 🚧 : c'est elle qui dit que le rapport est final.
 - `img/` : captures JPEG (`page.screenshot({ path, type: 'jpeg', quality: 80 })`, ou `agents/agent/agent.sh shot <ton-nom> changes/unreleased/<ton-nom>/img/x.jpg`), avant/après si possible, peu nombreuses ; SVG pour un graphique. Référencées `![légende](img/x.jpg)`.
 - `entry.md` : l'entrée pour les joueurs (type new | improved | fixed, title, pitch, audience, images, puis 2 à 6 phrases), dans le ton du projet, sans jargon.
 

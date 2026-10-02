@@ -26,6 +26,7 @@ import { push, pushPlan } from '../release/push.mjs';
 import { dashboardToken, guard } from './access.mjs';
 import { EVENTS, DEFAULT_SETTINGS, notifier as makeNotifier, publicDevice, readDevices, removeDevice, subscribe, updateDevice, vapidKeys } from './notify.mjs';
 import { watchEvents } from './notify-events.mjs';
+import { conversation } from './team.mjs';
 import { briefPath, project, renderPage, renderText } from '../config.mjs';
 
 const run = promisify(execFile);
@@ -175,6 +176,8 @@ async function agentState(env) {
     diffstat,
     activity,
     report: existsSync(report) ? readFileSync(report, 'utf8') : null,
+    // An interim report (the brief asks for one along the way): « > 🚧 En cours : … » under its title, gone once final.
+    reportInterim: existsSync(report) && /^>\s*🚧/m.test(readFileSync(report, 'utf8')),
     serverLog: tail(join(dir, '.agent/server.log'), 25),
     clientLog: tail(join(dir, '.agent/client.log'), 25),
   };
@@ -774,6 +777,11 @@ async function handle(request, response) {
     const result = fixConflicts(fix[1]);
     latest = await snapshot();
     return json(result);
+  }
+  // The messages between agents (team.mjs), to and from one: the drawer of the Agents page.
+  if (path === '/api/team/messages') {
+    const name = new URL(request.url ?? '/', 'http://localhost').searchParams.get('agent');
+    return json({ ok: true, messages: conversation({ registry, runsRegistry, mainRoot, me: null }, /^[a-z0-9-]+$/.test(name ?? '') ? name : null) });
   }
   // Before « Accepter en série » : for each agent, the files in common with its base and with the others, and an order.
   if (path === '/api/merge-train/preview') {

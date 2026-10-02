@@ -154,6 +154,13 @@
   .commits .s { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .drawer textarea { width: 100%; min-height: 90px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; resize: vertical; }
   .drawer select { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
+  .report .md { font-size: 13px; color: var(--soft); margin-top: 6px; }
+  .report .md h5 { margin: 12px 0 4px; font-size: 13px; color: var(--text); }
+  .report .md p { margin: 5px 0; } .report .md ul { margin: 4px 0; padding-left: 18px; }
+  .report .md blockquote { margin: 6px 0; padding: 6px 10px; border-left: 3px solid var(--auto); background: color-mix(in srgb, var(--auto) 8%, transparent); color: var(--text); border-radius: 4px; }
+  .report .md table { border-collapse: collapse; width: 100%; font-size: 12px; margin: 6px 0; }
+  .report .md td { border: 1px solid var(--line); padding: 3px 6px; vertical-align: top; }
+  .report .md code { background: var(--panel2); padding: 0 4px; border-radius: 4px; font-size: 12px; }
   .drawer pre { white-space: pre-wrap; word-break: break-word; font-size: 11.5px; background: var(--panel); border-radius: 8px; padding: 8px; max-height: 260px; overflow: auto; margin: 6px 0 0; }
   .drawer details summary { cursor: pointer; color: var(--soft); font-size: 13px; }
   .shade { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); z-index: 35; display: none; }
@@ -251,7 +258,7 @@ function statusOf(agent) {
   if (run?.state === 'running') return 'working';
   if (run?.state === 'error' || run?.state === 'lost') return 'error';
   if (events.at(-1)?.kind === 'error' && /API Error/.test(events.at(-1).text)) return 'error';
-  if (run?.state === 'done' || agent.progress?.finished || (agent.report && !agent.dirty?.length && !recent)) return 'review';
+  if (run?.state === 'done' || agent.progress?.finished || (agent.report && !agent.reportInterim && !agent.dirty?.length && !recent)) return 'review';
   return recent ? 'working' : 'idle';
 }
 function view(agent) {
@@ -305,7 +312,7 @@ function facts(v, full = false) {
   if (v.status !== 'merged') out.push(`<button class="f think" data-think="${esc(v.name)}" title="Réflexion et modèle de l'agent, pour son prochain lancement : cliquer pour changer">🧠 ${esc(v.agent.settings?.effort ?? 'défaut')}${v.agent.settings?.model ? ` · ${esc(v.agent.settings.model)}` : ''}</button>`);
   out.push(`<span class="f${v.commits.length ? ' ok' : ''}">${v.commits.length} commit${v.commits.length > 1 ? 's' : ''}</span>`);
   if (v.status !== 'queued') {
-    out.push(`<span class="f${d.report ? ' ok' : ''}">${d.report ? '✓' : '○'} rapport</span>`);
+    out.push(v.agent.reportInterim ? `<button class="f warn think" data-report="${esc(v.name)}" title="Son rapport intermédiaire : le lire">🚧 rapport en cours</button>` : `<span class="f${d.report ? ' ok' : ''}">${d.report ? '✓' : '○'} rapport</span>`);
     out.push(`<span class="f${d.entry ? ' ok' : ''}">${d.entry ? '✓' : '○'} entrée</span>`);
     if (d.captures || full) out.push(`<span class="f${d.captures ? ' ok' : ''}">${d.captures ?? 0} capture${d.captures > 1 ? 's' : ''}</span>`);
   }
@@ -513,14 +520,42 @@ document.addEventListener('change', (event) => {
   renderSeries();
 });
 
+// A report in Markdown, simply: titles, lists, tables, quotes, bold, code, images of its folder.
+let reportOpen = null;
+function md(text) {
+  const inline = (t) => esc(t).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<i class="muted">[image : $1]</i>').replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1');
+  let html = '', list = false, table = false;
+  for (const line of String(text).split('\n')) {
+    if (/^\s*\|/.test(line)) {
+      if (/^\s*\|[\s:-]+\|/.test(line) && !/[a-z]/i.test(line)) continue;
+      if (!table) (html += '<table>', table = true);
+      html += `<tr>${line.trim().replace(/^\||\|$/g, '').split('|').map((cell) => `<td>${inline(cell.trim())}</td>`).join('')}</tr>`;
+      continue;
+    }
+    if (table) (html += '</table>', table = false);
+    if (/^\s*[-*]\s+/.test(line)) { if (!list) (html += '<ul>', list = true); html += `<li>${inline(line.replace(/^\s*[-*]\s+/, ''))}</li>`; continue; }
+    if (list) (html += '</ul>', list = false);
+    const head = /^(#{1,4})\s+(.*)$/.exec(line);
+    if (head) html += `<h5>${inline(head[2])}</h5>`;
+    else if (/^>\s*/.test(line)) html += `<blockquote>${inline(line.replace(/^>\s*/, ''))}</blockquote>`;
+    else if (line.trim()) html += `<p>${inline(line)}</p>`;
+  }
+  return html + (list ? '</ul>' : '') + (table ? '</table>' : '');
+}
+
 // ---------------------------------------------------------------- drawer
 let progress = { name: null, events: [] };
+let messages = { name: null, list: [] };
 async function openDrawer(name) {
   opened = name;
+  drawerKey = '';
   $('drawer').classList.add('open');
   $('shade').classList.add('on');
   render();
-  progress = { name, events: (await (await fetch(`/api/progress/${encodeURIComponent(name)}`, { cache: 'no-store' })).json()).events ?? [] };
+  const [p, m] = await Promise.all([fetch(`/api/progress/${encodeURIComponent(name)}`, { cache: 'no-store' }).then((r) => r.json()), fetch(`/api/team/messages?agent=${encodeURIComponent(name)}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({ messages: [] }))]);
+  progress = { name, events: p.events ?? [] };
+  messages = { name, list: m.messages ?? [] };
+  drawerKey = '';
   renderDrawer();
 }
 function closeDrawer() {
@@ -563,6 +598,8 @@ function renderDrawer() {
       <div class="box"><h4>Ses commits <span class="muted" style="text-transform:none;letter-spacing:0">${esc(agent.diffstat ?? '')}</span></h4>
         <ul class="commits">${v.commits.map((c) => `<li><span class="sha">${esc(c.sha)}</span><span class="s" title="${esc(c.subject)}">${esc(c.subject)}</span><span class="w muted" style="font-size:11.5px">${ago(c.time)}</span></li>`).join('') || '<li class="muted">Aucun commit.</li>'}</ul>
         <div class="acts" style="margin-top:8px"><a class="btn small" href="/journal?agent=${n}" target="_blank">Commits et rapport</a><a class="btn small" href="/run/${n}" target="_blank">Sortie complète</a></div></div>
+      ${messages.name === v.name && messages.list.length ? `<div class="box"><h4>Messages avec les autres agents (${messages.list.length})</h4><ul class="timeline">${messages.list.slice(-20).reverse().map((one) => `<li class="say"><span>${one.from === v.name ? '↗' : '↘'}</span><span class="t"><b class="mono">${esc(one.from)}</b> → ${esc(one.to)}${one.about ? ` <span class="muted">(${esc(one.about)})</span>` : ''} : ${esc(one.text)}${one.from !== v.name && !one.readBy?.includes(v.name) && one.to !== 'tous' ? ' <span class="f warn">pas encore lu</span>' : ''}</span><span class="w">${ago(Date.parse(one.at))}</span></li>`).join('')}</ul></div>` : ''}
+      ${agent.report ? `<details class="box report" ${agent.reportInterim || reportOpen === v.name ? 'open' : ''}><summary><h4 style="display:inline">${agent.reportInterim ? '🚧 Son rapport intermédiaire' : 'Son rapport'}</h4></summary><div class="md">${md(agent.report)}</div></details>` : ''}
       ${v.dirty.length ? `<div class="box"><h4>Fichiers non commités (${v.dirty.length})</h4><pre>${esc(v.dirty.join('\n'))}</pre></div>` : ''}
       <div class="box"><h4>Son jeu</h4>
         <div class="acts">${v.serving ? `<a class="btn small" href="http://localhost:${esc(agent.CLIENT_PORT)}" target="_blank">↗ Ouvrir (:${esc(agent.CLIENT_PORT)})</a><button class="btn small" data-do="down" data-name="${n}">■ Arrêter son jeu</button>` : `<button class="btn small" data-do="try" data-name="${n}">▶ Lancer son jeu</button>`}<span class="note">serveur :${esc(agent.SERVER_PORT)} · client :${esc(agent.CLIENT_PORT)}</span></div>
@@ -738,6 +775,8 @@ document.addEventListener('click', async (event) => {
   const team = event.target.closest('[data-team]');
   if (team) return (closeMenu(), teamAction(team.dataset.team));
   if (event.target.closest('[data-team-menu]')) return (event.stopPropagation(), teamMenu(event.target.closest('[data-team-menu]')));
+  const report = event.target.closest('[data-report]');
+  if (report) return (event.stopPropagation(), (reportOpen = report.dataset.report), openDrawer(report.dataset.report));
   const think = event.target.closest('[data-think]');
   if (think) return (event.stopPropagation(), thinkMenu(think, think.dataset.think));
   const more = event.target.closest('[data-menu]');

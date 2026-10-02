@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { afterEach, describe, expect, it } from 'vitest';
-import { CO_AUTHORED_BY, claimQueue, launchTask, mergeOrder, orderPrompt, orderTask, RESUME_PROMPT, resumeTask, runDir, runLog, runLogFrom, runState, sessionTranscript, stopTask } from '../launch.mjs';
+import { CO_AUTHORED_BY, claimQueue, teamArgs, launchTask, mergeOrder, orderPrompt, orderTask, RESUME_PROMPT, resumeTask, runDir, runLog, runLogFrom, runState, sessionTranscript, stopTask } from '../launch.mjs';
 import { readQueue, writeQueueEntry } from '../roadmap.mjs';
 import { writeSettings } from '../settings.mjs';
 import { roadmapRoutes } from '../roadmap-routes.mjs';
@@ -78,7 +78,9 @@ describe('launchTask', () => {
     await until(() => runState(registry, name)?.state === 'done');
     const dir = runDir(registry, name);
     const args = readFileSync(join(dir, 'fake.args'), 'utf8').trim().split('\n');
-    expect(args).toEqual(['-p', '--session-id', started.sessionId, '--permission-mode', 'auto', '--permission-prompts', 'none', '--output-format', 'stream-json', '--verbose']);
+    // The team's MCP server comes with every run (team-mcp.mjs), under the agent's name.
+    expect(args).toEqual(['-p', '--session-id', started.sessionId, '--permission-mode', 'auto', '--permission-prompts', 'none', ...teamArgs(name), '--output-format', 'stream-json', '--verbose']);
+    expect(JSON.parse(teamArgs(name)[1]).mcpServers.equipe).toMatchObject({ args: [expect.stringMatching(/team-mcp\.mjs$/)], env: { AGENT_NAME: name } });
     expect(readFileSync(join(dir, 'fake.cwd'), 'utf8').trim()).toBe(worktree);
     expect(readFileSync(join(dir, 'fake.stdin'), 'utf8')).toBe(`Travaille. Commits terminés par \`${CO_AUTHORED_BY}\`.`);
     expect(readFileSync(join(dir, 'fake.nested'), 'utf8').trim()).toBe('unset');
@@ -112,7 +114,7 @@ describe('launchTask', () => {
     await until(() => runState(registry, name)?.state === 'error');
     const dir = runDir(registry, name);
     const first = readFileSync(join(dir, 'fake.args'), 'utf8').trim().split('\n');
-    expect(first).toEqual(['-p', '--session-id', started.sessionId, '--permission-mode', 'auto', '--permission-prompts', 'none', '--effort', 'xhigh', '--model', 'sonnet', '--output-format', 'stream-json', '--verbose']);
+    expect(first).toEqual(['-p', '--session-id', started.sessionId, '--permission-mode', 'auto', '--permission-prompts', 'none', '--effort', 'xhigh', '--model', 'sonnet', ...teamArgs(name), '--output-format', 'stream-json', '--verbose']);
     expect(runState(registry, name)).toMatchObject({ effort: 'xhigh', model: 'sonnet' });
 
     // Changed on the card: the resume uses the new effort and no model of its own.

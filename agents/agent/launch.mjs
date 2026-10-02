@@ -10,7 +10,8 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { markQueue, NAME_PATTERN, readQueue } from './roadmap.mjs';
 import { effectiveSettings, settingsArgs } from './settings.mjs';
 import { askPath, project } from '../config.mjs';
@@ -28,8 +29,18 @@ export function claudeBin(env = process.env) {
  * agent's effort and model (settings.mjs) when it has some. A resume continues that session under the same id (no
  * --fork-session).
  */
-export function claudeArgs({ sessionId, permissionMode = 'auto', resume = false, effort = null, model = null }) {
-  return ['-p', resume ? '--resume' : '--session-id', sessionId, '--permission-mode', permissionMode, '--permission-prompts', 'none', ...settingsArgs({ effort, model }), '--output-format', 'stream-json', '--verbose'];
+export function claudeArgs({ sessionId, permissionMode = 'auto', resume = false, effort = null, model = null, name = null }) {
+  return ['-p', resume ? '--resume' : '--session-id', sessionId, '--permission-mode', permissionMode, '--permission-prompts', 'none', ...settingsArgs({ effort, model }), ...teamArgs(name), '--output-format', 'stream-json', '--verbose'];
+}
+
+/**
+ * The team's MCP server (team-mcp.mjs) for an agent: the backlog's tasks, the other agents and their files, messages
+ * between agents, as tools (mcp__equipe__…), allowed without asking. AGENTS_NO_TEAM_MCP=1 leaves it out.
+ */
+export function teamArgs(name, env = process.env) {
+  if (!name || env.AGENTS_NO_TEAM_MCP) return [];
+  const server = { command: process.execPath, args: [join(dirname(fileURLToPath(import.meta.url)), 'team-mcp.mjs')], env: { AGENT_NAME: name } };
+  return ['--mcp-config', JSON.stringify({ mcpServers: { equipe: server } }), '--allowedTools', 'mcp__equipe'];
 }
 
 export const runDir = (registry, name) => join(registry, 'runs', name);
@@ -133,7 +144,7 @@ export function launchTask({ registry, queueDir = join(registry, 'queue'), name,
   const prompt = String(entry.prompt ?? '').replaceAll('{{CO_AUTHORED_BY}}', env.AGENTS_CO_AUTHORED_BY || CO_AUTHORED_BY);
   writeFileSync(join(dir, 'prompt.md'), prompt);
   const settings = effectiveSettings(registry, name);
-  const run = startClaude({ dir, worktree, stdin: 'prompt.md', args: claudeArgs({ sessionId, permissionMode, ...settings }), env });
+  const run = startClaude({ dir, worktree, stdin: 'prompt.md', args: claudeArgs({ sessionId, permissionMode, ...settings, name }), env });
   writeJson(join(dir, 'run.json'), { name, ...run, sessionId, cwd: worktree, permissionMode, ...settings, startedAt: now() });
   return runState(registry, name);
 }
@@ -183,7 +194,7 @@ export function resumeTask({ registry, name, message = '', prompt = null, env = 
   writeFileSync(join(dir, 'resume.md'), prompt ?? (note ? `${RESUME_PROMPT}\n\nMessage de l'utilisateur : ${note}` : RESUME_PROMPT));
   // The agent's settings as they are now: its card may have changed them since the last start.
   const settings = effectiveSettings(registry, name);
-  const run = startClaude({ dir, worktree: previous.cwd, stdin: 'resume.md', args: claudeArgs({ sessionId: previous.sessionId, permissionMode, resume: true, ...settings }), env });
+  const run = startClaude({ dir, worktree: previous.cwd, stdin: 'resume.md', args: claudeArgs({ sessionId: previous.sessionId, permissionMode, resume: true, ...settings, name }), env });
   const { stoppedAt, ...kept } = previous;
   const resumes = [...(previous.resumes ?? []), { at: now(), after: state.state, code: state.code, ...settings }];
   writeJson(join(dir, 'run.json'), { ...kept, ...run, permissionMode, ...settings, resumedAt: now(), resumes });
@@ -242,7 +253,7 @@ export function orderTask({ registry, name, order, intro = '', base = project.br
   const permissionMode = env.AGENTS_CLAUDE_PERMISSION_MODE || 'auto';
   writeFileSync(join(dir, 'prompt.md'), `${intro ? `${intro.trim()}\n\n` : ''}${prompt}`);
   const settings = effectiveSettings(registry, name);
-  const run = startClaude({ dir, worktree, stdin: 'prompt.md', args: claudeArgs({ sessionId, permissionMode, ...settings }), env });
+  const run = startClaude({ dir, worktree, stdin: 'prompt.md', args: claudeArgs({ sessionId, permissionMode, ...settings, name }), env });
   writeJson(join(dir, 'run.json'), { name, ...run, sessionId, cwd: worktree, permissionMode, ...settings, startedAt: now(), orderedAt: now() });
   return runState(registry, name);
 }

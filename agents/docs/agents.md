@@ -54,6 +54,19 @@ Le tableau de bord lance des agents, fusionne, publie et retire des worktrees : 
   `tailscale serve status` montre ce qui est servi, `sudo tailscale serve --https=443 off` l'arrête.
 - **Limites** : les liens vers les serveurs de dev (le jeu d'un agent, « Tester cette version ») pointent vers `localhost` et ne s'ouvrent pas à distance. La machine doit rester allumée, sans veille ; sous WSL, le WSL aussi : Windows l'arrête quand plus aucun terminal ni VS Code n'y est ouvert.
 
+### L'équipe : ce que chaque agent sait des autres
+
+Un agent voit le backlog à jour, les autres agents et ce qu'ils changent, et peut leur écrire ([`team.mjs`](../agent/team.mjs), testé ; consigne : « L'équipe » de [`brief.md`](../agent/brief.md)). Tout est lu dans le registre partagé et le dépôt principal, sans le tableau de bord.
+
+- **En ligne de commande**, depuis son worktree : `node agents/agent/team.mjs tasks | task <id|mot> | agents | related | who <fichier> | say <agent|tous> "…" [--about <fichier>] | inbox [--all] | questions` (`--json` pour la sortie brute ; l'agent est `AGENT_NAME` ou le `.env.agent` du worktree).
+- **En serveur MCP** ([`team-mcp.mjs`](../agent/team-mcp.mjs), stdio, sans dépendance) : les mêmes, en outils `mcp__equipe__taches`, `tache`, `agents`, `lies`, `qui`, `ecrire`, `messages`, `questions`. Le tableau de bord le donne à chaque agent qu'il lance, relance ou à qui il donne un ordre ([`launch.mjs`](../agent/launch.mjs) `teamArgs` : `--mcp-config` et `--allowedTools mcp__equipe` ; `AGENTS_NO_TEAM_MCP=1` pour s'en passer). Un agent lancé par l'orchestrateur passe par la ligne de commande.
+- **Les fichiers d'un agent** sont ceux de ses propres commits (`--first-parent --no-merges` depuis `AGENT_BASE`) et ceux qu'il n'a pas encore commités : les fusions de sa base n'y entrent pas. `related` en tire les agents qui changent les mêmes fichiers, sa tâche mère et ses sous-tâches, et les tâches du backlog qui nomment ses fichiers.
+- **Les messages** : `<registre>/messages/<agent>.jsonl` (une ligne chacun : `id`, `from`, `to` ou `tous`, `text`, `about`, `at`), et ce qu'un agent a lu dans `<agent>.read`. La consigne demande de lire ses messages aux étapes clés, et de prévenir l'agent concerné avant de changer une chose qu'il utilise. Le tiroir de la page Agents montre les messages d'un agent (`GET /api/team/messages?agent=<nom>`), et ceux qu'il n'a pas encore lus.
+
+### Le rapport intermédiaire
+
+La consigne demande à chaque agent d'écrire son `report.md` **dès sa première étape franchie**, dans la forme du rapport final, avec sous le titre la ligne `> 🚧 En cours : …`, et de le mettre à jour à chaque étape ; il retire cette ligne à la fin. Le tableau de bord le reconnaît (`reportInterim`) : un rapport intermédiaire ne fait pas passer l'agent pour « fini » ; la carte de la page Agents montre « 🚧 rapport en cours » (un clic l'ouvre), et le tiroir le montre mis en forme, ouvert tant qu'il est intermédiaire.
+
 ### Notifications sur le téléphone
 
 La page **🔔 Notifications** (`/notifications`, [`notifications.html`](../agent/notifications.html)) abonne un appareil aux notifications du tableau de bord : la **Web Push** standard des navigateurs, envoyée par le tableau de bord lui-même ([`notify.mjs`](../agent/notify.mjs) : chiffrement RFC 8291 et signature VAPID RFC 8292 avec `node:crypto`, sans dépendance). Le service de push du navigateur ne transporte qu'un message chiffré : aucun tiers ne lit les notifications. Il faut une adresse sûre : `https://…ts.net` (Tailscale, voir ci-dessus) ou `localhost`. Sur Android avec Chrome, rien à installer ; sur iPhone, il faut d'abord ajouter la page à l'écran d'accueil.

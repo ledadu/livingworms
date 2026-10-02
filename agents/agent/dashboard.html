@@ -394,7 +394,7 @@ function updateCard(agent) {
   const steps = agent.progress ?? { events: [] };
   const lastMove = Math.max(agent.activity || 0, steps.updated || 0);
   const recent = lastMove && serverNow - lastMove < ACTIVE_MS;
-  const done = steps.finished || (Boolean(agent.report) && agent.dirty.length === 0 && !recent);
+  const done = steps.finished || (Boolean(agent.report) && !agent.reportInterim && agent.dirty.length === 0 && !recent);
   const pending = busy.get(name);
   const lastEvent = steps.events[steps.events.length - 1];
   // An agent launched from the Roadmap page (launch.mjs) also has the fate of its process.
