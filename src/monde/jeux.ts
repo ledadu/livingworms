@@ -244,7 +244,7 @@ function hide(j: Jeu, R: () => number, w: JeuWorld, s: Swimmer, t: number, ev: J
   ev.push({ k: 'encre', x: b.x, y: b.y, z: b.z });
   j.dir = j.round ? -j.dir : b.x < s.x ? -1 : 1;
   j.z = 110 + R() * 90;
-  const x = keep(b, w, b.x + j.dir * (260 + R() * 180), b.y).x;
+  const x = keep(b, w, b.x + j.dir * (190 + R() * 120), b.y).x;
   j.to = { x, y: w.floor(x, j.z) - hover(b) };
   j.stage = 'file'; j.ts = t;
 }

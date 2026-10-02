@@ -9,7 +9,7 @@ import { STEP, TAU, clamp, type PaletteSlot } from '../engine';
 import { swimFactor3, type Creature3 } from '../engine3/creature3';
 import { disc } from '../engine3/paint-gl';
 import type { Proj } from '../engine3/view';
-import { JEUX, chooseJeu, goalOf, newJeu, stepJeu, type Gift, type Jeu, type JeuEvent, type JeuId, type JeuWorld } from './jeux';
+import { JEUX, PLANE, chooseJeu, goalOf, newJeu, stepJeu, type Gift, type Jeu, type JeuEvent, type JeuId, type JeuWorld } from './jeux';
 import type { HSL } from './palette';
 import { fogOf } from './sprites';
 import type { Being, Gait, Pt, Swimmer } from './vie';
@@ -101,7 +101,8 @@ export function initJeux(d: JeuxDeps) {
   /** animals out of their game whose colours come back, step by step */
   const fading = new Map<Animal, Paint>();
   const sparks = new Sparks(200);
-  const ink = new Dust(40);
+  /** the ink of a hider, the sand it stirs as a hint */
+  const clouds = new Dust(60);
   const told = new Set<JeuId>();
   const seen: Partial<Record<JeuId, number>> = {}, gifts: Partial<Record<Gift, number>> = {};
   let glow = { t0: -99, hue: 0 }, pearl: Pearl | null = null;
@@ -178,8 +179,13 @@ export function initJeux(d: JeuxDeps) {
       case 'touche': sparks.burst(e.x, e.y, e.z, 8, hue, 1.4, 6); break;
       case 'attrape': case 'trouve': sparks.burst(e.x, e.y, e.z, 14, hue, 1.8, 7); d.sound('bubbles'); break;
       case 'accepte': for (const o of who) sparks.burst(o.cr.root.x[0], o.cr.root.y[0], o.cr.root.z[0], 4, hue, 1, 6); d.sound('bubbles'); break;
-      case 'encre': ink.emit(e.x, e.y, e.z, { h: 260, s: 25, l: 12 }, 7); break;
-      case 'indice': sparks.burst(e.x, e.y - 10, e.z, 5, 195, 0.4, 5, 0.9); d.sound('bubbles'); break;
+      case 'encre': clouds.emit(e.x, e.y, e.z, { h: 260, s: 25, l: 12 }, 7); break;
+      case 'indice':
+        // it stirs: a puff of sand and a few bubbles rise from where it hides
+        clouds.emit(e.x, d.floor(e.x, e.z), e.z - 10, d.sand(e.x), 4);
+        sparks.burst(e.x, e.y - 10, e.z, 8, 195, 0.5, 7, 1.1);
+        d.sound('bubbles');
+        break;
       case 'miette': sparks.burst(e.x, e.y, 0, 3, 55, 0.8, 5); break;
       case 'cadeau': give(j, e, a); break;
       case 'arrive': break;
@@ -212,7 +218,7 @@ export function initJeux(d: JeuxDeps) {
       const pr = player.root;
       swimmer = { x: pr.x[0], y: pr.y[0], vx: player.vx, vy: player.vy, len: Math.max(20, player.box[3] - player.box[0]) };
       sparks.step();
-      ink.step();
+      clouds.step();
       if (tick % 12 === 0) for (const [a, p] of fading) {
         const n = { k: toward(p.k, 0), c: toward(p.c, 0) };
         repaint(a, n);
@@ -253,7 +259,7 @@ export function initJeux(d: JeuxDeps) {
         return;
       }
       if (!on || t < nextGame || tick % 60 || d.busy() || R() > OFFER_P || d.courting()) return;
-      const free = actors.filter((a) => (a.kind === 'swim' || a.kind === 'floor') && Math.abs(a.cr.root.x[0] - swimmer.x) < 900 && d.free(a));
+      const free = actors.filter((a) => (a.kind === 'swim' || a.kind === 'floor') && Math.abs(a.cr.root.x[0] - swimmer.x) < 900 && Math.abs(a.z) < PLANE && d.free(a));
       const bs = free.map((a) => being(a));
       const c = chooseJeu(swimmer, bs, R);
       if (!c) { nextGame = t + 3; return; }
@@ -267,7 +273,7 @@ export function initJeux(d: JeuxDeps) {
     start(id: JeuId, who?: Animal[], actors?: readonly Animal[]): boolean {
       if (cur) finish();
       if (!who) {
-        const fit = (actors ?? []).filter((a) => (a.kind === 'swim' || a.kind === 'floor') && Math.abs(a.cr.root.x[0] - swimmer.x) < 900 && d.free(a) && JEUX[id].fits(being(a)))
+        const fit = (actors ?? []).filter((a) => (a.kind === 'swim' || a.kind === 'floor') && Math.abs(a.cr.root.x[0] - swimmer.x) < 900 && Math.abs(a.z) < PLANE && d.free(a) && JEUX[id].fits(being(a)))
           .sort((p, q) => Math.abs(p.cr.root.x[0] - swimmer.x) - Math.abs(q.cr.root.x[0] - swimmer.x))
           .sort((p, q) => (id === 'cache' ? +(q.cr.mode === 'jet') - +(p.cr.mode === 'jet') : 0));
         const first = fit[0];
@@ -284,9 +290,9 @@ export function initJeux(d: JeuxDeps) {
     /** the sparks, the ink, the food of the corner and the pearl, into the scene's items at their depth; their lights */
     items(s: JeuxScene, camX: number, push: (d: number, fn: () => void) => void): void {
       const { view, lights } = s;
-      for (let i = 0; i < ink.n; i++) {
-        if (ink.life[i] <= 0 || Math.abs(ink.x[i] - camX) > 1400) continue;
-        push(view.depth(ink.y[i], ink.z[i]) - 0.3, () => drawPuff(s, ink, i));
+      for (let i = 0; i < clouds.n; i++) {
+        if (clouds.life[i] <= 0 || Math.abs(clouds.x[i] - camX) > 1400) continue;
+        push(view.depth(clouds.y[i], clouds.z[i]) - 0.3, () => drawPuff(s, clouds, i));
       }
       for (let i = 0; i < sparks.n; i++) {
         const l = sparks.life[i];
@@ -320,22 +326,23 @@ export function initJeux(d: JeuxDeps) {
 
 const P: Proj = { x: 0, y: 0, s: 1, d: 1 };
 
-/** the pearl on the sand: a pale bead with its gleam */
+/** the pearl on the sand, in its open shell: a fan of ribs behind a pale bead with its gleam */
+const SHELL = [-2.5, -2.1, -1.57, -1.05, -0.65];
 function drawPearl(s: JeuxScene, p: Pt, fade: number): void {
   const { view, gx, ctx, dpr } = s;
   view.project(p.x, p.y, 0, P);
-  const r = Math.max(2, 7 * P.s), al = fade * (1 - 0.6 * fogOf(P.d, s.plane));
+  const r = Math.max(2, 6 * P.s), al = fade * (1 - 0.6 * fogOf(P.d, s.plane));
+  const dots: [number, number, number, string][] = SHELL.map((a) => [P.x + Math.cos(a) * r * 1.25, P.y + r * 0.5 + Math.sin(a) * r * 1.1, r * 0.75, 'hsla(20,45%,74%,1)']);
+  dots.push([P.x, P.y + r * 0.2, r * 0.9, 'hsla(20,40%,64%,1)'], [P.x, P.y, r, 'hsla(40,40%,92%,1)'], [P.x - r * 0.35, P.y - r * 0.35, r * 0.35, 'hsla(0,0%,100%,1)']);
   if (gx) {
     gx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    disc(gx, P.x, P.y, r, gx.packCss('hsla(40,40%,90%,1)', al));
-    disc(gx, P.x - r * 0.35, P.y - r * 0.35, r * 0.35, gx.packCss('hsla(0,0%,100%,1)', al));
+    for (const [x, y, rr, c] of dots) disc(gx, x, y, rr, gx.packCss(c, al));
     return;
   }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = `hsla(40,40%,90%,${al.toFixed(3)})`;
-  ctx.beginPath(); ctx.arc(P.x, P.y, r, 0, TAU); ctx.fill();
-  ctx.fillStyle = `hsla(0,0%,100%,${al.toFixed(3)})`;
-  ctx.beginPath(); ctx.arc(P.x - r * 0.35, P.y - r * 0.35, r * 0.35, 0, TAU); ctx.fill();
+  ctx.globalAlpha = al;
+  for (const [x, y, rr, c] of dots) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, rr, 0, TAU); ctx.fill(); }
+  ctx.globalAlpha = 1;
 }
 
 export type Jeux = ReturnType<typeof initJeux>;
