@@ -28,6 +28,12 @@ Prioritaire. Pendant l'accouplement, la danse à deux (`src/monde/danse.ts`, « 
 - **Ouvert** : le moteur est fait pour servir ailleurs (les petits jeux des animaux, un animal qui danse quand on chante, les nouveau-nés qui sortent de l'œuf, la Balade libre) ; un `monde.danse.play(animal, 'twist')` pour l'essayer, et dans `?dev` une liste pour jouer chaque danse sur la créature jouée.
 - Coût tenu sur téléphone (le moteur ajuste quelques paramètres par image, pas de simulation en plus). Captures ou courtes séquences de chaque danse sur plusieurs corps (poisson, crabe, méduse, ver, poulpe) dans le rapport ; mettre à jour « La parade » dans `docs/mecaniques.md`.
 
+### Les parents dansent au-dessus de la portée
+> ⚪ à faire
+> ↳ après « Le moteur de danse : des pas chorégraphiés pour tous les corps »
+
+Quand les deux chantiers sont fusionnés (« Les parents au-dessus de la portée » et le moteur de danse) : dans l'écran de la portée, les deux parents ne sont plus de simples portraits figés, ils **dansent** au-dessus des enfants, avec le moteur de danse. Une danse joyeuse, en duo (en miroir ou en canon), qui change à chaque portée selon leurs deux corps, en boucle douce pendant qu'on choisit ; les parents restent petits et ne prennent pas le regard aux enfants. Garder l'écran fluide sur téléphone (deux petites créatures animées, pas plus) et l'animation coupée si l'utilisateur préfère moins de mouvement (`prefers-reduced-motion` : portraits figés comme avant). Une courte séquence ou des captures dans le rapport.
+
 ### Grandir jusqu'à la maturité
 > ⚪ à faire
 
