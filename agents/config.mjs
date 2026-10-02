@@ -86,6 +86,9 @@ export const DEFAULTS = {
   release: {
     // A release is a « version » (feminine noun in the sentences: « la version 0.3 »).
     word: 'version',
+    // Nightlies: every publication is a dated nightly, X.Y.Z-nightly.AAAAMMJJ.N, on the way to the next stable X.Y.Z,
+    // which is published when the user decides (a milestone). Off: every publication is a SemVer 0.x version.
+    nightly: false,
     // The title of the changelog and of the « what's new » page.
     title: 'Nouveautés',
     // Under « ## <unreleased> » in the changelog.
@@ -140,12 +143,16 @@ async function load() {
 
 export const project = merge(DEFAULTS, await load());
 
-// « Version 0.2 » for 0.2.0, « Version 0.2.1 » for a patch, « Prochaine version » without one.
+const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+// « Version 0.2 » for 0.2.0, « Version 0.2.1 » for a patch, « Nightly du 2 octobre » for 0.2.0-nightly.20261002.1
+// (« Nightly du 2 octobre (2) » for the second of the day), « Prochaine version » without one.
 export function releaseName(version) {
   const word = capitalize(project.release.word);
-  const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(String(version ?? '').trim());
+  const match = /^v?(\d+)\.(\d+)\.(\d+)(?:-nightly\.(\d{4})(\d{2})(\d{2})\.(\d+))?$/.exec(String(version ?? '').trim());
   if (!match) return `Prochaine ${project.release.word}`;
-  const [, major, minor, patch] = match;
+  const [, major, minor, patch, , month, day, n] = match;
+  if (day) return `Nightly du ${Number(day) === 1 ? '1er' : Number(day)} ${MONTHS[Number(month) - 1]}${Number(n) > 1 ? ` (${n})` : ''}`;
   return `${word} ${major}.${minor}${Number(patch) ? `.${patch}` : ''}`;
 }
 

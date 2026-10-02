@@ -17,7 +17,7 @@ export const DATA_ID = 'whats-new-data';
 // whose image does not fit any more keeps its text only, and so do the older ones.
 export const EMBED = { width: 720, quality: 70, budget: 400_000 };
 
-const FOLDER = /^(unreleased|v\d+\.\d+\.\d+)$/;
+const FOLDER = /^(unreleased|v\d+\.\d+\.\d+(-nightly\.\d{8}\.\d+)?)$/;
 const TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', svg: 'image/svg+xml' };
 const extension = (file) => file.split('.').pop()?.toLowerCase() ?? '';
 

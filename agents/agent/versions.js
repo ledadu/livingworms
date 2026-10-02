@@ -22,7 +22,8 @@ function assignSelect(entry, current) {
     .filter((planned) => planned.version !== current)
     .map((planned) => `<option value="${escapeHtml(planned.version)}">${current ? 'Déplacer vers' : 'Affecter à'} la ${escapeHtml(planned.generation)}</option>`);
   const proposal = entry.propose && !versions.planned.some((planned) => planned.version === entry.propose) ? entry.propose : null;
-  if (proposal) options.push(`<option value="${escapeHtml(proposal)}">${current ? 'Déplacer vers' : 'Affecter à'} une nouvelle version (${escapeHtml(proposal)})</option>`);
+  if (proposal) options.push(`<option value="${escapeHtml(proposal)}">${current ? 'Déplacer vers' : 'Affecter à'} une nouvelle nightly (${escapeHtml(versions.proposalName)})</option>`);
+  if (versions.proposalStable && !versions.planned.some((planned) => planned.version === versions.proposalStable)) options.push(`<option value="${escapeHtml(versions.proposalStable)}">${current ? 'Déplacer vers' : 'Affecter à'} la stable (${escapeHtml(versions.proposalStableName)})</option>`);
   options.push('<option value="?">… une autre version (numéro à saisir)</option>');
   if (current) options.push('<option value="-">Retirer de la __RELEASE__</option>');
   return `<select class="assign" data-assign="${escapeHtml(entry.slug)}"><option value="">${current ? 'Déplacer / retirer…' : 'Affecter à…'}</option>${options.join('')}</select>`;
@@ -66,7 +67,9 @@ function bulkBar() {
   const invalid = versions.pending.length - valid.length;
   const all = valid.length > 0 && valid.every((entry) => selected.has(entry.slug));
   const target = document.getElementById('bulk-target')?.value ?? '';
-  const options = [`<option value=""${target === '' ? ' selected' : ''}>une nouvelle __RELEASE__ (numéro proposé)</option>`,
+  const stable = versions.proposalStable && !versions.planned.some((planned) => planned.version === versions.proposalStable)
+    ? [`<option value="${escapeHtml(versions.proposalStable)}"${target === versions.proposalStable ? ' selected' : ''}>la stable : ${escapeHtml(versions.proposalStableName)}</option>`] : [];
+  const options = [`<option value=""${target === '' ? ' selected' : ''}>une nouvelle nightly (${escapeHtml(versions.proposalName)})</option>`, ...stable,
     ...versions.planned.map((planned) => `<option value="${escapeHtml(planned.version)}"${target === planned.version ? ' selected' : ''}>la ${escapeHtml(planned.generation)} en préparation</option>`)];
   return `<div class="bulk">
     <label><input type="checkbox" data-pick-all${all ? ' checked' : ''}${valid.length ? '' : ' disabled'}> Tout sélectionner</label>
@@ -98,7 +101,7 @@ async function bulkAction(slugs, publishAfter) {
 }
 
 function pendingView() {
-  const intro = `<div class="vhead"><h2>À publier</h2><span class="note">Tâches archivées dont l'entrée n'est dans aucune __RELEASE__. Affecte-les à une __RELEASE__ en préparation, ou à une nouvelle (${escapeHtml(versions.proposal)} proposée).</span></div>`;
+  const intro = `<div class="vhead"><h2>À publier</h2><span class="note">Tâches archivées dont l'entrée n'est dans aucune __RELEASE__. Affecte-les à une __RELEASE__ en préparation, à une nouvelle nightly (${escapeHtml(versions.proposalName)}), ou à la stable (${escapeHtml(versions.proposalStableName)}) quand une étape est franchie.</span></div>`;
   const errors = versions.errors.length ? `<ul class="problems">${versions.errors.map((e) => `<li>${escapeHtml(e)}</li>`).join('')}</ul>` : '';
   if (!versions.pending.length) return `${intro}${errors}<div class="empty">Rien à publier : toutes les entrées ont leur __RELEASE__.</div>`;
   return `${intro}${errors}${bulkBar()}<div class="entries">${versions.pending.map((entry) => entryCard(entry)).join('')}</div>`;
@@ -132,7 +135,7 @@ function versionView(planned) {
     <div class="panel">
       <h3>__Release__</h3>
       <form class="form" data-version-form="${escapeHtml(planned.version)}">
-        <label for="f-version">Numéro</label><input id="f-version" name="to" value="${escapeHtml(planned.version)}" pattern="\\d+\\.\\d+\\.\\d+" title="X.Y.Z, après la dernière __RELEASE__ publiée">
+        <label for="f-version">Numéro</label><input id="f-version" name="to" value="${escapeHtml(planned.version)}" pattern="\\d+\\.\\d+\\.\\d+(-nightly\\.\\d{8}\\.\\d+)?" title="X.Y.Z (stable) ou X.Y.Z-nightly.AAAAMMJJ.N, après la dernière __RELEASE__ publiée">
         <label for="f-title">Titre</label><input id="f-title" name="title" value="${escapeHtml(planned.title)}" placeholder="Un titre court (facultatif)">
         <label for="f-intro">Mot d'intro</label><textarea id="f-intro" name="intro" placeholder="Une ou deux phrases pour ouvrir la __RELEASE__ (facultatif)">${escapeHtml(planned.intro)}</textarea>
         <span></span><span class="actions"><button class="btn primary" type="submit">Enregistrer</button><button class="btn danger" type="button" data-vaction="unplan" data-version="${escapeHtml(planned.version)}" title="Les tâches retournent dans « À publier »">Supprimer la __RELEASE__</button></span>
@@ -216,7 +219,7 @@ document.addEventListener('change', async (event) => {
   const slug = select.dataset.assign;
   let version = select.value === '-' ? '' : select.value;
   if (version === '?') {
-    version = (prompt(`Numéro de la __RELEASE__ pour « ${slug} » (X.Y.Z) :`, versions.proposal) || '').trim();
+    version = (prompt(`Numéro de la __RELEASE__ pour « ${slug} » (X.Y.Z pour une stable, X.Y.Z-nightly.AAAAMMJJ.N pour une nightly) :`, versions.proposal) || '').trim();
     if (!version) return (select.value = '');
   }
   select.disabled = true;

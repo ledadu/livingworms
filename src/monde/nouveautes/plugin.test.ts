@@ -81,7 +81,7 @@ describe('the Vite plugin of the « Nouveautés »', () => {
     const data = await plugin.embeddedData(root, (line) => lines.push(line));
     expect(data.releases.length).toBeGreaterThan(0);
     expect(data.releases.every((release) => !release.unreleased)).toBe(true);
-    expect(data.releases.find((release) => release.version === '0.2.0')!.entries).toHaveLength(8);
+    expect(data.releases.find((release) => release.version === '0.1.0-nightly.20260930.1')!.entries).toHaveLength(8);
     const entries = data.releases.flatMap((release) => release.entries);
     const source = plugin.playersOnly(changes.whatsNew(changes.loadChanges(root))).releases.flatMap((release) => release.entries);
     expect(entries.map((e) => e.id)).toEqual(source.map((e) => e.id));

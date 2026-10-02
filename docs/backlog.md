@@ -17,22 +17,25 @@ Les documents de conception : [vision](vision.md), [chapitres](chapitres.md), [m
 
 Prioritaire, petit. Dans l'écran de la portée (le choix entre les 4 enfants, `src/monde/portee-ecran.ts`), montrer **les deux parents en image** au-dessus des enfants : le parent (la créature jouée) et le partenaire, chacun avec son portrait (`snapshot3`, comme les enfants) et son nom, côte à côte, un peu plus petits que les enfants, avec un signe doux qui les relie (un « + », un fil de lumière dorée). On voit ainsi d'un coup d'œil d'où vient ce que chaque enfant a hérité (« de Première : … / de Méduse lune : … »). Garder l'écran lisible sur téléphone (petite hauteur : les parents plus petits, ou en bandeau) ; une capture avant/après dans le rapport.
 
-### Le moteur de danse : des pas chorégraphiés pour tous les corps
-> 🟠 fusionné · agent moteur-danse
-
-Prioritaire. Pendant l'accouplement, la danse à deux (`src/monde/danse.ts`, « La parade » de `docs/mecaniques.md`) ne fait que déplacer les deux danseurs (se tourner autour, s'enrouler, la spirale, se frôler, le balancement). Garder ces rondes, et ajouter de **vraies danses** : les corps eux-mêmes bougent, se dandinent, font des mouvements spéciaux chorégraphiés, drôles et sympathiques, qui rappellent des danses connues.
-
-- **Un moteur de danse** (dans `src/engine3/`, pur et testé) : des **pas** décrits une fois, sur ce que tout squelette a, et pas sur une espèce : le tronc (se tortiller, onduler, se cambrer, se rouler en boule), la tête (hocher, secouer, tourner), la queue (frétiller, battre la mesure), les membres par rôle et par côté (nageoires, pattes, bras, tentacules, filaments : lever, agiter, faire la vague de l'avant à l'arrière, alterner gauche et droite), le corps entier (rebondir, pivoter, se dandiner d'un côté à l'autre, une pirouette). Un pas se pose par-dessus la nage de la créature (`creature3.ts`), sans casser ses chaînes ; ce qu'un corps n'a pas, il le saute ou le remplace (une méduse sans pattes agite ses filaments, un ver se tortille plus fort).
-- **Des chorégraphies** : des suites de pas sur un tempo, avec des temps forts, des gestes en miroir ou en canon entre les deux danseurs (l'un fait, l'autre répond), et une pose finale. Des danses qui rappellent quelque chose, avec humour et douceur : le twist, la vague, le pas de crabe de côté, le moonwalk (à reculons au fond), le tango (l'un fait plonger l'autre), la valse (tourner à deux), un disco (un membre pointé vers le haut puis vers le bas), une danse des canards (battre des nageoires, frétiller de la queue)…
-- **Dans la danse à deux** : une ronde ou deux comme aujourd'hui, et une ou deux vraies danses, tirées selon les deux corps (un marcheur danse au fond, deux méduses ondulent ensemble) ; jamais la même suite d'une fois à l'autre. Sur le tempo de la musique du chapitre si possible (son horloge), en ré majeur, avec un petit accent sonore sur les temps forts.
-- **Ouvert** : le moteur est fait pour servir ailleurs (les petits jeux des animaux, un animal qui danse quand on chante, les nouveau-nés qui sortent de l'œuf, la Balade libre) ; un `monde.danse.play(animal, 'twist')` pour l'essayer, et dans `?dev` une liste pour jouer chaque danse sur la créature jouée.
-- Coût tenu sur téléphone (le moteur ajuste quelques paramètres par image, pas de simulation en plus). Captures ou courtes séquences de chaque danse sur plusieurs corps (poisson, crabe, méduse, ver, poulpe) dans le rapport ; mettre à jour « La parade » dans `docs/mecaniques.md`.
-
 ### Les parents dansent au-dessus de la portée
-> ⚪ à faire
+> 🔵 en cours · agent parents-dansent-dessus
 > ↳ après « Le moteur de danse : des pas chorégraphiés pour tous les corps »
 
 Quand les deux chantiers sont fusionnés (« Les parents au-dessus de la portée » et le moteur de danse) : dans l'écran de la portée, les deux parents ne sont plus de simples portraits figés, ils **dansent** au-dessus des enfants, avec le moteur de danse. Une danse joyeuse, en duo (en miroir ou en canon), qui change à chaque portée selon leurs deux corps, en boucle douce pendant qu'on choisit ; les parents restent petits et ne prennent pas le regard aux enfants. Garder l'écran fluide sur téléphone (deux petites créatures animées, pas plus) et l'animation coupée si l'utilisateur préfère moins de mouvement (`prefers-reduced-motion` : portraits figés comme avant). Une courte séquence ou des captures dans le rapport.
+
+### Les parents dansent dans une boîte de coraux
+> ⚪ à faire
+> ↳ après « Les parents dansent au-dessus de la portée »
+
+Dans l'écran de la portée (`src/monde/portee-ecran.ts`, `src/monde/portee.css`), les deux parents qui dansent au-dessus des enfants (moteur de danse, `src/monde/danse.ts`) sont mis dans une **petite boîte de coraux** : une scène basse bordée de coraux, d'anémones et de sable, comme un petit aquarium posé au-dessus des cartes des enfants. Couleurs douces et peu de détails, pour que le regard reste sur les enfants ; la boîte garde la hauteur de la bande des parents et tient sur un téléphone (petite hauteur : boîte plus basse, coraux réduits aux bords).
+
+**Collisions dans la boîte** : vérifier, et corriger si besoin, que pendant toute la danse en boucle :
+- les deux parents ne passent jamais l'un dans l'autre : ils gardent un écart au moins égal à la somme de leurs rayons, même dans les pas en miroir ou en canon et avec des corps de tailles très différentes (une grande méduse et un petit crabe, par exemple) ;
+- aucun ne sort de la boîte ni ne traverse les coraux du bord ; un marcheur se pose sur le sable du fond au lieu de flotter ou de s'enfoncer ;
+- rien n'est coupé au bord du canvas (queue, tentacules, nageoires).
+Ajouter un test (dans `src/monde/portee-ecran.test.ts` ou à côté) qui joue la danse sur quelques paires de corps (poisson, crabe, méduse, ver, poulpe) et vérifie les écarts et les bornes image par image.
+
+Si l'utilisateur préfère moins de mouvement (`prefers-reduced-motion`), la boîte reste là, avec les deux portraits figés dedans. L'écran doit rester fluide sur téléphone : la boîte est dessinée une seule fois, pas d'animation de coraux. Des captures de la boîte sur deux ou trois paires de corps et sur téléphone dans le rapport.
 
 ### Grandir jusqu'à la maturité
 > 🔵 en cours · agent grandir-jusqu-maturite
@@ -178,20 +181,10 @@ Ce que le jeu doux façonne, c'est un animal, qui sera repris dans un jeu plus c
 
 Des courants dans la mer où l'on se laisse porter pour aller vite : visibles (des stries, des bulles, du plancton qui file), avec leur son, qui mènent d'un coin à un autre d'un chapitre ou vers un endroit caché. On y entre, on file, on en sort quand on veut. Un plaisir simple, qui fait aussi sentir la vitesse avant la nouvelle nage.
 
-### Les petits jeux des animaux
-> 🟠 fusionné · agent petits-jeux-animaux
-
-Des animaux qui jouent avec nous, sans enjeu : un poisson qui joue à chat (il nous touche et file, on le rattrape, il recommence), un banc qui nous accepte si l'on nage à son rythme et nous emmène vers un coin caché, un poulpe qui se cache et qu'il faut trouver. Ça prolonge les scènes des animaux (« action des annimaux dans la nature »). Une petite récompense douce à la fin (une bouchée, un trésor, une lueur), jamais d'échec.
-
 ### Les trésors de la lignée
 > ⚪ à faire
 
 Des choses rares à trouver dans chaque chapitre : une perle, une coquille ancienne, une fleur qui ne s'ouvre que si l'on chante, un fossile dans la Carcasse, un cristal dans le Glacier. Un **carnet** les garde (ouvert depuis les réglages ou l'arbre), avec un mot de la lignée sur chacun ; ceux qu'on n'a pas encore trouvés y sont des silhouettes. Gardé dans la sauvegarde. On collectionne, rien ne presse.
-
-### Les amis qui suivent
-> 🟠 fusionné · agent amis-qui-suivent
-
-Un petit animal qu'on a nourri, aidé ou avec qui on a joué nous suit un moment, et peut-être d'un chapitre à l'autre : un compagnon de la génération, qui nage autour de nous, chante avec nous, nous montre parfois un trésor ou une nourriture. Il reste dans le monde quand on change de génération, comme les ancêtres.
 
 ### Le portrait de la génération
 > ⚪ à faire
@@ -257,182 +250,203 @@ La note est calculée régulièrement, pas à chaque image : quelques fois par s
 
 Les chantiers publiés, du plus récent au plus ancien.
 
+### Le moteur de danse : des pas chorégraphiés pour tous les corps
+> 🟢 livré · v0.1.0-nightly.20261002.1 · agent moteur-danse
+
+Prioritaire. Pendant l'accouplement, la danse à deux (`src/monde/danse.ts`, « La parade » de `docs/mecaniques.md`) ne fait que déplacer les deux danseurs (se tourner autour, s'enrouler, la spirale, se frôler, le balancement). Garder ces rondes, et ajouter de **vraies danses** : les corps eux-mêmes bougent, se dandinent, font des mouvements spéciaux chorégraphiés, drôles et sympathiques, qui rappellent des danses connues.
+
+- **Un moteur de danse** (dans `src/engine3/`, pur et testé) : des **pas** décrits une fois, sur ce que tout squelette a, et pas sur une espèce : le tronc (se tortiller, onduler, se cambrer, se rouler en boule), la tête (hocher, secouer, tourner), la queue (frétiller, battre la mesure), les membres par rôle et par côté (nageoires, pattes, bras, tentacules, filaments : lever, agiter, faire la vague de l'avant à l'arrière, alterner gauche et droite), le corps entier (rebondir, pivoter, se dandiner d'un côté à l'autre, une pirouette). Un pas se pose par-dessus la nage de la créature (`creature3.ts`), sans casser ses chaînes ; ce qu'un corps n'a pas, il le saute ou le remplace (une méduse sans pattes agite ses filaments, un ver se tortille plus fort).
+- **Des chorégraphies** : des suites de pas sur un tempo, avec des temps forts, des gestes en miroir ou en canon entre les deux danseurs (l'un fait, l'autre répond), et une pose finale. Des danses qui rappellent quelque chose, avec humour et douceur : le twist, la vague, le pas de crabe de côté, le moonwalk (à reculons au fond), le tango (l'un fait plonger l'autre), la valse (tourner à deux), un disco (un membre pointé vers le haut puis vers le bas), une danse des canards (battre des nageoires, frétiller de la queue)…
+- **Dans la danse à deux** : une ronde ou deux comme aujourd'hui, et une ou deux vraies danses, tirées selon les deux corps (un marcheur danse au fond, deux méduses ondulent ensemble) ; jamais la même suite d'une fois à l'autre. Sur le tempo de la musique du chapitre si possible (son horloge), en ré majeur, avec un petit accent sonore sur les temps forts.
+- **Ouvert** : le moteur est fait pour servir ailleurs (les petits jeux des animaux, un animal qui danse quand on chante, les nouveau-nés qui sortent de l'œuf, la Balade libre) ; un `monde.danse.play(animal, 'twist')` pour l'essayer, et dans `?dev` une liste pour jouer chaque danse sur la créature jouée.
+- Coût tenu sur téléphone (le moteur ajuste quelques paramètres par image, pas de simulation en plus). Captures ou courtes séquences de chaque danse sur plusieurs corps (poisson, crabe, méduse, ver, poulpe) dans le rapport ; mettre à jour « La parade » dans `docs/mecaniques.md`.
+
+### Les petits jeux des animaux
+> 🟢 livré · v0.1.0-nightly.20261002.1 · agent petits-jeux-animaux
+
+Des animaux qui jouent avec nous, sans enjeu : un poisson qui joue à chat (il nous touche et file, on le rattrape, il recommence), un banc qui nous accepte si l'on nage à son rythme et nous emmène vers un coin caché, un poulpe qui se cache et qu'il faut trouver. Ça prolonge les scènes des animaux (« action des annimaux dans la nature »). Une petite récompense douce à la fin (une bouchée, un trésor, une lueur), jamais d'échec.
+
+### Les amis qui suivent
+> 🟢 livré · v0.1.0-nightly.20261002.1 · agent amis-qui-suivent
+
+Un petit animal qu'on a nourri, aidé ou avec qui on a joué nous suit un moment, et peut-être d'un chapitre à l'autre : un compagnon de la génération, qui nage autour de nous, chante avec nous, nous montre parfois un trésor ou une nourriture. Il reste dans le monde quand on change de génération, comme les ancêtres.
+
 ### Les bruitages
-> 🟢 livré · v0.7.0 · agent bruitages
+> 🟢 livré · v0.1.0-nightly.20261001.2 · agent bruitages
 
 Bulles, courant, cris lointains de baleine ; la résonance de la Grotte, les craquements du Glacier.
 
 ### La performance sur téléphone
-> 🟢 livré · v0.7.0 · agent performance-telephone
+> 🟢 livré · v0.1.0-nightly.20261001.2 · agent performance-telephone
 
 Tenir un rythme fluide sur un téléphone moyen dans tous les chapitres, notamment le Jardin de méduses (des milliers de méduses) et la Fosse (la lumière du nageur). Mesurer avec `?bench` et sur un vrai téléphone.
 
 ### La Balade libre
-> 🟢 livré · v0.7.0 · agent balade-libre
+> 🟢 livré · v0.1.0-nightly.20261001.2 · agent balade-libre
 
 Après la fin : le monde entier ouvert, l'Atelier disponible, sans histoire.
 
 ### arbre des creature
-> 🟢 livré · v0.7.0 · agent arbre-creature
+> 🟢 livré · v0.1.0-nightly.20261001.2 · agent arbre-creature
 
 il faut animer les creaure dans l'arbre et pourquoi pas des animation pas tres communa par rapport au jeux, peut etre plus rigolote plus amusante.. assez douces.
 
 ### action des annimaux dans la nature
-> 🟢 livré · v0.7.0 · agent action-annimaux-nature
+> 🟢 livré · v0.1.0-nightly.20261001.2 · agent action-annimaux-nature
 
 trouve des type d'animation accrochable anotre moteur de creature, pour leur faire des truc , seule, a 2, a plusieurs, rend les espace plus realiste de vie, pas seulemnt des deplacement d'animaux
 
 ### Le chant : une note par chapitre
-> 🟢 livré · v0.6.0 · agent chant-note-chapitre
+> 🟢 livré · v0.1.0-nightly.20261001.1 · agent chant-note-chapitre
 
 Chaque génération apprend la note de son chapitre ; un bouton en bas ouvre un cercle de notes à tracer du doigt. Certains animaux répondent et ouvrent un passage. Nombre de notes : voir la question 3 des [décisions](decisions.md#questions-ouvertes).
 
 ### Les lumières qui répondent dans la Fosse
-> 🟢 livré · v0.6.0 · agent lumieres-qui-repondent
+> 🟢 livré · v0.1.0-nightly.20261001.1 · agent lumieres-qui-repondent
 
 On joue les notes apprises et, une à une, des lumières répondent dans le noir : les ancêtres des autres lignées.
 
 ### La Remontée
-> 🟢 livré · v0.6.0 · agent remontee
+> 🟢 livré · v0.1.0-nightly.20261001.1 · agent remontee
 
 Le puits de lumière au fond, le retournement, puis la remontée : la créature finale joue le chant complet, tous les ancêtres apparaissent et remontent en formation, chaque chapitre s'illumine au passage, la lignée perce la surface et une larve naît ([chapitres.md](chapitres.md)).
 
 ### Le générique et l'image souvenir
-> 🟢 livré · v0.6.0 · agent generique-image-souvenir
+> 🟢 livré · v0.1.0-nightly.20261001.1 · agent generique-image-souvenir
 
 L'arbre complet de la lignée en générique, puis en image téléchargeable (sauf dans le lien Artifact).
 
 ### lueur de l'accouplement
-> 🟢 livré · v0.6.0 · agent lueur-accouplement
+> 🟢 livré · v0.1.0-nightly.20261001.1 · agent lueur-accouplement
 
 Il faut que cela soit moin eblouisant et ajuter plein d'autre effets qui ne sont pas forcement les meme a chaque fois , un peu de random et peut etre aussi en fonction des genes des accouplé?
 
 ### Titre du chantier
-> 🟢 livré · v0.6.0 · agent titre-chantier
+> 🟢 livré · v0.1.0-nightly.20261001.1 · agent titre-chantier
 
 quand les bestiole se retourne mettre de l'aleatoire sur le sens, elle pevent se retouné en passant par le dos ou en passant de face...
 
 ### Titre du chantier
-> 🟢 livré · v0.6.0 · agent titre-chantier-2
+> 🟢 livré · v0.1.0-nightly.20261001.1 · agent titre-chantier-2
 
 le forcage de changement pour passer dans un mode et vachement intrusif, et pas du tout smooth..
 le moment ou on est obligé d'accepter un oeuf!! on pourrait pas diriger le joueur plus.. et meme si il refuse alors il doit encore s'accouple et peut etre luis donner des indice pour qu'il trouve la bonne bestionle avec qui il doit faire l'enfant..
 
 ### La musique générée
-> 🟢 livré · v0.6.0 · agent musique-generee
+> 🟢 livré · v0.1.0-nightly.20261001.1 · agent musique-generee
 
 Une ambiance par chapitre, générée avec la Web Audio API (nappes, harmoniques), sans fichier audio ([decisions.md](decisions.md#technique)). Le chant et ses timbres.
 
 ### deplacement des crevette et autres
-> 🟢 livré · v0.6.0 · agent deplacement-crevette
+> 🟢 livré · v0.1.0-nightly.20261001.1 · agent deplacement-crevette
 
 j'ai remarque que les crevettes on un deplacement rigolot et sympa au sol, un peu rapide mais bien cool. par contre dés quelle nage elle reste horizonale, on dois poivoir nager vertical i l y a pade de raison, et pour toutes le especes.
 
 ### tentacule/filements des meduses
-> 🟢 livré · v0.6.0 · agent tentacule-filements
+> 🟢 livré · v0.1.0-nightly.20261001.1 · agent tentacule-filements
 
 il manque des filement au meduses, j'ai reparqué que certaine les filement ne sont sue d'un coté, ca doit etre tjs symetrique!
 
 ### animation plus organique
-> 🟢 livré · v0.6.0 · agent animation-plus-organique
+> 🟢 livré · v0.1.0-nightly.20261001.1 · agent animation-plus-organique
 
 les animation d'accouplement sont un peu trop simple, je veux des truc plus organique
 on peut peut etre aller voir sur des aloritme ultra simplifier de mecanique de fluide ou oune truc qui ramene a la nature la physice de la matiere..
 
 ### flore
-> 🟢 livré · v0.6.0 · agent flore
+> 🟢 livré · v0.1.0-nightly.20261001.1 · agent flore
 
 ajoute encore plus de diversité de flore, anemones, corails, couteau et autre belle extrordinaire creatures
 
 ### tests
-> 🟢 livré · v0.6.0 · agent tests
+> 🟢 livré · v0.1.0-nightly.20261001.1 · agent tests
 
 des test echoues ?
 que doit en faire mettre ajour les test ? corriger l'application? ou autre ?
 
 ### experimenter des effet de deformation eau
-> 🟢 livré · v0.6.0 · agent experimenter-effet
+> 🟢 livré · v0.1.0-nightly.20261001.1 · agent experimenter-effet
 
 tester avec shader ou autres systgeme de calcul pour des effet de deformation dans l'eau
 des effet de vagues aussi pourquoi pas genre momen de cris/cant d'animaux
 
 ### L'arbre de la lignée
-> 🟢 livré · v0.5.0 · agent arbre-lignee
+> 🟢 livré · v0.1.0-nightly.20260930.4 · agent arbre-lignee
 
 Un écran accessible à tout moment : le portrait de chaque ancêtre (`snapshot3`), son nom, le partenaire, le lieu de naissance. On peut nommer chaque génération.
 
 ### Les ancêtres restent dans le monde
-> 🟢 livré · v0.5.0 · agent ancetres-restent-monde
+> 🟢 livré · v0.1.0-nightly.20260930.4 · agent ancetres-restent-monde
 
 Chaque parent quitté reste là où on l'a quitté, et y nage quand on revient en arrière.
 
 ### Les traces de la lignée
-> 🟢 livré · v0.5.0 · agent traces-lignee
+> 🟢 livré · v0.1.0-nightly.20260930.4 · agent traces-lignee
 
 Plus bas, des traces des générations passées : une carcasse de parent devenue récif, une mue, des œufs non éclos.
 
 ### La lignée rivale de la Carcasse
-> 🟢 livré · v0.5.0 · agent lignee-rivale-carcasse
+> 🟢 livré · v0.1.0-nightly.20260930.4 · agent lignee-rivale-carcasse
 
 À la Carcasse, une autre lignée, aux choix différents : une créature étrange, cousine lointaine, générée à partir d'autres partenaires.
 
 ### Les traits du corps
-> 🟢 livré · v0.4.0 · agent traits-corps
+> 🟢 livré · v0.1.0-nightly.20260930.3 · agent traits-corps
 
 Déduire les traits d'une espèce de son arbre de parties (table de [mecaniques.md](mecaniques.md#lhérédité--les-traits)) : une fonction pure, testée, qui dit quels traits a une créature. Seuils à définir pour le corps fin, la carapace, la pulsation.
 
 ### Les obstacles-clés
-> 🟢 livré · v0.4.0 · agent obstacles-cles
+> 🟢 livré · v0.1.0-nightly.20260930.3 · agent obstacles-cles
 
 Un obstacle par chapitre, qui barre la descente tant qu'on n'a pas l'un des traits qui le franchissent ([chapitres.md](chapitres.md#vue-densemble)). Aucun dégât (zéro danger) : l'obstacle repousse, ralentit ou cache le chemin. Chaque obstacle a au moins deux traits qui le franchissent.
 
 ### Les espèces compatibles et leur lueur
-> 🟢 livré · v0.4.0 · agent especes-compatibles-leur
+> 🟢 livré · v0.1.0-nightly.20260930.3 · agent especes-compatibles-leur
 
 Marquer les partenaires de chaque chapitre ; ils brillent doucement quand on s'approche. S'assurer que chaque chapitre propose les partenaires qui apportent les traits de son obstacle (on ne peut jamais se bloquer).
 
 ### La parade
-> 🟢 livré · v0.4.0 · agent parade
+> 🟢 livré · v0.1.0-nightly.20260930.3 · agent parade
 
 Environ 20 secondes de nage synchronisée avec le partenaire : le suivre sans le perdre, passer dans son sillage, tourner avec lui. Sans échec possible ; une qualité de 0 à 1 qui passe à la portée ([mecaniques.md](mecaniques.md#la-parade)).
 
 ### La portée : 4 enfants, en choisir un
-> 🟢 livré · v0.4.0 · agent portee-4-enfants
+> 🟢 livré · v0.1.0-nightly.20260930.3 · agent portee-4-enfants
 
 4 œufs éclosent ; 4 enfants générés par la fusion du parent et du partenaire (`fuse`, `src/content/generate.ts`), environ 60 % du parent et 40 % du partenaire, plus fidèles aux traits voulus quand la parade est réussie. L'écran montre ce que chacun a hérité. On en choisit un, qu'on joue ensuite.
 
 ### L'adieu au parent
-> 🟢 livré · v0.4.0 · agent adieu-parent
+> 🟢 livré · v0.1.0-nightly.20260930.3 · agent adieu-parent
 
 Le moment où l'on quitte le parent : le texte d'adieu, l'enfant qui s'éloigne, le parent qui reste. Il doit toucher ([vision](vision.md#les-trois-piliers)).
 
 ### Un monde fini, du début à la fin
-> 🟢 livré · v0.3.0 · agent monde-fini-debut
+> 🟢 livré · v0.1.0-nightly.20260930.2 · agent monde-fini-debut
 
 Le monde commence à la surface de la Nurserie et finit au fond de la Fosse ; on ne peut pas aller plus loin qu'un obstacle non franchi (en attendant l'étape 3, un obstacle se franchit librement). Le voyage vers les biomes du panneau de réglages reste pour les tests, caché aux joueurs.
 
 ### Les textes narratifs : ouvertures et adieux
-> 🟢 livré · v0.3.0 · agent textes-narratifs
+> 🟢 livré · v0.1.0-nightly.20260930.2 · agent textes-narratifs
 
 L'affichage des textes : lettres fines, apparition lente, deux à quatre lignes, au début de chaque chapitre et au moment de l'adieu ([chapitres.md](chapitres.md#les-textes)). Les textes eux-mêmes viennent de [chapitres.md](chapitres.md) (données, pas dans le code de l'affichage). Remplace le titre de biome actuel (`showChapter`, `src/monde/main.ts`).
 
 ### Les transitions entre chapitres
-> 🟢 livré · v0.3.0 · agent transitions-entre
+> 🟢 livré · v0.1.0-nightly.20260930.2 · agent transitions-entre
 
 Le passage d'un chapitre à l'autre : la lumière, la couleur de l'eau et la faune qui changent progressivement, le texte d'ouverture qui arrive au bon moment.
 
 ### La sauvegarde automatique
-> 🟢 livré · v0.3.0 · agent sauvegarde-automatique
+> 🟢 livré · v0.1.0-nightly.20260930.2 · agent sauvegarde-automatique
 
 Sauver la partie à chaque naissance dans le stockage du navigateur : chapitre, créature jouée, et plus tard la lignée entière. Reprendre là où on en était à l'ouverture de la page. Aujourd'hui seule la créature est gardée (`lignee.player`).
 
 ### L'Atelier hors de l'histoire
-> 🟢 livré · v0.3.0 · agent atelier-hors-histoire
+> 🟢 livré · v0.1.0-nightly.20260930.2 · agent atelier-hors-histoire
 
 Cacher le bouton de l'Atelier (✎) pendant l'histoire ; le rendre dans la « Balade libre », débloquée après la fin ([décisions](decisions.md)). Garder un moyen de l'ouvrir pour le développement (paramètre d'URL).
 
 ### Les nouveautés dans le jeu
-> 🟢 livré · v0.3.0 · agent nouveautes-jeu
+> 🟢 livré · v0.1.0-nightly.20260930.2 · agent nouveautes-jeu
 
 Montrer dans le jeu ce que racontent les entrées de `changes/` : chaque version publiée, avec ses nouveautés, leurs captures et leur texte. Aujourd'hui elles n'existent que dans `CHANGELOG.md` et le tableau de bord des agents, alors que la version 0.2 est publiée (8 nouveautés). Le cadriciel fournit les données sans rien dessiner : `whatsNew(loadChanges(), { base, includeUnreleased })` (`agents/release/changes.mjs`, types dans `changes.d.mts`, voir `agents/docs/changes.md`, section « Dans le jeu »).
 
@@ -452,7 +466,7 @@ Montrer dans le jeu ce que racontent les entrées de `changes/` : chaque version
   - le bouton le rouvre à tout moment.
 
 ### Les 10 chapitres dans le monde
-> 🟢 livré · v0.2.0 · agent 10-chapitres-monde
+> 🟢 livré · v0.1.0-nightly.20260930.1 · agent 10-chapitres-monde
 
 Refaire la carte du monde (`src/monde/biomes.ts`) pour suivre la trame : la Nurserie, le Récif, la Forêt, la Grotte, la Carcasse, les Sources, le Glacier, le Jardin de méduses, la Fosse, et le fond d'où part la Remontée. Aujourd'hui : 6 biomes dans un autre ordre (la Forêt de kelp avant le Récif, puis le Tombant, le Crépuscule, les Abysses).
 
@@ -461,7 +475,7 @@ Refaire la carte du monde (`src/monde/biomes.ts`) pour suivre la trame : la Nurs
 - Fini quand on traverse les 10 chapitres dans l'ordre, chacun avec son titre, sa palette et sa faune.
 
 ### Reliefs composés : arches, grottes, failles, surplombs, piliers
-> 🟢 livré · v0.2.0 · agent reliefs-composes-arches
+> 🟢 livré · v0.1.0-nightly.20260930.1 · agent reliefs-composes-arches
 
 Donner à chaque chapitre sa forme de terrain au lieu d'un fond qui ondule seulement ([direction-artistique.md](direction-artistique.md#les-décors)). Le moteur de terrain est dans `src/monde/world.ts` et `floorAt` (`src/monde/biomes.ts`).
 
@@ -470,31 +484,31 @@ Donner à chaque chapitre sa forme de terrain au lieu d'un fond qui ondule seule
 - Fini quand au moins trois types de relief existent et que deux chapitres en ont un qui les distingue.
 
 ### Premier plan sombre et flou
-> 🟢 livré · v0.2.0 · agent premier-plan-sombre
+> 🟢 livré · v0.1.0-nightly.20260930.1 · agent premier-plan-sombre
 
 Un plan entre la caméra et le nageur, sombre et flou, qui défile plus vite que le reste : algues, roches, coraux en silhouette. Il donne de la profondeur sans gêner la lecture du plan de nage (le laisser clair autour du nageur).
 
 ### Le décor de la Carcasse
-> 🟢 livré · v0.2.0 · agent decor-carcasse
+> 🟢 livré · v0.1.0-nightly.20260930.1 · agent decor-carcasse
 
 Le squelette d'une baleine devenu oasis : côtes et vertèbres couchées sur le fond, vers, crabes, poissons, lumière sur les os ([chapitres.md](chapitres.md)). Les « fresques naturelles » (coquilles, motifs) sont posées ici ; elles serviront de traces à l'étape 4.
 
 ### Le décor de la Grotte
-> 🟢 livré · v0.2.0 · agent decor-grotte
+> 🟢 livré · v0.1.0-nightly.20260930.1 · agent decor-grotte
 
 Voûtes, piliers, galeries, rais de lumière par des puits, puis le noir ([chapitres.md](chapitres.md)). Dépend des reliefs composés.
 
 ### Le décor du Glacier
-> 🟢 livré · v0.2.0 · agent decor-glacier
+> 🟢 livré · v0.1.0-nightly.20260930.1 · agent decor-glacier
 
 Parois de glace bleue, aiguilles de givre autour d'une langue d'eau froide qui plonge, cristaux en suspension ([chapitres.md](chapitres.md)).
 
 ### Le Jardin de méduses : sans fond, des milliers de méduses
-> 🟢 livré · v0.2.0 · agent jardin-meduses-sans
+> 🟢 livré · v0.1.0-nightly.20260930.1 · agent jardin-meduses-sans
 
 Plus de fond visible ; des milliers de méduses qui pulsent et s'éclairent, des siphonophores géants. Les méduses lointaines sont bon marché (images ou points animés), seules les proches sont des créatures simulées. Le budget par image doit tenir sur téléphone (`?bench`).
 
 ### La Fosse : noir total et ta propre lumière
-> 🟢 livré · v0.2.0 · agent fosse-noir-total
+> 🟢 livré · v0.1.0-nightly.20260930.1 · agent fosse-noir-total
 
 Le noir complet, sauf la lumière du nageur (et de ce qui brille), de grandes silhouettes qui passent, la neige marine. Aujourd'hui les Abysses assombrissent déjà l'écran ; la Fosse va plus loin : on ne voit que ce que sa lumière éclaire.

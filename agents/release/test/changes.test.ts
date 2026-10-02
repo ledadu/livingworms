@@ -20,6 +20,12 @@ import {
   release,
   unplanVersion,
   whatsNew,
+  compareVersions,
+  isNightly,
+  nextStable,
+  parseVersion,
+  redate,
+  stableOf,
 } from '../changes.mjs';
 import { publish, publishBlocker, publishProblems } from '../publish.mjs';
 
@@ -357,3 +363,38 @@ describe('publishing', () => {
     expect(existsSync(join(root, 'changes/v0.3.0'))).toBe(false);
   });
 });
+
+describe('nightlies', () => {
+  it('reads, sorts and names a dated nightly, before its stable', () => {
+    expect(parseVersion('0.1.0-nightly.20261002.2')).toEqual(Object.assign([0, 1, 0], { nightly: { date: '20261002', n: 2 } }));
+    expect(isNightly('v0.1.0-nightly.20261002.2')).toBe(true);
+    expect(isNightly('0.1.0')).toBe(false);
+    expect(stableOf('0.1.0-nightly.20261002.2')).toBe('0.1.0');
+    const sorted = ['0.1.0', '0.1.0-nightly.20261002.1', '0.0.9', '0.1.0-nightly.20260930.4', '0.1.0-nightly.20261002.2', '0.2.0-nightly.20261003.1'].sort(compareVersions);
+    expect(sorted).toEqual(['0.0.9', '0.1.0-nightly.20260930.4', '0.1.0-nightly.20261002.1', '0.1.0-nightly.20261002.2', '0.1.0', '0.2.0-nightly.20261003.1']);
+    expect(releaseName('0.1.0-nightly.20261001.2')).toBe('Nightly du 1er octobre (2)');
+    expect(releaseName('0.1.0-nightly.20260930.1')).toBe('Nightly du 30 septembre');
+  });
+
+  it('proposes the next nightly of the day on the way to the stable, and the stable on demand', () => {
+    const feature = [{ type: 'new' }];
+    expect(nextVersion(null, feature, '2026-10-02', true)).toBe('0.1.0-nightly.20261002.1');
+    expect(nextVersion('0.1.0-nightly.20261002.1', feature, '2026-10-02', true)).toBe('0.1.0-nightly.20261002.2');
+    expect(nextVersion('0.1.0-nightly.20261002.2', feature, '2026-10-03', true)).toBe('0.1.0-nightly.20261003.1');
+    // After a stable, the nightlies head to the next one.
+    expect(nextVersion('0.1.0', feature, '2026-10-05', true)).toBe('0.2.0-nightly.20261005.1');
+    expect(nextStable('0.1.0-nightly.20261003.1')).toBe('0.1.0');
+    expect(nextStable('0.1.0', [{ type: 'fixed' }])).toBe('0.1.1');
+    expect(nextStable(null)).toBe('0.1.0');
+    // Without nightlies (the default), SemVer 0.x as before.
+    expect(nextVersion('0.2.0', feature, '2026-10-02', false)).toBe('0.3.0');
+  });
+
+  it('dates a planned nightly to the day it is published', () => {
+    const changes = { released: [{ version: '0.1.0-nightly.20261003.1' }], plan: { versions: [{ version: '0.1.0-nightly.20261002.2' }] } };
+    expect(redate(changes, '0.1.0-nightly.20261002.2', '2026-10-03')).toBe('0.1.0-nightly.20261003.2');
+    expect(redate(changes, '0.1.0-nightly.20261003.5', '2026-10-03')).toBe('0.1.0-nightly.20261003.5');
+    expect(redate(changes, '0.1.0', '2026-10-03')).toBe('0.1.0');
+  });
+});
+

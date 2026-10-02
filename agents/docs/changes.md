@@ -65,6 +65,15 @@ node agents/release/changes.mjs assign nid 0.4.0      # affecte une entrée (- p
 
 `make release` ([`release/publish.mjs`](../release/publish.mjs)) ne commite que les chemins de la publication : le reste de l'arbre de travail peut avoir des modifications en cours. Il refuse pendant une fusion, un rebase ou un cherry-pick, si l'index contient déjà quelque chose, si le tag existe, ou si une entrée publiée est invalide. Pas de push.
 
+### Stables et nightlies (`release.nightly`)
+
+Un projet peut publier en deux temps (`release: { nightly: true }` dans `agents.config.mjs` ; La Lignée le fait) :
+
+- **une nightly** à chaque publication, datée et en route vers la prochaine stable : `X.Y.Z-nightly.AAAAMMJJ.N` (la Nème du jour ; une pré-version SemVer, triée avant `X.Y.Z`), nommée « Nightly du 2 octobre », « Nightly du 2 octobre (2) » (`releaseName`). Elle n'ouvre pas de branche de version : la nightly suivante la corrige. Une nightly préparée un jour et publiée un autre prend la date du jour de sa publication (`redate`).
+- **une stable** `X.Y.Z`, publiée quand on le décide (une étape franchie) : « Version 0.1 ». Elle ouvre sa branche `release/X.Y` pour ses correctifs. Les nightlies d'après vont vers la suivante (`0.2.0-nightly.…`).
+- **Propositions** : `proposeVersion` donne la prochaine nightly, `proposeStable` la stable vers laquelle elles vont ; la page Versions offre les deux (« une nouvelle nightly », « la stable »). Sans `release.nightly`, chaque publication est une version SemVer 0.x, comme avant.
+- **Renumérotation de La Lignée** (2 octobre 2026) : les versions 0.2 à 0.7 et 0.9, publiées en trois jours, sont devenues les nightlies vers la 0.1 (`v0.2.0` → `v0.1.0-nightly.20260930.1`, …, `v0.9.0` → `v0.1.0-nightly.20261002.1`), et la 0.8 en préparation la nightly suivante. Dans le jeu, `src/monde/nouveautes/seen.ts` (`RENUMBERED`) traduit ce qu'un navigateur avait retenu d'un ancien numéro.
+
 ## Versions en préparation : `planned.json`
 
 Une tâche terminée n'est pas forcément publiée dans la version suivante : on **affecte** chaque entrée à une version en préparation, depuis le tableau de bord des agents (onglets « À publier » et « Version X.Y », voir [agents.md](agents.md#tableau-de-bord)) ou avec `changes.mjs assign`.

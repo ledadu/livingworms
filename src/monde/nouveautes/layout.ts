@@ -40,9 +40,13 @@ export function dateLabel(iso: string | null): string {
   return month ? `${day === 1 ? '1er' : day} ${month} ${match[1]}` : '';
 }
 
-// 0.2.0 → 0.2, 0.2.1 → 0.2.1 (as releaseName does in the framework).
+const SHORT_MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+
+// 0.2.0 → 0.2, 0.2.1 → 0.2.1 (as releaseName does in the framework), a nightly → its day: « 2 oct. », « 2 oct. (2) ».
 export function shortVersion(version: string | null): string {
   if (!version) return '';
+  const nightly = /-nightly\.\d{4}(\d{2})(\d{2})\.(\d+)$/.exec(version);
+  if (nightly) return `${Number(nightly[2]) === 1 ? '1er' : Number(nightly[2])} ${SHORT_MONTHS[Number(nightly[1]) - 1]}${Number(nightly[3]) > 1 ? ` (${nightly[3]})` : ''}`;
   return version.replace(/^(\d+\.\d+)\.0$/, '$1');
 }
 

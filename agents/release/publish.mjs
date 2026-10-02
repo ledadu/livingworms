@@ -12,7 +12,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { releaseName, loadChanges, parseVersion, release, repoRoot, selectRelease } from './changes.mjs';
+import { isNightly, readPlan, redate, releaseName, loadChanges, parseVersion, release, repoRoot, selectRelease, writePlan } from './changes.mjs';
 import { project } from '../config.mjs';
 
 function git(root, ...args) {
@@ -74,6 +74,16 @@ export function createReleaseBranch(root, version) {
 // Freezes, commits `release: <word> X.Y.Z` (with `trailer` as its last lines) and tags vX.Y.Z. No push. A generation
 // X.Y.0 then starts release/X.Y at its tag, unless `branch` is false.
 export function publish(root = repoRoot, { version, slugs, title = '', intro = '', date, trailer = '', branch = true } = {}) {
+  // A nightly planned on another day is published under today's date: the planned one is renamed first.
+  if (version && isNightly(version)) {
+    const dated = redate(loadChanges(root), version, date);
+    if (dated !== version) {
+      const plan = readPlan(root);
+      const planned = plan.versions.find((one) => one.version === version);
+      if (planned) writePlan(root, plan.versions.map((one) => (one === planned ? { ...one, version: dated } : one)));
+      version = dated;
+    }
+  }
   const problems = publishProblems(root, version, { slugs });
   if (problems.length) throw new Error(problems.join('\n'));
   const frozen = release(root, version || undefined, { slugs, title, intro, ...(date ? { date } : {}) });
@@ -89,7 +99,8 @@ export function publish(root = repoRoot, { version, slugs, title = '', intro = '
     throw new Error(`${project.release.word} ${target} figée sur le disque mais pas commitée (${String(error.stderr || error.message).trim()}) : commite ${paths.join(' ')} à la main`);
   }
   git(root, 'tag', '-a', `v${target}`, '-m', releaseName(target));
-  const releaseBranch = branch && parseVersion(target)[2] === 0 ? createReleaseBranch(root, target) : null;
+  // Only a stable X.Y.0 starts its version branch (for its fixes); a nightly has none: the next nightly fixes it.
+  const releaseBranch = branch && !isNightly(target) && parseVersion(target)[2] === 0 ? createReleaseBranch(root, target) : null;
   return { version: target, slugs: frozen.slugs, commit: git(root, 'rev-parse', '--short', 'HEAD'), tag: `v${target}`, paths, releaseBranch };
 }
 

@@ -47,6 +47,8 @@ describe('the versions of the panel', () => {
     expect(dateLabel('2026-13-01')).toBe('');
     expect(shortVersion('0.2.0')).toBe('0.2');
     expect(shortVersion('0.2.1')).toBe('0.2.1');
+    expect(shortVersion('0.1.0-nightly.20261002.1')).toBe('2 oct.');
+    expect(shortVersion('0.1.0-nightly.20261001.2')).toBe('1er oct. (2)');
     expect(shortVersion(null)).toBe('');
     expect(badgeLabel(undefined, 'fixed')).toBe('Correction');
     expect(badgeLabel('🩹', 'fixed')).toBe('Correction');

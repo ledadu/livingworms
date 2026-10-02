@@ -84,3 +84,18 @@ describe('the memory of the browser', () => {
     expect(() => saveSeen(null, { version: '0.2.0' })).not.toThrow();
   });
 });
+
+describe('nightlies', () => {
+  it('sorts a nightly before its stable, by date then number, and remembers a renumbered version as its nightly', () => {
+    expect(compareVersions('0.1.0-nightly.20261002.1', '0.1.0-nightly.20260930.4')).toBeGreaterThan(0);
+    expect(compareVersions('0.1.0-nightly.20261002.2', '0.1.0-nightly.20261002.1')).toBeGreaterThan(0);
+    expect(compareVersions('0.1.0', '0.1.0-nightly.20261002.9')).toBeGreaterThan(0);
+    expect(compareVersions('0.2.0-nightly.20261005.1', '0.1.0')).toBeGreaterThan(0);
+    // A browser that saw « 0.9 » before the renumbering has seen the nightly of 2 October, not more.
+    const now = data(release('0.1.0-nightly.20261002.1'), release('0.1.0-nightly.20260930.1'));
+    expect(shouldAutoOpen(now, { version: '0.9.0' }, true)).toBe(false);
+    expect(shouldAutoOpen(data(release('0.1.0-nightly.20261003.1'), ...now.releases), { version: '0.9.0' }, true)).toBe(true);
+    expect(markSeen({ version: '0.9.0' }, now)).toEqual({ version: '0.1.0-nightly.20261002.1' });
+  });
+});
+

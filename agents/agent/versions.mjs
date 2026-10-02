@@ -15,6 +15,7 @@ import {
   planVersion,
   previewRelease,
   proposeVersion,
+  proposeStable,
   TYPE_BADGES,
   unplanVersion,
   UNRELEASED,
@@ -139,6 +140,10 @@ export function versionsRoutes({ registry, readEnv, pageFile, changesRoot = proc
       root: changesRoot,
       current: changes.current,
       proposal: proposeVersion(changes),
+      proposalName: releaseName(proposeVersion(changes)),
+      // The stable the nightlies head to: published when the user decides (projects with nightlies only).
+      proposalStable: project.release.nightly ? proposeStable(changes) : null,
+      proposalStableName: project.release.nightly ? releaseName(proposeStable(changes)) : null,
       badges: TYPE_BADGES,
       pending,
       planned,

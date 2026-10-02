@@ -9,11 +9,27 @@ export interface SeenMemory {
 
 export const STORAGE_KEY = 'lignee.nouveautes';
 
+// The versions before the nightlies (0.2.0 to 0.9.0, published from 2026-09-30 to 2026-10-02) became the nightlies on
+// the way to 0.1.0: a browser that remembers one of them remembers its nightly.
+export const RENUMBERED: Record<string, string> = {
+  '0.2.0': '0.1.0-nightly.20260930.1',
+  '0.3.0': '0.1.0-nightly.20260930.2',
+  '0.4.0': '0.1.0-nightly.20260930.3',
+  '0.5.0': '0.1.0-nightly.20260930.4',
+  '0.6.0': '0.1.0-nightly.20261001.1',
+  '0.7.0': '0.1.0-nightly.20261001.2',
+  '0.9.0': '0.1.0-nightly.20261002.1',
+};
+
+// X.Y.Z, or a nightly X.Y.Z-nightly.AAAAMMJJ.N that comes before X.Y.Z (by date, then number): as the framework sorts
+// them (agents/release/changes.mjs).
+const VERSION = /^v?(\d+)\.(\d+)\.(\d+)(?:-nightly\.(\d{8})\.(\d+))?$/;
 export function compareVersions(a: string, b: string): number {
-  const x = a.split('.').map(Number);
-  const y = b.split('.').map(Number);
-  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0);
-  return 0;
+  const [x, y] = [VERSION.exec(a), VERSION.exec(b)];
+  if (!x || !y) return x ? 1 : y ? -1 : 0;
+  for (let i = 1; i <= 3; i++) if (Number(x[i]) !== Number(y[i])) return Number(x[i]) - Number(y[i]);
+  if (!x[4] || !y[4]) return (x[4] ? -1 : 0) - (y[4] ? -1 : 0);
+  return x[4].localeCompare(y[4]) || Number(x[5]) - Number(y[5]);
 }
 
 // The newest published version: the one whose novelty opens the panel (never the one in preparation).
@@ -25,15 +41,26 @@ export function newestPublished(data: Pick<WhatsNew, 'releases'>): string | null
   return newest;
 }
 
+// The version a browser remembers, under its current number: one gone from the published ones that was renumbered.
+export function remembered(memory: SeenMemory, data: Pick<WhatsNew, 'releases'>): string | null {
+  const version = memory.version;
+  // Only once the published versions are the nightlies (the renumbering is in): before, 0.2.0 is still 0.2.0.
+  const renumbered = data.releases.some((release) => /-nightly\./.test(release.version ?? ''));
+  if (!version || !renumbered || !RENUMBERED[version] || data.releases.some((release) => release.version === version)) return version;
+  return RENUMBERED[version];
+}
+
 export function shouldAutoOpen(data: Pick<WhatsNew, 'releases'>, memory: SeenMemory, playedBefore: boolean): boolean {
   const newest = newestPublished(data);
   if (!newest) return false;
-  return memory.version === null ? playedBefore : compareVersions(newest, memory.version) > 0;
+  const seen = remembered(memory, data);
+  return seen === null ? playedBefore : compareVersions(newest, seen) > 0;
 }
 
 export function markSeen(memory: SeenMemory, data: Pick<WhatsNew, 'releases'>): SeenMemory {
   const newest = newestPublished(data);
-  if (!newest || (memory.version && compareVersions(newest, memory.version) <= 0)) return memory;
+  const seen = remembered(memory, data);
+  if (!newest || (seen && compareVersions(newest, seen) <= 0)) return seen === memory.version ? memory : { version: seen };
   return { version: newest };
 }
 

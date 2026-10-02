@@ -25,7 +25,8 @@ export default {
   brief: 'docs/agents.md',
   devServers: `le serveur de dev de l’utilisateur (npm run dev, ${GAME.client})`,
 
-  release: { reader: 'les joueurs' },
+  // Dated nightlies on the way to a stable published when we decide (release/changes.mjs).
+  release: { reader: 'les joueurs', nightly: true },
 
   hub: {
     zones: [{ id: 'game', label: 'Jeu', color: '#4cc38a', box: [470, 406, 420, 250] }],

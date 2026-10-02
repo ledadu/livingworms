@@ -32,7 +32,7 @@ export { releaseName };
 export const UNRELEASED = 'unreleased';
 // The generations in preparation: which unreleased entries each one will publish, with its title and intro.
 export const PLAN_FILE = 'planned.json';
-const VERSION_DIR = /^v(\d+)\.(\d+)\.(\d+)$/;
+const VERSION_DIR = /^v(\d+)\.(\d+)\.(\d+)(?:-nightly\.\d{8}\.\d+)?$/;
 const SLUG = /^[a-z0-9][a-z0-9-]*$/;
 
 export const repoRoot = projectRoot;
@@ -87,15 +87,36 @@ function unquote(value) {
   return quoted ? quoted[2] : value;
 }
 
+// Two kinds of versions, when the project asks for nightlies (release.nightly of agents.config.mjs; else every
+// publication is a stable, SemVer 0.x as before). A **stable** one, X.Y.Z, published when the user decides (a milestone), and **nightlies**,
+// dated, on the way to the next stable: X.Y.Z-nightly.AAAAMMJJ.N (the Nth of that day), a SemVer pre-release, so
+// that it sorts before X.Y.Z. parseVersion gives [X, Y, Z], with `.nightly` = { date: 'AAAAMMJJ', n } or null.
+const VERSION = /^v?(\d+)\.(\d+)\.(\d+)(?:-nightly\.(\d{8})\.(\d+))?$/;
+
 export function parseVersion(text) {
-  const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(String(text ?? '').trim());
-  return match ? match.slice(1, 4).map(Number) : null;
+  const match = VERSION.exec(String(text ?? '').trim());
+  if (!match) return null;
+  const parts = match.slice(1, 4).map(Number);
+  parts.nightly = match[4] ? { date: match[4], n: Number(match[5]) } : null;
+  return parts;
 }
+
+export const isNightly = (version) => Boolean(parseVersion(version)?.nightly);
+/** The stable a version belongs to, or heads to: 0.1.0 for 0.1.0-nightly.20261002.1. */
+export const stableOf = (version) => {
+  const parsed = parseVersion(version);
+  return parsed ? parsed.slice(0, 3).join('.') : null;
+};
+/** The nightly of `date` (AAAAMMJJ) number `n` on the way to `stable`. */
+export const nightlyVersion = (stable, date, n = 1) => `${stableOf(stable)}-nightly.${date}.${n}`;
+const compact = (date) => String(date).replaceAll('-', '').slice(0, 8);
 
 export function compareVersions(a, b) {
   const [x, y] = [parseVersion(a), parseVersion(b)];
   for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i];
-  return 0;
+  // Same X.Y.Z: its nightlies come before it, by date then number.
+  if (!x.nightly || !y.nightly) return (x.nightly ? -1 : 0) - (y.nightly ? -1 : 0);
+  return x.nightly.date.localeCompare(y.nightly.date) || x.nightly.n - y.nightly.n;
 }
 
 // --- Loading -----------------------------------------------------------------------------------------------------------
@@ -252,12 +273,34 @@ export function assignedTo(changes, slug) {
 }
 
 // The number a new generation of `entries` would take, after the published and the planned ones.
-export function proposeVersion(changes, entries = []) {
-  const latest = [changes.current, changes.released[0]?.version, ...changes.plan.versions.map((planned) => planned.version)]
-    .filter((version) => parseVersion(version))
-    .sort(compareVersions)
-    .pop();
-  return nextVersion(latest ?? '0.0.0', entries.length ? entries : [{ type: 'new' }]);
+const latestOf = (changes) => [changes.current, changes.released[0]?.version, ...changes.plan.versions.map((planned) => planned.version)]
+  .filter((version) => parseVersion(version))
+  .sort(compareVersions)
+  .pop();
+
+/** The version a new publication would take: the next nightly (after the released and the planned ones). */
+export function proposeVersion(changes, entries = [], { date = today(), nightly = Boolean(project.release.nightly) } = {}) {
+  return nextVersion(latestOf(changes) ?? '0.0.0', entries.length ? entries : [{ type: 'new' }], date, nightly);
+}
+
+/** The stable a publication may be instead: the one the nightlies head to. */
+export function proposeStable(changes, entries = []) {
+  const latest = changes.released[0]?.version ?? (parseVersion(changes.current) ? changes.current : null);
+  return nextStable(latest, entries.length ? entries : [{ type: 'new' }]);
+}
+
+/**
+ * A nightly planned on another day is published under today's date: its new name, after the ones already released
+ * today (or itself when it is of today, or not a nightly).
+ */
+export function redate(changes, version, date = today()) {
+  const parsed = parseVersion(version);
+  const day = compact(date);
+  if (!parsed?.nightly || parsed.nightly.date === day) return version;
+  const stable = stableOf(version);
+  const taken = [...changes.released.map((one) => one.version), ...changes.plan.versions.map((one) => one.version)]
+    .map(parseVersion).filter((one) => one?.nightly?.date === day && one.slice(0, 3).join('.') === stable).map((one) => one.nightly.n);
+  return nightlyVersion(stable, day, Math.max(0, ...taken) + 1);
 }
 
 // Why `version` cannot be planned (checkVersion, or already planned), or null. `except`: the version being renamed.
@@ -337,11 +380,31 @@ export function currentVersion(root = repoRoot) {
   }
 }
 
-// SemVer 0.x: a new feature or an improvement bumps the minor, fixes alone the patch.
-export function nextVersion(from, entries) {
-  const [major, minor, patch] = parseVersion(from) ?? [0, 0, 0];
+/**
+ * The next publication after `from`: a **nightly** of `date` (today), on the way to the stable that comes next. After
+ * a nightly, the same stable, and the next number when it is of the same day; after a stable X.Y.Z (or nothing),
+ * X.(Y+1).0. Null without entries.
+ */
+export function nextVersion(from, entries, date = today(), nightly = Boolean(project.release.nightly)) {
   if (!entries.length) return null;
-  const feature = entries.some((entry) => entry.type !== 'fixed');
+  if (!nightly) return nextStable(from && parseVersion(from) ? from : '0.0.0', entries);
+  const parsed = parseVersion(from);
+  const day = compact(date);
+  if (parsed?.nightly) return nightlyVersion(stableOf(from), day, parsed.nightly.date === day ? parsed.nightly.n + 1 : 1);
+  const [major, minor] = parsed ?? [0, 0, 0];
+  return nightlyVersion(`${major}.${minor + 1}.0`, day, 1);
+}
+
+/**
+ * The next **stable** after `from`: the one its nightlies head to; after a stable, SemVer 0.x (a new feature or an
+ * improvement bumps the minor, fixes alone the patch); 0.1.0 at first.
+ */
+export function nextStable(from, entries = [{ type: 'new' }]) {
+  const parsed = parseVersion(from);
+  if (!parsed) return '0.1.0';
+  if (parsed.nightly) return stableOf(from);
+  const [major, minor, patch] = parsed;
+  const feature = !entries.length || entries.some((entry) => entry.type !== 'fixed');
   return feature ? `${major}.${minor + 1}.0` : `${major}.${minor}.${patch + 1}`;
 }
 
@@ -444,7 +507,7 @@ Deux à six phrases pour ${WORDS.reader} : ce qui change, comment en profiter. V
 
 // Why `version` cannot be the next generation, or null: SemVer, after the latest released one, not taken yet.
 export function checkVersion(changes, version) {
-  if (!parseVersion(version)) return `version invalide « ${version ?? ''} » : attendu X.Y.Z`;
+  if (!parseVersion(version)) return `version invalide « ${version ?? ''} » : attendu X.Y.Z (stable) ou X.Y.Z-nightly.AAAAMMJJ.N`;
   const latest = changes.released[0]?.version;
   if (latest && compareVersions(version, latest) <= 0) return `${version} doit venir après ${latest}, la dernière ${WORDS.word} publiée`;
   return null;

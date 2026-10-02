@@ -13,6 +13,7 @@ import { existsSync, readdirSync, readFileSync, renameSync, statSync, writeFileS
 import { join, relative } from 'node:path';
 import { choicesIn, filesIn, hash, readQueue, slugify } from './roadmap.mjs';
 import { project } from '../config.mjs';
+import { compareVersions as compareReleases } from '../release/changes.mjs';
 
 export const STATES = {
   todo: { icon: '⚪', label: 'à faire', status: 'new' },
@@ -71,7 +72,7 @@ export function parseStatus(line) {
   for (const part of parts.slice(1)) {
     const agent = /^agents?\s+(.+)$/.exec(part);
     if (agent) agents = agent[1].split(/[,\s]+/).filter(Boolean);
-    else if (/^v\d+\.\d+(\.\d+)?$/.test(part)) generation = part;
+    else if (/^v\d+\.\d+(\.\d+)?(-nightly\.\d{8}\.\d+)?$/.test(part)) generation = part;
   }
   return { state, generation, agents };
 }
@@ -334,12 +335,8 @@ export function readFacts({ root, registry }) {
   return { queue, agents, released, unreleased };
 }
 
-function compareVersions(a, b) {
-  const parts = (v) => v.replace(/^v/, '').split('.').map(Number);
-  const [x, y] = [parts(a), parts(b)];
-  for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) - (y[i] ?? 0);
-  return 0;
-}
+// Older first: X.Y.Z, its nightlies before it (release/changes.mjs, which the folders v<version> follow).
+const compareVersions = (a, b) => compareReleases(String(a).replace(/^v/, ''), String(b).replace(/^v/, ''));
 
 const RANK = { todo: 0, queued: 1, active: 2, merged: 3, done: 4 };
 
