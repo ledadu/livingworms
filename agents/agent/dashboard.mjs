@@ -27,6 +27,10 @@ import { dashboardToken, guard } from './access.mjs';
 import { EVENTS, DEFAULT_SETTINGS, notifier as makeNotifier, publicDevice, readDevices, removeDevice, subscribe, updateDevice, vapidKeys } from './notify.mjs';
 import { watchEvents } from './notify-events.mjs';
 import { conversation } from './team.mjs';
+import { navState } from './workflow.mjs';
+import { diffSnapshots, readSnapshot } from './roadmap.mjs';
+import { listQuestions } from './questions.mjs';
+import { parseBacklog as parseTasks, withLabels as labelTasks } from './backlog.mjs';
 import { briefPath, project, renderPage, renderText } from '../config.mjs';
 
 const run = promisify(execFile);
@@ -777,6 +781,23 @@ async function handle(request, response) {
     const result = fixConflicts(fix[1]);
     latest = await snapshot();
     return json(result);
+  }
+  // The navigation of every page (nav.js, workflow.mjs): the counts of the four stages and what waits for the user.
+  if (path === '/api/nav') {
+    await firstSnapshot;
+    let tasks = [];
+    let news = 0;
+    try {
+      tasks = labelTasks(parseTasks(readFileSync(backlogFile, 'utf8'))).filter((item) => item.kind === 'task');
+      const pending = diffSnapshots(readSnapshot(join(registry, 'roadmap-snapshot.json')), tasks);
+      news = pending.added.length + pending.modified.length;
+    } catch {}
+    let queue = [];
+    try {
+      queue = readQueue(join(runsRegistry, 'queue')).map((entry) => ({ ...entry, run: runState(runsRegistry, entry.name) }));
+    } catch {}
+    const questions = listQuestions(registry, { status: 'pending' });
+    return json({ ok: true, ...navState({ agents: latest?.agents ?? [], queue, tasks, news, questions }) });
   }
   // The messages between agents (team.mjs), to and from one: the drawer of the Agents page.
   if (path === '/api/team/messages') {

@@ -42,5 +42,6 @@ fetch(`${base}report.md`, { cache: 'no-store' })
   .then((text) => (document.getElementById('report').innerHTML = window.renderMarkdown(text, base)))
   .catch((error) => (document.getElementById('report').innerHTML = `<p class="bad">${error.message}</p>`));
 </script>
+<script src="/nav.js"></script>
 </body>
 </html>

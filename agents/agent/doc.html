@@ -80,5 +80,6 @@ fetch(`/doc/${encodeURI(path)}?raw=1`, { cache: 'no-store' })
   })
   .catch((error) => (document.getElementById('doc').innerHTML = `<p class="bad">Document illisible (${error.message}).</p>`));
 </script>
+<script src="/nav.js"></script>
 </body>
 </html>

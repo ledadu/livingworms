@@ -239,7 +239,9 @@ let queue = [];
 let questions = { pending: 0, byAgent: {}, settings: {} };
 let train = null;
 let mainRoot = '';
-let filter = store.get('agents.filter', 'live');
+// /agents?f=review (the « À valider » stage of the navigation) opens on that filter.
+const FILTERS = ['live', 'review', 'working', 'error', 'idle', 'merged'];
+let filter = FILTERS.includes(new URLSearchParams(location.search).get('f')) ? new URLSearchParams(location.search).get('f') : store.get('agents.filter', 'live');
 let opened = null;
 const notes = new Map(); // name -> { text, bad }
 
@@ -786,7 +788,13 @@ document.addEventListener('click', async (event) => {
     return act(doIt.dataset.do, doIt.dataset.name);
   }
   const f = event.target.closest('[data-f]');
-  if (f) return (filter = f.dataset.f, store.set('agents.filter', filter), render());
+  if (f) {
+    filter = f.dataset.f;
+    store.set('agents.filter', filter);
+    history.replaceState(null, '', filter === 'review' ? '/agents?f=review' : '/agents');
+    window.dispatchEvent(new Event('wf:route'));
+    return render();
+  }
   const t = event.target.closest('[data-train]');
   if (t) {
     if (t.dataset.train === 'stop' && !confirm('Arrêter la file ? Les tâches pas encore traitées sont sautées.')) return;
@@ -821,5 +829,6 @@ Think.onPick($('drawer'), (key, field, value) => saveThink(key, field, value));
 load().then(() => { const hash = decodeURIComponent(location.hash.slice(1)); if (hash && agents.some((a) => a.AGENT_NAME === hash)) openDrawer(hash); });
 setInterval(() => { if (!menu && document.visibilityState === 'visible') load(); }, 4000);
 </script>
+<script src="/nav.js"></script>
 </body>
 </html>

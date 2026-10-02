@@ -33,3 +33,12 @@ Même démarche que pour la page Backlog ([backlog-ux.md](backlog-ux.md)) : la n
 - La page Versions, refaite de la même façon.
 - Le rapport d'un agent lisible dans son tiroir (aujourd'hui : « Commits et rapport », dans le Journal).
 - Les questions d'un agent dans son tiroir, avec leur réponse sur place.
+
+## La navigation : le parcours, plus des onglets
+
+Retour : la rangée d'onglets (Accueil, Agents, Journal, Versions, Backlog, Questions, 🔔) n'est ni ergonomique ni structurée, alors que la carte de l'écosystème (l'accueil) raconte bien le cycle. La navigation de toutes les pages reprend donc ce cycle ([`nav.js`](../agent/nav.js), servi en `/nav.js`, inclus par chaque page ; il remplace l'ancienne rangée `nav.site`, qui reste si le script échoue).
+
+- **Quatre étapes, dans l'ordre, avec leurs compteurs vivants** : **① 📋 Backlog** (« 9 à faire · 31 nouveaux », `/roadmap`) → **② 🤖 Agents** (« 2 au travail · 1 en file », `/agents`) → **③ ✋ À valider** (« 1 à accepter · 1 en erreur », `/agents?f=review`) → **④ 📦 Publier** (« 3 à ranger · Version 0.8 : 10 », `/versions`). Chaque étape a sa couleur (celles des zones de la carte), l'étape courante est surlignée, une pastille compte ce qui demande un geste et bat quand il y en a.
+- **« 📥 Pour toi »** : un panneau qui rassemble tout ce qui attend l'utilisateur : questions, agents en erreur, travaux à tester et accepter (avec leur dernier mot), entrées à ranger dans une version ; chaque ligne mène où agir. À côté : 🕘 Journal, ❓ Questions (avec leur nombre), 🔔 Notifications. Le nom du projet ramène à la carte.
+- **Sur téléphone**, les quatre étapes deviennent une barre d'onglets en bas de l'écran (avec leurs pastilles), le haut garde Pour toi, Journal, Questions et 🔔.
+- **Les compteurs** viennent de `GET /api/nav` ([`workflow.mjs`](../agent/workflow.mjs) `navState`, `agentStage`, testés) et de `/api/versions`, relus toutes les 10 s quand la page est visible. La page Agents tient l'étape courante à jour quand on change de filtre (`?f=review` ↔ « À valider »).
