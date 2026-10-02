@@ -18,6 +18,8 @@ export const configFile = process.env.AGENTS_CONFIG ? resolve(process.env.AGENTS
 
 // The effort levels of Claude Code (claude --effort), from the lightest.
 export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+// How much the agent thinks (claude --effort), in words for the pages.
+export const EFFORT_LABELS = { low: 'rapide', medium: 'normale', high: 'approfondie', xhigh: 'très poussée', max: 'maximale' };
 
 export const DEFAULTS = {
   // Shown in the page titles and the prompts.
@@ -164,6 +166,7 @@ export function clientSettings() {
     defaults,
     models,
     efforts: EFFORTS,
+    effortLabels: EFFORT_LABELS,
     paths: { backlog: paths.backlog, roadmap: paths.roadmap, changes: paths.changes, changelog: paths.changelog },
     release: { ...release, Word: capitalize(release.word) },
     docs: docLinks(),

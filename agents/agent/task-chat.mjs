@@ -37,9 +37,9 @@ function writeChat(registry, chat) {
 }
 
 /** The arguments of one turn: a new session the first time, then the same one resumed; read-only tools. */
-export function chatArgs({ sessionId, resume }) {
+export function chatArgs({ sessionId, resume, effort = null }) {
   return ['-p', resume ? '--resume' : '--session-id', sessionId, '--tools', CHAT_TOOLS.join(','), '--allowedTools', CHAT_TOOLS.join(','),
-    '--permission-mode', 'dontAsk', '--permission-prompts', 'none', '--output-format', 'json'];
+    '--permission-mode', 'dontAsk', '--permission-prompts', 'none', '--output-format', 'json', ...(effort ? ['--effort', effort] : [])];
 }
 
 // What a turn says of the task's sub-tasks as they stand (titles and states), so that Claude does not propose them again.
@@ -88,7 +88,7 @@ export function splitAnswer(text) {
  * Starts one turn about a task: the user's message is recorded at once, Claude answers in the background (the page
  * polls readChat until `pending` is false). Refused while a turn is under way.
  */
-export function askAboutTask({ registry, root, task, message, mode = 'task', subtasks = [], env = process.env, now = () => new Date().toISOString(), timeoutMs = 300_000 }) {
+export function askAboutTask({ registry, root, task, message, mode = 'task', subtasks = [], effort = null, env = process.env, now = () => new Date().toISOString(), timeoutMs = 300_000 }) {
   const text = String(message ?? '').trim();
   if (!text) throw new Error('message vide');
   const key = chatKey(task.id, mode);
@@ -98,6 +98,8 @@ export function askAboutTask({ registry, root, task, message, mode = 'task', sub
   chat.sessionId ??= randomUUID();
   chat.title = task.title;
   chat.mode = mode;
+  // How much Claude thinks on this thread (claude --effort), kept for the next turns.
+  if (effort !== null) chat.effort = effort || null;
   chat.pending = true;
   chat.messages.push({ role: 'user', text, at: now() });
   writeChat(registry, chat);
@@ -105,7 +107,7 @@ export function askAboutTask({ registry, root, task, message, mode = 'task', sub
   const childEnv = { ...env };
   delete childEnv.CLAUDECODE;
   delete childEnv.CLAUDE_CODE_ENTRYPOINT;
-  const child = spawn(claudeBin(env), chatArgs({ sessionId: chat.sessionId, resume: !first }), { cwd: root, env: childEnv, stdio: ['pipe', 'pipe', 'pipe'] });
+  const child = spawn(claudeBin(env), chatArgs({ sessionId: chat.sessionId, resume: !first, effort: chat.effort }), { cwd: root, env: childEnv, stdio: ['pipe', 'pipe', 'pipe'] });
   let stdout = '';
   let stderr = '';
   child.stdout.on('data', (chunk) => (stdout += chunk));

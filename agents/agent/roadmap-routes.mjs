@@ -27,7 +27,7 @@ import { STATES, depthOf, dueAuto, foldedSubtasks, parseBacklog, setTaskStatus, 
 import { askAboutTask, chatKey, clearChat, hasChat, markApplied, markCreated, readChat } from './task-chat.mjs';
 import { renameSync as renameFile } from 'node:fs';
 import { launchTask, resumeTask, runDir, runLog, runLogFrom, runState, stopTask } from './launch.mjs';
-import { project, renderPage } from '../config.mjs';
+import { EFFORTS, project, renderPage } from '../config.mjs';
 import { proposeSettings, readSettings, suggestEffort } from './settings.mjs';
 
 const run = promisify(execFile);
@@ -358,7 +358,8 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
         if (!task) return json({ ok: false, error: `pas de chantier ${id}` }), true;
         const items = withLabels(parseBacklog(readFileSync(roadmapFile, 'utf8')));
         const subtasks = subtasksOf(items, id).map((sub) => ({ title: sub.title, state: sub.state, label: sub.label, auto: Boolean(sub.auto) }));
-        return json({ ok: true, chat: askAboutTask({ registry, root, task, message: body.message, mode, subtasks }) }), true;
+        const effort = body.effort === undefined ? null : body.effort && EFFORTS.includes(body.effort) ? body.effort : '';
+        return json({ ok: true, chat: askAboutTask({ registry, root, task, message: body.message, mode, subtasks, effort }) }), true;
       } catch (error) {
         return json({ ok: false, conflict: error.code === 409, error: error.message }), true;
       }

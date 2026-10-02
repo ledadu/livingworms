@@ -191,6 +191,7 @@
   .pick .head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
   .pick .head b { color: var(--text); font-size: 13px; flex-basis: 100%; }
   .pick input { background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 2px 6px; font-family: ui-monospace, monospace; font-size: 12px; width: 170px; }
+  .pick select { background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 4px; font-size: 12px; }
   .pick textarea { width: 100%; min-height: 120px; margin-top: 6px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; font: 11px/1.35 ui-monospace, monospace; padding: 6px; resize: vertical; }
   .pick .note { color: var(--todo); font-size: 11.5px; flex-basis: 100%; }
   .ghost { position: fixed; z-index: 70; pointer-events: none; background: var(--panel3); border: 1px solid var(--accent); border-radius: 10px; padding: 8px 12px; max-width: 320px; box-shadow: 0 12px 30px rgba(0, 0, 0, .5); font-weight: 600; transform: translate(-50%, -120%) rotate(-1.5deg); }
@@ -262,7 +263,7 @@
 <div class="pickbar" id="pickbar">
   <div class="main">
     <span class="count" id="pick-count"></span>
-    <label>effort <select id="p-effort"></select></label>
+    <label title="Combien chaque agent réfléchit (claude --effort)">🧠 réflexion <select id="p-effort"></select></label>
     <label>modèle <select id="p-model"></select></label>
     <button class="btn" id="p-review">Revoir les prompts ▴</button>
     <span class="spacer"></span>
@@ -350,6 +351,7 @@ function agentInfo(name) {
     port: agent?.CLIENT_PORT ?? null,
     exists: Boolean(agent),
     effort: agent?.settings?.effort ?? entry?.effort ?? null,
+    model: agent?.settings?.model ?? entry?.model ?? null,
   };
 }
 // The agent of a task: the last one named on its status line (the one at work).
@@ -394,7 +396,7 @@ function shortcuts(info) {
 }
 function strip(info) {
   if (!info) return '';
-  const facts = [info.commits ? `${info.commits} commit${info.commits > 1 ? 's' : ''}` : '', info.status === 'working' && info.since ? ago(info.since) : '', info.behind > 0 && info.status === 'review' ? `${info.behind} en retard` : ''].filter(Boolean).join(' · ');
+  const facts = [info.effort ? `🧠 ${esc(info.effort)}` : '', info.commits ? `${info.commits} commit${info.commits > 1 ? 's' : ''}` : '', info.status === 'working' && info.since ? ago(info.since) : '', info.behind > 0 && info.status === 'review' ? `${info.behind} en retard` : ''].filter(Boolean).join(' · ');
   return `<div class="strip"><span class="badge">${esc(info.label)}</span><span class="agent">${esc(info.name)}</span><span class="doing" title="${esc(info.doing)}">${esc(info.doing)}</span>${facts ? `<span class="facts">${facts}</span>` : ''}<span class="acts">${shortcuts(info)}</span></div>`;
 }
 const LIVE = new Set(['queued', 'working', 'review', 'error']);
@@ -522,6 +524,8 @@ function detailPanel(item) {
     <div class="where">${esc(item.section)} · ligne ${item.line}${parent ? ` · ↳ après « <a href="#" data-open="${esc(parent.id)}">${esc(parent.title)}</a> »` : ''}</div>
     <div class="row">${stateTag(item) || '<span class="state todo">à faire</span>'}${item.auto ? '<span class="auto">⚡ auto</span>' : ''}</div>
     ${agentBox}
+    ${info?.exists && info.status !== 'merged' ? `<div class="row" style="font-size:12px"><span class="muted">Son agent :</span><label>🧠 <select data-agent-set="effort" data-name="${esc(info.name)}" title="Réflexion de ${esc(info.name)} (claude --effort), pour son prochain lancement">${thinkOptions(info.effort)}</select></label><label>modèle <select data-agent-set="model" data-name="${esc(info.name)}">${modelOptions(info.model)}</select></label><span class="muted">${info.status === 'working' ? 'vaut pour sa prochaine relance ou son prochain ordre' : 'vaut pour son prochain lancement'}</span></div>` : ''}
+    ${item.auto && item.state === 'todo' ? `<div class="row" style="font-size:12px"><span class="auto">⚡ lancée d'elle-même</span><label>🧠 <select data-auto-set="effort" data-id="${esc(item.id)}">${thinkOptions(item.auto.effort)}</select></label><label>modèle <select data-auto-set="model" data-id="${esc(item.id)}">${modelOptions(item.auto.model)}</select></label></div>` : ''}
     <div class="row">
       ${item.state === 'todo' ? `<button class="btn pick${picked.has(item.id) ? ' on' : ''}" data-toggle-pick="${esc(item.id)}">${picked.has(item.id) ? '✓ Choisi' : 'Choisir'}</button>` : ''}
       <a class="btn" href="/roadmap/v1?open=${esc(item.id)}" title="Modifier le texte (dans l'ancienne page, pour l'instant)">✎ Modifier</a>
@@ -564,10 +568,18 @@ function render() {
 }
 
 // ---------------------------------------------------------------- selection
+// « réflexion » (claude --effort) in words: « xhigh · très poussée ».
+const thinkLabel = (effort) => (effort ? `${effort} · ${PROJECT.effortLabels?.[effort] ?? ''}` : '');
+function thinkOptions(current, empty = 'défaut') {
+  return [`<option value="">${empty}</option>`, ...PROJECT.efforts.map((e) => `<option value="${e}" ${e === current ? 'selected' : ''}>${esc(thinkLabel(e))}</option>`)].join('');
+}
+function modelOptions(current, empty = 'défaut') {
+  return [`<option value="">${empty}</option>`, ...PROJECT.models.map((m) => `<option ${m === current ? 'selected' : ''}>${esc(m)}</option>`)].join('');
+}
 function settingOptions(values, fallback, label) {
   return [`<option value="">${label}${fallback ? ` (${esc(fallback)})` : ''}</option>`, ...values.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`)].join('');
 }
-$('p-effort').innerHTML = settingOptions(PROJECT.efforts, PROJECT.defaults.effort, 'proposé');
+$('p-effort').innerHTML = thinkOptions(null, 'proposée selon la tâche');
 $('p-model').innerHTML = settingOptions(PROJECT.models, PROJECT.defaults.model, 'défaut');
 $('p-effort').value = defaults.effort ?? '';
 $('p-model').value = defaults.model ?? '';
@@ -600,10 +612,17 @@ function renderPicks(force = false) {
     const note = parent && !picked.has(parent.id) && !['merged', 'done'].includes(parent.state) ? `<span class="note">↳ sous-tâche de « ${esc(parent.title)} » : elle sera refusée seule tant que sa mère n'est pas fusionnée.</span>` : '';
     const steps = chainOf(id).filter((step) => step.state === 'todo' && !step.auto);
     return `<div class="pick" data-id="${esc(id)}"><div class="head"><b>${esc(item.title)}</b>agent <input data-f="name" value="${esc(pick.name)}" spellcheck="false"> base <input data-f="base" value="${esc(pick.base)}" style="width:90px" spellcheck="false">
-      effort ${pick.effort ? `<b style="flex-basis:auto;font-size:12px">${esc(pick.effort)}</b>` : 'proposé'}${steps.length ? `<span class="note">+ ${steps.length} sous-tâche${steps.length > 1 ? 's' : ''} faite${steps.length > 1 ? 's' : ''} par le même agent.</span>` : ''}${note}</div>
+      🧠 <select data-pf="effort" title="Réflexion de cet agent">${thinkOptions(pick.effort, 'défaut')}</select> modèle <select data-pf="model">${modelOptions(pick.model)}</select>${pick.suggested && !pick.chosen && pick.effort === pick.suggested ? '<span class="muted">(proposée)</span>' : ''}${steps.length ? `<span class="note">+ ${steps.length} sous-tâche${steps.length > 1 ? 's' : ''} faite${steps.length > 1 ? 's' : ''} par le même agent.</span>` : ''}${note}</div>
       <textarea data-f="prompt" placeholder="Prompt généré à la mise en file (laisser vide), ou le tien">${esc(pick.prompt)}</textarea></div>`;
   }).join('');
 }
+$('review').addEventListener('change', (event) => {
+  const field = event.target.dataset.pf;
+  const pick = picked.get(event.target.closest('.pick')?.dataset.id);
+  if (!pick || !field) return;
+  pick[field] = event.target.value || null;
+  pick.chosen = true;
+});
 $('review').addEventListener('input', (event) => {
   const field = event.target.dataset.f;
   const pick = picked.get(event.target.closest('.pick')?.dataset.id);
@@ -836,7 +855,21 @@ document.addEventListener('click', async (event) => {
     render();
   }
 });
-document.addEventListener('change', (event) => {
+document.addEventListener('change', async (event) => {
+  const agentSet = event.target.closest('[data-agent-set]');
+  if (agentSet) {
+    const name = agentSet.dataset.name;
+    const body = Object.fromEntries([...document.querySelectorAll(`[data-agent-set][data-name="${CSS.escape(name)}"]`)].map((one) => [one.dataset.agentSet, one.value || null]));
+    const result = await (await fetch(`/api/settings/${encodeURIComponent(name)}`, { method: 'POST', body: JSON.stringify(body) })).json();
+    toast(result.ok ? `${name} : réflexion ${thinkLabel(body.effort) || 'par défaut'}${body.model ? `, ${body.model}` : ''}, pour son prochain lancement.` : result.error, !result.ok);
+    return load();
+  }
+  const autoSet = event.target.closest('[data-auto-set]');
+  if (autoSet) {
+    const id = autoSet.dataset.id;
+    const body = { auto: true, ...Object.fromEntries([...document.querySelectorAll(`[data-auto-set][data-id="${CSS.escape(id)}"]`)].map((one) => [one.dataset.autoSet, one.value || null])) };
+    return post(`/api/backlog/auto/${id}`, body);
+  }
   const box = event.target.closest('[data-pick]');
   if (box) togglePick(box.dataset.pick, box.checked);
 });
