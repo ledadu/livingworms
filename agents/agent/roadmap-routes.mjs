@@ -239,6 +239,12 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
       response.end(JSON.stringify(value));
     };
     const post = request.method === 'POST';
+    // The redesign, tried beside the old page: a mock-up on the real data and actions (roadmap-v2.html).
+    if (path === '/roadmap/v2') {
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+      response.end(renderPage(readFileSync(join(here, 'roadmap-v2.html'), 'utf8')));
+      return true;
+    }
     if (path === '/roadmap') {
       response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       response.end(renderPage(readFileSync(join(here, 'roadmap.html'), 'utf8')));

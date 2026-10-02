@@ -132,6 +132,8 @@ Texte libre ; un chantier se découpe en titres #### ou en puces en gras.
 
 ### Page Backlog
 
+> Une refonte est en cours : la maquette `/roadmap/v2` ([`roadmap-v2.html`](../agent/roadmap-v2.html)) tourne à côté de cette page, sur les mêmes données et actions ; le constat et les choix sont dans [backlog-ux.md](backlog-ux.md).
+
 La page **Backlog** (`/roadmap`, bouton « ⟳ Rafraîchir le backlog » en en-tête du tableau de bord ; [`roadmap-routes.mjs`](../agent/roadmap-routes.mjs), [`roadmap.html`](../agent/roadmap.html)) relit `docs/backlog.md` **du dépôt principal**, synchronise ses états et montre ses chantiers par groupe, avec leur état et leur agent. La consigne générée cite le chantier en entier (sous-titres compris) avec sa ligne dans `docs/backlog.md` ([`roadmap.mjs`](../agent/roadmap.mjs) `buildPrompt`).
 
 - **✎ Modifier** un chantier : son texte Markdown (titre `###` compris) dans une fenêtre ; **Enregistrer** (ou Ctrl+S) réécrit son bloc dans `docs/backlog.md` en gardant sa ligne d'état ([`backlog.mjs`](../agent/backlog.mjs) `writeTask`). Refusé si le chantier a changé entre-temps (fichier modifié ailleurs, empreinte `version`), s'il manque le titre `###`, ou s'il contient un autre titre `##`/`###` (découper avec `####`). **+ chantier** sur un groupe en ajoute un, ⚪ à faire, à la fin du groupe.

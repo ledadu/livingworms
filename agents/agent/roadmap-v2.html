@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backlog __PROJECT__</title>
+<style>
+  :root {
+    --bg: #0f1216; --panel: #161b21; --panel2: #1d232b; --panel3: #252d37; --line: #2a323d; --line2: #36404d;
+    --text: #e8ebf0; --soft: #b7bfcb; --muted: #7f8a99;
+    --todo: #c8b6ff; --queued: #e5b454; --active: #7aa7ff; --merged: #8b95a5; --done: #4cc38a; --bad: #ef6b6b; --auto: #ffb547;
+    --accent: #7aa7ff; --r: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, Segoe UI, sans-serif; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  a { color: var(--accent); text-decoration: none; }
+  .spacer { flex: 1; }
+  .muted { color: var(--muted); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+  /* ---- Top bar ---- */
+  .top { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .bar1 { display: flex; align-items: center; gap: 14px; padding: 10px 20px 0; }
+  .bar1 h1 { font-size: 17px; margin: 0; white-space: nowrap; }
+  nav.site { display: flex; gap: 2px; flex-wrap: wrap; }
+  nav.site a { color: var(--muted); padding: 2px 9px; border-radius: 99px; font-size: 13px; }
+  nav.site a:hover { color: var(--text); background: var(--panel2); }
+  nav.site a.on { color: #0b1220; background: var(--accent); font-weight: 600; }
+  .proto { font-size: 11px; color: var(--auto); border: 1px solid color-mix(in srgb, var(--auto) 50%, transparent); border-radius: 99px; padding: 1px 8px; white-space: nowrap; }
+  .bar2 { display: flex; align-items: center; gap: 10px; padding: 10px 20px; flex-wrap: wrap; }
+  .search { display: flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 0 10px; min-width: 220px; flex: 0 1 320px; }
+  .search input { background: none; border: none; outline: none; padding: 7px 0; width: 100%; }
+  .seg { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+  .seg button { background: none; border: none; padding: 5px 10px; border-radius: 6px; color: var(--soft); cursor: pointer; white-space: nowrap; font-size: 13px; }
+  .seg button.on { background: var(--panel3); color: var(--text); font-weight: 600; }
+  .seg button .n { color: var(--muted); font-weight: 400; margin-left: 4px; font-size: 12px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--soft); border-radius: 99px; padding: 4px 10px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+  .chip.on { border-color: var(--todo); color: var(--text); background: color-mix(in srgb, var(--todo) 14%, var(--panel)); }
+  .chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--todo); }
+  .icon-btn { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; cursor: pointer; color: var(--soft); white-space: nowrap; }
+  .icon-btn:hover { border-color: var(--line2); color: var(--text); }
+  .stats { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .stats b { color: var(--soft); font-weight: 600; }
+
+  /* ---- Layout ---- */
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; padding: 16px 20px 120px; max-width: 1500px; margin: 0 auto; }
+  .layout.board { grid-template-columns: minmax(0, 1fr) 340px; }
+
+  /* ---- Groups and cards (list) ---- */
+  .group { margin-bottom: 18px; }
+  .group-head { display: flex; align-items: baseline; gap: 10px; padding: 4px 2px 8px; cursor: pointer; user-select: none; }
+  .group-head h2 { font-size: 13px; margin: 0; text-transform: uppercase; letter-spacing: .06em; color: var(--soft); }
+  .group-head .count { font-size: 12px; color: var(--muted); }
+  .group-head .caret { color: var(--muted); width: 12px; transition: transform .15s; }
+  .group.closed .caret { transform: rotate(-90deg); }
+  .group.closed .cards { display: none; }
+  .cards { display: flex; flex-direction: column; gap: 6px; }
+  .card { --st: var(--todo); position: relative; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px 10px 10px; cursor: pointer; transition: border-color .12s, background .12s; }
+  .card:hover { border-color: var(--line2); background: var(--panel2); }
+  .card.sel { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+  .card.picked { border-color: var(--todo); background: color-mix(in srgb, var(--todo) 7%, var(--panel)); }
+  .card .box { width: 18px; height: 18px; accent-color: var(--todo); margin: 0; opacity: .35; }
+  .card:hover .box, .card.picked .box, body.picking .card .box { opacity: 1; }
+  .card .box:disabled { visibility: hidden; }
+  .card .title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card .meta { display: flex; gap: 10px; align-items: center; margin-top: 2px; font-size: 12px; color: var(--muted); flex-wrap: wrap; min-height: 16px; }
+  .state { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--soft); white-space: nowrap; }
+  .state::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--st); }
+  .state.queued { --st: var(--queued); } .state.active { --st: var(--active); } .state.merged { --st: var(--merged); } .state.done { --st: var(--done); } .state.paused { --st: var(--muted); }
+  .state.active::before { box-shadow: 0 0 0 0 var(--active); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--active) 70%, transparent); } 100% { box-shadow: 0 0 0 7px transparent; } }
+  .agent { font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--soft); background: var(--panel3); border-radius: 5px; padding: 0 6px; }
+  .new-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--todo); display: inline-block; }
+  .auto { color: var(--auto); }
+  .more { background: none; border: 1px solid transparent; border-radius: 6px; color: var(--muted); padding: 2px 8px; cursor: pointer; font-size: 16px; line-height: 1; }
+  .more:hover { border-color: var(--line2); color: var(--text); }
+  /* A chain: the parent, then its steps, numbered along a line. */
+  .chain { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); }
+  .chain > .card { border: none; border-radius: var(--r) var(--r) 0 0; background: transparent; }
+  .chain > .card:hover { background: var(--panel2); }
+  .chain .steps { list-style: none; margin: 0; padding: 0 0 6px; }
+  .chain .step { display: grid; grid-template-columns: 22px 26px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 12px 6px 10px; cursor: pointer; position: relative; }
+  .chain .step:hover { background: var(--panel2); }
+  .chain .step.sel { box-shadow: inset 3px 0 0 var(--accent); background: var(--panel2); }
+  .chain .step.picked { background: color-mix(in srgb, var(--todo) 7%, var(--panel)); }
+  .chain .step .num { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line2); color: var(--soft); font-size: 11px; display: grid; place-items: center; background: var(--bg); position: relative; z-index: 1; }
+  .chain .step:not(:last-child) .num::after { content: ''; position: absolute; top: 22px; left: 50%; width: 1.5px; height: 20px; background: var(--line2); transform: translateX(-50%); }
+  .chain .step .num.queued { border-color: var(--queued); } .chain .step .num.active { border-color: var(--active); color: var(--active); } .chain .step .num.merged, .chain .step .num.done { border-color: var(--done); background: color-mix(in srgb, var(--done) 25%, var(--bg)); color: var(--text); }
+  .chain .step .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chain .step .t small { color: var(--muted); margin-left: 8px; }
+  .chain .step .box { width: 16px; height: 16px; accent-color: var(--todo); opacity: .35; }
+  .chain .step:hover .box, .chain .step.picked .box, body.picking .chain .step .box { opacity: 1; }
+  .chain-label { font-size: 12px; color: var(--muted); }
+  .chain-bar { display: inline-flex; gap: 2px; vertical-align: middle; }
+  .chain-bar i { width: 14px; height: 4px; border-radius: 2px; background: var(--line2); }
+  .chain-bar i.queued { background: var(--queued); } .chain-bar i.active { background: var(--active); } .chain-bar i.merged, .chain-bar i.done { background: var(--done); }
+  .empty { color: var(--muted); padding: 30px; text-align: center; border: 1px dashed var(--line); border-radius: var(--r); }
+
+  /* ---- Board ---- */
+  .board-cols { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 12px; align-items: start; overflow-x: auto; }
+  .col { background: color-mix(in srgb, var(--panel) 55%, transparent); border: 1px solid var(--line); border-radius: var(--r); padding: 10px; min-height: 120px; }
+  .col h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--soft); display: flex; gap: 8px; align-items: center; }
+  .col h3 .state { text-transform: none; letter-spacing: 0; }
+  .col .cards .card { grid-template-columns: 20px minmax(0, 1fr); }
+  .col .card .title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .col .card .more { display: none; }
+
+  /* ---- Side: detail, or agents ---- */
+  .side { position: sticky; top: 112px; align-self: start; max-height: calc(100vh - 130px); overflow: auto; display: flex; flex-direction: column; gap: 14px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--soft); margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+  .panel h2 .n { color: var(--muted); font-weight: 400; }
+  .run { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .run:first-of-type { border-top: none; }
+  .run .name { font-family: ui-monospace, monospace; font-size: 12.5px; font-weight: 600; }
+  .run .what { grid-column: 1 / -1; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .run .acts { display: flex; gap: 4px; }
+  .mini { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; font-size: 12px; cursor: pointer; color: var(--soft); white-space: nowrap; }
+  .mini:hover { border-color: var(--line2); color: var(--text); }
+  .mini.go { border-color: color-mix(in srgb, var(--done) 60%, transparent); color: var(--done); }
+  .mini.stop { color: var(--bad); }
+  .corner { margin-top: 6px; }
+  .corner summary { cursor: pointer; font-size: 12px; color: var(--muted); list-style: none; display: inline-flex; gap: 6px; align-items: center; padding: 3px 9px; border: 1px solid var(--line); border-radius: 99px; }
+  .corner summary::-webkit-details-marker { display: none; }
+  .corner[open] summary { color: var(--soft); }
+  .corner .run { opacity: .75; }
+  .detail h3 { margin: 0 0 4px; font-size: 17px; line-height: 1.3; }
+  .detail .where { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .detail .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+  .detail .text { font-size: 13px; color: var(--soft); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; max-height: 46vh; overflow: auto; }
+  .detail .text h4 { margin: 10px 0 4px; font-size: 13px; color: var(--text); }
+  .detail .text p { margin: 6px 0; } .detail .text ul { margin: 4px 0; padding-left: 18px; }
+  .detail .text code { background: var(--panel2); padding: 0 4px; border-radius: 4px; font-size: 12px; }
+  .detail .close { float: right; }
+  .detail .back { display: none; }
+  .btn { background: var(--panel2); border: 1px solid var(--line2); border-radius: 8px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #0b1220; font-weight: 600; }
+  .btn.pick { border-color: var(--todo); color: var(--todo); }
+  .btn.pick.on { background: var(--todo); color: #1a1030; font-weight: 600; }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  /* ---- Menu ---- */
+  .menu { position: fixed; z-index: 50; background: var(--panel2); border: 1px solid var(--line2); border-radius: 10px; padding: 4px; min-width: 230px; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); }
+  .menu button { display: flex; gap: 10px; width: 100%; text-align: left; background: none; border: none; border-radius: 6px; padding: 7px 10px; cursor: pointer; }
+  .menu button:hover { background: var(--panel3); }
+  .menu hr { border: none; border-top: 1px solid var(--line); margin: 4px 0; }
+  .menu select { width: 100%; margin: 4px 0; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px; }
+
+  /* ---- Selection bar ---- */
+  .pickbar { position: fixed; left: 50%; bottom: 16px; transform: translate(-50%, 140%); transition: transform .2s; z-index: 30; width: min(980px, calc(100% - 24px));
+    background: var(--panel2); border: 1px solid var(--todo); border-radius: 14px; box-shadow: 0 14px 40px rgba(0, 0, 0, .5); }
+  .pickbar.show { transform: translate(-50%, 0); }
+  .pickbar .main { display: flex; gap: 10px; align-items: center; padding: 10px 14px; flex-wrap: wrap; }
+  .pickbar .count { font-weight: 700; color: var(--todo); white-space: nowrap; }
+  .pickbar select { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font-size: 13px; }
+  .pickbar label { font-size: 12px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+  .pickbar .review { max-height: 45vh; overflow: auto; border-top: 1px solid var(--line); padding: 10px 14px; display: none; }
+  .pickbar.open .review { display: block; }
+  .pick { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; background: var(--panel); }
+  .pick .head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .pick .head b { color: var(--text); font-size: 13px; flex-basis: 100%; }
+  .pick input { background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 2px 6px; font-family: ui-monospace, monospace; font-size: 12px; width: 170px; }
+  .pick textarea { width: 100%; min-height: 120px; margin-top: 6px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; font: 11px/1.35 ui-monospace, monospace; padding: 6px; resize: vertical; }
+  .pick .note { color: var(--todo); font-size: 11.5px; flex-basis: 100%; }
+  .toast { position: fixed; right: 16px; bottom: 16px; z-index: 60; background: var(--panel3); border: 1px solid var(--line2); border-radius: 10px; padding: 10px 14px; max-width: 420px; box-shadow: 0 10px 30px rgba(0, 0, 0, .4); }
+  .toast.bad { border-color: var(--bad); }
+
+  /* ---- Phone ---- */
+  .tabs-phone { display: none; }
+  @media (max-width: 980px) {
+    .layout, .layout.board { grid-template-columns: minmax(0, 1fr); padding: 12px 16px 120px; }
+    .side { position: static; max-height: none; }
+    .bar1, .bar2 { padding-left: 16px; padding-right: 16px; }
+    .board-cols { grid-template-columns: repeat(4, minmax(240px, 80vw)); }
+    body.detail-open .side { position: fixed; inset: 0; z-index: 40; background: var(--bg); padding: 12px 16px 100px; max-height: none; overflow: auto; }
+    body.detail-open .side .agents-panel { display: none !important; }
+    .detail .back { display: inline-flex !important; margin-bottom: 10px; }
+    .detail .close { display: none; }
+    .tabs-phone { display: inline-flex; }
+    body:not(.tab-agents) .side .agents-panel { display: none; }
+    body.tab-agents main { display: none; }
+  }
+  @media (max-width: 600px) {
+    nav.site { display: none; }
+    #filter { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+    #filter::-webkit-scrollbar { display: none; }
+    .bar2 { overflow: hidden; }
+    .search { flex: 1 1 100%; min-width: 0; }
+    .stats { display: none; }
+    .card { grid-template-columns: 22px minmax(0, 1fr) auto; }
+  }
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="bar1">
+    <h1>Backlog</h1>
+    <nav class="site"><a href="/">Accueil</a><a href="/agents">Agents</a><a href="/journal">Journal</a><a href="/versions">Versions</a><a href="/roadmap" class="on">Backlog</a><a href="/questions">Questions</a><a href="/notifications" title="Notifications">🔔</a></nav>
+    <span class="spacer"></span>
+    <span class="proto" title="Maquette de la refonte, sur les vraies données. L'ancienne page reste sur /roadmap.">maquette v2 · <a href="/roadmap">ancienne page</a></span>
+  </div>
+  <div class="bar2">
+    <label class="search"><span class="muted">⌕</span><input id="q" type="search" placeholder="Chercher un chantier, un agent…  ( / )" autocomplete="off"></label>
+    <div class="seg" id="filter" role="tablist">
+      <button data-f="todo">À faire<span class="n" id="n-todo"></span></button>
+      <button data-f="active">En cours<span class="n" id="n-active"></span></button>
+      <button data-f="merged">Fusionnés<span class="n" id="n-merged"></span></button>
+      <button data-f="done">Livrés<span class="n" id="n-done"></span></button>
+      <button data-f="all">Tout</button>
+    </div>
+    <button class="chip" id="news" title="Les chantiers ajoutés ou modifiés depuis le dernier rafraîchissement"><span class="dot"></span><span id="news-n">0</span> nouveaux</button>
+    <span class="spacer"></span>
+    <div class="seg tabs-phone" id="phone-tabs"><button data-tab="list" class="on">Chantiers</button><button data-tab="agents">Agents<span class="n" id="n-agents"></span></button></div>
+    <div class="seg" id="view"><button data-v="list" title="Liste par groupe">☰ Liste</button><button data-v="board" title="Tableau par état">▦ Tableau</button></div>
+    <button class="icon-btn" id="refresh" title="Relire le backlog, retenir son état : les « nouveaux » repartent de zéro">⟳</button>
+  </div>
+</div>
+
+<div class="layout" id="layout">
+  <main id="main"></main>
+  <aside class="side" id="side"></aside>
+</div>
+
+<div class="pickbar" id="pickbar">
+  <div class="main">
+    <span class="count" id="pick-count"></span>
+    <label>effort <select id="p-effort"></select></label>
+    <label>modèle <select id="p-model"></select></label>
+    <button class="btn" id="p-review">Revoir les prompts ▴</button>
+    <span class="spacer"></span>
+    <button class="btn" id="p-clear">Vider</button>
+    <button class="btn" id="p-queue">Mettre en file</button>
+    <button class="btn primary" id="p-launch">Mettre en file et lancer ▶</button>
+  </div>
+  <div class="review" id="review"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (text) => String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const store = {
+  get(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } },
+  set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} },
+};
+const STATE = { todo: 'à faire', queued: 'en file', active: 'en cours', merged: 'fusionné', done: 'livré', paused: 'en pause' };
+
+let data = null;
+let filter = store.get('v2.filter', 'todo');
+let view = store.get('v2.view', 'list');
+let onlyNew = false;
+let query = '';
+let selected = null;        // the task shown in the detail panel
+const closed = new Set(store.get('v2.closed', []));
+const picked = new Map();   // id -> { name, base, effort, model, prompt, edited }
+const defaults = store.get('roadmap.defaults', {});
+
+// ---------------------------------------------------------------- data
+async function load() {
+  data = await (await fetch('/api/roadmap', { cache: 'no-store' })).json();
+  for (const id of [...picked.keys()]) if (!byId(id) || byId(id).state !== 'todo') picked.delete(id);
+  render();
+}
+const byId = (id) => data.items.find((item) => item.id === id);
+const tasks = () => data.items.filter((item) => item.kind === 'task');
+const isNew = (item) => data.pending.added.includes(item.id) || data.pending.modified.includes(item.id);
+const children = (id) => tasks().filter((item) => item.after === id);
+function chainOf(id) {
+  const out = [];
+  const walk = (parent) => { for (const child of children(parent)) { out.push(child); walk(child.id); } };
+  walk(id);
+  return out;
+}
+function matches(item) {
+  if (onlyNew && !isNew(item)) return false;
+  if (query) {
+    const hay = `${item.title} ${item.agent ?? ''} ${item.section} ${item.text}`.toLowerCase();
+    if (!query.split(/\s+/).every((word) => hay.includes(word))) return false;
+  }
+  if (filter === 'all') return true;
+  if (filter === 'active') return item.state === 'queued' || item.state === 'active';
+  return item.state === filter;
+}
+
+// ---------------------------------------------------------------- pieces
+const stateTag = (item) => (item.state === 'todo' ? '' : `<span class="state ${item.state}">${STATE[item.state] ?? item.state}</span>`);
+function meta(item) {
+  const parts = [stateTag(item)];
+  if (item.agent) parts.push(`<span class="agent">${esc(item.agent)}</span>`);
+  if (item.auto) parts.push(`<span class="auto" title="Lancée d'elle-même à la fusion de sa mère">⚡ auto${item.auto.effort ? ` · ${esc(item.auto.effort)}` : ''}</span>`);
+  if (item.chat) parts.push(`<span title="Discussion 💬">💬 ${item.chat.pending ? '…' : item.chat.count}</span>`);
+  if (item.subChat) parts.push(`<span title="Discussion des sous-tâches 🧩">🧩 ${item.subChat.pending ? '…' : item.subChat.count}</span>`);
+  if (isNew(item)) parts.push('<span class="new-dot" title="Nouveau ou modifié depuis le rafraîchissement"></span>');
+  return parts.filter(Boolean).join('');
+}
+const box = (item) => `<input type="checkbox" class="box" data-pick="${esc(item.id)}" ${picked.has(item.id) ? 'checked' : ''} ${item.state !== 'todo' ? 'disabled' : ''} title="Choisir pour la mettre en file" aria-label="Choisir ${esc(item.title)}">`;
+function card(item, { chain = null } = {}) {
+  // Out of its chain (the board), a sub-task says where it stands: « ↳ 3/6 de Grandir… ».
+  let place = '';
+  if (!chain && item.after && view === 'board') {
+    let root = item;
+    while (root.after && byId(root.after)) root = byId(root.after);
+    const all = [root, ...chainOf(root.id)];
+    place = `<span title="Sous-tâche de « ${esc(root.title)} »">↳ ${all.indexOf(item) + 1}/${all.length}</span>`;
+  }
+  const steps = chain?.length ? `<span class="chain-label">chaîne de ${chain.length + 1} <span class="chain-bar">${[item, ...chain].map((one) => `<i class="${one.state}"></i>`).join('')}</span></span>` : '';
+  return `<div class="card${selected === item.id ? ' sel' : ''}${picked.has(item.id) ? ' picked' : ''}" data-open="${esc(item.id)}">
+    ${box(item)}
+    <div style="min-width:0"><div class="title" title="${esc(item.title)}">${esc(item.title)}</div><div class="meta">${place}${steps}${meta(item)}</div></div>
+    <button class="more" data-menu="${esc(item.id)}" title="Actions" aria-label="Actions">⋯</button></div>`;
+}
+function chainBlock(root, steps) {
+  return `<div class="chain">${card(root, { chain: steps })}<ol class="steps">${steps.map((step, index) => `
+    <li class="step${selected === step.id ? ' sel' : ''}${picked.has(step.id) ? ' picked' : ''}" data-open="${esc(step.id)}">
+      ${box(step)}<span class="num ${step.state}">${index + 2}</span>
+      <span class="t">${esc(step.title)}${step.after !== (index ? steps[index - 1].id : root.id) ? `<small>après « ${esc(byId(step.after)?.title ?? '')} »</small>` : ''}</span>
+      <span class="meta" style="margin:0">${meta(step)}<button class="more" data-menu="${esc(step.id)}" aria-label="Actions">⋯</button></span></li>`).join('')}</ol></div>`;
+}
+
+// ---------------------------------------------------------------- views
+function listView() {
+  const groups = [];
+  for (const item of data.items) {
+    if (item.kind === 'section') groups.push({ head: item, items: [] });
+    else groups.at(-1)?.items.push(item);
+  }
+  const html = groups.map(({ head, items }) => {
+    // Roots (not sub-tasks of a task of the same group), each with its chain.
+    const roots = items.filter((item) => !item.after || !items.some((one) => one.id === item.after));
+    const blocks = roots.map((root) => {
+      const steps = chainOf(root.id).filter((step) => items.includes(step));
+      const shown = [root, ...steps].some(matches);
+      if (!shown) return '';
+      return steps.length ? chainBlock(root, steps) : card(root);
+    }).filter(Boolean);
+    if (!blocks.length) return '';
+    const n = (state) => items.filter((item) => item.state === state).length;
+    const count = [n('todo') && `${n('todo')} à faire`, (n('queued') + n('active')) && `${n('queued') + n('active')} en cours`, n('merged') && `${n('merged')} fusionné${n('merged') > 1 ? 's' : ''}`].filter(Boolean).join(' · ');
+    return `<section class="group${closed.has(head.id) ? ' closed' : ''}"><div class="group-head" data-group="${esc(head.id)}"><span class="caret">▾</span><h2>${esc(head.title)}</h2><span class="count">${count}</span></div>
+      <div class="cards">${blocks.join('')}</div></section>`;
+  }).join('');
+  return html || `<div class="empty">Aucun chantier ${query ? `pour « ${esc(query)} »` : 'avec ce filtre'}.</div>`;
+}
+function boardView() {
+  const cols = [['todo', 'À faire'], ['queued', 'En file'], ['active', 'En cours'], ['merged', 'Fusionnés']];
+  const shown = tasks().filter((item) => (!onlyNew || isNew(item)) && matchesQuery(item));
+  const done = shown.filter((item) => item.state === 'done').length;
+  return `<div class="board-cols">${cols.map(([state, label]) => {
+    const cardsIn = shown.filter((item) => item.state === state);
+    return `<div class="col"><h3><span class="state ${state}">${label}</span><span class="muted">${cardsIn.length}</span></h3><div class="cards">${cardsIn.map((item) => card(item)).join('') || '<span class="muted" style="font-size:12px">—</span>'}</div></div>`;
+  }).join('')}</div><p class="muted" style="font-size:12px;margin-top:10px">${done} livrés, rangés dans « Livré » (filtre Livrés de la vue Liste).</p>`;
+}
+function matchesQuery(item) {
+  if (!query) return true;
+  const hay = `${item.title} ${item.agent ?? ''} ${item.section} ${item.text}`.toLowerCase();
+  return query.split(/\s+/).every((word) => hay.includes(word));
+}
+
+// ---------------------------------------------------------------- side: agents, or a task's detail
+function ago(iso) {
+  if (!iso) return '';
+  const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+  return s < 60 ? 'à l’instant' : s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${(s / 3600).toFixed(1)} h` : `${Math.round(s / 86400)} j`;
+}
+function runRow(entry) {
+  const run = entry.run;
+  const name = esc(entry.name);
+  const running = run?.state === 'running';
+  const status = entry.status === 'queued' ? 'en attente' : running ? `au travail · ${ago(run.startedAt)}` : run?.state === 'done' ? `terminé · ${ago(run.startedAt)}` : run?.state === 'error' ? `en erreur (code ${run.code})` : run?.state === 'stopped' ? 'arrêté' : run?.state === 'lost' ? 'processus disparu' : entry.status;
+  const acts = entry.status === 'queued' ? `<button class="mini go" data-q="launch" data-name="${name}">▶ Lancer</button><button class="mini" data-q="cancel" data-name="${name}">Annuler</button>`
+    : running ? `<a class="mini" href="/run/${name}" target="_blank">Sortie</a><button class="mini stop" data-q="stop" data-name="${name}">■</button>`
+    : `<a class="mini" href="/run/${name}" target="_blank">Sortie</a>${run ? `<button class="mini" data-q="resume" data-name="${name}" title="Reprendre la même session">↻</button>` : ''}<button class="mini" data-q="forget" data-name="${name}" title="Retirer de la liste">✕</button>`;
+  const st = entry.status === 'queued' ? 'queued' : running ? 'active' : run?.state === 'done' ? 'done' : 'paused';
+  return `<div class="run"><span><span class="state ${st}"></span> <span class="name">${name}</span> <span class="muted" style="font-size:12px">${status}${entry.effort ? ` · ${esc(entry.effort)}` : ''}</span></span><span class="acts">${acts}</span><span class="what">${esc(entry.title)}</span></div>`;
+}
+function agentsPanel() {
+  const queue = data.queue ?? [];
+  const working = queue.filter((entry) => entry.run?.state === 'running');
+  const waiting = queue.filter((entry) => entry.status === 'queued');
+  const over = queue.filter((entry) => entry.status !== 'queued' && entry.run?.state !== 'running');
+  const failed = over.filter((entry) => ['error', 'lost'].includes(entry.run?.state));
+  const finished = over.filter((entry) => !failed.includes(entry));
+  return `<div class="panel agents-panel"><h2>Agents <span class="n">${working.length} au travail${waiting.length ? ` · ${waiting.length} en attente` : ''}</span></h2>
+    ${working.map(runRow).join('')}${waiting.map(runRow).join('')}${failed.map(runRow).join('')}
+    ${!working.length && !waiting.length && !failed.length ? '<p class="muted" style="font-size:13px;margin:0">Aucun agent au travail. Coche des chantiers « à faire » puis « Mettre en file et lancer ».</p>' : ''}
+    ${waiting.length > 1 ? '<button class="mini go" data-q="launch-all" style="margin-top:6px">▶ Lancer les ' + waiting.length + ' en attente</button>' : ''}
+    ${finished.length ? `<details class="corner"${store.get('v2.corner', false) ? ' open' : ''}><summary>✓ ${finished.length} terminé${finished.length > 1 ? 's' : ''} ▸</summary>${finished.map(runRow).join('')}</details>` : ''}</div>`;
+}
+function md(text) {
+  const lines = String(text).split('\n').slice(1);
+  let html = '', list = false;
+  const inline = (t) => esc(t).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1');
+  for (const line of lines) {
+    if (/^\s*[-*]\s+/.test(line)) { if (!list) { html += '<ul>'; list = true; } html += `<li>${inline(line.replace(/^\s*[-*]\s+/, ''))}</li>`; continue; }
+    if (list) { html += '</ul>'; list = false; }
+    if (/^####\s+/.test(line)) html += `<h4>${inline(line.replace(/^####\s+/, ''))}</h4>`;
+    else if (line.trim()) html += `<p>${inline(line)}</p>`;
+  }
+  return html + (list ? '</ul>' : '');
+}
+function detailPanel(item) {
+  const parent = item.after && byId(item.after);
+  const steps = chainOf(item.id);
+  const entry = (data.queue ?? []).find((one) => one.id === item.id || one.name === item.agent);
+  return `<div class="panel detail"><button class="btn back" data-close>← Retour aux chantiers</button><button class="mini close" data-close title="Fermer (Échap)">✕</button>
+    <h3>${esc(item.title)}</h3>
+    <div class="where">${esc(item.section)} · ligne ${item.line}${parent ? ` · ↳ après « <a href="#" data-open="${esc(parent.id)}">${esc(parent.title)}</a> »` : ''}</div>
+    <div class="row">${stateTag(item) || '<span class="state todo">à faire</span>'}${item.agent ? `<span class="agent">${esc(item.agent)}</span>` : ''}${item.auto ? '<span class="auto">⚡ auto</span>' : ''}</div>
+    <div class="row">
+      ${item.state === 'todo' ? `<button class="btn pick${picked.has(item.id) ? ' on' : ''}" data-toggle-pick="${esc(item.id)}">${picked.has(item.id) ? '✓ Choisi' : 'Choisir'}</button>` : ''}
+      <a class="btn" href="/roadmap#t-${esc(item.id)}" title="Le texte, la discussion 💬 et les sous-tâches 🧩 : dans l'ancienne page, le temps de la maquette">✎ Modifier · 💬 · 🧩</a>
+      ${entry ? `<a class="btn" href="/run/${esc(entry.name)}" target="_blank">Sortie de l'agent</a>` : ''}
+    </div>
+    ${steps.length ? `<div class="where" style="margin-top:10px">Puis ${steps.length} sous-tâche${steps.length > 1 ? 's' : ''} : ${steps.map((step) => `<a href="#" data-open="${esc(step.id)}">${esc(step.title)}</a>`).join(' → ')}</div>` : ''}
+    <div class="text">${md(item.text)}</div></div>`;
+}
+
+// ---------------------------------------------------------------- render
+function counts() {
+  const all = tasks();
+  const n = (f) => all.filter((item) => (f === 'active' ? item.state === 'queued' || item.state === 'active' : item.state === f)).length;
+  for (const f of ['todo', 'active', 'merged', 'done']) $(`n-${f}`).textContent = n(f);
+  const news = all.filter(isNew).length;
+  $('news-n').textContent = news;
+  $('news').hidden = !news;
+  $('news').classList.toggle('on', onlyNew);
+  const working = (data.queue ?? []).filter((entry) => entry.run?.state === 'running').length;
+  $('n-agents').textContent = working ? ` ${working}` : '';
+}
+let lastKey = '';
+function render() {
+  if (!data) return;
+  // Redrawn only when something changed: the 5 s refresh keeps the hover and the scroll as they are.
+  const key = JSON.stringify([data.items, data.queue, data.pending, filter, view, onlyNew, query, selected, [...picked.keys()], [...closed]]);
+  if (key === lastKey) return renderPicks();
+  lastKey = key;
+  counts();
+  for (const button of document.querySelectorAll('#filter button')) button.classList.toggle('on', button.dataset.f === filter && view === 'list');
+  for (const button of document.querySelectorAll('#view button')) button.classList.toggle('on', button.dataset.v === view);
+  $('filter').style.visibility = view === 'list' ? '' : 'hidden';
+  $('layout').classList.toggle('board', view === 'board');
+  $('main').innerHTML = view === 'list' ? listView() : boardView();
+  const item = selected && byId(selected);
+  document.body.classList.toggle('detail-open', Boolean(item));
+  $('side').innerHTML = (item ? detailPanel(item) : '') + agentsPanel();
+  renderPicks();
+}
+
+// ---------------------------------------------------------------- selection
+function settingOptions(values, fallback, label) {
+  return [`<option value="">${label}${fallback ? ` (${esc(fallback)})` : ''}</option>`, ...values.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`)].join('');
+}
+$('p-effort').innerHTML = settingOptions(PROJECT.efforts, PROJECT.defaults.effort, 'proposé');
+$('p-model').innerHTML = settingOptions(PROJECT.models, PROJECT.defaults.model, 'défaut');
+$('p-effort').value = defaults.effort ?? '';
+$('p-model').value = defaults.model ?? '';
+for (const key of ['effort', 'model']) $(`p-${key}`).addEventListener('change', (event) => {
+  defaults[key] = event.target.value || null;
+  store.set('roadmap.defaults', defaults);
+  for (const pick of picked.values()) if (!pick.chosen) pick[key] = defaults[key] || (key === 'effort' ? pick.suggested : null);
+  renderPicks(true);
+});
+function togglePick(id, on = !picked.has(id)) {
+  const item = byId(id);
+  if (!item || item.state !== 'todo') return;
+  if (on) picked.set(id, { name: item.proposedName, base: '__INTEGRATION__', effort: defaults.effort || item.suggested?.effort || null, suggested: item.suggested?.effort ?? null, model: defaults.model || null, prompt: '', edited: false, chosen: false });
+  else picked.delete(id);
+  render();
+}
+function renderPicks(force = false) {
+  const bar = $('pickbar');
+  bar.classList.toggle('show', picked.size > 0);
+  document.body.classList.toggle('picking', picked.size > 0);
+  const subs = [...picked.keys()].flatMap((id) => chainOf(id).filter((step) => step.state === 'todo' && !step.auto && !picked.has(step.id)));
+  $('pick-count').textContent = `${picked.size} choisi${picked.size > 1 ? 's' : ''}${subs.length ? ` + ${subs.length} sous-tâche${subs.length > 1 ? 's' : ''}` : ''}`;
+  if (!bar.classList.contains('open') && !force) return;
+  const review = $('review');
+  const have = new Set([...review.querySelectorAll('.pick')].map((el) => el.dataset.id));
+  if (!force && [...picked.keys()].every((id) => have.has(id)) && have.size === picked.size) return;
+  review.innerHTML = [...picked].map(([id, pick]) => {
+    const item = byId(id);
+    const parent = item.after && byId(item.after);
+    const note = parent && !picked.has(parent.id) && !['merged', 'done'].includes(parent.state) ? `<span class="note">↳ sous-tâche de « ${esc(parent.title)} » : elle sera refusée seule tant que sa mère n'est pas fusionnée.</span>` : '';
+    const steps = chainOf(id).filter((step) => step.state === 'todo' && !step.auto);
+    return `<div class="pick" data-id="${esc(id)}"><div class="head"><b>${esc(item.title)}</b>agent <input data-f="name" value="${esc(pick.name)}" spellcheck="false"> base <input data-f="base" value="${esc(pick.base)}" style="width:90px" spellcheck="false">
+      effort ${pick.effort ? `<b style="flex-basis:auto;font-size:12px">${esc(pick.effort)}</b>` : 'proposé'}${steps.length ? `<span class="note">+ ${steps.length} sous-tâche${steps.length > 1 ? 's' : ''} faite${steps.length > 1 ? 's' : ''} par le même agent.</span>` : ''}${note}</div>
+      <textarea data-f="prompt" placeholder="Prompt généré à la mise en file (laisser vide), ou le tien">${esc(pick.prompt)}</textarea></div>`;
+  }).join('');
+}
+$('review').addEventListener('input', (event) => {
+  const field = event.target.dataset.f;
+  const pick = picked.get(event.target.closest('.pick')?.dataset.id);
+  if (!pick || !field) return;
+  pick[field] = event.target.value;
+  if (field === 'prompt') pick.edited = Boolean(event.target.value.trim());
+});
+$('p-review').addEventListener('click', () => {
+  const open = $('pickbar').classList.toggle('open');
+  $('p-review').textContent = open ? 'Replier ▾' : 'Revoir les prompts ▴';
+  renderPicks(true);
+});
+$('p-clear').addEventListener('click', () => (picked.clear(), $('pickbar').classList.remove('open'), render()));
+async function enqueue(launch) {
+  const tasksOut = [...picked].map(([id, pick]) => ({ id, name: pick.name, base: pick.base, prompt: pick.edited ? pick.prompt : undefined, effort: pick.effort || undefined, model: pick.model || undefined }));
+  toast(`Création de ${tasksOut.length} worktree${tasksOut.length > 1 ? 's' : ''}…`);
+  const { results } = await (await fetch('/api/roadmap/enqueue', { method: 'POST', body: JSON.stringify({ tasks: tasksOut }) })).json();
+  const failed = results.filter((one) => !one.ok);
+  for (const one of results) if (one.ok) for (const [id, pick] of picked) if (pick.name === one.name) picked.delete(id);
+  if (launch) for (const one of results.filter((r) => r.ok)) await fetch(`/api/queue/${encodeURIComponent(one.name)}/launch`, { method: 'POST' });
+  toast(failed.length ? failed.map((one) => `${one.name} : ${one.error}`).join(' · ') : `${results.length} en file${launch ? ' et lancé' + (results.length > 1 ? 's' : '') : ''}.`, Boolean(failed.length));
+  $('pickbar').classList.remove('open');
+  await load();
+}
+$('p-queue').addEventListener('click', () => enqueue(false));
+$('p-launch').addEventListener('click', () => enqueue(true));
+
+// ---------------------------------------------------------------- menu
+let menu = null;
+function closeMenu() { menu?.remove(); menu = null; }
+function openMenu(button, item) {
+  closeMenu();
+  const parents = tasks().filter((one) => one.id !== item.id && one.state !== 'done' && !chainOf(item.id).some((step) => step.id === one.id));
+  menu = document.createElement('div');
+  menu.className = 'menu';
+  menu.innerHTML = `
+    <button data-m="open">👁 Ouvrir</button>
+    ${item.state === 'todo' ? `<button data-m="pick">${picked.has(item.id) ? '☐ Ne plus choisir' : '☑ Choisir'}</button>` : ''}
+    <button data-m="edit">✎ Modifier, 💬 discuter, 🧩 sous-tâches</button>
+    <hr>
+    ${item.after && item.state === 'todo' ? `<button data-m="auto">${item.auto ? '⚡ Ne plus lancer d’elle-même' : '⚡ Lancer d’elle-même à la fusion de sa mère'}</button>` : ''}
+    ${item.after ? '<button data-m="detach">⤴ Ne plus être une sous-tâche</button>' : ''}
+    <label style="font-size:12px;color:var(--muted);padding:4px 10px;display:block">↳ Sous-tâche de…<select data-m="after"><option value="">—</option>${parents.map((one) => `<option value="${esc(one.id)}" ${one.id === item.after ? 'selected' : ''}>${esc(one.title)}</option>`).join('')}</select></label>`;
+  document.body.appendChild(menu);
+  const rect = button.getBoundingClientRect();
+  const width = menu.offsetWidth;
+  menu.style.left = `${Math.max(8, Math.min(rect.right - width, innerWidth - width - 8))}px`;
+  menu.style.top = `${Math.min(rect.bottom + 4, innerHeight - menu.offsetHeight - 8)}px`;
+  menu.addEventListener('click', async (event) => {
+    const action = event.target.closest('button')?.dataset.m;
+    if (!action) return;
+    closeMenu();
+    if (action === 'open') (selected = item.id, render());
+    if (action === 'pick') togglePick(item.id);
+    if (action === 'edit') location.href = `/roadmap#t-${item.id}`;
+    if (action === 'auto') await post(`/api/backlog/auto/${item.id}`, item.auto ? { auto: false } : { auto: true, effort: defaults.effort ?? null, model: defaults.model ?? null });
+    if (action === 'detach') await post(`/api/backlog/after/${item.id}`, { after: null });
+  });
+  menu.querySelector('select').addEventListener('change', async (event) => {
+    closeMenu();
+    await post(`/api/backlog/after/${item.id}`, { after: event.target.value || null });
+  });
+}
+async function post(url, body) {
+  const result = await (await fetch(url, { method: 'POST', body: JSON.stringify(body ?? {}) })).json();
+  if (result.ok === false) toast(result.error, true);
+  if (result.items) (data = result, render());
+  else await load();
+}
+
+// ---------------------------------------------------------------- toast
+let toastTimer = 0;
+function toast(text, bad = false) {
+  document.querySelector('.toast')?.remove();
+  const el = document.createElement('div');
+  el.className = `toast${bad ? ' bad' : ''}`;
+  el.textContent = text;
+  document.body.appendChild(el);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.remove(), bad ? 9000 : 4000);
+}
+
+// ---------------------------------------------------------------- events
+document.addEventListener('click', async (event) => {
+  if (menu && !event.target.closest('.menu')) closeMenu();
+  const more = event.target.closest('[data-menu]');
+  if (more) { event.stopPropagation(); return openMenu(more, byId(more.dataset.menu)); }
+  if (event.target.closest('[data-pick]')) return;
+  const group = event.target.closest('[data-group]');
+  if (group) {
+    closed.has(group.dataset.group) ? closed.delete(group.dataset.group) : closed.add(group.dataset.group);
+    store.set('v2.closed', [...closed]);
+    return render();
+  }
+  const toggle = event.target.closest('[data-toggle-pick]');
+  if (toggle) return togglePick(toggle.dataset.togglePick);
+  if (event.target.closest('[data-close]')) return (selected = null, render());
+  const q = event.target.closest('[data-q]');
+  if (q) {
+    const name = q.dataset.name;
+    if (q.dataset.q === 'launch-all') return post('/api/queue/launch-all');
+    if (q.dataset.q === 'cancel' && !confirm(`Annuler ${name} ? (le worktree reste)`)) return;
+    if (q.dataset.q === 'stop' && !confirm(`Arrêter ${name} ?`)) return;
+    return post(`/api/queue/${encodeURIComponent(name)}/${q.dataset.q}`);
+  }
+  const open = event.target.closest('[data-open]');
+  if (open && !event.target.closest('a[href]:not([href="#"])')) {
+    event.preventDefault();
+    selected = selected === open.dataset.open && !event.target.closest('.detail') ? null : open.dataset.open;
+    render();
+  }
+});
+document.addEventListener('change', (event) => {
+  const box = event.target.closest('[data-pick]');
+  if (box) togglePick(box.dataset.pick, box.checked);
+});
+document.addEventListener('toggle', (event) => {
+  if (event.target.classList?.contains('corner')) store.set('v2.corner', event.target.open);
+}, true);
+$('filter').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-f]');
+  if (!button) return;
+  filter = button.dataset.f;
+  store.set('v2.filter', filter);
+  render();
+});
+$('view').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-v]');
+  if (!button) return;
+  view = button.dataset.v;
+  store.set('v2.view', view);
+  render();
+});
+$('phone-tabs').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-tab]');
+  if (!button) return;
+  document.body.classList.toggle('tab-agents', button.dataset.tab === 'agents');
+  for (const one of document.querySelectorAll('#phone-tabs button')) one.classList.toggle('on', one === button);
+});
+$('news').addEventListener('click', () => (onlyNew = !onlyNew, render()));
+$('q').addEventListener('input', (event) => (query = event.target.value.trim().toLowerCase(), render()));
+$('refresh').addEventListener('click', async () => {
+  data = await (await fetch('/api/roadmap/refresh', { method: 'POST' })).json();
+  onlyNew = false;
+  render();
+  toast('Backlog relu : les « nouveaux » repartent de zéro.');
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') { event.preventDefault(); $('q').focus(); }
+  if (event.key === 'Escape') { if (menu) closeMenu(); else if (selected) (selected = null, render()); }
+});
+
+load();
+setInterval(() => { if (!menu && document.visibilityState === 'visible' && !document.activeElement?.closest?.('.pickbar')) load(); }, 5000);
+</script>
+</body>
+</html>
