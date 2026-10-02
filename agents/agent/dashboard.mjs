@@ -16,7 +16,7 @@ import { branchesRoutes } from './branches-routes.mjs';
 import { isReleaseServer } from './release-servers.mjs';
 import { acceptOrder, mergeOrder, orderTask, runState, sessionTranscript } from './launch.mjs';
 import { cleanAgents, orphanBranches } from './clean.mjs';
-import { clearTrain, readTrain, startTrain, stepTrain, stopTrain } from './merge-train.mjs';
+import { clearTrain, previewTrain, readTrain, startTrain, stepTrain, stopTrain, suggestOrder } from './merge-train.mjs';
 import { parseGoal } from './goal.mjs';
 import { commitBacklog, syncBacklog } from './backlog.mjs';
 import { UNRELEASED } from '../release/changes.mjs';
@@ -774,6 +774,16 @@ async function handle(request, response) {
     const result = fixConflicts(fix[1]);
     latest = await snapshot();
     return json(result);
+  }
+  // Before « Accepter en série » : for each agent, the files in common with its base and with the others, and an order.
+  if (path === '/api/merge-train/preview') {
+    const names = (new URL(request.url ?? '/', 'http://localhost').searchParams.get('names') ?? '').split(',').filter((name) => /^[a-z0-9-]+$/.test(name) && existsSync(join(registry, `${name}.env`)));
+    const preview = await previewTrain(names, {
+      git: (args) => git(mainRoot, ...args),
+      branchOf: (name) => readEnv(join(registry, `${name}.env`)).AGENT_BRANCH || `${project.branches.agent}${name}`,
+      baseOf: (name) => baseBranchOf(name),
+    });
+    return json({ ok: true, preview, order: suggestOrder(names, preview) });
   }
   // « ✓ Accepter la sélection » : { names } accepted one after the other (merge-train.mjs); stop, or clear once over.
   const train = /^\/api\/merge-train(?:\/(stop|clear))?$/.exec(path);

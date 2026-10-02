@@ -255,6 +255,11 @@ export function initAmis(d: AmisDeps) {
       const a = actors.find((q) => q.cr === cr);
       if (a && canBe(a) && !hasFriend()) bonds.set(a, (bonds.get(a) ?? 0) + SONG);
     },
+    /** a little game played to its gift (jeux-jeu.ts onPlayed): the animal we played with becomes our friend at once */
+    played(cr: Creature3, actors: readonly Animal[]): boolean {
+      const a = actors.find((q) => q.cr === cr);
+      return !!a && canBe(a) && befriend(a);
+    },
 
     /** each frame: the light of each friend near us, in its own colour, around the middle of its body */
     lights(view: View, out: number[], P: Proj, t: number): void {

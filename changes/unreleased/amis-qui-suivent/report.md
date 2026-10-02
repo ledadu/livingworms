@@ -5,6 +5,7 @@
 Un petit animal avec qui l'on a passé un moment devient l'**ami de la génération** ; après une naissance, les **deux parents** nagent aussi avec l'enfant (choix de l'utilisateur). La conception est dans `docs/mecaniques.md`, section « Les amis qui suivent » (avec les deux textes de la lignée, *propositions*).
 
 - **Le lien** (`bondStep`, `src/monde/amis.ts`) se tisse sans rien à l'écran avec chaque petit nageur proche : un poisson de pleine eau, assez vif, pas plus long que 150 px, pas un partenaire. Rester calme près d'un animal venu nous regarder (la scène `curieux` de la vie des animaux) le remplit en une dizaine de secondes. Un festin partagé ou une autre scène regardée de près le remplissent plus lentement, et un animal qui répond au chant y gagne d'un coup. Foncer sur lui le défait.
+- **Les petits jeux** (fusionnés depuis `backlog`) : un jeu joué jusqu'à son cadeau fait aussitôt un ami de l'animal avec qui l'on a joué. C'est le poisson du chat ou le meneur du banc, s'il peut nous suivre ; le poulpe caché, non. Le branchement : `jeux.onPlayed` → `amis.played` dans `main.ts`.
 - **L'ami** s'illumine trois fois de sa couleur, chante la note de son chapitre, et la lignée le dit sous le nom de son espèce. Il nage à côté de nous quand on nage et tourne autour de nous quand on s'arrête. Il reprend chaque note de notre chant une octave plus haut (`chant.echo`). Toutes les une à une minute et demie, il nous mène vers une trace de la lignée pas encore vue, sinon vers un coin où la nourriture tombe (`vie.feast(actors, spot)`).
 - **Les parents** : une fois l'adieu fini, le parent qu'on était et le partenaire de la parade (s'il nage comme un poisson) nous suivent de la même façon jusqu'à la sortie du chapitre. Le parent reste alors là où on le quitte : sa place est mise à jour dans la sauvegarde (`placeAncestor`). Le partenaire retourne à sa vie.
 - **Après la génération** : l'ami reste où il est, sauvé avec sa place (`friends` dans `lignee.partie`). Il revient au rechargement. La première fois qu'on repasse dans une visite, il nous reconnaît : éclats, sa note, les mots « Retrouvailles », et il nage avec nous 14 s.
@@ -16,6 +17,7 @@ Un petit animal avec qui l'on a passé un moment devient l'**ami de la générat
 ![Avant : le poisson curieux nous regarde, le lien se tisse](img/1-curieux.jpg)
 ![Après une naissance, les parents suivent l'enfant](img/4-parents.jpg)
 ![Dans le noir de la Grotte, sa lueur le fait reconnaître](img/5-grotte.jpg)
+![Un chat joué jusqu'au cadeau : le poisson-clown devient l'ami (ses mots attendent ceux du jeu)](img/6-jeu-ami.jpg)
 
 Vérifié dans le Chrome Windows : le lien se remplit (1 par seconde près d'un curieux) et l'ami se fait. Il suit à environ 150 px pendant qu'on nage à pleine allure. Le chant est repris. Il nous a menés vers un coin de nourriture. À l'adieu, il reste sur place et les parents suivent, puis restent au changement de chapitre (avec la place de l'ancêtre sauvée). Au rechargement, il reprend sa place et nous reconnaît, avec ses mots.
 
@@ -53,16 +55,27 @@ Vérifié dans le Chrome Windows : le lien se remplit (1 par seconde près d'un 
 ## Reste à faire / limites
 
 - **Grandir en mangeant** (commentaire de l'utilisateur) : l'enfant qui naît plus petit et grandit est un autre chantier du backlog (« Grandir jusqu'à la maturité »).
-- **Les petits jeux des animaux** (chantier voisin) : à la fin d'un jeu, appeler `monde.amis.befriend(acteur)`, ou ajouter au lien comme le fait le chant.
 - **Le portrait de la génération** pourra lire `monde.amis.list` pour cadrer les amis proches. Le shoot automatique y trouvera « retrouvailles avec un ami ».
 - **Les trésors de la lignée** : `pickShow` prend des cibles `{ x, y, seen }` ; ajouter les trésors pas encore trouvés à côté des traces.
 - **L'arbre de la lignée** ne montre pas encore l'ami de chaque génération (`partie.friends` a la génération).
 - **Ce qu'on ne voit pas** : l'ami ne joue plus les scènes de la vie des animaux, et ne mange pas au festin vers lequel il nous mène (il tourne autour).
 - **Dans la Balade libre**, l'ami se fait et suit de la même façon, mais une naissance n'y change pas de génération : il ne reste donc pas derrière.
 
+## Fusion avec `backlog` (les petits jeux des animaux)
+
+- **Conflits**, tous dans `src/monde/main.ts`, et à chaque fois les deux côtés gardés :
+  - l'import : `initJeux` puis `initAmis` ;
+  - la boucle : `jeux.step` puis `amis.step` ;
+  - l'objet `api` : `vie, jeux, amis`.
+- `initJeux` (arrivé de `backlog`) est placé avant le bloc des amis.
+- **Ajout** : `amis.played(cr, actors)`, appelé par `jeux.onPlayed` quand un jeu donne son cadeau. Les deux chantiers avaient prévu ce point de rencontre.
+- Les amis (genre `ami`) ne sont jamais pris par un petit jeu, qui ne prend que les genres `swim` et `floor`.
+- `docs/mecaniques.md` dit maintenant qu'un petit jeu fait un ami.
+- Vérifié en jeu : trois tours de chat, le cadeau « lueur », puis l'ami se fait.
+
 ## Risques de fusion
 
-- `src/monde/main.ts` : le genre d'acteur `ami`, une branche dans la boucle des animaux (8 lignes), `amis.step`, `amis.lights`, le bloc `initAmis` après la vie des animaux, `amis.born` dans `farewell` (le parent laissé est gardé dans `left`), `amis` dans `api`. Que des ajouts courts.
+- `src/monde/main.ts` : `jeux.onPlayed(… amis.played …)`, le genre d'acteur `ami`, une branche dans la boucle des animaux (8 lignes), `amis.step`, `amis.lights`, le bloc `initAmis` après la vie des animaux, `amis.born` dans `farewell` (le parent laissé est gardé dans `left`), `amis` dans `api`. Que des ajouts courts.
 - `src/monde/partie.ts` / `partie-jeu.ts` : le champ `friends` (lu par `parsePartie`), `befriend`, `friendStays`, `placeAncestor`, `generation`. Que des ajouts.
 - `src/monde/chant-jeu.ts` : `echo(cr, chapter)`, et l'acteur `ami` exclu des réponses ordinaires.
 - `src/monde/vie-jeu.ts` : `feast(actors, spot?)`, un endroit en option pour le festin.

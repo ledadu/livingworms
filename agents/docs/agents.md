@@ -77,6 +77,8 @@ La page `/` ([`hub.html`](../agent/hub.html), agrégation dans [`hub.mjs`](../ag
 
 ### Agents et versions
 
+> **La page Agents est refaite** : `/agents` sert [`agents-v2.html`](../agent/agents-v2.html) (constat et choix dans [agents-ux.md](agents-ux.md)) ; l'ancienne, décrite ci-dessous, reste sur **`/agents/v1`** et sert toujours `/versions`. `/agents#<nom>` ouvre le tiroir d'un agent (les notifications y mènent).
+
 La page des worktrees ([`dashboard.html`](../agent/dashboard.html)), autrefois sur `/`, est sur `/agents` ; `/versions` l'ouvre sur les onglets de versions et `?tab=active|pending|released|v:x.y.z` choisit l'onglet. Ses onglets (le choix est retenu d'une visite à l'autre) :
 
 - **En cours** : une carte par agent non archivé, mise à jour en place toutes les 4 s (**objectif**, tâche du moment en grand, couleur d'état, fil d'avancement, commits, journaux ; tester, arrêter, rebaser). Une tâche terminée qu'on rebase est **archivée** (ligne `AGENT_ARCHIVED=` de `.git/agents/<nom>.env`) et quitte cet onglet.
@@ -132,7 +134,7 @@ Texte libre ; un chantier se découpe en titres #### ou en puces en gras.
 
 ### Page Backlog
 
-> Une refonte est en cours : la maquette `/roadmap/v2` ([`roadmap-v2.html`](../agent/roadmap-v2.html)) tourne à côté de cette page, sur les mêmes données et actions ; le constat et les choix sont dans [backlog-ux.md](backlog-ux.md).
+> **La page Backlog est refaite** : `/roadmap` sert [`roadmap-v2.html`](../agent/roadmap-v2.html) (constat et choix dans [backlog-ux.md](backlog-ux.md)). L'ancienne page, décrite ci-dessous, reste sur **`/roadmap/v1`** pour l'édition du texte et les discussions avec Claude, le temps de les ramener dans la nouvelle (`/roadmap/v1?open=<id>&mode=chat|subtasks` ouvre un chantier) ; `/roadmap/v2` renvoie à `/roadmap`.
 
 La page **Backlog** (`/roadmap`, bouton « ⟳ Rafraîchir le backlog » en en-tête du tableau de bord ; [`roadmap-routes.mjs`](../agent/roadmap-routes.mjs), [`roadmap.html`](../agent/roadmap.html)) relit `docs/backlog.md` **du dépôt principal**, synchronise ses états et montre ses chantiers par groupe, avec leur état et leur agent. La consigne générée cite le chantier en entier (sous-titres compris) avec sa ligne dans `docs/backlog.md` ([`roadmap.mjs`](../agent/roadmap.mjs) `buildPrompt`).
 

@@ -160,7 +160,7 @@
 </head>
 <body>
 <header>
-  <h1>Backlog __PROJECT__</h1>
+  <h1>Backlog __PROJECT__ <small style="font-size:12px;font-weight:400"><a href="/roadmap">← nouvelle page</a></small></h1>
   <nav class="site"><a href="/">Accueil</a><a href="/agents">Agents</a><a href="/journal">Journal</a><a href="/versions">Versions</a><a href="/roadmap">Backlog</a><a href="/questions">Questions</a><a href="/notifications" title="Notifications sur ton téléphone">🔔</a></nav><script>document.querySelector(`nav.site a[href="${location.pathname}"]`)?.classList.add('on');</script>
   <button class="btn primary" id="refresh" title="Relire __BACKLOG__ du dépôt principal, mettre ses états à jour, retenir son contenu et montrer ce qui a changé depuis le dernier rafraîchissement">⟳ Rafraîchir le backlog</button>
   <span class="summary" id="summary">…</span>
@@ -974,9 +974,15 @@ document.addEventListener('click', (event) => {
 (async () => {
   const params = new URLSearchParams(location.search);
   if (params.has('refresh')) {
-    history.replaceState(null, '', '/roadmap');
+    history.replaceState(null, '', '/roadmap/v1');
     $('refresh').click();
   } else await load();
+  // /roadmap/v1?open=<id>&mode=chat|subtasks : the new page sends here to edit a task or talk it over.
+  const open = params.get('open');
+  if (open && data.items.some((item) => item.id === open)) {
+    const mode = params.get('mode');
+    openTask(open, { focus: mode ? 'chat' : 'text', mode: mode === 'subtasks' ? 'subtasks' : 'task' });
+  }
   setInterval(() => load().catch(() => {}), 5000);
 })();
 </script>
