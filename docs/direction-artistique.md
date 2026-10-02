@@ -182,6 +182,7 @@ Presque tout est généré dans le code (Web Audio API, voir [decisions.md](deci
   - **L'eau étouffe la musique** à mesure qu'on descend : un filtre dont la coupure suit la profondeur, de 16 kHz à la surface à 5,5 kHz au fond de la Fosse.
   - **Dans la Remontée**, chaque chapitre éclairé par la lignée qui remonte (`remontee.litAt`) s'éclaire aussi en musique : l'ambiance de la Remontée monte par-dessus la sienne, qui s'efface à moitié, et l'eau cesse d'étouffer le son.
   - **Les moments** : pendant l'adieu, la musique baisse et ne garde que ses accords, pour laisser les mots ; pendant une parade, ses notes viennent deux fois plus souvent.
+  - **Les danses** dansent au tempo de la musique du chapitre (le pas de ses notes, ramené entre 0,42 et 0,72 s par temps), et marquent leurs temps forts d'une note douce de ré majeur, comme une lame de bois frappée, mêlée à la musique : ré sur le premier temps, la sur le troisième, l'accord de ré égrené sur la pose finale (`danse-son.ts`, voir « Les danses » dans [les mécaniques](mecaniques.md)).
   - **Une musique qui change** quand on reste dans un chapitre (`src/monde/musique-forme.ts`, pur et testé) : l'ambiance passe par des **sections** de quelques accords chacune (deux à six selon le chapitre, soit une demi-minute à une minute et demie), qui changent sur un accord.
     - **Quatre sortes de sections** :
       - **nue** : le bourdon et les harmoniques passent devant, des accords minces qui se balancent entre deux, une note de loin en loin, le filtre plus sombre ;
