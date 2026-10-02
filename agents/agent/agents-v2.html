@@ -81,6 +81,7 @@
   .f { font-size: 11.5px; color: var(--muted); border: 1px solid var(--line); border-radius: 99px; padding: 1px 8px; white-space: nowrap; }
   .f.ok { color: var(--done); border-color: color-mix(in srgb, var(--done) 40%, var(--line)); }
   .f.warn { color: var(--auto); border-color: color-mix(in srgb, var(--auto) 45%, var(--line)); }
+  .report-btn.interim { border-color: var(--auto); color: var(--auto); }
   .f.think { background: none; cursor: pointer; color: var(--soft); }
   .f.think:hover { border-color: var(--accent); color: var(--text); }
   .menu .levels { display: flex; flex-direction: column; }
@@ -360,7 +361,7 @@ function card(v) {
     <div class="task">${v.taskId ? `<a href="/roadmap#t-${esc(v.taskId)}" title="Le chantier dans le backlog">${esc(v.title)}</a>` : esc(v.title)}</div>
     ${nowBox(v)}
     <div class="facts">${facts(v)}</div>
-    <div class="acts">${mainActions(v)}${inTrain(v.name) ? `<span class="f live">${esc(inTrain(v.name))}</span>` : ''}<button class="more" data-menu="${n}" aria-label="Plus d'actions">⋯</button></div>
+    <div class="acts">${mainActions(v)}${v.agent.report ? `<button class="btn small report-btn${v.agent.reportInterim ? ' interim' : ''}" data-report="${n}" title="${v.agent.reportInterim ? 'Son rapport intermédiaire : où il en est' : 'Son rapport'}">${v.agent.reportInterim ? '🚧' : '📝'} Rapport</button>` : ''}${inTrain(v.name) ? `<span class="f live">${esc(inTrain(v.name))}</span>` : ''}<button class="more" data-menu="${n}" aria-label="Plus d'actions">⋯</button></div>
     ${notes.get(v.name) ? `<div class="note ${notes.get(v.name).bad ? 'bad' : 'good'}">${esc(notes.get(v.name).text)}</div>` : ''}
   </article>`;
 }
@@ -776,7 +777,7 @@ document.addEventListener('click', async (event) => {
   if (team) return (closeMenu(), teamAction(team.dataset.team));
   if (event.target.closest('[data-team-menu]')) return (event.stopPropagation(), teamMenu(event.target.closest('[data-team-menu]')));
   const report = event.target.closest('[data-report]');
-  if (report) return (event.stopPropagation(), (reportOpen = report.dataset.report), openDrawer(report.dataset.report));
+  if (report) return (event.stopPropagation(), openReport(report.dataset.report));
   const think = event.target.closest('[data-think]');
   if (think) return (event.stopPropagation(), thinkMenu(think, think.dataset.think));
   const more = event.target.closest('[data-menu]');
@@ -825,8 +826,18 @@ document.addEventListener('keydown', (event) => { if (event.key === 'Escape') (m
 
 Think.onPick($('drawer'), (key, field, value) => saveThink(key, field, value));
 
-// /agents#<name> opens that agent.
-load().then(() => { const hash = decodeURIComponent(location.hash.slice(1)); if (hash && agents.some((a) => a.AGENT_NAME === hash)) openDrawer(hash); });
+// An agent's report, from its card or from the Backlog (/agents#<name>:rapport): its drawer, open on the report.
+async function openReport(name) {
+  reportOpen = name;
+  await openDrawer(name);
+  document.querySelector('.drawer .report')?.scrollIntoView({ block: 'start' });
+}
+
+// /agents#<name> opens that agent, /agents#<name>:rapport its report.
+load().then(() => {
+  const [hash, part] = decodeURIComponent(location.hash.slice(1)).split(':');
+  if (hash && agents.some((a) => a.AGENT_NAME === hash)) (part === 'rapport' ? openReport(hash) : openDrawer(hash));
+});
 setInterval(() => { if (!menu && document.visibilityState === 'visible') load(); }, 4000);
 </script>
 <script src="/nav.js"></script>
