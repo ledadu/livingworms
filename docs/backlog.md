@@ -18,7 +18,7 @@ Les documents de conception : [vision](vision.md), [chapitres](chapitres.md), [m
 Prioritaire, petit. Dans l'écran de la portée (le choix entre les 4 enfants, `src/monde/portee-ecran.ts`), montrer **les deux parents en image** au-dessus des enfants : le parent (la créature jouée) et le partenaire, chacun avec son portrait (`snapshot3`, comme les enfants) et son nom, côte à côte, un peu plus petits que les enfants, avec un signe doux qui les relie (un « + », un fil de lumière dorée). On voit ainsi d'un coup d'œil d'où vient ce que chaque enfant a hérité (« de Première : … / de Méduse lune : … »). Garder l'écran lisible sur téléphone (petite hauteur : les parents plus petits, ou en bandeau) ; une capture avant/après dans le rapport.
 
 ### Le moteur de danse : des pas chorégraphiés pour tous les corps
-> 🔵 en cours · agent moteur-danse
+> 🟠 fusionné · agent moteur-danse
 
 Prioritaire. Pendant l'accouplement, la danse à deux (`src/monde/danse.ts`, « La parade » de `docs/mecaniques.md`) ne fait que déplacer les deux danseurs (se tourner autour, s'enrouler, la spirale, se frôler, le balancement). Garder ces rondes, et ajouter de **vraies danses** : les corps eux-mêmes bougent, se dandinent, font des mouvements spéciaux chorégraphiés, drôles et sympathiques, qui rappellent des danses connues.
 
