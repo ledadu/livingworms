@@ -35,6 +35,18 @@ La première nourriture, végétale : de petites choses à manger sur les algues
 
 D'autres nourritures, « un peu vivantes » : des nuages de **plancton** qui dérivent dans l'eau (on les traverse pour les gober, comme les poissons qui gobent déjà du plancton), et les **polypes** des coraux qu'on peut picorer (ils se rétractent un moment, comme les timides de la flore). C'est la nourriture des chapitres sans plantes (le Jardin de méduses, la Fosse, où le plancton luit dans le noir). Chaque nourriture peut faire grandir plus ou moins ; à voir si certaines espèces préfèrent l'une ou l'autre selon leur corps (bouche, tentacules, filaments).
 
+### La chasse douce
+> ⚪ à faire
+> ↳ après « Manger : le plancton et les polypes »
+
+Manger d'autres êtres vivants, en restant un jeu gentil : de tout petits animaux (minuscules crevettes, vers, larves) qui détalent quand on approche. Les attraper demande un peu de vitesse et d'adresse (l'accélération de « La nage : accélération et élan » aide, sans être indispensable) ; on les gobe d'un coup, sans sang ni combat, et il en revient toujours. Ils nourrissent plus que le végétal. Aucun échec : une proie qui s'échappe, on en trouve une autre. C'est aussi un premier pas vers le jeu plus combatif qui suivra (poursuivre, viser, accélérer).
+
+### Le régime selon le corps
+> ⚪ à faire
+> ↳ après « La chasse douce »
+
+Ce qu'on mange dépend de ce qu'on est devenu : une bouche de chasseur grandit mieux avec des proies, des filaments ou des tentacules avec le plancton, une bouche de brouteur avec le végétal (lu des traits du corps, `src/content/traits.ts`). Toute créature peut tout manger, mais pas avec le même profit : l'hérédité prend du sens, sans jamais bloquer. La lignée le dit à la naissance d'une forme qui change de régime, et les nourritures qui lui conviennent le mieux luisent un peu plus pour elle.
+
 ### L'enfant reste près de ses frères
 > 🟠 fusionné · agent enfant-reste-pres
 
@@ -99,6 +111,57 @@ Certains bruits sonnent trop électroniques. Garder le son généré là où il 
 > ↳ après « De vrais sons pour l'ambiance »
 
 Même pour des sons libres de droit, nommer les personnes qui les ont publiés : une section « Sons » dans les crédits du jeu (le générique, et une page ou un panneau consultable depuis les réglages), avec pour chaque son son titre, son auteur, sa licence et un lien vers la source. Lue depuis le fichier de crédits du chantier des vrais sons ; un test vérifie que chaque fichier audio du jeu y a sa ligne.
+
+## Étape 7 — Nager et jouer avec la mer
+
+Le jeu reste doux, sans échec ni score. Cette partie prépare aussi la suite : l'animal façonné ici sera repris dans un jeu plus combatif, il lui faut une vraie nage et une fiche qui le décrit.
+
+### La nage : accélération et élan
+> ⚪ à faire
+
+Une meilleure façon de se déplacer pour la créature jouée : une **accélération** (un geste simple : double toucher, ou maintenir ; une touche au clavier) qui donne un élan rapide, puis se recharge seule ; de l'**élan et de l'inertie** (on glisse après l'accélération, les virages se prennent en courbe) sans perdre la facilité de pilotage gagnée avec « deplacement relou » (`src/engine3/pilot.ts`). La force et la durée de l'élan viennent du corps (nageoires, cloche, jet, pattes). Agréable sur téléphone comme à la souris ; le corps garde son allure (un poisson bat plus vite de la queue, une cloche pulse plus fort).
+
+### Les capacités de nage par corps
+> ⚪ à faire
+> ↳ après « La nage : accélération et élan »
+
+Chaque manière de nager a sa capacité, qui donne envie de choisir une espèce pour elle : un **jet** qui fuse loin d'un coup, une **cloche** qui plane et descend lentement, un **marcheur** qui bondit depuis le fond, un **poisson** vif dans les virages, une **anguille** qui se glisse dans les passages étroits. Déclenchées par le même geste que l'accélération, selon le corps. Elles peuvent servir aux obstacles des chapitres (sans en devenir la seule clé), et se voient dans l'écran de la portée (ce qu'un enfant saura faire).
+
+### La fiche de l'animal
+> ⚪ à faire
+> ↳ après « Les capacités de nage par corps »
+
+Ce que le jeu doux façonne, c'est un animal, qui sera repris dans un jeu plus combatif : il lui faut une **fiche** propre, lisible par un autre programme. Son corps (l'espèce et ses pièces, comme aujourd'hui), ses traits, et des **mesures calculées d'après son corps** : vitesse, accélération, agilité, endurance, taille, régime, capacités. Pas de chiffres dans le jeu doux (ou très discrets, dans l'arbre des espèces) ; un format versionné et documenté (`docs/`), exportable (un fichier ou un lien depuis l'arbre de la lignée), testé. Proposer le format et poser la question par le tableau de bord pour ce que le jeu suivant devra en lire.
+
+### Le courant à surfer
+> ⚪ à faire
+
+Des courants dans la mer où l'on se laisse porter pour aller vite : visibles (des stries, des bulles, du plancton qui file), avec leur son, qui mènent d'un coin à un autre d'un chapitre ou vers un endroit caché. On y entre, on file, on en sort quand on veut. Un plaisir simple, qui fait aussi sentir la vitesse avant la nouvelle nage.
+
+### Les petits jeux des animaux
+> ⚪ à faire
+
+Des animaux qui jouent avec nous, sans enjeu : un poisson qui joue à chat (il nous touche et file, on le rattrape, il recommence), un banc qui nous accepte si l'on nage à son rythme et nous emmène vers un coin caché, un poulpe qui se cache et qu'il faut trouver. Ça prolonge les scènes des animaux (« action des annimaux dans la nature »). Une petite récompense douce à la fin (une bouchée, un trésor, une lueur), jamais d'échec.
+
+### Les trésors de la lignée
+> ⚪ à faire
+
+Des choses rares à trouver dans chaque chapitre : une perle, une coquille ancienne, une fleur qui ne s'ouvre que si l'on chante, un fossile dans la Carcasse, un cristal dans le Glacier. Un **carnet** les garde (ouvert depuis les réglages ou l'arbre), avec un mot de la lignée sur chacun ; ceux qu'on n'a pas encore trouvés y sont des silhouettes. Gardé dans la sauvegarde. On collectionne, rien ne presse.
+
+### Le chant qui fait des choses
+> ⚪ à faire
+
+Le chant ouvre déjà des passages et fait répondre des animaux ; il peut faire plus, pour donner envie de chanter partout : faire éclore des fleurs, allumer le plancton autour de nous, calmer un grand animal qui passe, réveiller un banc qui se met à danser, faire tomber un fruit d'algue (une bouchée). Chaque note a son effet, simple et joli ; rien n'est obligatoire.
+
+### Les amis qui suivent
+> ⚪ à faire
+
+Un petit animal qu'on a nourri, aidé ou avec qui on a joué nous suit un moment, et peut-être d'un chapitre à l'autre : un compagnon de la génération, qui nage autour de nous, chante avec nous, nous montre parfois un trésor ou une nourriture. Il reste dans le monde quand on change de génération, comme les ancêtres.
+
+### Le portrait de la génération
+> ⚪ à faire
+
+Un instant photo à tout moment (un bouton discret) : la créature jouée, cadrée joliment dans son décor, avec ses amis autour. Les portraits vont dans l'**album de la lignée**, une page par génération, consultable depuis l'arbre et repris dans le générique (`generique-image.ts`). Téléchargeables comme l'image souvenir.
 
 ## Autour du jeu
 
