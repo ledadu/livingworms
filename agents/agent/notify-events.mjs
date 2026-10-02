@@ -74,11 +74,11 @@ export function diffFacts(previous, next) {
     const before = previous.runs[name];
     // A new run (launched or resumed: another start), or the same one that ended.
     const started = run.state === 'running' && (!before || before.state !== 'running' || before.startedAt !== run.startedAt);
-    if (started) events.push({ type: 'agent-launched', agent: name, key: run.startedAt, title: `${name} a démarré`, body: next.queue[name]?.title ?? '', url: '/agents' });
+    if (started) events.push({ type: 'agent-launched', agent: name, key: run.startedAt, title: `${name} a démarré`, body: next.queue[name]?.title ?? '', url: `/agents#${name}` });
     if (before?.state === 'running' && RUN_END[run.state]) {
       const type = RUN_END[run.state];
       events.push(type === 'agent-done'
-        ? { type, agent: name, key: run.startedAt, title: `${name} a fini`, body: `${next.queue[name]?.title ?? ''}\nPrêt à tester et à accepter.`.trim(), url: '/agents' }
+        ? { type, agent: name, key: run.startedAt, title: `${name} a fini`, body: `${next.queue[name]?.title ?? ''}\nPrêt à tester et à accepter.`.trim(), url: `/agents#${name}` }
         : { type, agent: name, key: run.startedAt, title: `${name} s’est arrêté en erreur`, body: run.state === 'lost' ? 'Son processus a disparu.' : `Code de sortie ${run.code}.`, url: `/run/${name}` });
     }
   }
@@ -88,7 +88,7 @@ export function diffFacts(previous, next) {
     events.push({ type: feedback ? 'feedback' : 'question', agent: question.agent, key: id, title: feedback ? `Un mot de ${question.agent}` : `${question.agent} te pose une question`, body: question.title, url: '/questions' });
   }
   for (const [name, refusal] of Object.entries(next.refusals)) {
-    if (refusal.count > (previous.refusals[name]?.count ?? 0)) events.push({ type: 'accept-refused', agent: name, key: `${name}-${refusal.count}`, title: `« Accepter » a refusé ${name}`, body: refusal.last.slice(0, 200), url: '/agents' });
+    if (refusal.count > (previous.refusals[name]?.count ?? 0)) events.push({ type: 'accept-refused', agent: name, key: `${name}-${refusal.count}`, title: `« Accepter » a refusé ${name}`, body: refusal.last.slice(0, 200), url: `/agents#${name}` });
   }
   for (const name of next.archived) {
     if (!previous.archived.includes(name)) events.push({ type: 'accepted', agent: name, key: name, title: `${name} acceptée`, body: 'Fusionnée : elle passe dans « À publier ».', url: '/versions?tab=pending' });

@@ -221,7 +221,7 @@ try {
 // /versions opens on the versions tabs.
 if (location.pathname === '/versions' && !/^(pending|released|branches|v:)/.test(currentTab)) currentTab = 'pending';
 // /agents opens on the tasks (their versions tabs have /versions); ?tab=… picks a tab, from the links of the home page.
-if (location.pathname === '/agents' && /^(pending|released|branches|v:)/.test(currentTab)) currentTab = 'active';
+if (location.pathname.startsWith('/agents') && /^(pending|released|branches|v:)/.test(currentTab)) currentTab = 'active';
 const askedTab = new URLSearchParams(location.search).get('tab');
 if (askedTab && /^(active|pending|released|branches|v:[\d.]+)$/.test(askedTab)) currentTab = askedTab;
 

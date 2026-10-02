@@ -617,7 +617,12 @@ export function createHub({ port, root, snapshot, page, ttl = 4000 }) {
       send(response, 200, 'text/html; charset=utf-8', page('hub.html'));
       return true;
     }
+    // The Agents page (agents-v2.html); the old one, with its tabs, stays on /agents/v1 (/versions keeps it too).
     if (path === '/agents') {
+      send(response, 200, 'text/html; charset=utf-8', page('agents-v2.html'));
+      return true;
+    }
+    if (path === '/agents/v1') {
       send(response, 200, 'text/html; charset=utf-8', page('dashboard.html'));
       return true;
     }
