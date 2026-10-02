@@ -92,7 +92,7 @@ Dans le jeu combatif, **le joueur choisit ses capacités actives** parmi celles 
 ## L'équilibre
 
 - **Dans le jeu doux**, pas d'équilibrage à faire : chaque obstacle garde au moins deux solutions, et une aptitude faible rend un passage moins plaisant, jamais impossible.
-- **Dans le jeu combatif**, les compromis physiques font l'essentiel. S'il faut plus (des parties en ligne entre joueurs), le jeu combatif peut ajouter un **budget** : la somme des aptitudes ramenée à une valeur commune, en gardant le profil. C'est à lui de le faire, pas à la fiche.
+- **Dans le jeu combatif**, on joue **seul ou en coopération contre des créatures** (décidé) : pas de joueurs face à face, donc pas besoin d'un équilibre strict entre animaux de joueurs. Les compromis physiques suffisent ; ce qui compte, c'est que **chaque profil ait sa façon de gagner** (le rapide harcèle, le robuste encaisse, le discret surprend, le planeur reste hors d'atteinte) et qu'en coopération **les profils se complètent** (l'un éclaire, l'autre pince, le troisième attire). Les créatures adverses sont réglées sur les profils possibles, pas l'inverse.
 - Un banc d'essai (`?bench` ou un test) calculera le profil de tout le bestiaire et de croisements tirés au hasard, pour voir les extrêmes et qu'aucun animal ne domine.
 
 ## La fiche de l'animal
@@ -135,7 +135,7 @@ L'animal ne sera pas figé (décidé) : il continue d'évoluer dans le jeu comba
 4. **Les mutations** : rarement, à la naissance, une partie nouvelle ou une variation (une couleur, une épine, une nageoire de plus), comme un cadeau du hasard.
 5. **Les marques** : ce que l'animal a vécu se voit sur lui (cicatrices, couleurs plus vives, une coquille usée) sans rien changer à ses aptitudes : sa fierté, pas sa force.
 
-Proposition : **1 et 2 d'abord** (elles prolongent ce que La Lignée sait déjà faire : fusionner des corps, attacher des parties), puis 3 si le combat demande plus de choix.
+**Retenues : les pistes 1, 2, 3 et 4** (décidé) ; la 5 est laissée de côté pour l'instant. La fiche doit donc pouvoir dire, en plus du corps : la lignée qui s'allonge (1), les symbiotes attachés et ce qu'ils apportent (2), les mues faites et leurs compromis (3), les mutations reçues (4). Chacune est une partie visible du corps : les aptitudes se recalculent toujours du corps, quelle que soit la façon dont il a changé.
 
 ## Les décisions
 
@@ -146,8 +146,10 @@ Proposition : **1 et 2 d'abord** (elles prolongent ce que La Lignée sait déjà
 | L'animal y évolue-t-il ? | Oui, il pourra continuer d'évoluer (pistes ci-dessus, à choisir). |
 | Des chiffres dans le jeu doux ? | Non : un profil sans nombres, qualitatif, beau, en rapport avec l'aptitude et le thème du jeu (la rose des sables vivante, à valider). |
 | Combien de capacités actives ? | Le joueur choisit, parmi celles de son corps. |
+| Contre qui, dans le jeu combatif ? | Seul ou en coopération, contre des créatures. Pas de joueurs face à face. |
+| Quelles pistes d'évolution ? | La lignée continue, les symbioses, les mues, les mutations (1 à 4). |
 
-Reste ouvert : seul contre des créatures ou entre joueurs (ce qui décide du besoin d'un budget d'équilibre), et quelles pistes d'évolution garder.
+Reste ouvert, pour plus tard : les règles du jeu combatif lui-même (sa carte, ses créatures, la coopération à plusieurs : sur le même écran ou en ligne).
 
 ## Par où commencer
 
