@@ -235,7 +235,7 @@
     <h1>Backlog</h1>
     <nav class="site"><a href="/">Accueil</a><a href="/agents">Agents</a><a href="/journal">Journal</a><a href="/versions">Versions</a><a href="/roadmap" class="on">Backlog</a><a href="/questions">Questions</a><a href="/notifications" title="Notifications">🔔</a></nav>
     <span class="spacer"></span>
-    <span class="proto" title="Maquette de la refonte, sur les vraies données. L'ancienne page reste sur /roadmap.">maquette v2 · <a href="/roadmap">ancienne page</a></span>
+    <a class="proto" href="/roadmap/v1" title="L'ancienne page : l'édition du texte et les discussions avec Claude, le temps de les ramener ici">ancienne page</a>
   </div>
   <div class="bar2">
     <label class="search"><span class="muted">⌕</span><input id="q" type="search" placeholder="Chercher un chantier, un agent…  ( / )" autocomplete="off"></label>
@@ -524,7 +524,9 @@ function detailPanel(item) {
     ${agentBox}
     <div class="row">
       ${item.state === 'todo' ? `<button class="btn pick${picked.has(item.id) ? ' on' : ''}" data-toggle-pick="${esc(item.id)}">${picked.has(item.id) ? '✓ Choisi' : 'Choisir'}</button>` : ''}
-      <a class="btn" href="/roadmap#t-${esc(item.id)}" title="Le texte, la discussion 💬 et les sous-tâches 🧩 : dans l'ancienne page, le temps de la maquette">✎ Modifier · 💬 · 🧩</a>
+      <a class="btn" href="/roadmap/v1?open=${esc(item.id)}" title="Modifier le texte (dans l'ancienne page, pour l'instant)">✎ Modifier</a>
+      <a class="btn" href="/roadmap/v1?open=${esc(item.id)}&mode=chat" title="En discuter avec Claude">💬${item.chat ? ` ${item.chat.count}` : ''}</a>
+      <a class="btn" href="/roadmap/v1?open=${esc(item.id)}&mode=subtasks" title="Imaginer et découper ses sous-tâches avec Claude">🧩${item.subChat ? ` ${item.subChat.count}` : ''}</a>
     </div>
     ${steps.length ? `<div class="where" style="margin-top:10px">Puis ${steps.length} sous-tâche${steps.length > 1 ? 's' : ''} : ${steps.map((step) => `<a href="#" data-open="${esc(step.id)}">${esc(step.title)}</a>`).join(' → ')}</div>` : ''}
     <div class="text">${md(item.text)}</div></div>`;
@@ -656,7 +658,7 @@ function openMenu(button, item) {
     closeMenu();
     if (action === 'open') (selected = item.id, render());
     if (action === 'pick') togglePick(item.id);
-    if (action === 'edit') location.href = `/roadmap#t-${item.id}`;
+    if (action === 'edit') location.href = `/roadmap/v1?open=${item.id}`;
     if (action === 'auto') await post(`/api/backlog/auto/${item.id}`, item.auto ? { auto: false } : { auto: true, effort: defaults.effort ?? null, model: defaults.model ?? null });
     if (action === 'detach') await post(`/api/backlog/after/${item.id}`, { after: null });
   });
@@ -874,7 +876,17 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') { if (menu) closeMenu(); else if (selected) (selected = null, render()); }
 });
 
-load();
+// /roadmap?refresh=1 (the Agents page), /roadmap#t-<id> (a notification): refresh, or open that task.
+(async () => {
+  const params = new URLSearchParams(location.search);
+  if (params.has('refresh')) {
+    history.replaceState(null, '', '/roadmap');
+    data = await (await fetch('/api/roadmap/refresh', { method: 'POST' })).json();
+  }
+  await load();
+  const hash = decodeURIComponent(location.hash.replace(/^#t-/, ''));
+  if (hash && byId(hash)) (selected = hash, render());
+})();
 setInterval(() => { if (!menu && !drag.id && document.visibilityState === 'visible' && !document.activeElement?.closest?.('.pickbar')) load(); }, 5000);
 </script>
 </body>

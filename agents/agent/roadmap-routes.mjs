@@ -239,15 +239,20 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
       response.end(JSON.stringify(value));
     };
     const post = request.method === 'POST';
-    // The redesign, tried beside the old page: a mock-up on the real data and actions (roadmap-v2.html).
+    // The Backlog page (roadmap-v2.html); the old one stays on /roadmap/v1 for editing and the chats, for now.
     if (path === '/roadmap/v2') {
-      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-      response.end(renderPage(readFileSync(join(here, 'roadmap-v2.html'), 'utf8')));
+      response.writeHead(302, { location: '/roadmap' });
+      response.end();
+      return true;
+    }
+    if (path === '/roadmap/v1') {
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      response.end(renderPage(readFileSync(join(here, 'roadmap.html'), 'utf8')));
       return true;
     }
     if (path === '/roadmap') {
-      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-      response.end(renderPage(readFileSync(join(here, 'roadmap.html'), 'utf8')));
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+      response.end(renderPage(readFileSync(join(here, 'roadmap-v2.html'), 'utf8')));
       return true;
     }
     // The output of a run, rendered (run.html reads /api/queue/<name>/log?from=… and parses the stream-json).
