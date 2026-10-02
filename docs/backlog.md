@@ -13,11 +13,21 @@ Les documents de conception : [vision](vision.md), [chapitres](chapitres.md), [m
 ## Étape 4 — Lignée
 
 ### Les parents au-dessus de la portée
-> ⚪ à faire
+> 🔵 en cours · agent parents-dessus-portee
 
 Prioritaire, petit. Dans l'écran de la portée (le choix entre les 4 enfants, `src/monde/portee-ecran.ts`), montrer **les deux parents en image** au-dessus des enfants : le parent (la créature jouée) et le partenaire, chacun avec son portrait (`snapshot3`, comme les enfants) et son nom, côte à côte, un peu plus petits que les enfants, avec un signe doux qui les relie (un « + », un fil de lumière dorée). On voit ainsi d'un coup d'œil d'où vient ce que chaque enfant a hérité (« de Première : … / de Méduse lune : … »). Garder l'écran lisible sur téléphone (petite hauteur : les parents plus petits, ou en bandeau) ; une capture avant/après dans le rapport.
 
-### Grandir jusqu'à la maturité
+### Le moteur de danse : des pas chorégraphiés pour tous les corps
+> ⚪ à faire
+
+Prioritaire. Pendant l'accouplement, la danse à deux (`src/monde/danse.ts`, « La parade » de `docs/mecaniques.md`) ne fait que déplacer les deux danseurs (se tourner autour, s'enrouler, la spirale, se frôler, le balancement). Garder ces rondes, et ajouter de **vraies danses** : les corps eux-mêmes bougent, se dandinent, font des mouvements spéciaux chorégraphiés, drôles et sympathiques, qui rappellent des danses connues.
+
+- **Un moteur de danse** (dans `src/engine3/`, pur et testé) : des **pas** décrits une fois, sur ce que tout squelette a, et pas sur une espèce : le tronc (se tortiller, onduler, se cambrer, se rouler en boule), la tête (hocher, secouer, tourner), la queue (frétiller, battre la mesure), les membres par rôle et par côté (nageoires, pattes, bras, tentacules, filaments : lever, agiter, faire la vague de l'avant à l'arrière, alterner gauche et droite), le corps entier (rebondir, pivoter, se dandiner d'un côté à l'autre, une pirouette). Un pas se pose par-dessus la nage de la créature (`creature3.ts`), sans casser ses chaînes ; ce qu'un corps n'a pas, il le saute ou le remplace (une méduse sans pattes agite ses filaments, un ver se tortille plus fort).
+- **Des chorégraphies** : des suites de pas sur un tempo, avec des temps forts, des gestes en miroir ou en canon entre les deux danseurs (l'un fait, l'autre répond), et une pose finale. Des danses qui rappellent quelque chose, avec humour et douceur : le twist, la vague, le pas de crabe de côté, le moonwalk (à reculons au fond), le tango (l'un fait plonger l'autre), la valse (tourner à deux), un disco (un membre pointé vers le haut puis vers le bas), une danse des canards (battre des nageoires, frétiller de la queue)…
+- **Dans la danse à deux** : une ronde ou deux comme aujourd'hui, et une ou deux vraies danses, tirées selon les deux corps (un marcheur danse au fond, deux méduses ondulent ensemble) ; jamais la même suite d'une fois à l'autre. Sur le tempo de la musique du chapitre si possible (son horloge), en ré majeur, avec un petit accent sonore sur les temps forts.
+- **Ouvert** : le moteur est fait pour servir ailleurs (les petits jeux des animaux, un animal qui danse quand on chante, les nouveau-nés qui sortent de l'œuf, la Balade libre) ; un `monde.danse.play(animal, 'twist')` pour l'essayer, et dans `?dev` une liste pour jouer chaque danse sur la créature jouée.
+- Coût tenu sur téléphone (le moteur ajuste quelques paramètres par image, pas de simulation en plus). Captures ou courtes séquences de chaque danse sur plusieurs corps (poisson, crabe, méduse, ver, poulpe) dans le rapport ; mettre à jour « La parade » dans `docs/mecaniques.md`.
+
 > ⚪ à faire
 
 Nouveau concept : chaque créature naît ou apparaît **petite** et doit **grandir jusqu'à la maturité** avant de pouvoir faire des enfants. Pour grandir, elle mange (voir les sous-tâches). Aujourd'hui un enfant sort de son œuf à 30 % de sa taille et grandit tout seul en 7 s (`engine3/grow.ts`, « La ponte » de `docs/mecaniques.md`) : la croissance devient une étape de jeu.
