@@ -833,11 +833,14 @@ async function openReport(name) {
   document.querySelector('.drawer .report')?.scrollIntoView({ block: 'start' });
 }
 
-// /agents#<name> opens that agent, /agents#<name>:rapport its report.
-load().then(() => {
+// /agents#<name> opens that agent, /agents#<name>:rapport its report; also when only the hash changes (a link of
+// « Pour toi » followed from this very page).
+function followHash() {
   const [hash, part] = decodeURIComponent(location.hash.slice(1)).split(':');
   if (hash && agents.some((a) => a.AGENT_NAME === hash)) (part === 'rapport' ? openReport(hash) : openDrawer(hash));
-});
+}
+load().then(followHash);
+window.addEventListener('hashchange', followHash);
 setInterval(() => { if (!menu && document.visibilityState === 'visible') load(); }, 4000);
 </script>
 <script src="/nav.js"></script>

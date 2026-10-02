@@ -104,7 +104,8 @@
     panel.classList.toggle('open');
   });
   document.addEventListener('click', (event) => {
-    if (!event.target.closest('[data-wf-panel]')) panel.classList.remove('open');
+    // A line of the panel (or a click elsewhere) closes it; a link to this very page only changes its hash.
+    if (!event.target.closest('[data-wf-panel]') || event.target.closest('a.wf-item')) panel.classList.remove('open');
   });
   document.addEventListener('keydown', (event) => event.key === 'Escape' && panel.classList.remove('open'));
 

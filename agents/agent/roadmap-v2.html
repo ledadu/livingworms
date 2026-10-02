@@ -955,9 +955,14 @@ document.addEventListener('keydown', (event) => {
     data = await (await fetch('/api/roadmap/refresh', { method: 'POST' })).json();
   }
   await load();
-  const hash = decodeURIComponent(location.hash.replace(/^#t-/, ''));
-  if (hash && byId(hash)) (selected = hash, render());
+  followHash();
 })();
+// /roadmap#t-<id> opens that task; also when only the hash changes (a link followed from this very page).
+function followHash() {
+  const hash = decodeURIComponent(location.hash.replace(/^#t-/, ''));
+  if (hash && data && byId(hash)) (selected = hash, render(), document.getElementById('side')?.scrollIntoView({ block: 'start' }));
+}
+window.addEventListener('hashchange', followHash);
 setInterval(() => { if (!menu && !drag.id && document.visibilityState === 'visible' && !document.activeElement?.closest?.('.pickbar')) load(); }, 5000);
 </script>
 <script src="/nav.js"></script>
