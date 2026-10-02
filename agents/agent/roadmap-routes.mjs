@@ -24,7 +24,7 @@ import {
   removeQueueEntry,
 } from './roadmap.mjs';
 import { STATES, depthOf, dueAuto, foldedSubtasks, parseBacklog, setTaskStatus, subtasksOf, syncBacklog, taskVersion, withLabels, writeAfter, writeAuto, writeTask } from './backlog.mjs';
-import { askAboutTask, clearChat, hasChat, markApplied, readChat } from './task-chat.mjs';
+import { askAboutTask, chatKey, clearChat, hasChat, markApplied, markCreated, readChat } from './task-chat.mjs';
 import { renameSync as renameFile } from 'node:fs';
 import { launchTask, resumeTask, runDir, runLog, runLogFrom, runState, stopTask } from './launch.mjs';
 import { project, renderPage } from '../config.mjs';
@@ -81,6 +81,8 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
         item.subtaskCount = subtasksOf(items, item.id).length;
         const chat = hasChat(registry, item.id) ? readChat(registry, item.id) : null;
         item.chat = chat?.messages.length ? { count: chat.messages.length, pending: chat.pending } : null;
+        const subChat = hasChat(registry, chatKey(item.id, 'subtasks')) ? readChat(registry, chatKey(item.id, 'subtasks')) : null;
+        item.subChat = subChat?.messages.length ? { count: subChat.messages.length, pending: subChat.pending } : null;
       }
       if (item.kind !== 'task' || item.status !== 'new') continue;
       item.proposedName = proposeName(item.title, taken);
@@ -301,27 +303,51 @@ export function roadmapRoutes({ mainRoot, registry: defaultRegistry, here }) {
         return json({ ok: false, error: error.message }), true;
       }
     }
-    const chatRoute = /^\/api\/backlog\/chat\/([a-z0-9-]+)(?:\/(apply|clear))?$/.exec(path);
+    const chatRoute = /^\/api\/backlog\/chat\/([a-z0-9-]+)(?:\/(apply|clear|subtask))?$/.exec(path);
     if (chatRoute) {
       const [, id, action] = chatRoute;
-      if (!post) return json(readChat(registry, id)), true;
+      // ?mode=subtasks : the thread about the task's sub-tasks (🧩), else its own (💬).
+      const mode = new URL(request.url ?? '/', 'http://localhost').searchParams.get('mode') === 'subtasks' ? 'subtasks' : 'task';
+      const key = chatKey(id, mode);
+      if (!post) return json(readChat(registry, key)), true;
       const body = await readBody(request);
       try {
-        if (action === 'clear') return json({ ok: true, chat: clearChat(registry, id) }), true;
+        if (action === 'clear') return json({ ok: true, chat: clearChat(registry, key) }), true;
         if (action === 'apply') {
-          const chat = readChat(registry, id);
+          const chat = readChat(registry, key);
           const proposal = chat.messages[body.index]?.proposal;
           if (!proposal) return json({ ok: false, error: 'pas de proposition à ce message' }), true;
           const task = writeTask({ file: roadmapFile, id, text: proposal, version: body.version });
           let newId = task?.id ?? id;
-          markApplied(registry, id, body.index);
-          if (newId !== id && !hasChat(registry, newId)) renameFile(join(registry, 'chats', `${id}.json`), join(registry, 'chats', `${newId}.json`));
-          else newId = hasChat(registry, newId) && newId !== id ? id : newId;
-          return json({ ok: true, id: newId, version: task ? taskVersion(task) : null, chat: readChat(registry, newId), ...state() }), true;
+          markApplied(registry, key, body.index);
+          // A new title is a new id: the threads follow the task.
+          if (newId !== id) {
+            for (const one of ['task', 'subtasks']) {
+              const from = join(registry, 'chats', `${chatKey(id, one)}.json`);
+              if (existsSync(from) && !hasChat(registry, chatKey(newId, one))) renameFile(from, join(registry, 'chats', `${chatKey(newId, one)}.json`));
+            }
+            if (!hasChat(registry, chatKey(newId, mode))) newId = id;
+          }
+          return json({ ok: true, id: newId, version: task ? taskVersion(task) : null, chat: readChat(registry, chatKey(newId, mode)), ...state() }), true;
+        }
+        if (action === 'subtask') {
+          // « Créer la sous-tâche » : a ```sous-tache block of the thread becomes a task under this one.
+          const chat = readChat(registry, key);
+          const text = chat.messages[body.index]?.subtasks?.[body.sub];
+          if (!text) return json({ ok: false, error: 'pas de sous-tâche à ce message' }), true;
+          if (chat.messages[body.index].created?.[body.sub]) return json({ ok: false, error: 'sous-tâche déjà créée' }), true;
+          const parent = taskOf(id);
+          if (!parent) return json({ ok: false, error: `pas de chantier ${id}` }), true;
+          const created = writeTask({ file: roadmapFile, section: parent.section, text });
+          if (!created) return json({ ok: false, error: 'sous-tâche non créée' }), true;
+          writeAfter({ file: roadmapFile, id: created.id, after: id });
+          return json({ ok: true, created: created.id, chat: markCreated(registry, key, body.index, body.sub, created.id), ...state() }), true;
         }
         const task = taskOf(id);
         if (!task) return json({ ok: false, error: `pas de chantier ${id}` }), true;
-        return json({ ok: true, chat: askAboutTask({ registry, root, task, message: body.message }) }), true;
+        const items = withLabels(parseBacklog(readFileSync(roadmapFile, 'utf8')));
+        const subtasks = subtasksOf(items, id).map((sub) => ({ title: sub.title, state: sub.state, label: sub.label, auto: Boolean(sub.auto) }));
+        return json({ ok: true, chat: askAboutTask({ registry, root, task, message: body.message, mode, subtasks }) }), true;
       } catch (error) {
         return json({ ok: false, conflict: error.code === 409, error: error.message }), true;
       }

@@ -3,7 +3,7 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { askAboutTask, chatArgs, chatPrompt, clearChat, markApplied, readChat, splitAnswer } from '../task-chat.mjs';
+import { askAboutTask, chatArgs, chatKey, chatPrompt, clearChat, markApplied, markCreated, readChat, splitAnswer } from '../task-chat.mjs';
 
 // A fake `claude`: notes its arguments and stdin, answers like `claude -p --output-format json` (FAKE_ANSWER).
 const FAKE = `#!/bin/sh
@@ -41,6 +41,24 @@ describe('task chat', () => {
   it('splits an answer into its text and its last proposal', () => {
     expect(splitAnswer('Voici.\n\n```tache\n### Nid\n\nMieux.\n```\n\nJ’ai précisé.')).toEqual({ text: 'Voici.\n\nJ’ai précisé.', proposal: '### Nid\n\nMieux.' });
     expect(splitAnswer('Juste une question ?')).toEqual({ text: 'Juste une question ?', proposal: null });
+  });
+
+  it('splits out the proposed sub-tasks, each a task of its own, in order', () => {
+    const answer = 'Deux idées.\n\n```sous-tache\n### Les œufs\n\nPondre.\n```\n\n```sous-tâche\n### Les nids\n\nBâtir.\n```\n\n```sous-tache\npas de titre\n```';
+    expect(splitAnswer(answer)).toEqual({ text: 'Deux idées.', proposal: null, subtasks: ['### Les œufs\n\nPondre.', '### Les nids\n\nBâtir.'] });
+  });
+
+  it('tells Claude how to propose sub-tasks, and which ones the task has, in both threads', () => {
+    const subtasks = [{ title: 'Les œufs', state: 'todo', label: 'à faire', auto: true }];
+    const own = chatPrompt({ task, message: 'Découpe-le', first: true, root: '/repo', subtasks });
+    expect(own).toContain('```sous-tache');
+    expect(own).toContain('Ne mets jamais une sous-tâche dans le texte du chantier');
+    expect(own).toContain('« Les œufs » (à faire, lancée d’elle-même');
+    const brainstorm = chatPrompt({ task, message: 'Idées ?', first: true, root: '/repo', mode: 'subtasks' });
+    expect(brainstorm).toContain('découper un chantier en sous-tâches');
+    expect(brainstorm).toContain('pas encore de sous-tâche');
+    expect(chatKey('nid', 'subtasks')).toBe('nid--sous-taches');
+    expect(chatKey('nid')).toBe('nid');
   });
 
   it('gives Claude read-only tools, and the task as it stands on every turn', () => {

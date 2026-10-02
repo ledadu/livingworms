@@ -83,6 +83,8 @@
   .msg .md p { margin: 4px 0; } .msg .md ul, .msg .md ol { margin: 4px 0; padding-left: 20px; }
   .msg .md code { background: var(--panel2); padding: 0 4px; border-radius: 4px; font-size: 12px; }
   .msg .md pre { background: var(--panel2); padding: 6px; border-radius: 6px; overflow: auto; font-size: 12px; }
+  .proposal.sub { border-color: var(--say); }
+  .proposal.sub pre { margin: 0; max-height: 240px; overflow: auto; font-size: 12px; padding: 6px 8px; white-space: pre-wrap; }
   .proposal { margin-top: 8px; border: 1px solid var(--accent); border-radius: 8px; overflow: hidden; }
   .proposal .head { display: flex; gap: 8px; align-items: center; padding: 4px 8px; background: var(--panel2); font-size: 12px; }
   .proposal pre.diff { margin: 0; max-height: 300px; overflow: auto; font-size: 12px; padding: 6px 8px; white-space: pre-wrap; }
@@ -200,7 +202,7 @@
         <div class="bar"><button class="btn primary" id="td-save">Enregistrer</button><button class="btn" id="td-reset" title="Revenir au texte enregistré">Annuler les modifications</button><span class="note" id="td-note"></span></div>
       </div>
       <div class="pane" id="td-chat-pane">
-        <h3>Discussion avec Claude <span style="text-transform:none;letter-spacing:0">(il lit le code, ne modifie rien ; tu appliques ses propositions)</span></h3>
+        <h3 id="td-chat-head">Discussion avec Claude <span style="text-transform:none;letter-spacing:0">(il lit le code, ne modifie rien ; tu appliques ses propositions)</span></h3>
         <div class="thread" id="td-thread"></div>
         <textarea class="ask" id="td-ask" placeholder="Ex. : « découpe-le en étapes vérifiables », « qu'est-ce qui existe déjà dans le code ? », « corrige les fautes et précise les critères de sortie »  (Ctrl+Entrée pour envoyer)"></textarea>
         <div class="bar"><button class="btn primary" id="td-send">Envoyer</button><button class="btn danger" id="td-clear" title="Effacer la discussion (une nouvelle session repart de zéro)">Effacer la discussion</button><span class="note" id="td-chat-note"></span></div>
@@ -284,7 +286,7 @@ function rowHtml(item, marks) {
   return `<div class="row st-${item.status} kind-${item.kind}${depth ? ' sub' : ''}${picked.has(item.id) ? ' picked' : ''}" id="t-${escapeHtml(item.id)}"${task ? ` draggable="true" data-drag="${escapeHtml(item.id)}"` : ''}${depth ? ` style="margin-left:${depth * 22}px"` : ''}>
     <div class="line">${box}${arrow}<span class="title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</span>${auto}${subs}${mark}${who}<span class="pill">${escapeHtml(item.label)}</span>
       <button class="toggle" data-open="${escapeHtml(item.id)}" title="Texte exact (ligne ${item.line})">${open ? '▾ texte' : '▸ texte'}</button>
-      ${item.kind === 'task' ? `${depth && item.state === 'todo' ? `<button class="tool${item.auto ? ' on' : ''}" data-auto="${escapeHtml(item.id)}" title="${item.auto ? 'Ne plus la lancer d\'elle-même' : 'La lancer d\'elle-même, par son propre agent, dès que sa tâche mère est fusionnée (avec l\'effort et le modèle « Par défaut »)'}">⚡</button>` : ''}<button class="tool" data-after="${escapeHtml(item.id)}" title="En faire la sous-tâche d'une autre (ou glisser la ligne sur sa tâche mère ; sur le titre du groupe pour la détacher)">↳</button>${after}<button class="tool" data-edit="${escapeHtml(item.id)}" title="Modifier le texte du chantier">✎</button><button class="tool${item.chat ? ' has' : ''}" data-chat="${escapeHtml(item.id)}" title="En discuter avec Claude pour l'améliorer, l'affiner ou le corriger">💬${item.chat ? `<small>${item.chat.pending ? '…' : item.chat.count}</small>` : ''}</button>` : ''}</div>
+      ${item.kind === 'task' ? `${depth && item.state === 'todo' ? `<button class="tool${item.auto ? ' on' : ''}" data-auto="${escapeHtml(item.id)}" title="${item.auto ? 'Ne plus la lancer d\'elle-même' : 'La lancer d\'elle-même, par son propre agent, dès que sa tâche mère est fusionnée (avec l\'effort et le modèle « Par défaut »)'}">⚡</button>` : ''}<button class="tool" data-after="${escapeHtml(item.id)}" title="En faire la sous-tâche d'une autre (ou glisser la ligne sur sa tâche mère ; sur le titre du groupe pour la détacher)">↳</button>${after}<button class="tool" data-edit="${escapeHtml(item.id)}" title="Modifier le texte du chantier">✎</button><button class="tool${item.subChat ? ' has' : ''}" data-subchat="${escapeHtml(item.id)}" title="Imaginer et découper ses sous-tâches avec Claude (une discussion à part)">🧩${item.subChat ? `<small>${item.subChat.pending ? '…' : item.subChat.count}</small>` : ''}</button><button class="tool${item.chat ? ' has' : ''}" data-chat="${escapeHtml(item.id)}" title="En discuter avec Claude pour l'améliorer, l'affiner ou le corriger">💬${item.chat ? `<small>${item.chat.pending ? '…' : item.chat.count}</small>` : ''}</button>` : ''}</div>
     ${choices}${open ? `<pre>${escapeHtml(item.text)}</pre>` : ''}</div>`;
 }
 
@@ -758,7 +760,9 @@ $('enqueue').addEventListener('click', async () => {
 });
 
 // --- The task dialog: its text on the left (edited in place), the conversation with Claude on the right.
-const dialog = { id: null, section: null, version: null, saved: '', chat: null, poll: null };
+const dialog = { id: null, section: null, version: null, saved: '', chat: null, poll: null, mode: 'task' };
+// The thread of the dialog: the task's own (💬) or the one about its sub-tasks (🧩).
+const chatUrl = (id, action = '') => `/api/backlog/chat/${encodeURIComponent(id)}${action ? `/${action}` : ''}${dialog.mode === 'subtasks' ? '?mode=subtasks' : ''}`;
 const md = (text) => `<div class="md">${window.renderMarkdown ? window.renderMarkdown(String(text ?? '')) : escapeHtml(text)}</div>`;
 
 // A line diff (longest common subsequence) of the current text and a proposal.
@@ -782,7 +786,9 @@ function renderThread() {
   const chat = dialog.chat ?? { messages: [] };
   const thread = $('td-thread');
   const stick = thread.scrollTop + thread.clientHeight >= thread.scrollHeight - 40;
-  thread.innerHTML = (chat.messages.length ? '' : '<p class="typing">Pas encore de discussion. Demande à Claude de relire ce chantier, de le découper, de vérifier ce qui existe déjà dans le code…</p>')
+  thread.innerHTML = (chat.messages.length ? '' : dialog.mode === 'subtasks'
+    ? '<p class="typing">Pas encore de discussion sur les sous-tâches. Demande à Claude de découper ce chantier, d’imaginer ce qui pourrait venir après, de dire ce qu’un même agent peut enchaîner… Chaque sous-tâche proposée se crée d’un clic, rangée sous ce chantier.</p>'
+    : '<p class="typing">Pas encore de discussion. Demande à Claude de relire ce chantier, de le découper, de vérifier ce qui existe déjà dans le code…</p>')
     + chat.messages.map((message, index) => {
       if (message.role === 'user') return `<div class="msg user">${escapeHtml(message.text)}</div>`;
       if (message.error) return `<div class="msg assistant error">Erreur : ${escapeHtml(message.error)}</div>`;
@@ -790,7 +796,14 @@ function renderThread() {
           <button class="btn" data-copy="${index}" title="Reprendre cette version dans l'éditeur, pour la retoucher avant d'enregistrer">↙ Dans l'éditeur</button>
           <button class="btn primary" data-apply="${index}" title="Écrire cette version dans __BACKLOG__">Appliquer</button></div>
         <pre class="diff">${lineDiff(dialog.saved, message.proposal)}</pre></div>` : '';
-      return `<div class="msg assistant">${md(message.text)}${proposal}</div>`;
+      const subs = (message.subtasks ?? []).map((sub, at) => {
+        const made = message.created?.[at];
+        return `<div class="proposal sub"><div class="head"><b>Sous-tâche ${at + 1}</b> · ${escapeHtml(sub.split('\n')[0].replace(/^###\s+/, ''))}<span class="spacer"></span>${made ? `<span class="note good">créée</span> <a href="#t-${escapeHtml(made.id)}" data-reveal="${escapeHtml(made.id)}">voir</a>`
+          : `<button class="btn primary" data-create-sub="${index}:${at}" title="La créer dans __BACKLOG__, rangée sous ce chantier (↳)">Créer la sous-tâche</button>`}</div><pre>${escapeHtml(sub)}</pre></div>`;
+      }).join('');
+      const all = (message.subtasks?.length ?? 0) > 1 && message.subtasks.some((_, at) => !message.created?.[at])
+        ? `<div class="bar" style="margin-top:6px"><button class="btn" data-create-all="${index}">Créer toutes les sous-tâches</button></div>` : '';
+      return `<div class="msg assistant">${md(message.text)}${proposal}${subs}${all}</div>`;
     }).join('')
     + (chat.pending ? '<p class="typing">Claude réfléchit (il peut lire le code : jusqu’à une minute ou deux)…</p>' : '');
   if (stick || chat.pending) thread.scrollTop = thread.scrollHeight;
@@ -801,14 +814,22 @@ function renderThread() {
 
 async function pollChat() {
   if (!dialog.id || !$('task-dialog').open) return;
-  dialog.chat = await (await fetch(`/api/backlog/chat/${encodeURIComponent(dialog.id)}`, { cache: 'no-store' })).json();
+  dialog.chat = await (await fetch(chatUrl(dialog.id), { cache: 'no-store' })).json();
   renderThread();
 }
 
-async function openTask(id, { focus = 'text' } = {}) {
+async function openTask(id, { focus = 'text', mode = 'task' } = {}) {
   const result = await (await fetch(`/api/backlog/task/${encodeURIComponent(id)}`, { cache: 'no-store' })).json();
   if (!result.ok) return alert(result.error);
-  Object.assign(dialog, { id, section: result.task.section, version: result.task.version, saved: result.task.text, chat: result.chat });
+  dialog.mode = mode;
+  const chat = mode === 'subtasks' ? await (await fetch(chatUrl(id), { cache: 'no-store' })).json() : result.chat;
+  Object.assign(dialog, { id, section: result.task.section, version: result.task.version, saved: result.task.text, chat });
+  $('td-chat-head').innerHTML = mode === 'subtasks'
+    ? '🧩 Sous-tâches, avec Claude <span style="text-transform:none;letter-spacing:0">(imaginer, découper, ordonner ; chaque sous-tâche proposée se crée d’un clic)</span>'
+    : 'Discussion avec Claude <span style="text-transform:none;letter-spacing:0">(il lit le code, ne modifie rien ; tu appliques ses propositions et crées ses sous-tâches)</span>';
+  $('td-ask').placeholder = mode === 'subtasks'
+    ? 'Ex. : « découpe ce chantier en sous-tâches », « qu’est-ce qui pourrait venir après ? », « lesquelles mériteraient leur propre agent ? »  (Ctrl+Entrée pour envoyer)'
+    : 'Ex. : « découpe-le en étapes vérifiables », « qu’est-ce qui existe déjà dans le code ? », « corrige les fautes et précise les critères de sortie »  (Ctrl+Entrée pour envoyer)';
   $('td-title').textContent = result.task.title;
   $('td-where').textContent = `groupe « ${result.task.section} » · __BACKLOG__`;
   $('td-text').value = result.task.text;
@@ -822,7 +843,7 @@ async function openTask(id, { focus = 'text' } = {}) {
 }
 
 function newTask(section) {
-  Object.assign(dialog, { id: null, section, version: null, saved: '', chat: null });
+  Object.assign(dialog, { id: null, section, version: null, saved: '', chat: null, mode: 'task' });
   $('td-title').textContent = 'Nouveau chantier';
   $('td-where').textContent = `groupe « ${section} » · __BACKLOG__`;
   $('td-text').value = '### Titre du chantier\n\nCe qu’il faut faire, pourquoi, et comment savoir que c’est fini.\n';
@@ -861,7 +882,7 @@ async function sendMessage() {
   if (!message || !dialog.id) return;
   // Unsaved edits first: Claude reads the task as it is in the file.
   if ($('td-text').value !== dialog.saved && !(await saveTask())) return;
-  const result = await (await fetch(`/api/backlog/chat/${encodeURIComponent(dialog.id)}`, { method: 'POST', body: JSON.stringify({ message }) })).json();
+  const result = await (await fetch(chatUrl(dialog.id), { method: 'POST', body: JSON.stringify({ message }) })).json();
   if (!result.ok) {
     $('td-chat-note').className = 'note bad';
     $('td-chat-note').textContent = result.error;
@@ -887,7 +908,7 @@ $('task-dialog').addEventListener('cancel', (event) => {
 });
 $('td-clear').addEventListener('click', async () => {
   if (!dialog.id || !confirm('Effacer toute la discussion sur ce chantier ?')) return;
-  const result = await (await fetch(`/api/backlog/chat/${encodeURIComponent(dialog.id)}/clear`, { method: 'POST', body: '{}' })).json();
+  const result = await (await fetch(chatUrl(dialog.id, 'clear'), { method: 'POST', body: '{}' })).json();
   if (result.ok) (dialog.chat = result.chat, renderThread());
 });
 $('td-thread').addEventListener('click', async (event) => {
@@ -898,11 +919,33 @@ $('td-thread').addEventListener('click', async (event) => {
     $('td-note').textContent = 'Proposition reprise dans l’éditeur : retouche-la puis Enregistrer.';
     return;
   }
+  const one = event.target.closest('[data-create-sub]');
+  const every = event.target.closest('[data-create-all]');
+  if (one || every) {
+    const picks = one ? [one.dataset.createSub.split(':').map(Number)]
+      : dialog.chat.messages[Number(every.dataset.createAll)].subtasks.map((_, at) => [Number(every.dataset.createAll), at]).filter(([index, at]) => !dialog.chat.messages[index].created?.[at]);
+    (one ?? every).disabled = true;
+    for (const [index, sub] of picks) {
+      const result = await (await fetch(chatUrl(dialog.id, 'subtask'), { method: 'POST', body: JSON.stringify({ index, sub }) })).json();
+      if (!result.ok) {
+        $('td-chat-note').className = 'note bad';
+        $('td-chat-note').textContent = result.error;
+        break;
+      }
+      dialog.chat = result.chat;
+      data = { ...data, ...result };
+    }
+    render();
+    renderThread();
+    $('td-chat-note').className = 'note good';
+    $('td-chat-note').textContent = `Sous-tâche${picks.length > 1 ? 's' : ''} créée${picks.length > 1 ? 's' : ''} sous ce chantier (↳).`;
+    return;
+  }
   const apply = event.target.closest('[data-apply]');
   if (!apply) return;
   if ($('td-text').value !== dialog.saved && !confirm('Le texte a des modifications non enregistrées : les remplacer par la proposition ?')) return;
   apply.disabled = true;
-  const result = await (await fetch(`/api/backlog/chat/${encodeURIComponent(dialog.id)}/apply`, { method: 'POST', body: JSON.stringify({ index: Number(apply.dataset.apply), version: dialog.version }) })).json();
+  const result = await (await fetch(chatUrl(dialog.id, 'apply'), { method: 'POST', body: JSON.stringify({ index: Number(apply.dataset.apply), version: dialog.version }) })).json();
   if (!result.ok) {
     apply.disabled = false;
     $('td-chat-note').className = 'note bad';
@@ -911,7 +954,7 @@ $('td-thread').addEventListener('click', async (event) => {
   }
   data = { ...data, ...result };
   render();
-  await openTask(result.id, { focus: 'chat' });
+  await openTask(result.id, { focus: 'chat', mode: dialog.mode });
   $('td-note').className = 'note good';
   $('td-note').textContent = 'Proposition appliquée dans __BACKLOG__.';
 });
@@ -919,10 +962,12 @@ document.addEventListener('click', (event) => {
   const edit = event.target.closest('[data-edit]');
   const chat = event.target.closest('[data-chat]');
   const add = event.target.closest('[data-new]');
-  if (!edit && !chat && !add) return;
+  const subchat = event.target.closest('[data-subchat]');
+  if (!edit && !chat && !add && !subchat) return;
   event.preventDefault();
   event.stopPropagation();
-  if (add) newTask(add.dataset.new);
+  if (subchat) openTask(subchat.dataset.subchat, { focus: 'chat', mode: 'subtasks' });
+  else if (add) newTask(add.dataset.new);
   else openTask((edit ?? chat).dataset.edit ?? (edit ?? chat).dataset.chat, { focus: chat ? 'chat' : 'text' });
 }, true);
 
